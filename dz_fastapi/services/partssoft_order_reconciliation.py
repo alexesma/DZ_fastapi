@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.base import (
     Client,
     Customer,
@@ -26,13 +27,15 @@ from dz_fastapi.core.base import (
     Photo,
 )
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
-from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.autopart import (
+    TYPE_SUPPLIER_DECISION_STATUS,
+    AutoPart,
+    preprocess_oem_number,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import CUSTOMER_ORDER_STATUS, TYPE_PRICES
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.order import OrderPositionOut
-from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
