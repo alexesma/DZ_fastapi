@@ -46,7 +46,11 @@ from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation, prep
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.inventory import Warehouse
-from dz_fastapi.models.nomenclature import ApplicabilityNode, HonestSignCategory
+from dz_fastapi.models.nomenclature import (
+    ApplicabilityNode,
+    HonestSignCategory,
+    autopart_applicability_association,
+)
 from dz_fastapi.models.partner import (
     PriceList,
     PriceListAutoPartAssociation,
@@ -1910,6 +1914,14 @@ async def get_autoparts_catalog(
         pattern="^(with_photo|with_description|complete|missing_content)$",
         description="Фильтр наполненности карточки",
     ),
+    links: Optional[str] = Query(
+        None,
+        pattern=(
+            "^(with_applicability|without_applicability"
+            "|with_crosses|without_crosses)$"
+        ),
+        description="Фильтр по применимости и кроссам",
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
@@ -1921,6 +1933,7 @@ async def get_autoparts_catalog(
         q_brand=q_brand,
         partssoft=partssoft,
         content=content,
+        links=links,
         offset=offset,
         limit=limit,
     )
@@ -1949,6 +1962,54 @@ async def get_autoparts_catalog(
         )
         for row in (await session.execute(stock_stmt)).mappings().all():
             stock_map[row["autopart_id"]] = row["qty"] or 0
+
+    # Применимость и кроссы — двумя запросами на страницу, а не по
+    # запросу на товар. Имён берём немного: в таблице видно число, а
+    # полный перечень смотрят в карточке.
+    applicability_names: dict[int, list[str]] = {}
+    applicability_counts: dict[int, int] = {}
+    cross_counts: dict[int, int] = {}
+    if items:
+        ap_ids = [ap.id for ap in items]
+        node_stmt = (
+            select(
+                autopart_applicability_association.c.autopart_id,
+                ApplicabilityNode.name,
+            )
+            .join(
+                ApplicabilityNode,
+                ApplicabilityNode.id
+                == autopart_applicability_association.c.applicability_node_id,
+            )
+            .where(
+                autopart_applicability_association.c.autopart_id.in_(ap_ids)
+            )
+            .order_by(
+                autopart_applicability_association.c.autopart_id.asc(),
+                ApplicabilityNode.name.asc(),
+            )
+        )
+        for row in (await session.execute(node_stmt)).all():
+            autopart_id = int(row.autopart_id)
+            applicability_counts[autopart_id] = (
+                applicability_counts.get(autopart_id, 0) + 1
+            )
+            names = applicability_names.setdefault(autopart_id, [])
+            if len(names) < 5:
+                names.append(str(row.name))
+
+        cross_stmt = (
+            select(
+                AutoPartCross.source_autopart_id,
+                func.count().label("cross_count"),
+            )
+            .where(AutoPartCross.source_autopart_id.in_(ap_ids))
+            .group_by(AutoPartCross.source_autopart_id)
+        )
+        for row in (await session.execute(cross_stmt)).all():
+            cross_counts[int(row.source_autopart_id)] = int(
+                row.cross_count or 0
+            )
 
     catalog_items = []
     for ap in items:
@@ -1984,6 +2045,9 @@ async def get_autoparts_catalog(
                 has_description=bool((ap.description or "").strip()),
                 photo_count=len(ap.photos or []),
                 primary_photo_url=(ap.photos[0].url if ap.photos else None),
+                applicability_count=applicability_counts.get(ap.id, 0),
+                applicability_names=applicability_names.get(ap.id, []),
+                cross_count=cross_counts.get(ap.id, 0),
                 categories=ap.categories,
                 storage_locations=ap.storage_locations,
                 stock_quantity=stock_map.get(ap.id, 0),

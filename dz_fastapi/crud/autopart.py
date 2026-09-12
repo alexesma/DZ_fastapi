@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, or_, update
+from sqlalchemy import and_, exists, func, or_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -30,6 +30,7 @@ from dz_fastapi.models.autopart import (
     preprocess_oem_number,
 )
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
 from dz_fastapi.schemas.autopart import (
@@ -438,6 +439,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         q_brand: Optional[str] = None,
         partssoft: Optional[bool] = None,
         content: Optional[str] = None,
+        links: Optional[str] = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[AutoPart], int]:
@@ -469,6 +471,22 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             where_clauses.extend((has_photo, has_description))
         elif content == "missing_content":
             where_clauses.append(or_(~has_photo, ~has_description))
+        # Применимость и кроссы: отдельный отбор, чтобы искать
+        # незаполненные карточки, а не просматривать их подряд.
+        has_applicability = AutoPart.applicability_nodes.any()
+        has_crosses = exists(
+            select(AutoPartCross.id).where(
+                AutoPartCross.source_autopart_id == AutoPart.id
+            )
+        )
+        if links == "with_applicability":
+            where_clauses.append(has_applicability)
+        elif links == "without_applicability":
+            where_clauses.append(~has_applicability)
+        elif links == "with_crosses":
+            where_clauses.append(has_crosses)
+        elif links == "without_crosses":
+            where_clauses.append(~has_crosses)
 
         # COUNT (plain SQL, no ORM loading options)
         count_stmt = (

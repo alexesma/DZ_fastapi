@@ -495,6 +495,12 @@ class AutoPartCatalogItem(BaseModel):
     has_description: bool = False
     photo_count: int = 0
     primary_photo_url: Optional[str] = None
+    # Наполненность карточки: сколько узлов применимости привязано и
+    # сколько кроссов заведено. Имена узлов — первые несколько, для
+    # подсказки: полный список смотрят в карточке товара.
+    applicability_count: int = 0
+    applicability_names: List[str] = Field(default_factory=list)
+    cross_count: int = 0
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
     stock_quantity: int = 0
