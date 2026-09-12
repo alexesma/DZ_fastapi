@@ -1,10 +1,12 @@
+import logging
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 from statistics import median
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import Integer, and_, case, column, func, literal, select, text, values
+from sqlalchemy import Integer, and_, case, column, func, literal, select, text, tuple_, values
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -22,6 +24,8 @@ from dz_fastapi.models.partner import (
     OrderItem,
     PriceList,
     PriceListAutoPartAssociation,
+    PriceListMetricCache,
+    PriceListPairStatCache,
     Provider,
     ProviderPriceListConfig,
     ProviderPricelistReview,
@@ -41,6 +45,8 @@ from dz_fastapi.schemas.dashboard import (
     SupplierPriceTrendSeries,
 )
 from dz_fastapi.services.inventory_dashboard import get_inventory_control_dashboard
+
+logger = logging.getLogger("dz_fastapi")
 
 router = APIRouter()
 
@@ -1090,6 +1096,116 @@ def _to_float(value: object) -> Optional[float]:
         return None
 
 
+async def _load_pricelist_metrics(
+    session: AsyncSession,
+    pricelist_ids: list[int],
+) -> dict[int, dict]:
+    """Показатели прайсов: из кэша, недостающие досчитываем и запоминаем.
+
+    Агрегация шла по 9,4 млн строк таблицы связей при каждом открытии
+    дашборда и не укладывалась в таймаут браузера. После загрузки прайса
+    эти четыре числа неизменны, поэтому считаем их однажды.
+    """
+    if not pricelist_ids:
+        return {}
+    unique_ids = sorted(set(int(value) for value in pricelist_ids))
+    cached_rows = (
+        await session.execute(
+            select(PriceListMetricCache).where(
+                PriceListMetricCache.pricelist_id.in_(unique_ids)
+            )
+        )
+    ).scalars().all()
+    metric_map: dict[int, dict] = {
+        int(row.pricelist_id): {
+            "total_sku_count": int(row.total_sku_count or 0),
+            "sku_count": int(row.sku_count or 0),
+            "stock_total_qty": int(row.stock_total_qty or 0),
+            "avg_price": _to_float(row.avg_price),
+        }
+        for row in cached_rows
+    }
+    missing = [value for value in unique_ids if value not in metric_map]
+    if not missing:
+        return metric_map
+
+    metric_stmt = (
+        select(
+            PriceListAutoPartAssociation.pricelist_id,
+            func.count().label("total_sku_count"),
+            func.count()
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("sku_count"),
+            func.sum(PriceListAutoPartAssociation.quantity)
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("stock_total_qty"),
+            func.avg(PriceListAutoPartAssociation.price)
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("avg_price"),
+        )
+        .where(PriceListAutoPartAssociation.pricelist_id.in_(missing))
+        .group_by(PriceListAutoPartAssociation.pricelist_id)
+    )
+    computed: dict[int, dict] = {}
+    for row in (await session.execute(metric_stmt)).all():
+        computed[int(row.pricelist_id)] = {
+            "total_sku_count": int(row.total_sku_count or 0),
+            "sku_count": int(row.sku_count or 0),
+            "stock_total_qty": int(row.stock_total_qty or 0),
+            "avg_price": _to_float(row.avg_price),
+        }
+    # Пустой прайс Postgres не вернёт — запоминаем и его, иначе он будет
+    # пересчитываться при каждом открытии дашборда.
+    for pricelist_id in missing:
+        computed.setdefault(
+            pricelist_id,
+            {
+                "total_sku_count": 0,
+                "sku_count": 0,
+                "stock_total_qty": 0,
+                "avg_price": None,
+            },
+        )
+    await _remember_pricelist_metrics(session, computed)
+    metric_map.update(computed)
+    return metric_map
+
+
+async def _remember_pricelist_metrics(
+    session: AsyncSession,
+    computed: dict[int, dict],
+) -> None:
+    """Кладёт посчитанное в кэш. Сбой записи не должен ломать дашборд."""
+    if not computed:
+        return
+    try:
+        await session.execute(
+            pg_insert(PriceListMetricCache)
+            .values(
+                [
+                    {
+                        "pricelist_id": pricelist_id,
+                        "total_sku_count": values["total_sku_count"],
+                        "sku_count": values["sku_count"],
+                        "stock_total_qty": values["stock_total_qty"],
+                        "avg_price": values["avg_price"],
+                        "computed_at": now_moscow(),
+                    }
+                    for pricelist_id, values in sorted(computed.items())
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["pricelist_id"])
+        )
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.warning(
+            "Не удалось запомнить показатели прайсов %s: %s",
+            sorted(computed),
+            exc,
+        )
+
+
 async def _load_pair_stats_batch(
     session: AsyncSession,
     pairs: set[tuple[int, int]],
@@ -1114,10 +1230,34 @@ async def _load_pair_stats_batch(
     if not pairs:
         return result
 
+    # Оба прайса в паре после загрузки неизменны, значит и сравнение
+    # неизменно. Считанное однажды берём из кэша: попарное соединение
+    # таблицы связей шло десятками последовательных тяжёлых запросов и
+    # было самой дорогой частью раздела.
+    cached_pairs = (
+        await session.execute(
+            select(PriceListPairStatCache).where(
+                tuple_(
+                    PriceListPairStatCache.prev_pricelist_id,
+                    PriceListPairStatCache.curr_pricelist_id,
+                ).in_(sorted(pairs))
+            )
+        )
+    ).scalars().all()
+    for row in cached_pairs:
+        result[(int(row.prev_pricelist_id), int(row.curr_pricelist_id))] = (
+            int(row.overlap_count or 0),
+            _to_float(row.median_pct),
+            _to_float(row.changed_share_pct),
+        )
+    missing_pairs = {pair for pair in pairs if pair not in result}
+    if not missing_pairs:
+        return result
+
     # Один запрос на сотни пар создавал большой parallel hash в /dev/shm.
     # Небольшие последовательные пачки ограничивают пиковую память.
     await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
-    ordered_pairs = sorted(pairs)
+    ordered_pairs = sorted(missing_pairs)
     batch_size = 8
     for offset in range(0, len(ordered_pairs), batch_size):
         pair_values = values(
@@ -1173,7 +1313,55 @@ async def _load_pair_stats_batch(
     # Пары без общих позиций Postgres не вернёт — заполняем нулями.
     for pair in pairs:
         result.setdefault(pair, (0, None, None))
+    await _remember_pair_stats(
+        session,
+        {pair: result[pair] for pair in missing_pairs},
+    )
     return result
+
+
+async def _remember_pair_stats(
+    session: AsyncSession,
+    computed: dict[tuple[int, int], tuple[int, Optional[float], Optional[float]]],
+) -> None:
+    """Кладёт сравнения в кэш. Сбой записи не должен ломать дашборд."""
+    if not computed:
+        return
+    try:
+        await session.execute(
+            pg_insert(PriceListPairStatCache)
+            .values(
+                [
+                    {
+                        "prev_pricelist_id": prev_id,
+                        "curr_pricelist_id": curr_id,
+                        "overlap_count": overlap_count,
+                        "median_pct": median_pct,
+                        "changed_share_pct": changed_share_pct,
+                        "computed_at": now_moscow(),
+                    }
+                    for (
+                        prev_id,
+                        curr_id,
+                    ), (
+                        overlap_count,
+                        median_pct,
+                        changed_share_pct,
+                    ) in sorted(computed.items())
+                ]
+            )
+            .on_conflict_do_nothing(
+                index_elements=["prev_pricelist_id", "curr_pricelist_id"]
+            )
+        )
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.warning(
+            "Не удалось запомнить сравнения прайсов %s: %s",
+            sorted(computed),
+            exc,
+        )
 
 
 def _rolling_median(
@@ -1211,20 +1399,18 @@ async def get_supplier_price_trends(
     session: AsyncSession = Depends(get_session),
 ):
     start_date = now_moscow().date() - timedelta(days=days - 1)
-    ranked_stmt = (
+
+    # Один прайс на конфигурацию за день — последний загруженный.
+    # Поставщик за сутки присылает файл по несколько раз (у Кунцево было
+    # три загрузки за день), и прежде каждая становилась отдельной точкой:
+    # график громоздил их на одну дату, а запрос считал агрегаты по всем.
+    # Склейка убрала 289 прайсов до 121 и 9,4 млн строк до 2,7 млн, не
+    # потеряв ни одной даты.
+    daily_stmt = (
         select(
-            PriceList.id.label("pricelist_id"),
             PriceList.provider_config_id.label("provider_config_id"),
             PriceList.date.label("price_date"),
-            func.row_number()
-            .over(
-                partition_by=PriceList.provider_config_id,
-                order_by=(
-                    PriceList.date.desc().nullslast(),
-                    PriceList.id.desc(),
-                ),
-            )
-            .label("rn"),
+            func.max(PriceList.id).label("pricelist_id"),
         )
         .select_from(PriceList)
         .join(
@@ -1236,11 +1422,28 @@ async def get_supplier_price_trends(
             ProviderPriceListConfig.is_active.is_(True),
             PriceList.date >= start_date,
         )
+        .group_by(PriceList.provider_config_id, PriceList.date)
     )
     if provider_config_ids:
-        ranked_stmt = ranked_stmt.where(
+        daily_stmt = daily_stmt.where(
             PriceList.provider_config_id.in_(provider_config_ids)
         )
+    daily_subquery = daily_stmt.subquery()
+
+    ranked_stmt = select(
+        daily_subquery.c.pricelist_id,
+        daily_subquery.c.provider_config_id,
+        daily_subquery.c.price_date,
+        func.row_number()
+        .over(
+            partition_by=daily_subquery.c.provider_config_id,
+            order_by=(
+                daily_subquery.c.price_date.desc().nullslast(),
+                daily_subquery.c.pricelist_id.desc(),
+            ),
+        )
+        .label("rn"),
+    )
     ranked_subquery = ranked_stmt.subquery()
 
     points_stmt = (
@@ -1279,33 +1482,7 @@ async def get_supplier_price_trends(
         )
         pricelist_ids.append(pricelist_id)
 
-    metric_stmt = (
-        select(
-            PriceListAutoPartAssociation.pricelist_id,
-            func.count().label("total_sku_count"),
-            func.count()
-            .filter(PriceListAutoPartAssociation.quantity > 0)
-            .label("sku_count"),
-            func.sum(PriceListAutoPartAssociation.quantity)
-            .filter(PriceListAutoPartAssociation.quantity > 0)
-            .label("stock_total_qty"),
-            func.avg(PriceListAutoPartAssociation.price)
-            .filter(PriceListAutoPartAssociation.quantity > 0)
-            .label("avg_price"),
-        )
-        .where(PriceListAutoPartAssociation.pricelist_id.in_(pricelist_ids))
-        .group_by(PriceListAutoPartAssociation.pricelist_id)
-    )
-    metric_rows = (await session.execute(metric_stmt)).all()
-    metric_map = {
-        int(row.pricelist_id): {
-            "total_sku_count": int(row.total_sku_count or 0),
-            "sku_count": int(row.sku_count or 0),
-            "stock_total_qty": int(row.stock_total_qty or 0),
-            "avg_price": _to_float(row.avg_price),
-        }
-        for row in metric_rows
-    }
+    metric_map = await _load_pricelist_metrics(session, pricelist_ids)
 
     # Реальное время загрузки прайса берём из истории цен (created_at
     # пишется в момент загрузки) — у самого PriceList времени нет.
@@ -1326,35 +1503,21 @@ async def get_supplier_price_trends(
     # внутри окна days, а не самая ранняя из показанных points_limit точек.
     # Иначе при days=30 и points_limit=8 подпись врала бы: сравнение шло
     # с 8-й с конца загрузкой, а не с началом периода.
-    earliest_ranked_stmt = (
-        select(
-            PriceList.id.label("pricelist_id"),
-            PriceList.provider_config_id.label("provider_config_id"),
-            func.row_number()
-            .over(
-                partition_by=PriceList.provider_config_id,
-                order_by=(
-                    PriceList.date.asc().nullslast(),
-                    PriceList.id.asc(),
-                ),
-            )
-            .label("rn"),
+    # База периода берётся из того же склеенного по дням набора, иначе
+    # сравнение уехало бы на промежуточную загрузку того же дня.
+    earliest_ranked_stmt = select(
+        daily_subquery.c.pricelist_id,
+        daily_subquery.c.provider_config_id,
+        func.row_number()
+        .over(
+            partition_by=daily_subquery.c.provider_config_id,
+            order_by=(
+                daily_subquery.c.price_date.asc().nullslast(),
+                daily_subquery.c.pricelist_id.asc(),
+            ),
         )
-        .select_from(PriceList)
-        .join(
-            ProviderPriceListConfig,
-            ProviderPriceListConfig.id == PriceList.provider_config_id,
-        )
-        .where(
-            PriceList.provider_config_id.is_not(None),
-            ProviderPriceListConfig.is_active.is_(True),
-            PriceList.date >= start_date,
-        )
+        .label("rn"),
     )
-    if provider_config_ids:
-        earliest_ranked_stmt = earliest_ranked_stmt.where(
-            PriceList.provider_config_id.in_(provider_config_ids)
-        )
     earliest_subquery = earliest_ranked_stmt.subquery()
     earliest_map = {
         int(row.provider_config_id): int(row.pricelist_id)

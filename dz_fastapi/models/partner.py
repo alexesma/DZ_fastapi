@@ -514,6 +514,61 @@ class PriceList(Base):
     )
 
 
+class PriceListMetricCache(Base):
+    """Показатели загруженного прайса: считаются один раз.
+
+    Дашборд строил «Динамику прайсов поставщиков», пересчитывая count,
+    sum и avg по 9,4 млн строк таблицы связей при каждом открытии, и не
+    укладывался в тридцатисекундный таймаут браузера. У загруженного
+    прайса эти числа больше не меняются, поэтому считаем их при первом
+    обращении и запоминаем: четыре числа на прайс вместо агрегации по
+    9,4 млн строк.
+    """
+
+    id = None
+
+    pricelist_id = Column(
+        Integer,
+        ForeignKey("pricelist.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    total_sku_count = Column(Integer, nullable=False, default=0)
+    sku_count = Column(Integer, nullable=False, default=0)
+    stock_total_qty = Column(BigInteger, nullable=False, default=0)
+    # Двойная точность, а не DECIMAL: Postgres отдаёт среднее как
+    # число с плавающей точкой, и округление до четырёх знаков делало
+    # кэшированный ответ отличным от только что посчитанного.
+    avg_price = Column(Float, nullable=True)
+    computed_at = Column(DateTime(timezone=True), default=now_moscow)
+
+
+class PriceListPairStatCache(Base):
+    """Сравнение двух соседних прайсов: тоже считается один раз.
+
+    Эта часть была дороже показателей: попарное соединение таблицы связей
+    шло пачками по восемь пар, то есть десятками последовательных
+    тяжёлых запросов. Оба прайса в паре неизменны, значит и результат
+    неизменен.
+    """
+
+    id = None
+
+    prev_pricelist_id = Column(
+        Integer,
+        ForeignKey("pricelist.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    curr_pricelist_id = Column(
+        Integer,
+        ForeignKey("pricelist.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    overlap_count = Column(Integer, nullable=False, default=0)
+    median_pct = Column(Float, nullable=True)
+    changed_share_pct = Column(Float, nullable=True)
+    computed_at = Column(DateTime(timezone=True), default=now_moscow)
+
+
 class PriceListMissingBrand(Base):
     pricelist_id = Column(
         Integer,
