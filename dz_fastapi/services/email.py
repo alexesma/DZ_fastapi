@@ -1733,6 +1733,19 @@ async def get_emails(
             accounts.append(extra_account)
             accounts_by_id[normalized_account_id] = extra_account
 
+    # Освобождаем соединение перед разбором почты. Дальше идёт самая
+    # долгая часть работы — обход всех ящиков по IMAP, минуты и десятки.
+    # Прежде сессия держала на это время открытую транзакцию, и Postgres
+    # убивал её по idle_in_transaction_session_timeout (полчаса). Первый
+    # же запрос после выборки падал с «connection is closed» — так
+    # выглядела ошибка на поиске поставщика по informer@tochka.com.
+    # Настройки пула тут не спасают: pool_pre_ping и pool_recycle
+    # проверяют соединение при выдаче из пула, а это уже выдано.
+    # expire_on_commit=False, поэтому загруженные учётные записи после
+    # commit остаются пригодными и новую транзакцию не открывают.
+    if session is not None:
+        await session.commit()
+
     if accounts:
         for account in accounts:
             try:

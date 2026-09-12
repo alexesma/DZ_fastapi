@@ -530,3 +530,65 @@ async def test_download_price_provider_uses_uid_fallback_on_search_error(
     assert (tmp_path / "alyprice_new.xls").read_bytes() == b"payload"
     assert flagged == [("105", ("\\Seen",), True)]
     assert updated_uids == [(934, 105, 38, "INBOX")]
+
+
+@pytest.mark.asyncio
+async def test_get_emails_releases_connection_before_mailbox_scan(monkeypatch):
+    """Соединение с базой освобождается до длинного обхода ящиков.
+
+    Прежде сессия держала открытую транзакцию всё время выборки почты, а
+    обход ящиков идёт минуты и десятки минут. Postgres убивал такую
+    сессию по idle_in_transaction_session_timeout, и первый же запрос
+    после выборки падал с «connection is closed» — именно так выглядела
+    ошибка на поиске поставщика по informer@tochka.com.
+    """
+    порядок: list[str] = []
+
+    class FakeResult:
+        def scalars(self):
+            return self
+
+        def all(self):
+            return []
+
+    class FakeSession:
+        async def execute(self, *args, **kwargs):
+            порядок.append('execute')
+            return FakeResult()
+
+        async def commit(self):
+            порядок.append('commit')
+
+    account = SimpleNamespace(
+        id=1,
+        email='prices@example.com',
+        transport='smtp',
+        imap_host='ok.host',
+        password='secret',
+        imap_folder='INBOX',
+        imap_port=993,
+    )
+
+    async def fake_get_active_by_purpose(session, purpose):
+        return [account]
+
+    def fake_fetch_mailbox_messages(*args, **kwargs):
+        порядок.append('fetch')
+        return []
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.crud_email_account.get_active_by_purpose',
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._fetch_mailbox_messages',
+        fake_fetch_mailbox_messages,
+    )
+
+    результат = await get_emails(session=FakeSession())
+
+    assert результат == []
+    assert 'commit' in порядок, 'соединение не освобождалось'
+    assert порядок.index('commit') < порядок.index('fetch'), (
+        'выборка почты началась, пока транзакция ещё открыта'
+    )
