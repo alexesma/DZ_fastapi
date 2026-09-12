@@ -1,5 +1,5 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
@@ -73,6 +73,11 @@ class AutoPartResponse(BaseModel):
     eac_cert_valid_until: Optional[date] = None
     regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
+    partssoft_product_id: Optional[int] = None
+    partssoft_product_updated_at: Optional[datetime] = None
+    partssoft_synced_at: Optional[datetime] = None
+    partssoft_payload: Dict = Field(default_factory=dict)
+    photo_urls: List[str] = Field(default_factory=list)
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
 
@@ -486,6 +491,7 @@ class AutoPartCatalogItem(BaseModel):
     eac_cert_valid_until: Optional[date] = None
     regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
+    partssoft_product_id: Optional[int] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
     stock_quantity: int = 0

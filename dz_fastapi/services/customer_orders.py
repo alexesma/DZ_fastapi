@@ -3676,6 +3676,8 @@ async def process_manual_customer_order(
         raise LookupError("Order not found")
     if order.status != CUSTOMER_ORDER_STATUS.NEW:
         raise ValueError("Order already processed")
+    if str(order.external_source or "").upper() == "PARTS_SOFT":
+        return await _process_partssoft_customer_order(session, order)
     config = await crud_customer_order_config.get_by_customer_id(
         session=session, customer_id=order.customer_id
     )
@@ -3718,6 +3720,72 @@ async def process_manual_customer_order(
     )
     if rejected_items:
         await _send_reject_report(session, order, rejected_items)
+    await session.refresh(order)
+    return order
+
+
+async def _process_partssoft_customer_order(
+    session: AsyncSession,
+    order: CustomerOrder,
+) -> CustomerOrder:
+    """Accept an API-imported site order without an email parsing config.
+
+    The customer has already chosen the offer in Parts-Soft. Re-running the
+    email price matching algorithm could change that choice and requires a
+    customer-specific XLSX config, so this path preserves the selected source.
+    """
+    if not order.items:
+        raise ValueError("Order has no items")
+
+    brand_aliases = await _load_brand_alias_map(session)
+    requested_oems = {
+        _normalize_oem_key(item.oem) for item in order.items if item.oem
+    }
+    candidates = (
+        await session.execute(
+            select(AutoPart, Brand.name)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(AutoPart.oem_number.in_(requested_oems))
+        )
+    ).all()
+    autoparts = {
+        _normalize_key(autopart.oem_number, brand_name, brand_aliases): (
+            autopart,
+            brand_name,
+        )
+        for autopart, brand_name in candidates
+    }
+
+    for item in order.items:
+        matched = autoparts.get(_normalize_key(item.oem, item.brand, brand_aliases))
+        if matched is not None:
+            autopart, brand_name = matched
+            item.autopart_id = autopart.id
+            item.actual_oem = autopart.oem_number
+            item.actual_brand = brand_name
+            item.actual_name = autopart.name
+            item.match_type = "partssoft_product"
+        else:
+            item.actual_oem = item.oem
+            item.actual_brand = item.brand
+            item.actual_name = item.name
+            item.match_type = "partssoft_source"
+        item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+        item.ship_qty = item.requested_qty
+        item.reject_qty = 0
+        item.matched_price = item.requested_price
+        if not item.source_resolution_status or item.source_resolution_status == "unresolved":
+            item.source_resolution_status = (
+                "partssoft_price" if item.external_offer_id else "partssoft_managed"
+            )
+        _clear_reject_reason(item)
+        session.add(item)
+
+    order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+    order.processed_at = now_moscow()
+    order.error_details = None
+    session.add(order)
+    await session.commit()
     await session.refresh(order)
     return order
 

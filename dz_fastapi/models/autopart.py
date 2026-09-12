@@ -165,6 +165,13 @@ class AutoPart(Base):
     honest_sign_category = Column(String(100), nullable=True)
     # Применение: на какие автомобили подходит запчасть
     applicability = Column(Text, nullable=True)
+    # Карточка товара, созданная в Parts-Soft. Отдельный внешний ID не даёт
+    # создать дубликат при повторной синхронизации, а исходный payload
+    # сохраняет свойства и SEO-поля, для которых пока нет отдельных колонок.
+    partssoft_product_id = Column(Integer, nullable=True, unique=True, index=True)
+    partssoft_product_updated_at = Column(DateTime(timezone=True), nullable=True)
+    partssoft_synced_at = Column(DateTime(timezone=True), nullable=True)
+    partssoft_payload = Column(JSON, nullable=False, default=dict)
 
     # ── Обязательные реквизиты прайса ───────────────────────────────────────
     # Код ТН ВЭД ЕАЭС (10 знаков). Эталонный источник — графа 33 ГТД или УПД

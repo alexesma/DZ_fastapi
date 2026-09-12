@@ -86,7 +86,10 @@ from dz_fastapi.services.order_timing import (
     get_overdue_supplier_responses,
     is_in_any_order_window,
 )
-from dz_fastapi.services.partssoft_order_reconciliation import sync_partssoft_orders
+from dz_fastapi.services.partssoft_order_reconciliation import (
+    sync_partssoft_orders,
+    sync_partssoft_products,
+)
 from dz_fastapi.services.placed_orders import (
     cleanup_old_tracking_history,
     sync_site_tracking_statuses,
@@ -152,6 +155,13 @@ PARTSSOFT_ORDER_SYNC_MINUTES = max(
 )
 PARTSSOFT_ORDER_SYNC_ENABLED = os.getenv(
     "PARTSSOFT_ORDER_SYNC_ENABLED", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
+PARTSSOFT_PRODUCT_SYNC_HOURS = max(
+    1,
+    int(os.getenv("PARTSSOFT_PRODUCT_SYNC_HOURS", "6")),
+)
+PARTSSOFT_PRODUCT_SYNC_ENABLED = os.getenv(
+    "PARTSSOFT_PRODUCT_SYNC_ENABLED", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -477,6 +487,19 @@ async def sync_partssoft_orders_task(app: FastAPI):
             logger.info("Parts-Soft order sync completed: %s", result)
 
 
+async def sync_partssoft_products_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="partssoft_product_sync",
+        job_name="Sync Parts-Soft product cards",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            result = await sync_partssoft_products(session)
+            trace.details.update(result)
+            logger.info("Parts-Soft product sync completed: %s", result)
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -529,6 +552,19 @@ def start_scheduler(app: FastAPI):
             replace_existing=True,
             max_instances=1,
             coalesce=True,
+        )
+    if PARTSSOFT_PRODUCT_SYNC_ENABLED:
+        scheduler.add_job(
+            func=sync_partssoft_products_task,
+            trigger="interval",
+            args=[app],
+            id="partssoft_product_sync",
+            name="Sync Parts-Soft product cards",
+            hours=PARTSSOFT_PRODUCT_SYNC_HOURS,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            next_run_time=now_moscow(),
         )
 
     # Ночной автозапуск расчёта автозаказа выключен по умолчанию: сейчас

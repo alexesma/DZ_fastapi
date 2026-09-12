@@ -547,6 +547,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 selectinload(AutoPart.categories),
                 selectinload(AutoPart.storage_locations),
                 selectinload(AutoPart.brand),
+                selectinload(AutoPart.photos),
                 selectinload(AutoPart.honest_sign_categories),
                 selectinload(AutoPart.applicability_nodes),
             )

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import aiohttp
 from sqlalchemy import func, or_, select
@@ -23,12 +23,16 @@ from dz_fastapi.core.base import (
     CustomerOrder,
     CustomerOrderItem,
     OrderItem,
+    Photo,
 )
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import CUSTOMER_ORDER_STATUS, TYPE_PRICES
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.order import OrderPositionOut
+from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
@@ -52,6 +56,29 @@ TRACKING_UUID_RE = re.compile(
 )
 PARTSSOFT_AUTO_TRACKING_RE = re.compile(r"^ps-\d+-\d+$", re.IGNORECASE)
 logger = logging.getLogger("dz_fastapi")
+
+
+def _partssoft_api_settings() -> tuple[str, str, str]:
+    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
+    username = os.getenv("V3_USERNAME")
+    password = os.getenv("V3_PASSWORD")
+    if not username or not password:
+        raise RuntimeError("Parts-Soft API credentials are not configured")
+    if not base_url.startswith("https://"):
+        raise RuntimeError("Parts-Soft API URL must use HTTPS")
+    return base_url, username, password
+
+
+def _partssoft_public_url(path: Any) -> str | None:
+    value = _text(path)
+    if not value:
+        return None
+    base_url = (
+        os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3"
+    ).rstrip("/")
+    parsed = urlparse(base_url)
+    origin = f"{parsed.scheme}://{parsed.netloc}/"
+    return urljoin(origin, value)
 
 
 def _text(value: Any) -> str:
@@ -182,13 +209,7 @@ async def _fetch_orders(
 ) -> tuple[datetime, datetime, list[dict[str, Any]]]:
     end = now_moscow()
     start = end - timedelta(days=days)
-    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
-    username = os.getenv("V3_USERNAME")
-    password = os.getenv("V3_PASSWORD")
-    if not username or not password:
-        raise RuntimeError("Parts-Soft API credentials are not configured")
-    if not base_url.startswith("https://"):
-        raise RuntimeError("Parts-Soft API URL must use HTTPS")
+    base_url, username, password = _partssoft_api_settings()
 
     rows: list[dict[str, Any]] = []
     auth = aiohttp.BasicAuth(username, password)
@@ -222,13 +243,7 @@ async def _fetch_orders(
 
 
 async def _fetch_customer(external_customer_id: int) -> dict[str, Any]:
-    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
-    username = os.getenv("V3_USERNAME")
-    password = os.getenv("V3_PASSWORD")
-    if not username or not password:
-        raise RuntimeError("Parts-Soft API credentials are not configured")
-    if not base_url.startswith("https://"):
-        raise RuntimeError("Parts-Soft API URL must use HTTPS")
+    base_url, username, password = _partssoft_api_settings()
     auth = aiohttp.BasicAuth(username, password)
     async with aiohttp.ClientSession(
         auth=auth,
@@ -244,6 +259,205 @@ async def _fetch_customer(external_customer_id: int) -> dict[str, Any]:
     if not isinstance(customer, dict):
         raise RuntimeError("Unexpected Parts-Soft customer response")
     return customer
+
+
+async def _fetch_products(
+    updated_since: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Read all product cards owned by this Parts-Soft installation."""
+    base_url, username, password = _partssoft_api_settings()
+    rows: list[dict[str, Any]] = []
+    auth = aiohttp.BasicAuth(username, password)
+    timeout = aiohttp.ClientTimeout(total=90)
+    async with aiohttp.ClientSession(auth=auth, timeout=timeout) as client:
+        page = 1
+        while True:
+            params: dict[str, Any] = {"page": page, "per_page": PAGE_SIZE}
+            if updated_since is not None:
+                params["search[updated_at_gteq]"] = updated_since.isoformat()
+            async with client.get(
+                f"{base_url}/products.json",
+                params=params,
+                allow_redirects=False,
+            ) as response:
+                response.raise_for_status()
+                payload = await response.json()
+            page_rows = payload.get("products") if isinstance(payload, dict) else None
+            if not isinstance(page_rows, list):
+                raise RuntimeError("Unexpected Parts-Soft products response")
+            rows.extend(row for row in page_rows if isinstance(row, dict))
+            if len(page_rows) < PAGE_SIZE:
+                break
+            page += 1
+    return rows
+
+
+def _positive_float(value: Any) -> float | None:
+    parsed = _decimal(value)
+    if parsed is None or parsed <= 0:
+        return None
+    return float(parsed)
+
+
+def _product_photo_urls(product: dict[str, Any]) -> list[str]:
+    candidates: list[Any] = [product.get("product_photo_url")]
+    candidates.extend(product.get("external_image_urls") or [])
+    candidates.extend(
+        row.get("photo_url")
+        for row in (product.get("images") or [])
+        if isinstance(row, dict)
+    )
+    result: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        url = _partssoft_public_url(candidate)
+        if url and url not in seen:
+            seen.add(url)
+            result.append(url)
+    return result
+
+
+async def sync_partssoft_products(
+    session: AsyncSession,
+    *,
+    full: bool = False,
+) -> dict[str, Any]:
+    """Merge Parts-Soft product cards into local nomenclature without duplicates."""
+    updated_since = None
+    if not full:
+        updated_since = await session.scalar(
+            select(func.max(AutoPart.partssoft_product_updated_at))
+        )
+    remote_products = await _fetch_products(updated_since=updated_since)
+    counts: Counter[str] = Counter()
+    synced_ids: list[int] = []
+    conflicts: list[dict[str, Any]] = []
+
+    brands = list((await session.scalars(select(Brand))).all())
+    brands_by_name = {
+        normalize_brand_name(brand.name): brand
+        for brand in brands
+        if normalize_brand_name(brand.name)
+    }
+    incoming_photo_urls = {
+        url
+        for product in remote_products
+        for url in _product_photo_urls(product)
+    }
+    photos_by_url = {
+        photo.url: photo
+        for photo in (
+            await session.scalars(
+                select(Photo).where(Photo.url.in_(incoming_photo_urls))
+            )
+        ).all()
+    } if incoming_photo_urls else {}
+
+    for product in remote_products:
+        external_id = _integer(product.get("id"))
+        oem = preprocess_oem_number(_text(product.get("oem")))
+        brand_name = normalize_brand_name(_text(product.get("make_name")))
+        if external_id is None or not oem or not brand_name:
+            counts["invalid"] += 1
+            continue
+
+        autopart = await session.scalar(
+            select(AutoPart).where(AutoPart.partssoft_product_id == external_id)
+        )
+        brand = brands_by_name.get(brand_name)
+        if brand is None:
+            brand = Brand(name=brand_name)
+            session.add(brand)
+            await session.flush()
+            brands_by_name[brand_name] = brand
+            counts["brands_created"] += 1
+
+        if autopart is None:
+            autopart = await session.scalar(
+                select(AutoPart).where(
+                    AutoPart.brand_id == brand.id,
+                    AutoPart.oem_number == oem,
+                )
+            )
+        if (
+            autopart is not None
+            and autopart.partssoft_product_id not in (None, external_id)
+        ):
+            counts["external_id_conflicts"] += 1
+            conflicts.append(
+                {
+                    "external_product_id": external_id,
+                    "linked_external_product_id": autopart.partssoft_product_id,
+                    "autopart_id": int(autopart.id),
+                    "brand": brand_name,
+                    "oem": oem,
+                }
+            )
+            continue
+        created = autopart is None
+        name = (
+            _text(product.get("detail_name"))
+            or _text(product.get("name"))
+            or oem
+        )
+        description = (
+            _text(product.get("body"))
+            or _text(product.get("seo_text"))
+            or _text(product.get("meta_description"))
+        )
+        if created:
+            autopart = AutoPart(
+                brand_id=brand.id,
+                oem_number=oem,
+                name=name,
+                description=description or None,
+                width=_positive_float(product.get("width")),
+                height=_positive_float(product.get("height")),
+                length=_positive_float(product.get("length")),
+                weight=_positive_float(product.get("weight")),
+            )
+            session.add(autopart)
+            await session.flush()
+            counts["created"] += 1
+        else:
+            if not _text(autopart.description) and description:
+                autopart.description = description
+                counts["descriptions_filled"] += 1
+            for field in ("width", "height", "length", "weight"):
+                if getattr(autopart, field, None) in (None, 0):
+                    value = _positive_float(product.get(field))
+                    if value is not None:
+                        setattr(autopart, field, value)
+            counts["updated"] += 1
+
+        autopart.partssoft_product_id = external_id
+        autopart.partssoft_product_updated_at = _parse_datetime(product.get("updated_at"))
+        autopart.partssoft_synced_at = now_moscow()
+        autopart.partssoft_payload = product
+        session.add(autopart)
+        await session.flush()
+
+        for url in _product_photo_urls(product):
+            photo = photos_by_url.get(url)
+            if photo is None:
+                photo = Photo(url=url, autopart_id=autopart.id)
+                session.add(photo)
+                photos_by_url[url] = photo
+                counts["photos_added"] += 1
+            elif photo.autopart_id == autopart.id:
+                counts["photos_existing"] += 1
+        synced_ids.append(int(autopart.id))
+
+    await session.commit()
+    return {
+        "mode": "full" if updated_since is None else "incremental",
+        "updated_since": updated_since.isoformat() if updated_since else None,
+        "remote_products_total": len(remote_products),
+        "counts": dict(sorted(counts.items())),
+        "synced_autoparts": len(synced_ids),
+        "conflicts": conflicts,
+        "synced_at": now_moscow().isoformat(),
+    }
 
 
 def _candidate_score(
@@ -657,7 +871,16 @@ async def _resolve_sync_customer(
     reference.last_synced_at = now_moscow()
     reference.is_active = True
     if reference_created:
-        reference.is_verified = False
+        # A newly created retail card belongs to this exact Parts-Soft ID.
+        # Names are deliberately not used as identity, so two Alexanders stay
+        # separate customers. Existing-card matches still require review.
+        reference.is_verified = bool(
+            not remote.get("inn")
+            and (
+                customer_created
+                or reference.match_basis == "created_from_partssoft"
+            )
+        )
         reference.match_basis = (
             "created_from_partssoft" if customer_created else "automatic_match"
         )
@@ -682,16 +905,23 @@ def _remote_item_to_customer_order_item(
     provider_id = _text(_item_value(item, "supplier_id", "provider_id"))
     provider_name = _text(_item_value(item, "supplier_name", "provider_name"))
     requested_price = _decimal(_item_value(item, "cost", "price"))
-    resolution = (
-        "api_ready"
-        if hash_key
+    price_id = _text(_item_value(item, "price_id"))
+    if (
+        hash_key
         and (provider_id or provider_name)
         and requested_price is not None
         and requested_price > 0
-        else "unresolved"
-    )
+    ):
+        resolution = "api_ready"
+    elif price_id:
+        resolution = "partssoft_price"
+    else:
+        # Parts-Soft уже принял эту строку заказа, но не раскрыл источник
+        # предложения в orders.json. Не пытаемся заказать её на сайте повторно.
+        resolution = "partssoft_managed"
     source_payload = {
         "raw": item,
+        "partssoft_price_id": price_id or None,
         "hash_key": hash_key or None,
         "system_hash": system_hash or None,
         "supplier_name": provider_name or None,

@@ -1,14 +1,17 @@
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_session, require_admin
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.services.partssoft_order_reconciliation import (
     MAX_RECONCILIATION_DAYS,
     link_partssoft_customer,
     reconcile_partssoft_orders,
     search_local_customer_candidates,
+    sync_partssoft_products,
 )
 
 router = APIRouter(prefix="/integrations/partssoft", tags=["partssoft"])
@@ -77,6 +80,50 @@ async def reconcile_orders(
 ):
     try:
         return await reconcile_partssoft_orders(session, days=days)
+    except aiohttp.ClientResponseError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Parts-Soft API returned HTTP {exc.status}",
+        ) from exc
+    except (aiohttp.ClientError, TimeoutError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Parts-Soft API is unavailable",
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/products/status")
+async def product_sync_status(
+    session: AsyncSession = Depends(get_session),
+):
+    total = await session.scalar(
+        select(func.count(AutoPart.id)).where(AutoPart.partssoft_product_id.is_not(None))
+    )
+    last_synced_at = await session.scalar(select(func.max(AutoPart.partssoft_synced_at)))
+    photos = await session.scalar(
+        select(func.count(func.distinct(AutoPart.id)))
+        .join(AutoPart.photos)
+        .where(AutoPart.partssoft_product_id.is_not(None))
+    )
+    return {
+        "products": int(total or 0),
+        "products_with_photos": int(photos or 0),
+        "last_synced_at": last_synced_at,
+    }
+
+
+@router.post(
+    "/products/sync",
+    dependencies=[Depends(require_admin)],
+)
+async def sync_products(
+    full: bool = Query(default=False),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await sync_partssoft_products(session, full=full)
     except aiohttp.ClientResponseError as exc:
         raise HTTPException(
             status_code=502,

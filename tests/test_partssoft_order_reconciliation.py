@@ -4,7 +4,14 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
-from dz_fastapi.models.partner import Customer, CustomerExternalReference, CustomerOrder
+from dz_fastapi.models.autopart import AutoPart, Photo
+from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
+    CUSTOMER_ORDER_STATUS,
+    Customer,
+    CustomerExternalReference,
+    CustomerOrder,
+)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services import partssoft_order_reconciliation as service
 from dz_fastapi.services.partssoft_order_reconciliation import (
@@ -310,7 +317,7 @@ async def test_sync_imports_retail_order_once_and_preserves_offer_origin(
             CustomerExternalReference.external_customer_id == 701
         )
     )
-    assert reference.is_verified is False
+    assert reference.is_verified is True
     assert reference.match_basis == "created_from_partssoft"
     assert len(order.items) == 1
     item = order.items[0]
@@ -397,3 +404,99 @@ async def test_api_source_items_are_sent_once_and_marked(
     assert len(calls) == 1
     assert calls[0]["request"][0].hash_key == "api-offer-hash"
     assert item.source_resolution_status == "api_ordered"
+
+
+@pytest.mark.asyncio
+async def test_partssoft_product_sync_merges_card_and_photos(
+    test_session,
+    monkeypatch,
+):
+    remote_product = {
+        "id": 741717,
+        "oem": "ST-MR403027",
+        "make_name": "SAT",
+        "detail_name": "Тяга рулевая",
+        "body": "Подробное описание",
+        "weight": 0.3,
+        "width": 5,
+        "height": 2,
+        "length": 22,
+        "product_category_ids": [755],
+        "product_properties": [{"name": "Минимальный заказ", "value": "1"}],
+        "product_photo_url": "/system/product_photo/741717/main.jpg",
+        "images": [{"photo_url": "/system/image_photo/1503/extra.jpg"}],
+        "updated_at": "2026-08-28T15:03:45+03:00",
+    }
+
+    async def fake_fetch_products(updated_since=None):
+        return [remote_product]
+
+    monkeypatch.setattr(service, "_fetch_products", fake_fetch_products)
+    monkeypatch.setenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3")
+
+    first = await service.sync_partssoft_products(test_session)
+    second = await service.sync_partssoft_products(test_session)
+
+    assert first["counts"]["created"] == 1
+    assert first["counts"]["photos_added"] == 2
+    assert second["counts"]["updated"] == 1
+    assert second["counts"]["photos_existing"] == 2
+    autopart = await test_session.scalar(
+        select(AutoPart).where(AutoPart.partssoft_product_id == 741717)
+    )
+    photos = list(
+        (
+            await test_session.scalars(
+                select(Photo).where(Photo.autopart_id == autopart.id)
+            )
+        ).all()
+    )
+    assert autopart.oem_number == "STMR403027"
+    assert autopart.description == "Подробное описание"
+    assert autopart.partssoft_payload["product_category_ids"] == [755]
+    assert {photo.url for photo in photos} == {
+        "https://admin.dragonzap.ru/system/product_photo/741717/main.jpg",
+        "https://admin.dragonzap.ru/system/image_photo/1503/extra.jpg",
+    }
+
+
+@pytest.mark.asyncio
+async def test_partssoft_order_process_does_not_require_email_config(
+    test_session,
+):
+    from dz_fastapi.services.customer_orders import process_manual_customer_order
+
+    customer = Customer(name="Розничный клиент Parts-Soft")
+    test_session.add(customer)
+    await test_session.flush()
+    order = CustomerOrder(
+        customer_id=customer.id,
+        external_source="PARTS_SOFT",
+        external_order_id="9010",
+        status=CUSTOMER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = service._remote_item_to_customer_order_item(
+        {
+            "id": 8010,
+            "oem": "46530-50041",
+            "make_name": "TOYOTA",
+            "detail_name": "Колодка стояночного тормоза",
+            "qnt": 3,
+            "cost": "2967.00",
+            "price_id": 383,
+        },
+        order_id=order.id,
+        row_index=1,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    processed = await process_manual_customer_order(test_session, order.id)
+    await test_session.refresh(item)
+
+    assert processed.status == CUSTOMER_ORDER_STATUS.PROCESSED
+    assert item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    assert item.ship_qty == 3
+    assert item.source_resolution_status == "partssoft_price"
