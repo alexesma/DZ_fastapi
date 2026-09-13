@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import pandas as pd
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert, select, tuple_, update
+from sqlalchemy import case, delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, lazyload, selectinload
 from sqlalchemy.sql import and_
@@ -725,29 +725,35 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if page_size < 1:
             page_size = DEFAULT_PAGE_SIZE
 
+        config_exists = (
+            select(ProviderPriceListConfig.id)
+            .where(ProviderPriceListConfig.provider_id == Provider.id)
+            .limit(1)
+        )
+        active_exists = (
+            select(PriceList.id)
+            .where(
+                PriceList.provider_id == Provider.id,
+                PriceList.is_active.is_(True),
+            )
+            .limit(1)
+        )
+        pricelist_exists = (
+            select(PriceList.id)
+            .where(PriceList.provider_id == Provider.id)
+            .limit(1)
+        )
+
         filters = []
         if search:
             filters.append(Provider.name.ilike(f"%{search}%"))
         if is_virtual is not None:
             filters.append(Provider.is_virtual.is_(is_virtual))
         if has_pricelist_config is not None:
-            config_exists = (
-                select(ProviderPriceListConfig.id)
-                .where(ProviderPriceListConfig.provider_id == Provider.id)
-                .limit(1)
-            )
             filters.append(
                 config_exists.exists() if has_pricelist_config else ~config_exists.exists()
             )
         if has_active_pricelists is not None:
-            active_exists = (
-                select(PriceList.id)
-                .where(
-                    PriceList.provider_id == Provider.id,
-                    PriceList.is_active.is_(True),
-                )
-                .limit(1)
-            )
             filters.append(
                 active_exists.exists() if has_active_pricelists else ~active_exists.exists()
             )
@@ -761,13 +767,33 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         count_query = select(func.count()).select_from(count_base.subquery())
         total = (await session.execute(count_query)).scalar()
 
-        sort_map = {
-            "name": Provider.name,
-            "id": Provider.id,
-        }
-        sort_column = sort_map.get(sort_by) or Provider.name
-        sort_direction = (sort_dir or "asc").lower()
-        order_clause = sort_column.asc() if sort_direction != "desc" else sort_column.desc()
+        if sort_by == "price_activity":
+            # The directory is primarily an operational screen. Put suppliers
+            # whose prices are actually used ahead of automatically created
+            # site suppliers and other empty cards.
+            price_activity_rank = case(
+                (active_exists.exists(), 0),
+                (config_exists.exists(), 1),
+                (pricelist_exists.exists(), 2),
+                (Provider.is_virtual.is_(False), 3),
+                else_=4,
+            )
+            order_clauses = (
+                price_activity_rank.asc(),
+                Provider.name.asc(),
+                Provider.id.asc(),
+            )
+        else:
+            sort_map = {
+                "name": Provider.name,
+                "id": Provider.id,
+            }
+            sort_column = sort_map.get(sort_by) or Provider.name
+            sort_direction = (sort_dir or "asc").lower()
+            order_clause = (
+                sort_column.asc() if sort_direction != "desc" else sort_column.desc()
+            )
+            order_clauses = (order_clause, Provider.id.asc())
 
         stmt = (
             base.options(
@@ -778,7 +804,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 selectinload(Provider.provider_last_uid),
                 selectinload(Provider.price_lists).selectinload(PriceList.config),
             )
-            .order_by(order_clause)
+            .order_by(*order_clauses)
             .limit(page_size)
             .offset((page - 1) * page_size)
         )

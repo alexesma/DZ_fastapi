@@ -454,7 +454,10 @@ async def get_all_providers(
         None, description="Фильтр: есть активные прайс-листы"
     ),
     is_virtual: Optional[bool] = Query(None, description="Фильтр: виртуальный поставщик"),
-    sort_by: Optional[str] = Query(None, description="Сортировка: name или id"),
+    sort_by: Optional[str] = Query(
+        None,
+        description="Сортировка: price_activity, name или id",
+    ),
     sort_dir: Optional[str] = Query(None, description="Направление сортировки: asc или desc"),
 ):
     """
