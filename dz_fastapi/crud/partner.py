@@ -604,10 +604,33 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
     async def get_by_email_incoming_price(
         self, session: AsyncSession, email: str
     ) -> Optional[Provider]:
+        """Поставщик по адресу, с которого приходит прайс.
+
+        Сравнение без учёта регистра и пробелов. Адрес отправителя из
+        письма приводится к нижнему регистру, а в карточке он хранится
+        как его вписали: у ALYANS было «Alyans-7@list.ru» против
+        «alyans-7@list.ru» в письмах, поставщик не находился, и прайс не
+        обновлялся почти пять месяцев — без единой ошибки в журнале,
+        потому что письмо просто пропускалось как чужое.
+
+        При нескольких совпадениях берём не виртуального и с меньшим id:
+        прежний scalar_one_or_none на такой паре ронял разбор всей почты.
+        """
+        normalized = (email or "").strip().lower()
+        if not normalized:
+            return None
         result = await session.execute(
-            select(self.model).where(self.model.email_incoming_price == email)
+            select(self.model)
+            .where(
+                func.lower(func.trim(self.model.email_incoming_price))
+                == normalized
+            )
+            .order_by(
+                self.model.is_virtual.asc(),
+                self.model.id.asc(),
+            )
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def create(self, obj_in: ProviderCreate, session: AsyncSession, **kwargs) -> Provider:
         payload = obj_in.model_dump()

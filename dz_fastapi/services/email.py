@@ -1683,6 +1683,11 @@ async def get_emails(
     downloaded_files = []
     # config_id -> исход отбора писем для этой конфигурации
     config_probe: dict[int, dict] = {}
+    # Отправители, для которых поставщик не нашёлся. Без этого счёта
+    # такие письма исчезали бесследно: у ALYANS адрес в карточке
+    # отличался регистром, письма пропускались как чужие, и разбор
+    # причин показывал пустоту.
+    unknown_senders: dict[str, int] = {}
     all_emails = []
     resend_cursors: dict[int, object] = {}
     selected_candidates: dict[
@@ -1833,6 +1838,10 @@ async def get_emails(
                 f"Провайдер для email {msg.from_} "
                 f"не найден, пропускаем письмо uid={msg.uid}"
             )
+            if sender_email:
+                unknown_senders[sender_email] = (
+                    unknown_senders.get(sender_email, 0) + 1
+                )
             continue  # Если провайдера нет, пропускаем письмо
 
         # Получаем все конфигурации для данного провайдера
@@ -1950,6 +1959,12 @@ async def get_emails(
         diagnostics["considered_configs"] = len(config_probe)
         diagnostics["downloaded"] = len(downloaded_files)
         diagnostics["problems"] = problems
+        diagnostics["unknown_senders"] = [
+            {"email": адрес, "emails": количество}
+            for адрес, количество in sorted(
+                unknown_senders.items(), key=lambda пара: -пара[1]
+            )
+        ]
         if problems:
             logger.info(
                 "Шаг загрузки: без файла осталось конфигураций %s: %s",
