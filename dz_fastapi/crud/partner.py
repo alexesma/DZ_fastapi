@@ -621,10 +621,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return None
         result = await session.execute(
             select(self.model)
-            .where(
-                func.lower(func.trim(self.model.email_incoming_price))
-                == normalized
-            )
+            .where(func.lower(func.trim(self.model.email_incoming_price)) == normalized)
             .order_by(
                 self.model.is_virtual.asc(),
                 self.model.id.asc(),
@@ -940,6 +937,50 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
 
             if not source_provider or not target_provider:
                 raise ValueError("One or both providers not found")
+
+            # Keep the current provider as the master record, but do not lose
+            # useful requisites that exist only on the duplicate being removed.
+            fill_if_empty = (
+                "legal_name",
+                "inn",
+                "kpp",
+                "legal_address",
+                "postal_address",
+                "company_type",
+                "phone",
+                "additional_phone",
+                "vat_rate",
+                "bank_bik",
+                "bank_name",
+                "bank_city",
+                "bank_account",
+                "correspondent_account",
+                "credit_limit",
+                "default_warehouse_id",
+                "return_window_days",
+                "return_request_email",
+            )
+            for field in fill_if_empty:
+                if not getattr(target_provider, field, None) and getattr(
+                    source_provider, field, None
+                ):
+                    setattr(target_provider, field, getattr(source_provider, field))
+            if not target_provider.payment_terms_days and source_provider.payment_terms_days:
+                target_provider.payment_terms_days = source_provider.payment_terms_days
+            target_provider.is_vat_payer = bool(
+                target_provider.is_vat_payer or source_provider.is_vat_payer
+            )
+
+            # The email columns are unique across clients. Release a value on
+            # the source before assigning it to an empty target card.
+            for field in ("email_contact", "email_incoming_price"):
+                if not getattr(target_provider, field, None) and getattr(
+                    source_provider, field, None
+                ):
+                    value = getattr(source_provider, field)
+                    setattr(source_provider, field, None)
+                    await session.flush()
+                    setattr(target_provider, field, value)
 
             # Перенести все аббревиатуры
             stmt = (
@@ -1778,7 +1819,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
             LOOKUP_CHUNK_SIZE = 1000
             for chunk_start in range(0, len(lookup_pairs), LOOKUP_CHUNK_SIZE):
-                chunk = lookup_pairs[chunk_start: chunk_start + LOOKUP_CHUNK_SIZE]
+                chunk = lookup_pairs[chunk_start:chunk_start + LOOKUP_CHUNK_SIZE]
                 lookup_stmt = select(
                     AutoPart.id,
                     AutoPart.oem_number,
@@ -2734,7 +2775,7 @@ class CRUDCustomerPriceList(
         for chunk_start in range(0, len(insert_rows), INSERT_CHUNK_SIZE):
             await session.execute(
                 insert(CustomerPriceListAutoPartAssociation),
-                insert_rows[chunk_start: chunk_start + INSERT_CHUNK_SIZE],
+                insert_rows[chunk_start:chunk_start + INSERT_CHUNK_SIZE],
             )
         await session.commit()
 

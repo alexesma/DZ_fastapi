@@ -75,6 +75,19 @@ class ProviderBase(ClientBase):
     email_incoming_price: Optional[EmailStr] = None
     inn: Optional[str] = Field(default=None, max_length=32)
     kpp: Optional[str] = Field(default=None, max_length=32)
+    legal_name: Optional[str] = Field(default=None, max_length=512)
+    legal_address: Optional[str] = None
+    postal_address: Optional[str] = None
+    company_type: Optional[str] = Field(default=None, max_length=128)
+    phone: Optional[str] = Field(default=None, max_length=64)
+    additional_phone: Optional[str] = Field(default=None, max_length=64)
+    vat_rate: Optional[Decimal] = None
+    bank_bik: Optional[str] = Field(default=None, max_length=32)
+    bank_name: Optional[str] = Field(default=None, max_length=255)
+    bank_city: Optional[str] = Field(default=None, max_length=255)
+    bank_account: Optional[str] = Field(default=None, max_length=64)
+    correspondent_account: Optional[str] = Field(default=None, max_length=64)
+    credit_limit: Optional[Decimal] = None
     is_own_price: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
     autopurchase_blocked: Optional[bool] = False
@@ -144,6 +157,19 @@ class ProviderUpdate(BaseModel):
     email_incoming_price: Optional[EmailStr] = None
     inn: Optional[str] = Field(default=None, max_length=32)
     kpp: Optional[str] = Field(default=None, max_length=32)
+    legal_name: Optional[str] = Field(default=None, max_length=512)
+    legal_address: Optional[str] = None
+    postal_address: Optional[str] = None
+    company_type: Optional[str] = Field(default=None, max_length=128)
+    phone: Optional[str] = Field(default=None, max_length=64)
+    additional_phone: Optional[str] = Field(default=None, max_length=64)
+    vat_rate: Optional[Decimal] = None
+    bank_bik: Optional[str] = Field(default=None, max_length=32)
+    bank_name: Optional[str] = Field(default=None, max_length=255)
+    bank_city: Optional[str] = Field(default=None, max_length=255)
+    bank_account: Optional[str] = Field(default=None, max_length=64)
+    correspondent_account: Optional[str] = Field(default=None, max_length=64)
+    credit_limit: Optional[Decimal] = None
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
     is_vat_payer: Optional[bool] = None
@@ -499,6 +525,7 @@ class ProviderExternalReferenceUpdate(BaseModel):
 class ProviderExternalReferenceOut(ProviderExternalReferenceBase):
     id: int
     provider_id: int
+    last_synced_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

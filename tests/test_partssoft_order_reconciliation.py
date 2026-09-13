@@ -454,18 +454,12 @@ async def test_partssoft_product_sync_merges_card_and_photos(
     assert second["counts"]["photos_existing"] == 2
     await test_session.refresh(autopart)
     photos = list(
-        (
-            await test_session.scalars(
-                select(Photo).where(Photo.autopart_id == autopart.id)
-            )
-        ).all()
+        (await test_session.scalars(select(Photo).where(Photo.autopart_id == autopart.id))).all()
     )
     assert autopart.oem_number == "STMR403027"
     assert autopart.description == "Подробное описание"
     assert autopart.partssoft_payload["product_category_ids"] == [755]
-    assert autopart.partssoft_payload["_outbound_photo_urls"] == [
-        "/uploads/autoparts/1/local.jpg"
-    ]
+    assert autopart.partssoft_payload["_outbound_photo_urls"] == ["/uploads/autoparts/1/local.jpg"]
     assert {photo.url for photo in photos} == {
         "https://admin.dragonzap.ru/system/product_photo/741717/main.jpg",
         "https://admin.dragonzap.ru/system/image_photo/1503/extra.jpg",
@@ -487,10 +481,34 @@ async def test_partssoft_supplier_sync_filters_matches_and_does_not_duplicate(
                 "id": 501,
                 "is_supplier": True,
                 "login_or_email": "existing@example.com",
+                "email_org": "legal-existing@example.com",
+                "nds": 20,
+                "credit_limit": "125000.50",
+                "pay_delay": 14,
                 "essential": {
                     "company_name": "ООО Существующий",
+                    "company_type": "ООО",
                     "inn": "7701001001",
                     "kpp": "770101001",
+                    "bik": "044525225",
+                    "bank": "ПАО Банк",
+                    "city": "Москва",
+                    "loro_account": "40702810000000000001",
+                    "korr_schet": "30101810400000000225",
+                },
+                "contact": {
+                    "phone": "+74950000000",
+                    "cell_phone": "+79990000000",
+                },
+                "official_address": {
+                    "city": "Москва",
+                    "street": "Тверская",
+                    "house": "1",
+                },
+                "delivery_address": {
+                    "city": "Москва",
+                    "street": "Складская",
+                    "house": "2",
                 },
             },
             {
@@ -512,16 +530,35 @@ async def test_partssoft_supplier_sync_filters_matches_and_does_not_duplicate(
     second = await service.sync_partssoft_suppliers(test_session)
 
     assert first["remote_suppliers_total"] == 2
-    assert first["counts"] == {"created": 1, "updated": 1}
-    assert second["counts"] == {"updated": 2}
+    assert first["counts"]["created"] == 1
+    assert first["counts"]["updated"] == 1
+    assert first["counts"]["fields_filled"] > 0
+    assert second["counts"] == {"fields_filled": 0, "updated": 2}
     providers = list((await test_session.scalars(select(Provider))).all())
-    references = list(
-        (await test_session.scalars(select(ProviderExternalReference))).all()
-    )
+    references = list((await test_session.scalars(select(ProviderExternalReference))).all())
     assert len(providers) == 2
     assert {row.external_supplier_id for row in references} == {501, 502}
     assert {row.provider_id for row in references} == {row.id for row in providers}
     assert existing.kpp == "770101001"
+    assert existing.legal_name == "ООО Существующий"
+    assert existing.company_type == "ООО"
+    assert existing.email_contact == "legal-existing@example.com"
+    assert existing.legal_address == "Москва, Тверская, 1"
+    assert existing.postal_address == "Москва, Складская, 2"
+    assert existing.phone == "+74950000000"
+    assert existing.additional_phone == "+79990000000"
+    assert existing.vat_rate == Decimal("20")
+    assert existing.bank_bik == "044525225"
+    assert existing.bank_name == "ПАО Банк"
+    assert existing.bank_city == "Москва"
+    assert existing.bank_account == "40702810000000000001"
+    assert existing.correspondent_account == "30101810400000000225"
+    assert existing.credit_limit == Decimal("125000.50")
+    assert existing.payment_terms_days == 14
+    assert existing.is_vat_payer is True
+    existing_reference = next(row for row in references if row.external_supplier_id == 501)
+    assert existing_reference.external_payload["essential"]["inn"] == "7701001001"
+    assert existing_reference.last_synced_at is not None
 
 
 @pytest.mark.asyncio
@@ -591,9 +628,7 @@ async def test_reconciliation_reads_saved_seven_day_snapshot(
             "created_at": now.isoformat(),
             "customer_id": 1701,
             "customer": {"id": 1701, "compile_name": customer.name},
-            "order_items": [
-                {"id": 1, "oem": "A-1", "make_name": "BRAND", "qnt": 1}
-            ],
+            "order_items": [{"id": 1, "oem": "A-1", "make_name": "BRAND", "qnt": 1}],
         },
         last_seen_at=now,
     )

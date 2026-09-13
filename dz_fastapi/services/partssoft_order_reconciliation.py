@@ -81,9 +81,7 @@ def _partssoft_public_url(path: Any) -> str | None:
     value = _text(path)
     if not value:
         return None
-    base_url = (
-        os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3"
-    ).rstrip("/")
+    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
     parsed = urlparse(base_url)
     origin = f"{parsed.scheme}://{parsed.netloc}/"
     return urljoin(origin, value)
@@ -100,8 +98,7 @@ def _normalized_text(value: Any) -> str:
 def _is_order_tracking_token(value: Any) -> bool:
     normalized = _text(value)
     return bool(
-        TRACKING_UUID_RE.fullmatch(normalized)
-        or PARTSSOFT_AUTO_TRACKING_RE.fullmatch(normalized)
+        TRACKING_UUID_RE.fullmatch(normalized) or PARTSSOFT_AUTO_TRACKING_RE.fullmatch(normalized)
     )
 
 
@@ -161,9 +158,7 @@ def _partssoft_registration_source(customer: dict[str, Any]) -> str | None:
         )
     ]
     candidates.append(os.getenv("PARTSSOFT_DEFAULT_SOURCE_SITE"))
-    candidates.append(
-        os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3"
-    )
+    candidates.append(os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3")
     for candidate in candidates:
         value = _text(candidate).casefold()
         if not value:
@@ -317,6 +312,67 @@ async def _unique_provider_name(
     return candidate
 
 
+async def _enrich_provider_from_partssoft(
+    session: AsyncSession,
+    provider: Provider,
+    remote: dict[str, Any],
+) -> list[str]:
+    """Fill empty provider requisites without overwriting local master data."""
+
+    changed: list[str] = []
+    text_fields = (
+        "inn",
+        "kpp",
+        "legal_name",
+        "legal_address",
+        "postal_address",
+        "company_type",
+        "phone",
+        "additional_phone",
+        "bank_bik",
+        "bank_name",
+        "bank_city",
+        "bank_account",
+        "correspondent_account",
+    )
+    for field in text_fields:
+        local_value = _text(getattr(provider, field, None))
+        remote_value = _text(remote.get(field))
+        if not local_value and remote_value:
+            setattr(provider, field, remote_value)
+            changed.append(field)
+
+    for field in ("vat_rate", "credit_limit"):
+        if getattr(provider, field, None) is None:
+            value = _decimal(remote.get(field))
+            if value is not None:
+                setattr(provider, field, value)
+                changed.append(field)
+
+    payment_terms_days = _integer(remote.get("payment_terms_days"))
+    if not provider.payment_terms_days and payment_terms_days:
+        provider.payment_terms_days = payment_terms_days
+        changed.append("payment_terms_days")
+
+    vat_rate = _decimal(remote.get("vat_rate"))
+    if vat_rate is not None and vat_rate > 0 and not provider.is_vat_payer:
+        provider.is_vat_payer = True
+        changed.append("is_vat_payer")
+
+    email = _text(remote.get("email"))
+    if not provider.email_contact and email and provider.is_valid_email(email):
+        email_owner = await session.scalar(
+            select(Client.id).where(
+                func.lower(Client.email_contact) == email.casefold(),
+                Client.id != provider.id,
+            )
+        )
+        if email_owner is None:
+            provider.email_contact = email
+            changed.append("email_contact")
+    return changed
+
+
 async def sync_partssoft_suppliers(session: AsyncSession) -> dict[str, Any]:
     remote_suppliers = [row for row in await _fetch_customers() if row.get("is_supplier") is True]
     references = (
@@ -347,23 +403,16 @@ async def sync_partssoft_suppliers(session: AsyncSession) -> dict[str, Any]:
             inn = normalize_digits(remote.get("inn"))
             email = normalize_email(remote.get("email"))
             name = normalize_name(remote.get("name"))
-            matched = [
-                row for row in candidates if inn and normalize_digits(row.inn) == inn
-            ]
+            matched = [row for row in candidates if inn and normalize_digits(row.inn) == inn]
             if not matched:
                 matched = [
                     row
                     for row in candidates
                     if email
-                    and normalize_email(row.email_contact or row.email_incoming_price)
-                    == email
+                    and normalize_email(row.email_contact or row.email_incoming_price) == email
                 ]
             if not matched:
-                matched = [
-                    row
-                    for row in candidates
-                    if name and normalize_name(row.name) == name
-                ]
+                matched = [row for row in candidates if name and normalize_name(row.name) == name]
             if len(matched) > 1:
                 counts["conflicts"] += 1
                 continue
@@ -372,28 +421,17 @@ async def sync_partssoft_suppliers(session: AsyncSession) -> dict[str, Any]:
             provider = Provider(
                 name=await _unique_provider_name(session, remote.get("name"), external_id),
                 type_prices=TYPE_PRICES.WHOLESALE,
-                inn=remote.get("inn") or None,
-                kpp=remote.get("kpp") or None,
-                payment_terms_days=_integer(remote.get("payment_terms_days")) or 0,
-                is_vat_payer=bool((_decimal(remote.get("vat_rate")) or Decimal(0)) > 0),
                 is_virtual=False,
             )
-            email = _text(remote.get("email"))
-            if email and provider.is_valid_email(email) and not await session.scalar(
-                select(Client.id).where(func.lower(Client.email_contact) == email.casefold())
-            ):
-                provider.email_contact = email
             session.add(provider)
             await session.flush()
+            changed_fields = await _enrich_provider_from_partssoft(session, provider, remote)
+            counts["fields_filled"] += len(changed_fields)
             providers.append(provider)
             counts["created"] += 1
         else:
-            if not provider.inn and remote.get("inn"):
-                provider.inn = remote["inn"]
-            if not provider.kpp and remote.get("kpp"):
-                provider.kpp = remote["kpp"]
-            if not provider.payment_terms_days and remote.get("payment_terms_days"):
-                provider.payment_terms_days = _integer(remote["payment_terms_days"]) or 0
+            changed_fields = await _enrich_provider_from_partssoft(session, provider, remote)
+            counts["fields_filled"] += len(changed_fields)
             counts["updated"] += 1
         if reference is None:
             reference = ProviderExternalReference(
@@ -405,6 +443,8 @@ async def sync_partssoft_suppliers(session: AsyncSession) -> dict[str, Any]:
             refs_by_external_id[external_id] = reference
         reference.provider_id = provider.id
         reference.external_supplier_name = remote.get("name") or None
+        reference.external_payload = remote_raw
+        reference.last_synced_at = now_moscow()
         reference.is_active = True
     await session.commit()
     return {
@@ -421,16 +461,20 @@ async def _store_order_snapshots(
     now = now_moscow()
     cutoff = now - timedelta(days=MAX_RECONCILIATION_DAYS)
     external_ids = [value for row in remote_orders if (value := _text(row.get("id")))]
-    existing = {
-        row.external_order_id: row
-        for row in (
-            await session.scalars(
-                select(PartsSoftOrderSnapshot).where(
-                    PartsSoftOrderSnapshot.external_order_id.in_(external_ids)
+    existing = (
+        {
+            row.external_order_id: row
+            for row in (
+                await session.scalars(
+                    select(PartsSoftOrderSnapshot).where(
+                        PartsSoftOrderSnapshot.external_order_id.in_(external_ids)
+                    )
                 )
-            )
-        ).all()
-    } if external_ids else {}
+            ).all()
+        }
+        if external_ids
+        else {}
+    )
     for remote_order in remote_orders:
         external_order_id = _text(remote_order.get("id"))
         if not external_order_id:
@@ -512,9 +556,7 @@ def _product_photo_urls(product: dict[str, Any]) -> list[str]:
     candidates: list[Any] = [product.get("product_photo_url")]
     candidates.extend(product.get("external_image_urls") or [])
     candidates.extend(
-        row.get("photo_url")
-        for row in (product.get("images") or [])
-        if isinstance(row, dict)
+        row.get("photo_url") for row in (product.get("images") or []) if isinstance(row, dict)
     )
     result: list[str] = []
     seen: set[str] = set()
@@ -549,18 +591,18 @@ async def sync_partssoft_products(
         if normalize_brand_name(brand.name)
     }
     incoming_photo_urls = {
-        url
-        for product in remote_products
-        for url in _product_photo_urls(product)
+        url for product in remote_products for url in _product_photo_urls(product)
     }
-    photos_by_url = {
-        photo.url: photo
-        for photo in (
-            await session.scalars(
-                select(Photo).where(Photo.url.in_(incoming_photo_urls))
-            )
-        ).all()
-    } if incoming_photo_urls else {}
+    photos_by_url = (
+        {
+            photo.url: photo
+            for photo in (
+                await session.scalars(select(Photo).where(Photo.url.in_(incoming_photo_urls)))
+            ).all()
+        }
+        if incoming_photo_urls
+        else {}
+    )
 
     for product in remote_products:
         external_id = _integer(product.get("id"))
@@ -588,10 +630,7 @@ async def sync_partssoft_products(
                     AutoPart.oem_number == oem,
                 )
             )
-        if (
-            autopart is not None
-            and autopart.partssoft_product_id not in (None, external_id)
-        ):
+        if autopart is not None and autopart.partssoft_product_id not in (None, external_id):
             counts["external_id_conflicts"] += 1
             conflicts.append(
                 {
@@ -604,11 +643,7 @@ async def sync_partssoft_products(
             )
             continue
         created = autopart is None
-        name = (
-            _text(product.get("detail_name"))
-            or _text(product.get("name"))
-            or oem
-        )
+        name = _text(product.get("detail_name")) or _text(product.get("name")) or oem
         description = (
             _text(product.get("body"))
             or _text(product.get("seo_text"))
@@ -643,18 +678,12 @@ async def sync_partssoft_products(
         autopart.partssoft_product_updated_at = _parse_datetime(product.get("updated_at"))
         autopart.partssoft_synced_at = now_moscow()
         previous_payload = dict(autopart.partssoft_payload or {})
-        hidden_photo_urls = set(
-            previous_payload.get("_local_hidden_photo_urls") or []
-        )
+        hidden_photo_urls = set(previous_payload.get("_local_hidden_photo_urls") or [])
         stored_payload = dict(product)
         # Поля с подчёркиванием — наше состояние обмена. Входящее
         # обновление не должно забывать, какие локальные фото уже отправлены.
         stored_payload.update(
-            {
-                key: value
-                for key, value in previous_payload.items()
-                if key.startswith("_")
-            }
+            {key: value for key, value in previous_payload.items() if key.startswith("_")}
         )
         autopart.partssoft_payload = stored_payload
         session.add(autopart)
@@ -893,9 +922,7 @@ async def link_partssoft_customer(
     }
     for remote_field, local_field in field_map.items():
         raw_remote_value = remote.get(remote_field)
-        converted_remote_value = converters.get(remote_field, lambda value: value)(
-            raw_remote_value
-        )
+        converted_remote_value = converters.get(remote_field, lambda value: value)(raw_remote_value)
         remote_value = _text(converted_remote_value)
         local_value = _text(getattr(customer, local_field, None))
         if remote_value and not local_value:
@@ -916,9 +943,13 @@ async def link_partssoft_customer(
                     continue
             setattr(customer, local_field, converted_remote_value)
             filled_fields.append(local_field)
-        elif remote_value and local_value and (
-            normalizers.get(remote_field, _normalized_text)(remote_value)
-            != normalizers.get(remote_field, _normalized_text)(local_value)
+        elif (
+            remote_value
+            and local_value
+            and (
+                normalizers.get(remote_field, _normalized_text)(remote_value)
+                != normalizers.get(remote_field, _normalized_text)(local_value)
+            )
         ):
             conflicts.append(local_field)
 
@@ -933,10 +964,7 @@ async def link_partssoft_customer(
     if source_site and not _text(customer.registration_source):
         customer.registration_source = source_site
         filled_fields.append("registration_source")
-    elif (
-        source_site
-        and _text(customer.registration_source).casefold() != source_site.casefold()
-    ):
+    elif source_site and _text(customer.registration_source).casefold() != source_site.casefold():
         conflicts.append("registration_source")
 
     if existing is None:
@@ -1087,11 +1115,7 @@ async def _resolve_sync_customer(
             )
         if not candidates and inn:
             same_inn = list(
-                (
-                    await session.scalars(
-                        select(Customer).where(Customer.inn == inn)
-                    )
-                ).all()
+                (await session.scalars(select(Customer).where(Customer.inn == inn))).all()
             )
             if same_inn:
                 return None, "customer_legal_details_conflict"
@@ -1173,14 +1197,9 @@ async def _resolve_sync_customer(
         # separate customers. Existing-card matches still require review.
         reference.is_verified = bool(
             not remote.get("inn")
-            and (
-                customer_created
-                or reference.match_basis == "created_from_partssoft"
-            )
+            and (customer_created or reference.match_basis == "created_from_partssoft")
         )
-        reference.match_basis = (
-            "created_from_partssoft" if customer_created else "automatic_match"
-        )
+        reference.match_basis = "created_from_partssoft" if customer_created else "automatic_match"
     session.add_all([customer, reference])
     await session.flush()
     return customer, "created" if reference_created else "linked"
@@ -1232,9 +1251,7 @@ def _remote_item_to_customer_order_item(
         external_order_item_id=_text(_item_value(item, "id", "order_item_id")) or None,
         external_offer_id=_text(_item_value(item, "offer_id", "price_id")) or None,
         external_provider_id=provider_id or None,
-        external_warehouse_id=(
-            _text(_item_value(item, "warehouse_id", "store_id")) or None
-        ),
+        external_warehouse_id=(_text(_item_value(item, "warehouse_id", "store_id")) or None),
         source_resolution_status=resolution,
         source_payload=source_payload,
         row_index=row_index,
@@ -1306,12 +1323,8 @@ async def _auto_order_api_items(
                     sup_logo=(item.source_payload or {}).get("sup_logo"),
                     quantity=int(item.requested_qty),
                     confirmed_price=float(item.requested_price or 0),
-                    min_delivery_day=_integer(
-                        (item.source_payload or {}).get("min_delivery_day")
-                    ),
-                    max_delivery_day=_integer(
-                        (item.source_payload or {}).get("max_delivery_day")
-                    ),
+                    min_delivery_day=_integer((item.source_payload or {}).get("min_delivery_day")),
+                    max_delivery_day=_integer((item.source_payload or {}).get("max_delivery_day")),
                     status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
                     tracking_uuid=f"ps-{order.id}-{item.id}",
                     hash_key=(item.source_payload or {}).get("hash_key"),
@@ -1348,11 +1361,7 @@ async def _auto_order_api_items(
                     order.external_order_id,
                     provider_id or provider_name,
                     len(items),
-                    sum(
-                        1
-                        for item in items
-                        if item.source_resolution_status == "api_ordered"
-                    ),
+                    sum(1 for item in items if item.source_resolution_status == "api_ordered"),
                 )
             except Exception:
                 logger.exception(

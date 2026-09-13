@@ -359,6 +359,48 @@ async def test_merge_providers_keeps_distinct_null_external_ids(
 
 
 @pytest.mark.asyncio
+async def test_merge_providers_fills_empty_requisites_without_overwriting_target(
+    test_session: AsyncSession,
+    created_providers: list[Provider],
+):
+    source_provider = created_providers[0]
+    target_provider = created_providers[1]
+    source_provider.legal_name = "ООО ФРОЗА МСК"
+    source_provider.inn = "7714388705"
+    source_provider.kpp = "772401001"
+    source_provider.email_contact = "sale1@froza.ru"
+    source_provider.bank_bik = "044525225"
+    source_provider.bank_account = "40702810000000000001"
+    source_provider.is_vat_payer = True
+    target_provider.legal_name = None
+    target_provider.inn = None
+    target_provider.kpp = None
+    target_provider.email_contact = None
+    target_provider.bank_name = "Наш проверенный банк"
+    target_provider.is_vat_payer = False
+    await test_session.commit()
+
+    merged = await crud_provider.merge_providers(
+        source_provider.id,
+        target_provider.id,
+        test_session,
+    )
+
+    assert merged is True
+    merged_provider = await test_session.get(Provider, target_provider.id)
+    assert merged_provider.name == target_provider.name
+    assert merged_provider.legal_name == "ООО ФРОЗА МСК"
+    assert merged_provider.inn == "7714388705"
+    assert merged_provider.kpp == "772401001"
+    assert merged_provider.email_contact == "sale1@froza.ru"
+    assert merged_provider.bank_bik == "044525225"
+    assert merged_provider.bank_account == "40702810000000000001"
+    assert merged_provider.bank_name == "Наш проверенный банк"
+    assert merged_provider.is_vat_payer is True
+    assert await test_session.get(Provider, source_provider.id) is None
+
+
+@pytest.mark.asyncio
 async def test_merge_providers_moves_autopurchase_supplier_references(
     test_session: AsyncSession,
     created_providers: list[Provider],
@@ -924,22 +966,14 @@ async def test_provider_pricelist_review_workflow(
     )
     assert duplicate_response.status_code == 409
 
-    processed_review_id = (
-        await pricelist_review_queue.process_next_provider_pricelist_review(
-            test_session
-        )
+    processed_review_id = await pricelist_review_queue.process_next_provider_pricelist_review(
+        test_session
     )
     assert processed_review_id == approved_review.id
     await test_session.refresh(approved_review)
     assert approved_review.status == "approved"
-    approved_response = await async_client.get(
-        f"/providers/{provider.id}/pricelist-reviews"
-    )
-    approved = next(
-        item
-        for item in approved_response.json()
-        if item["id"] == approved_review.id
-    )
+    approved_response = await async_client.get(f"/providers/{provider.id}/pricelist-reviews")
+    approved = next(item for item in approved_response.json() if item["id"] == approved_review.id)
     assert approved["decision_reason"] == ("Рост ассортимента подтверждён поставщиком")
     assert approved["decided_by_name"] == "Test Admin"
     assert approved["decided_at"] is not None
@@ -2557,9 +2591,7 @@ async def test_customer_publication_rule_replaces_targets_without_duplicate_erro
     test_session.add(config)
     await test_session.commit()
 
-    endpoint = (
-        f"/customers/{customer.id}/pricelist-configs/{config.id}/publication-rules"
-    )
+    endpoint = f"/customers/{customer.id}/pricelist-configs/{config.id}/publication-rules"
     create_response = await async_client.post(
         endpoint,
         json={
@@ -2588,8 +2620,7 @@ async def test_customer_publication_rule_replaces_targets_without_duplicate_erro
         (
             await test_session.execute(
                 select(CustomerPriceListPublicationRuleTarget).where(
-                    CustomerPriceListPublicationRuleTarget.rule_id
-                    == update_response.json()["id"]
+                    CustomerPriceListPublicationRuleTarget.rule_id == update_response.json()["id"]
                 )
             )
         ).scalars()
@@ -2634,8 +2665,7 @@ async def test_publication_candidate_search_includes_catalog_item_without_curren
     await test_session.commit()
 
     response = await async_client.get(
-        f"/customers/{customer.id}/pricelist-configs/{config.id}"
-        "/publication-candidates",
+        f"/customers/{customer.id}/pricelist-configs/{config.id}" "/publication-candidates",
         params={"search": "CATALOG-ONLY-OEM"},
     )
 
@@ -2974,7 +3004,9 @@ async def test_smtp_customer_pricelist_uses_external_relay(
                 )
                 .order_by(EmailOutbox.id.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     assert result == "queued"
     assert len(outbox_rows) == 2
@@ -2984,10 +3016,7 @@ async def test_smtp_customer_pricelist_uses_external_relay(
     ]
     assert all(row.status == EMAIL_OUTBOX_STATUS.PENDING for row in outbox_rows)
     assert all(row.from_email == account.email for row in outbox_rows)
-    assert all(
-        row.attachments[0]["local_file_path"] == str(artifact_path)
-        for row in outbox_rows
-    )
+    assert all(row.attachments[0]["local_file_path"] == str(artifact_path) for row in outbox_rows)
     await test_session.refresh(config)
     assert config.last_sent_at is None
 
@@ -3036,10 +3065,7 @@ async def test_customer_pricelist_relay_terminal_error_updates_draft(
     )
     await test_session.refresh(customer_pricelist)
     assert customer_pricelist.generation_status == "send_failed"
-    assert (
-        customer_pricelist.send_error
-        == "recipient@example.com: SMTP unavailable"
-    )
+    assert customer_pricelist.send_error == "recipient@example.com: SMTP unavailable"
 
 
 @pytest.mark.asyncio
