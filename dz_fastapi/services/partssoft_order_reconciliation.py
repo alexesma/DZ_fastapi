@@ -642,12 +642,20 @@ async def sync_partssoft_products(
         autopart.partssoft_product_id = external_id
         autopart.partssoft_product_updated_at = _parse_datetime(product.get("updated_at"))
         autopart.partssoft_synced_at = now_moscow()
+        previous_payload = dict(autopart.partssoft_payload or {})
         hidden_photo_urls = set(
-            (autopart.partssoft_payload or {}).get("_local_hidden_photo_urls") or []
+            previous_payload.get("_local_hidden_photo_urls") or []
         )
         stored_payload = dict(product)
-        if hidden_photo_urls:
-            stored_payload["_local_hidden_photo_urls"] = sorted(hidden_photo_urls)
+        # Поля с подчёркиванием — наше состояние обмена. Входящее
+        # обновление не должно забывать, какие локальные фото уже отправлены.
+        stored_payload.update(
+            {
+                key: value
+                for key, value in previous_payload.items()
+                if key.startswith("_")
+            }
+        )
         autopart.partssoft_payload = stored_payload
         session.add(autopart)
         await session.flush()

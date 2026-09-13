@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 from collections import Counter
 from datetime import date, datetime, timedelta
@@ -46,10 +47,22 @@ def _decimal(value: Any, default: Decimal = Decimal("0")) -> Decimal:
         return default
 
 
-def _document_date(payload: dict[str, Any]) -> date:
+def _document_date(payload: dict[str, Any]) -> date | None:
     value = payload.get("document_created_at") or payload.get("created_at")
     parsed = _parse_datetime(value)
-    return parsed.date() if parsed else now_moscow().date()
+    return parsed.date() if parsed else None
+
+
+async def _response_payload(response: aiohttp.ClientResponse) -> dict[str, Any]:
+    """Read JSON even when Parts-Soft omits or mislabels Content-Type."""
+    body = await response.read()
+    if not body:
+        return {}
+    try:
+        payload = json.loads(body)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Parts-Soft returned an invalid JSON response") from exc
+    return payload if isinstance(payload, dict) else {"data": payload}
 
 
 def _remote_product_id(payload: Any) -> int | None:
@@ -133,10 +146,10 @@ async def _send_product_upsert(autopart: AutoPart) -> tuple[int, dict[str, Any],
                     allow_redirects=False,
                 ) as recreated:
                     recreated.raise_for_status()
-                    response_payload = await recreated.json()
+                    response_payload = await _response_payload(recreated)
             else:
                 response.raise_for_status()
-                response_payload = await response.json()
+                response_payload = await _response_payload(response)
     resolved_id = _remote_product_id(response_payload) or external_id
     if resolved_id is None:
         raise RuntimeError("Parts-Soft did not return the product ID")
@@ -292,6 +305,7 @@ async def _fetch_documents(
         timeout=aiohttp.ClientTimeout(total=120),
     ) as client:
         page = 1
+        page_signatures: set[tuple[Any, ...]] = set()
         while True:
             params = {
                 "page": page,
@@ -306,10 +320,16 @@ async def _fetch_documents(
             page_rows = payload.get(collection_key) if isinstance(payload, dict) else None
             if not isinstance(page_rows, list):
                 raise RuntimeError(f"Unexpected Parts-Soft {collection_key} response")
+            signature = tuple(row.get("id") for row in page_rows if isinstance(row, dict))
+            if signature and signature in page_signatures:
+                raise RuntimeError(f"Parts-Soft repeated a {collection_key} page during pagination")
+            page_signatures.add(signature)
             rows.extend(row for row in page_rows if isinstance(row, dict))
             if len(page_rows) < PAGE_SIZE:
                 break
             page += 1
+            if page > 1000:
+                raise RuntimeError(f"Parts-Soft {collection_key} pagination exceeded 1000 pages")
     recent_rows: list[dict[str, Any]] = []
     for row in rows:
         created_at = _parse_datetime(row.get("document_created_at") or row.get("created_at"))
@@ -355,11 +375,14 @@ async def _import_customer_invoice(
             CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
             CustomerExternalReference.external_customer_id == snapshot.external_counterparty_id,
             CustomerExternalReference.is_active.is_(True),
+            CustomerExternalReference.is_verified.is_(True),
         )
     )
     if reference is None:
         snapshot.import_status = "unmatched_counterparty"
         return False
+    if snapshot.document_date is None:
+        raise ValueError("Parts-Soft customer invoice has no valid document date")
     invoice = PaymentInvoice(
         customer_id=reference.customer_id,
         invoice_number=f"PS-{snapshot.external_document_id}",

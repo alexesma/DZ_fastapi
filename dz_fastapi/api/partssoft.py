@@ -57,12 +57,12 @@ async def enqueue_all_products(session: AsyncSession = Depends(get_session)):
     return {"queued": await enqueue_all_local_products(session)}
 
 
-@router.get("/documents/status")
+@router.get("/documents/status", dependencies=[Depends(require_admin)])
 async def partssoft_document_status(session: AsyncSession = Depends(get_session)):
     return await document_sync_status(session)
 
 
-@router.get("/documents")
+@router.get("/documents", dependencies=[Depends(require_admin)])
 async def partssoft_documents(
     document_type: str | None = Query(default=None),
     import_status: str | None = Query(default=None),
@@ -119,6 +119,8 @@ async def sync_documents(
         ) from exc
     except (aiohttp.ClientError, TimeoutError) as exc:
         raise HTTPException(status_code=502, detail="Parts-Soft API is unavailable") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/suppliers/status")

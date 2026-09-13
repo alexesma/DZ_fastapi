@@ -63,6 +63,7 @@ async def test_document_sync_imports_matched_invoices_once(
                 source_system=PARTS_SOFT_SOURCE,
                 external_customer_id=701,
                 is_active=True,
+                is_verified=True,
             ),
             ProviderExternalReference(
                 provider_id=provider.id,
@@ -158,6 +159,15 @@ async def test_unmatched_document_imports_after_customer_is_linked(
         return [payload] if collection_key == "invoices" else []
 
     monkeypatch.setattr(service, "_fetch_documents", fake_fetch)
+    reference = CustomerExternalReference(
+        customer_id=created_customers[0].id,
+        source_system=PARTS_SOFT_SOURCE,
+        external_customer_id=801,
+        is_active=True,
+        is_verified=False,
+    )
+    test_session.add(reference)
+    await test_session.commit()
 
     first = await service.sync_partssoft_documents(test_session, days=30)
     snapshot = await test_session.scalar(
@@ -169,14 +179,7 @@ async def test_unmatched_document_imports_after_customer_is_linked(
     assert snapshot.import_status == "unmatched_counterparty"
     assert snapshot.local_payment_invoice_id is None
 
-    test_session.add(
-        CustomerExternalReference(
-            customer_id=created_customers[0].id,
-            source_system=PARTS_SOFT_SOURCE,
-            external_customer_id=801,
-            is_active=True,
-        )
-    )
+    reference.is_verified = True
     await test_session.commit()
 
     second = await service.sync_partssoft_documents(test_session, days=30)

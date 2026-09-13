@@ -182,6 +182,7 @@ PARTSSOFT_DOCUMENT_SYNC_MINUTES = max(
 PARTSSOFT_DOCUMENT_SYNC_ENABLED = os.getenv(
     "PARTSSOFT_DOCUMENT_SYNC_ENABLED", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
+_partssoft_product_sync_lock = asyncio.Lock()
 
 
 def _env_int_with_min(
@@ -513,17 +514,20 @@ async def sync_partssoft_products_task(app: FastAPI):
         job_key="partssoft_product_sync",
         job_name="Sync Parts-Soft product cards",
     ) as trace:
-        async with new_session_from_app(app) as session:
-            try:
-                supplier_result = await sync_partssoft_suppliers(session)
-                logger.info("Parts-Soft supplier sync completed: %s", supplier_result)
-            except Exception as exc:
-                await session.rollback()
-                supplier_result = {"error": str(exc)}
-                logger.exception("Parts-Soft supplier sync failed")
-            product_result = await sync_partssoft_products(session)
-            trace.details.update({"suppliers": supplier_result, "products": product_result})
-            logger.info("Parts-Soft product sync completed: %s", product_result)
+        async with _partssoft_product_sync_lock:
+            async with new_session_from_app(app) as session:
+                try:
+                    supplier_result = await sync_partssoft_suppliers(session)
+                    logger.info("Parts-Soft supplier sync completed: %s", supplier_result)
+                except Exception as exc:
+                    await session.rollback()
+                    supplier_result = {"error": str(exc)}
+                    logger.exception("Parts-Soft supplier sync failed")
+                product_result = await sync_partssoft_products(session)
+                trace.details.update(
+                    {"suppliers": supplier_result, "products": product_result}
+                )
+                logger.info("Parts-Soft product sync completed: %s", product_result)
 
 
 async def sync_partssoft_products_full_task(app: FastAPI):
@@ -533,10 +537,14 @@ async def sync_partssoft_products_full_task(app: FastAPI):
         job_key="partssoft_product_full_sync",
         job_name="Full Parts-Soft product reconciliation",
     ) as trace:
-        async with new_session_from_app(app) as session:
-            result = await sync_partssoft_products(session, full=True)
-            trace.details.update(result)
-            logger.info("Parts-Soft full product reconciliation completed: %s", result)
+        async with _partssoft_product_sync_lock:
+            async with new_session_from_app(app) as session:
+                result = await sync_partssoft_products(session, full=True)
+                trace.details.update(result)
+                logger.info(
+                    "Parts-Soft full product reconciliation completed: %s",
+                    result,
+                )
 
 
 async def process_partssoft_product_outbox_task(app: FastAPI):

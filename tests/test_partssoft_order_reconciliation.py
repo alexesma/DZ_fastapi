@@ -438,15 +438,21 @@ async def test_partssoft_product_sync_merges_card_and_photos(
     monkeypatch.setenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3")
 
     first = await service.sync_partssoft_products(test_session)
+    autopart = await test_session.scalar(
+        select(AutoPart).where(AutoPart.partssoft_product_id == 741717)
+    )
+    autopart.partssoft_payload = {
+        **autopart.partssoft_payload,
+        "_outbound_photo_urls": ["/uploads/autoparts/1/local.jpg"],
+    }
+    await test_session.commit()
     second = await service.sync_partssoft_products(test_session)
 
     assert first["counts"]["created"] == 1
     assert first["counts"]["photos_added"] == 2
     assert second["counts"]["updated"] == 1
     assert second["counts"]["photos_existing"] == 2
-    autopart = await test_session.scalar(
-        select(AutoPart).where(AutoPart.partssoft_product_id == 741717)
-    )
+    await test_session.refresh(autopart)
     photos = list(
         (
             await test_session.scalars(
@@ -457,6 +463,9 @@ async def test_partssoft_product_sync_merges_card_and_photos(
     assert autopart.oem_number == "STMR403027"
     assert autopart.description == "Подробное описание"
     assert autopart.partssoft_payload["product_category_ids"] == [755]
+    assert autopart.partssoft_payload["_outbound_photo_urls"] == [
+        "/uploads/autoparts/1/local.jpg"
+    ]
     assert {photo.url for photo in photos} == {
         "https://admin.dragonzap.ru/system/product_photo/741717/main.jpg",
         "https://admin.dragonzap.ru/system/image_photo/1503/extra.jpg",
