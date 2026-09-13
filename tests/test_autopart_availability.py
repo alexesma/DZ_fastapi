@@ -10,11 +10,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.autopart import (
-    AutoPart,
-    StorageLocation,
-    autopart_storage_association,
-)
+from dz_fastapi.models.autopart import AutoPart, StorageLocation, autopart_storage_association
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.partner import (
     PriceList,
