@@ -576,6 +576,16 @@ class ProviderMergeResponse(BaseModel):
     target_provider_id: int
 
 
+class CustomerMergeRequest(BaseModel):
+    source_customer_id: int
+
+
+class CustomerMergeResponse(BaseModel):
+    merged: bool
+    source_customer_id: int
+    target_customer_id: int
+
+
 class CustomerPriceListResponseShort(BaseModel):
     id: int
     date: date

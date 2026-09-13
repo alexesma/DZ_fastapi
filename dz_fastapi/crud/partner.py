@@ -30,6 +30,7 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.order_status_mapping import ExternalStatusMapping, ExternalStatusUnmapped
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
+    Client,
     Customer,
     CustomerExternalReference,
     CustomerOrderItem,
@@ -39,6 +40,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListExportRow,
     CustomerPriceListPublishedAlias,
     CustomerPriceListSource,
+    CustomerReclamationEmail,
     Order,
     PriceList,
     PriceListAutoPartAssociation,
@@ -245,9 +247,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             select(ProviderExternalReference)
             .where(
                 ProviderExternalReference.source_system == source_system,
-                func.lower(
-                    func.trim(ProviderExternalReference.external_supplier_name)
-                )
+                func.lower(func.trim(ProviderExternalReference.external_supplier_name))
                 == value.lower(),
             )
             .order_by(ProviderExternalReference.id.asc())
@@ -270,8 +270,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if not value:
             return None
         result = await session.execute(
-            select(Provider)
-            .where(func.lower(func.trim(Provider.name)) == value.lower())
+            select(Provider).where(func.lower(func.trim(Provider.name)) == value.lower())
             # Настоящий поставщик важнее автоматически созданного дубля:
             # пока дубль не убран, заказ должен идти к настоящему.
             .order_by(Provider.is_virtual.asc(), Provider.id.asc())
@@ -1387,8 +1386,155 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
         )
         return result.scalars().all()
 
+    # Поля, которые переносим из дубля, если у основной карточки они
+    # пустые. Дубли приходят с сайта и заведённые руками: у одной
+    # заполнены реквизиты, у другой — банк или телефоны, и терять ни то,
+    # ни другое нельзя.
+    MERGEABLE_FIELDS = (
+        "legal_name",
+        "inn",
+        "kpp",
+        "legal_address",
+        "postal_address",
+        "company_type",
+        "phone",
+        "additional_phone",
+        "vat_rate",
+        "bank_bik",
+        "bank_name",
+        "bank_city",
+        "bank_account",
+        "correspondent_account",
+        "registration_source",
+        "credit_limit",
+        "payment_terms_days",
+        "return_window_days",
+        "description",
+        "comment",
+        "email_contact",
+        "type_prices",
+    )
+
+    async def merge_customers(
+        self,
+        source_customer_id: int,
+        target_customer_id: int,
+        session: AsyncSession,
+    ) -> bool:
+        """Объединяет дубль клиента с основной карточкой.
+
+        Повторяет объединение поставщиков: переносит все связанные записи
+        на основную карточку и удаляет дубль. Отличие в том, что данные
+        самой карточки не теряются — пустые поля основной заполняются из
+        дубля.
+        """
+        if source_customer_id == target_customer_id:
+            raise ValueError("Нельзя объединить карточку клиента саму с собой")
+        try:
+            # Без SELECT ... FOR UPDATE: объединение идёт одной
+            # транзакцией, и все переносы берут блокировки строк сами.
+            # Явная блокировка на joined-наследовании client/customer
+            # запирала строки в порядке, обратном порядку удаления, и
+            # ловила взаимную блокировку с параллельным чтением карточки.
+            source = await session.get(Customer, source_customer_id)
+            target = await session.get(Customer, target_customer_id)
+            if not source or not target:
+                raise ValueError("Один из клиентов не найден")
+
+            await merge_customer_records(
+                session,
+                source_customer_id=source_customer_id,
+                target_customer=target,
+            )
+            await session.commit()
+            logger.info(
+                "Объединены клиенты: %s → %s",
+                source_customer_id,
+                target_customer_id,
+            )
+            return True
+        except ValueError:
+            await session.rollback()
+            raise
+        except SQLAlchemyError as exc:
+            await session.rollback()
+            logger.error("Ошибка объединения клиентов: %s", exc)
+            raise ValueError(
+                "Не удалось объединить клиентов: конфликтуют связанные записи"
+            ) from exc
+
 
 crud_customer = CRUDCustomer(Customer)
+
+
+async def merge_customer_records(
+    session: AsyncSession,
+    *,
+    source_customer_id: int,
+    target_customer: Customer,
+) -> None:
+    """Переносит данные дубля клиента на основную карточку без commit.
+
+    Общий код для двух путей: ручного объединения из карточки клиента и
+    сверки заказов Parts-Soft. Держать их порознь нельзя — разойдутся, и
+    один из путей начнёт терять данные.
+    """
+    if source_customer_id == target_customer.id:
+        return
+    source = await session.get(Customer, source_customer_id)
+    if source is None:
+        raise LookupError("Дубль клиента не найден")
+
+    for field in CRUDCustomer.MERGEABLE_FIELDS:
+        текущее = str(getattr(target_customer, field, None) or "").strip()
+        из_дубля = getattr(source, field, None)
+        if not текущее and str(из_дубля or "").strip():
+            setattr(target_customer, field, из_дубля)
+
+    # Единственное уникальное ограничение, куда упирается перенос, —
+    # пара «клиент + почта» для рекламаций. У дублей почта обычно одна и
+    # та же, поэтому повторы убираем до переноса, иначе объединение
+    # падало бы на нарушении уникальности.
+    почты_основной = set(
+        (
+            await session.execute(
+                select(CustomerReclamationEmail.email).where(
+                    CustomerReclamationEmail.customer_id == target_customer.id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if почты_основной:
+        await session.execute(
+            delete(CustomerReclamationEmail).where(
+                CustomerReclamationEmail.customer_id == source_customer_id,
+                CustomerReclamationEmail.email.in_(почты_основной),
+            )
+        )
+
+    # Общий проход по всем внешним ключам на customer.id: новая таблица
+    # с ссылкой на клиента не должна молча ломать объединение.
+    for table in Customer.metadata.tables.values():
+        if table.name in {Customer.__table__.name, Client.__table__.name}:
+            continue
+        for column in table.columns:
+            if any(fk.target_fullname == "customer.id" for fk in column.foreign_keys):
+                await session.execute(
+                    update(table)
+                    .where(column == source_customer_id)
+                    .values({column.name: target_customer.id})
+                )
+
+    await session.flush()
+    await session.execute(
+        delete(Customer.__table__).where(Customer.__table__.c.id == source_customer_id)
+    )
+    await session.execute(
+        delete(Client.__table__).where(Client.__table__.c.id == source_customer_id)
+    )
+    session.expunge(source)
 
 
 class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
@@ -1609,7 +1755,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
             LOOKUP_CHUNK_SIZE = 1000
             for chunk_start in range(0, len(lookup_pairs), LOOKUP_CHUNK_SIZE):
-                chunk = lookup_pairs[chunk_start: chunk_start + LOOKUP_CHUNK_SIZE]
+                chunk = lookup_pairs[chunk_start : chunk_start + LOOKUP_CHUNK_SIZE]
                 lookup_stmt = select(
                     AutoPart.id,
                     AutoPart.oem_number,
@@ -1972,9 +2118,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             return pd.DataFrame(columns=list(self.PRICELIST_DF_COLUMNS))
 
         multiplicity_source = (
-            AutoPart.multiplicity
-            if bool(header[3])
-            else PriceListAutoPartAssociation.multiplicity
+            AutoPart.multiplicity if bool(header[3]) else PriceListAutoPartAssociation.multiplicity
         )
         stmt = (
             select(
@@ -2007,9 +2151,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         rows = (await session.execute(stmt)).all()
 
         def _build() -> pd.DataFrame:
-            frame = pd.DataFrame(
-                rows, columns=list(self.PRICELIST_DF_COLUMNS)
-            )
+            frame = pd.DataFrame(rows, columns=list(self.PRICELIST_DF_COLUMNS))
             # Одинаковые для всего прайса поля — колонкой, а не построчно.
             frame["provider_id"] = header[1]
             frame["provider_config_id"] = header[2]
@@ -2447,9 +2589,7 @@ class CRUDCustomerPriceList(
                 if not column or column not in block_df.columns or not selected:
                     continue
                 if field in {"brand", "position"}:
-                    matches = pd.to_numeric(
-                        block_df[column], errors="coerce"
-                    ).isin(selected)
+                    matches = pd.to_numeric(block_df[column], errors="coerce").isin(selected)
                 else:
                     matches = block_df[column].map(
                         lambda values: bool(selected.intersection(values or ()))
@@ -2571,7 +2711,7 @@ class CRUDCustomerPriceList(
         for chunk_start in range(0, len(insert_rows), INSERT_CHUNK_SIZE):
             await session.execute(
                 insert(CustomerPriceListAutoPartAssociation),
-                insert_rows[chunk_start: chunk_start + INSERT_CHUNK_SIZE],
+                insert_rows[chunk_start : chunk_start + INSERT_CHUNK_SIZE],
             )
         await session.commit()
 

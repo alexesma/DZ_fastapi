@@ -74,6 +74,8 @@ from dz_fastapi.schemas.partner import (
     CustomerCreate,
     CustomerExternalReferenceOut,
     CustomerListSummary,
+    CustomerMergeRequest,
+    CustomerMergeResponse,
     CustomerPriceListConfigCreate,
     CustomerPriceListConfigResponse,
     CustomerPriceListConfigSummary,
@@ -642,6 +644,45 @@ async def merge_provider_into_target(
         merged=bool(merged),
         source_provider_id=payload.source_provider_id,
         target_provider_id=provider_id,
+    )
+
+
+@router.post(
+    "/customers/{customer_id}/merge",
+    tags=["customers"],
+    status_code=status.HTTP_200_OK,
+    summary="Объединить дубль клиента с текущим",
+    response_model=CustomerMergeResponse,
+)
+async def merge_customer_into_target(
+    customer_id: int,
+    payload: CustomerMergeRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Объединяет дубль клиента с основной карточкой.
+
+    Дубли появляются оттого, что карточку заводят руками и она же
+    приезжает с сайта. Связанные записи переносятся на основную
+    карточку, пустые её поля заполняются из дубля, дубль удаляется.
+    """
+    target = await crud_customer.get(session=session, obj_id=customer_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    source = await crud_customer.get(session=session, obj_id=payload.source_customer_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Дубль клиента не найден")
+    try:
+        merged = await crud_customer.merge_customers(
+            source_customer_id=payload.source_customer_id,
+            target_customer_id=customer_id,
+            session=session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CustomerMergeResponse(
+        merged=bool(merged),
+        source_customer_id=payload.source_customer_id,
+        target_customer_id=customer_id,
     )
 
 
@@ -2563,16 +2604,12 @@ async def build_customer_pricelist_file(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
 
     try:
         response = await process_customer_pricelist(
             customer=customer,
-            request=CustomerPriceListCreate(
-                customer_id=customer.id, config_id=config.id, items=[]
-            ),
+            request=CustomerPriceListCreate(customer_id=customer.id, config_id=config.id, items=[]),
             session=session,
             include_autoparts_response=False,
             delivery_mode="draft",
@@ -2582,15 +2619,11 @@ async def build_customer_pricelist_file(
 
     pricelist = await _load_customer_pricelist_draft(session, response.id)
     if pricelist is None or not pricelist.artifact_path:
-        raise HTTPException(
-            status_code=404, detail="Файл прайса не сформирован"
-        )
+        raise HTTPException(status_code=404, detail="Файл прайса не сформирован")
     path = Path(pricelist.artifact_path).resolve()
     artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
     if artifact_root not in path.parents or not path.is_file():
-        raise HTTPException(
-            status_code=404, detail="Файл прайса не найден на диске"
-        )
+        raise HTTPException(status_code=404, detail="Файл прайса не найден на диске")
     return FileResponse(
         path,
         media_type=pricelist.artifact_content_type,
@@ -3030,8 +3063,7 @@ async def list_customer_pricelist_draft_rows(
 
 
 @router.get(
-    "/customers/{customer_id}/pricelist-configs/{config_id}"
-    "/drafts/{pricelist_id}/diagnostics",
+    "/customers/{customer_id}/pricelist-configs/{config_id}" "/drafts/{pricelist_id}/diagnostics",
     tags=["customers", "pricelists"],
 )
 async def diagnose_customer_pricelist_position(
@@ -3086,13 +3118,9 @@ async def diagnose_customer_pricelist_position(
         }
 
     summary = pricelist.generation_summary or {}
-    final_filter_examples = (
-        (summary.get("final_filters") or {}).get("examples") or []
-    )
+    final_filter_examples = (summary.get("final_filters") or {}).get("examples") or []
     source_pricelist_ids = [
-        int(value)
-        for value in summary.get("source_pricelist_ids", [])
-        if str(value).isdigit()
+        int(value) for value in summary.get("source_pricelist_ids", []) if str(value).isdigit()
     ]
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config_id,
@@ -3146,9 +3174,7 @@ async def diagnose_customer_pricelist_position(
             .limit(50)
         )
     ).all()
-    candidate_autopart_ids = {
-        int(row[2]) for row in candidate_rows if row[2] is not None
-    }
+    candidate_autopart_ids = {int(row[2]) for row in candidate_rows if row[2] is not None}
     published_by_source: dict[int, list[CustomerPriceListExportRow]] = {}
     if candidate_autopart_ids:
         source_exports = list(
@@ -3156,9 +3182,7 @@ async def diagnose_customer_pricelist_position(
                 await session.execute(
                     select(CustomerPriceListExportRow).where(
                         CustomerPriceListExportRow.customer_pricelist_id == pricelist_id,
-                        CustomerPriceListExportRow.source_autopart_id.in_(
-                            candidate_autopart_ids
-                        ),
+                        CustomerPriceListExportRow.source_autopart_id.in_(candidate_autopart_ids),
                     )
                 )
             )
@@ -3166,9 +3190,9 @@ async def diagnose_customer_pricelist_position(
             .all()
         )
         for export_row in source_exports:
-            published_by_source.setdefault(
-                int(export_row.source_autopart_id), []
-            ).append(export_row)
+            published_by_source.setdefault(int(export_row.source_autopart_id), []).append(
+                export_row
+            )
 
     items = []
     for (
@@ -3189,8 +3213,7 @@ async def diagnose_customer_pricelist_position(
         if published_variants:
             status_value = "transformed"
             preview = ", ".join(
-                f"{row.advertised_brand} {row.advertised_oem}"
-                for row in published_variants[:5]
+                f"{row.advertised_brand} {row.advertised_oem}" for row in published_variants[:5]
             )
             reason = f"Исходная позиция преобразована и опубликована как: {preview}."
         elif source is None:
@@ -3201,19 +3224,13 @@ async def diagnose_customer_pricelist_position(
             brand_filter = source.brand_filters or {}
             position_filter = source.position_filters or {}
             source_settings = source.additional_filters or {}
-            dragonzap_mode = str(
-                source_settings.get("DRAGONZAP_MODE") or "normal"
-            ).lower()
+            dragonzap_mode = str(source_settings.get("DRAGONZAP_MODE") or "normal").lower()
             brand_ids = {
-                int(value)
-                for value in brand_filter.get("brands", [])
-                if str(value).isdigit()
+                int(value) for value in brand_filter.get("brands", []) if str(value).isdigit()
             }
             filter_type = str(brand_filter.get("type") or "").lower()
             position_ids = {
-                int(value)
-                for value in position_filter.get("autoparts", [])
-                if str(value).isdigit()
+                int(value) for value in position_filter.get("autoparts", []) if str(value).isdigit()
             }
             position_filter_type = str(position_filter.get("type") or "").lower()
             final_example = next(
@@ -3238,10 +3255,10 @@ async def diagnose_customer_pricelist_position(
             ):
                 reason = "Позиция не входит в разрешённый список источника."
             elif filter_type == "exclude" and int(brand_id) in brand_ids:
-                if (
-                    str(brand_name or "").upper() == "DRAGONZAP"
-                    and dragonzap_mode in {"transform_only", "auto"}
-                ):
+                if str(brand_name or "").upper() == "DRAGONZAP" and dragonzap_mode in {
+                    "transform_only",
+                    "auto",
+                }:
                     reason = (
                         "Исходная строка DragonZap используется только для "
                         "преобразования; она не публикуется под брендом DragonZap."
@@ -3266,9 +3283,7 @@ async def diagnose_customer_pricelist_position(
                     if not isinstance(rule, dict):
                         continue
                     rule_brand_ids = {
-                        int(value)
-                        for value in rule.get("brand_ids", [])
-                        if str(value).isdigit()
+                        int(value) for value in rule.get("brand_ids", []) if str(value).isdigit()
                     }
                     if int(brand_id) not in rule_brand_ids:
                         continue
