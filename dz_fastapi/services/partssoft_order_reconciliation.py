@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -30,6 +30,7 @@ from dz_fastapi.core.base import (
     ProviderExternalReference,
 )
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.partner import merge_customer_records
 from dz_fastapi.models.autopart import (
     TYPE_SUPPLIER_DECISION_STATUS,
     AutoPart,
@@ -37,6 +38,7 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import CUSTOMER_ORDER_STATUS, TYPE_PRICES
+from dz_fastapi.models.partssoft import PartsSoftProductOutbox
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.order import OrderPositionOut
 from dz_fastapi.services.partssoft_reconciliation import (
@@ -664,6 +666,50 @@ async def sync_partssoft_products(
                 counts["photos_existing"] += 1
         synced_ids.append(int(autopart.id))
 
+    if updated_since is None:
+        remote_product_ids = {
+            external_id
+            for product in remote_products
+            if (external_id := _integer(product.get("id"))) is not None
+        }
+        missing_locally_authoritative = list(
+            (
+                await session.scalars(
+                    select(AutoPart).where(
+                        AutoPart.partssoft_product_id.is_not(None),
+                        AutoPart.partssoft_product_id.not_in(remote_product_ids),
+                    )
+                )
+            ).all()
+        )
+        if missing_locally_authoritative:
+            missing_ids = [row.id for row in missing_locally_authoritative]
+            queued_by_autopart = {
+                row.autopart_id: row
+                for row in (
+                    await session.scalars(
+                        select(PartsSoftProductOutbox).where(
+                            PartsSoftProductOutbox.autopart_id.in_(missing_ids)
+                        )
+                    )
+                ).all()
+            }
+            now = now_moscow()
+            for autopart in missing_locally_authoritative:
+                queued = queued_by_autopart.get(autopart.id)
+                if queued is None:
+                    queued = PartsSoftProductOutbox(autopart_id=autopart.id)
+                    session.add(queued)
+                queued.external_product_id = autopart.partssoft_product_id
+                queued.operation = "upsert"
+                queued.status = "pending"
+                queued.attempts = 0
+                queued.last_error = None
+                queued.available_at = now
+                queued.locked_at = None
+                queued.sent_at = None
+            counts["remote_missing_queued"] += len(missing_locally_authoritative)
+
     await session.commit()
     return {
         "mode": "full" if updated_since is None else "incremental",
@@ -924,40 +970,12 @@ async def _merge_customer_into_target(
     source_customer_id: int,
     target_customer: Customer,
 ) -> None:
-    if source_customer_id == target_customer.id:
-        return
-    source = await session.get(Customer, source_customer_id)
-    if source is None:
-        raise LookupError("Duplicate customer not found")
-
-    merge_fields = (
-        "legal_name", "inn", "kpp", "legal_address", "postal_address",
-        "company_type", "phone", "additional_phone", "vat_rate", "bank_bik",
-        "bank_name", "bank_city", "bank_account", "correspondent_account",
-        "registration_source", "credit_limit", "payment_terms_days",
-        "return_window_days", "description", "comment",
+    """Объединение дубля клиента при сверке заказов Parts-Soft."""
+    await merge_customer_records(
+        session,
+        source_customer_id=source_customer_id,
+        target_customer=target_customer,
     )
-    for field in merge_fields:
-        if not _text(getattr(target_customer, field, None)) and _text(getattr(source, field, None)):
-            setattr(target_customer, field, getattr(source, field))
-
-    for table in Customer.metadata.tables.values():
-        if table.name in {Customer.__table__.name, Client.__table__.name}:
-            continue
-        for column in table.columns:
-            if any(fk.target_fullname == "customer.id" for fk in column.foreign_keys):
-                await session.execute(
-                    update(table)
-                    .where(column == source_customer_id)
-                    .values({column.name: target_customer.id})
-                )
-    await session.execute(
-        delete(Customer.__table__).where(Customer.__table__.c.id == source_customer_id)
-    )
-    await session.execute(
-        delete(Client.__table__).where(Client.__table__.c.id == source_customer_id)
-    )
-    session.expunge(source)
 
 
 def _item_value(item: dict[str, Any], *keys: str) -> Any:

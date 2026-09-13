@@ -51,6 +51,7 @@ from dz_fastapi.models.partner import (
     ProviderPricelistReview,
     SupplierOrderMessage,
 )
+from dz_fastapi.models.partssoft import PartsSoftDocumentSnapshot
 from dz_fastapi.models.price_control import PriceControlConfig
 from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.partner import (
@@ -86,6 +87,7 @@ from dz_fastapi.services.order_timing import (
     get_overdue_supplier_responses,
     is_in_any_order_window,
 )
+from dz_fastapi.services.partssoft_exchange import process_product_outbox, sync_partssoft_documents
 from dz_fastapi.services.partssoft_order_reconciliation import (
     sync_partssoft_orders,
     sync_partssoft_products,
@@ -162,8 +164,23 @@ PARTSSOFT_PRODUCT_SYNC_HOURS = max(
     1,
     int(os.getenv("PARTSSOFT_PRODUCT_SYNC_HOURS", "6")),
 )
+PARTSSOFT_PRODUCT_FULL_SYNC_HOURS = max(
+    6,
+    int(os.getenv("PARTSSOFT_PRODUCT_FULL_SYNC_HOURS", "24")),
+)
 PARTSSOFT_PRODUCT_SYNC_ENABLED = os.getenv(
     "PARTSSOFT_PRODUCT_SYNC_ENABLED", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
+PARTSSOFT_PRODUCT_OUTBOX_MINUTES = max(
+    1,
+    int(os.getenv("PARTSSOFT_PRODUCT_OUTBOX_MINUTES", "5")),
+)
+PARTSSOFT_DOCUMENT_SYNC_MINUTES = max(
+    5,
+    int(os.getenv("PARTSSOFT_DOCUMENT_SYNC_MINUTES", "30")),
+)
+PARTSSOFT_DOCUMENT_SYNC_ENABLED = os.getenv(
+    "PARTSSOFT_DOCUMENT_SYNC_ENABLED", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -509,6 +526,52 @@ async def sync_partssoft_products_task(app: FastAPI):
             logger.info("Parts-Soft product sync completed: %s", product_result)
 
 
+async def sync_partssoft_products_full_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="partssoft_product_full_sync",
+        job_name="Full Parts-Soft product reconciliation",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            result = await sync_partssoft_products(session, full=True)
+            trace.details.update(result)
+            logger.info("Parts-Soft full product reconciliation completed: %s", result)
+
+
+async def process_partssoft_product_outbox_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="partssoft_product_outbox",
+        job_name="Send local product changes to Parts-Soft",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            result = await process_product_outbox(session, limit=25)
+            trace.details.update(result)
+            if result.get("processed"):
+                logger.info("Parts-Soft product outbox processed: %s", result)
+
+
+async def sync_partssoft_documents_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="partssoft_document_sync",
+        job_name="Import Parts-Soft invoices",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            existing = await session.scalar(
+                select(func.count(PartsSoftDocumentSnapshot.id))
+            )
+            result = await sync_partssoft_documents(
+                session,
+                days=30 if not existing else 2,
+            )
+            trace.details.update(result)
+            logger.info("Parts-Soft documents synchronized: %s", result)
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -570,6 +633,42 @@ def start_scheduler(app: FastAPI):
             id="partssoft_product_sync",
             name="Sync Parts-Soft product cards",
             hours=PARTSSOFT_PRODUCT_SYNC_HOURS,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            next_run_time=now_moscow(),
+        )
+        scheduler.add_job(
+            func=process_partssoft_product_outbox_task,
+            trigger="interval",
+            args=[app],
+            id="partssoft_product_outbox",
+            name="Send local product changes to Parts-Soft",
+            minutes=PARTSSOFT_PRODUCT_OUTBOX_MINUTES,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            next_run_time=now_moscow(),
+        )
+        scheduler.add_job(
+            func=sync_partssoft_products_full_task,
+            trigger="interval",
+            args=[app],
+            id="partssoft_product_full_sync",
+            name="Full Parts-Soft product reconciliation",
+            hours=PARTSSOFT_PRODUCT_FULL_SYNC_HOURS,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+    if PARTSSOFT_DOCUMENT_SYNC_ENABLED:
+        scheduler.add_job(
+            func=sync_partssoft_documents_task,
+            trigger="interval",
+            args=[app],
+            id="partssoft_document_sync",
+            name="Import Parts-Soft invoices",
+            minutes=PARTSSOFT_DOCUMENT_SYNC_MINUTES,
             replace_existing=True,
             max_instances=1,
             coalesce=True,

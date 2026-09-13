@@ -129,6 +129,7 @@ from dz_fastapi.models.partner import (
     SupplierResponseConfig,
     TelegramOutbox,
 )
+from dz_fastapi.models.partssoft import PartsSoftDocumentSnapshot, PartsSoftProductOutbox  # noqa
 from dz_fastapi.models.price_control import (
     CustomerPriceListOverride,
     PriceControlConfig,
@@ -282,5 +283,7 @@ __all__ = [
     "PriceControlRun",
     "PriceControlSource",
     "PriceControlSourceRecommendation",
-    "PartsSoftOrderSnapshot"
+    "PartsSoftOrderSnapshot",
+    "PartsSoftProductOutbox",
+    "PartsSoftDocumentSnapshot",
 ]
