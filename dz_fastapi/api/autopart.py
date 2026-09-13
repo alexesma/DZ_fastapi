@@ -72,6 +72,9 @@ from dz_fastapi.schemas.autopart import (
     ApplicabilityNodeCreate,
     ApplicabilityNodeFlatOut,
     ApplicabilityNodeOut,
+    AutopartAvailabilityItem,
+    AutopartAvailabilityOffer,
+    AutopartAvailabilityResponse,
     AutoPartCatalogItem,
     AutoPartCatalogResponse,
     AutoPartCreate,
@@ -2067,6 +2070,259 @@ async def get_autoparts_catalog(
         )
     return AutoPartCatalogResponse(
         items=catalog_items, total=total, offset=offset, limit=limit
+    )
+
+
+def _latest_pricelists_subquery():
+    """Свежий прайс каждого поставщика: по одному на конфигурацию.
+
+    Поставщик присылает файл не раз в день, и старые прайсы остаются в
+    базе. Без отбора последнего наличие считалось бы по всем загрузкам
+    сразу и завышалось в разы.
+    """
+    partition_key = func.coalesce(
+        PriceList.provider_config_id, PriceList.provider_id
+    ).label("partition_key")
+    rank = (
+        func.row_number()
+        .over(
+            partition_by=partition_key,
+            order_by=(PriceList.date.desc(), PriceList.id.desc()),
+        )
+        .label("latest_rn")
+    )
+    return (
+        select(
+            PriceList.id.label("pricelist_id"),
+            partition_key,
+            PriceList.date.label("pricelist_date"),
+            rank,
+        )
+        .select_from(PriceList)
+        .where(PriceList.is_active.is_(True))
+        .subquery()
+    )
+
+
+async def _availability_by_autopart(
+    session: AsyncSession,
+    autopart_ids: list[int],
+) -> dict[int, dict]:
+    """Сводка наличия у поставщиков по каждой позиции.
+
+    Одним запросом на все нужные позиции: сколько поставщиков предлагают,
+    сколько всего штук и по какой лучшей цене. Свой склад считается
+    отдельно, потому что он приходит теми же прайсами, но от поставщика
+    с признаком собственного прайса.
+    """
+    if not autopart_ids:
+        return {}
+    latest = _latest_pricelists_subquery()
+    stmt = (
+        select(
+            PriceListAutoPartAssociation.autopart_id.label("autopart_id"),
+            Provider.is_own_price.label("is_own_price"),
+            func.count().label("suppliers_count"),
+            func.sum(PriceListAutoPartAssociation.quantity).label("quantity"),
+            func.min(PriceListAutoPartAssociation.price).label("best_price"),
+        )
+        .select_from(latest)
+        .join(PriceList, PriceList.id == latest.c.pricelist_id)
+        .join(
+            PriceListAutoPartAssociation,
+            PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .where(
+            latest.c.latest_rn == 1,
+            PriceListAutoPartAssociation.autopart_id.in_(autopart_ids),
+            PriceListAutoPartAssociation.quantity > 0,
+        )
+        .group_by(
+            PriceListAutoPartAssociation.autopart_id,
+            Provider.is_own_price,
+        )
+    )
+    сводка: dict[int, dict] = {}
+    for row in (await session.execute(stmt)).mappings().all():
+        запись = сводка.setdefault(
+            int(row["autopart_id"]),
+            {
+                "own_quantity": 0,
+                "suppliers_count": 0,
+                "supplier_quantity": 0,
+                "best_price": None,
+            },
+        )
+        if row["is_own_price"]:
+            запись["own_quantity"] += int(row["quantity"] or 0)
+            continue
+        запись["suppliers_count"] += int(row["suppliers_count"] or 0)
+        запись["supplier_quantity"] += int(row["quantity"] or 0)
+        цена = _to_float_or_none(row["best_price"])
+        if цена is not None and (
+            запись["best_price"] is None or цена < запись["best_price"]
+        ):
+            запись["best_price"] = цена
+    return сводка
+
+
+def _to_float_or_none(value) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get(
+    "/autoparts/{autopart_id:int}/availability/",
+    tags=["autopart", "catalog"],
+    summary="Наличие позиции и её аналогов у нас и у поставщиков",
+    response_model=AutopartAvailabilityResponse,
+)
+async def get_autopart_availability(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    """Где есть позиция и её аналоги, по какой цене и сколько штук.
+
+    Наличие аналога прежде можно было узнать только открыв его карточку
+    по очереди, поэтому подбор замены занимал много кликов.
+    """
+    позиция = (
+        await session.execute(
+            select(AutoPart)
+            .options(
+                selectinload(AutoPart.brand),
+                selectinload(AutoPart.storage_locations),
+            )
+            .where(AutoPart.id == autopart_id)
+        )
+    ).scalar_one_or_none()
+    if позиция is None:
+        raise HTTPException(status_code=404, detail="Запчасть не найдена")
+
+    crosses = (
+        (
+            await session.execute(
+                select(AutoPartCross)
+                .where(AutoPartCross.source_autopart_id == autopart_id)
+                .options(
+                    selectinload(AutoPartCross.cross_brand),
+                    selectinload(AutoPartCross.cross_autopart).selectinload(
+                        AutoPart.storage_locations
+                    ),
+                )
+                .order_by(AutoPartCross.priority.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    нужные_позиции = [autopart_id]
+    for cross in crosses:
+        if cross.cross_autopart_id:
+            нужные_позиции.append(int(cross.cross_autopart_id))
+    наличие = await _availability_by_autopart(session, нужные_позиции)
+
+    def собрать(
+        ap: Optional[AutoPart],
+        *,
+        oem: str,
+        brand: Optional[str],
+        cross=None,
+    ) -> AutopartAvailabilityItem:
+        свод = наличие.get(int(ap.id)) if ap is not None else None
+        return AutopartAvailabilityItem(
+            autopart_id=int(ap.id) if ap is not None else None,
+            brand_name=brand,
+            oem_number=oem,
+            name=ap.name if ap is not None else None,
+            own_quantity=int((свод or {}).get("own_quantity") or 0),
+            storage_locations=[
+                location.name for location in (ap.storage_locations or [])
+            ]
+            if ap is not None
+            else [],
+            suppliers_count=int((свод or {}).get("suppliers_count") or 0),
+            supplier_quantity=int((свод or {}).get("supplier_quantity") or 0),
+            best_price=(свод or {}).get("best_price"),
+            cross_id=int(cross.id) if cross is not None else None,
+            is_bidirectional=(
+                bool(cross.is_bidirectional) if cross is not None else None
+            ),
+            priority=cross.priority if cross is not None else None,
+        )
+
+    latest = _latest_pricelists_subquery()
+    offers_stmt = (
+        select(
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
+            Provider.is_own_price.label("is_own_price"),
+            ProviderPriceListConfig.id.label("provider_config_id"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+            PriceListAutoPartAssociation.price.label("price"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            ProviderPriceListConfig.min_delivery_day.label("min_delivery_day"),
+            ProviderPriceListConfig.max_delivery_day.label("max_delivery_day"),
+            latest.c.pricelist_date.label("pricelist_date"),
+        )
+        .select_from(latest)
+        .join(PriceList, PriceList.id == latest.c.pricelist_id)
+        .join(
+            PriceListAutoPartAssociation,
+            PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .outerjoin(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(
+            latest.c.latest_rn == 1,
+            PriceListAutoPartAssociation.autopart_id == autopart_id,
+            PriceListAutoPartAssociation.quantity > 0,
+        )
+        .order_by(PriceListAutoPartAssociation.price.asc())
+    )
+    offers = [
+        AutopartAvailabilityOffer(
+            provider_id=int(row["provider_id"]),
+            provider_name=row["provider_name"],
+            provider_config_id=row["provider_config_id"],
+            provider_config_name=row["provider_config_name"],
+            price=float(row["price"]),
+            quantity=int(row["quantity"] or 0),
+            min_delivery_day=row["min_delivery_day"],
+            max_delivery_day=row["max_delivery_day"],
+            pricelist_date=row["pricelist_date"],
+            is_own_price=bool(row["is_own_price"]),
+        )
+        for row in (await session.execute(offers_stmt)).mappings().all()
+    ]
+
+    return AutopartAvailabilityResponse(
+        item=собрать(
+            позиция,
+            oem=позиция.oem_number,
+            brand=позиция.brand.name if позиция.brand else None,
+        ),
+        offers=offers,
+        crosses=[
+            собрать(
+                cross.cross_autopart,
+                oem=cross.cross_oem_number,
+                brand=(
+                    cross.cross_brand.name if cross.cross_brand else None
+                ),
+                cross=cross,
+            )
+            for cross in crosses
+        ],
     )
 
 

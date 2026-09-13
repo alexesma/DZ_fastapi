@@ -535,6 +535,55 @@ class AutoPartPhotoOut(BaseModel):
 # ─── Full detail (with crosses) ─────────────────────────────────────────────
 
 
+class AutopartAvailabilityOffer(BaseModel):
+    """Одно предложение из свежего прайса поставщика."""
+
+    provider_id: int
+    provider_name: str
+    provider_config_id: Optional[int] = None
+    provider_config_name: Optional[str] = None
+    price: float
+    quantity: int
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    pricelist_date: Optional[date] = None
+    is_own_price: bool = False
+
+
+class AutopartAvailabilityItem(BaseModel):
+    """Сводка наличия по позиции: у нас и у поставщиков.
+
+    Используется и для самой позиции, и для каждого её аналога, чтобы в
+    одной табличке было видно, где товар есть и почём.
+    """
+
+    autopart_id: Optional[int] = None
+    brand_name: Optional[str] = None
+    oem_number: str
+    name: Optional[str] = None
+    own_quantity: int = 0
+    storage_locations: List[str] = Field(default_factory=list)
+    suppliers_count: int = 0
+    supplier_quantity: int = 0
+    best_price: Optional[float] = None
+    # Заполняется только у аналогов.
+    cross_id: Optional[int] = None
+    is_bidirectional: Optional[bool] = None
+    priority: Optional[int] = None
+
+
+class AutopartAvailabilityResponse(BaseModel):
+    """Наличие позиции и её аналогов одним запросом.
+
+    Закрывает два места: раскрывающуюся строку в списке номенклатуры и
+    колонки наличия в таблице кросс-номеров карточки товара.
+    """
+
+    item: AutopartAvailabilityItem
+    offers: List[AutopartAvailabilityOffer] = Field(default_factory=list)
+    crosses: List[AutopartAvailabilityItem] = Field(default_factory=list)
+
+
 class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
     photos: List[AutoPartPhotoOut] = Field(default_factory=list)
