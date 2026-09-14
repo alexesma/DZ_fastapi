@@ -73,6 +73,24 @@ def test_customer_pricelist_schedule_uses_latest_due_slot():
     )
 
 
+def test_customer_pricelist_schedule_accepts_legacy_comma_separated_times():
+    now = datetime(2026, 8, 31, 15, 5, tzinfo=ZoneInfo("Europe/Moscow"))
+    config = SimpleNamespace(
+        id=17,
+        schedule_days=["mon"],
+        schedule_times=["09:00, 10:00", "13:00"],
+    )
+
+    assert _latest_due_customer_pricelist_schedule(config, now) == datetime(
+        2026,
+        8,
+        31,
+        13,
+        0,
+        tzinfo=ZoneInfo("Europe/Moscow"),
+    )
+
+
 def test_customer_pricelist_failed_delivery_is_not_rebuilt_for_same_slot():
     scheduled_at = datetime(2026, 9, 1, 6, 0, tzinfo=ZoneInfo("Europe/Moscow"))
 

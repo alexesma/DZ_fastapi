@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -2051,7 +2052,13 @@ def _latest_due_customer_pricelist_schedule(
         return None
     now_minute = now.replace(second=0, microsecond=0)
     due_times: list[datetime] = []
-    for raw_time in config.schedule_times or []:
+    raw_schedule_times = config.schedule_times or []
+    if isinstance(raw_schedule_times, str):
+        raw_schedule_times = [raw_schedule_times]
+    schedule_times = []
+    for raw_value in raw_schedule_times:
+        schedule_times.extend(re.split(r"\s*[,;]\s*", str(raw_value)))
+    for raw_time in schedule_times:
         try:
             hour_str, minute_str = str(raw_time).split(":", 1)
             hour = int(hour_str)
@@ -2239,6 +2246,8 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                         continue
                     if _schedule_was_handled(config.last_sent_at, scheduled_at):
                         continue
+                    if _schedule_was_handled(config.last_attempt_at, scheduled_at):
+                        continue
                     latest_attempt_at = latest_delivery_attempt_by_config.get(config.id)
                     if _customer_pricelist_delivery_attempt_handled(
                         latest_attempt_at,
@@ -2421,6 +2430,22 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                         notify_exc,
                     )
             finally:
+                try:
+                    async with async_session_factory() as attempt_session:
+                        attempted_config = await attempt_session.get(
+                            CustomerPriceListConfig,
+                            config_id,
+                        )
+                        if attempted_config is not None:
+                            attempted_config.last_attempt_at = now_moscow()
+                            attempt_session.add(attempted_config)
+                            await attempt_session.commit()
+                except Exception as attempt_exc:
+                    logger.error(
+                        "Failed to record customer pricelist attempt for config %s: %s",
+                        config_id,
+                        attempt_exc,
+                    )
                 trim_process_memory(
                     logger,
                     context=("send_scheduled_customer_pricelists_task " f"config_id={config_id}"),

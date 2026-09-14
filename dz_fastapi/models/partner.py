@@ -1113,6 +1113,7 @@ class CustomerPriceListConfig(Base):
     outgoing_email_account_id = Column(Integer, ForeignKey("emailaccount.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     last_sent_at = Column(DateTime(timezone=True), nullable=True)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("Customer", back_populates="pricelist_configs")
     outgoing_email_account = relationship("EmailAccount", lazy="selectin")
