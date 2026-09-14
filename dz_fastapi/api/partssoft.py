@@ -156,6 +156,8 @@ async def customer_candidates(
     kpp: str = Query(default="", max_length=32),
     email: str = Query(default="", max_length=255),
     search: str = Query(default="", max_length=255),
+    current_customer_id: int | None = Query(default=None, gt=0),
+    suggested_customer_id: int | None = Query(default=None, gt=0),
     session: AsyncSession = Depends(get_session),
 ):
     return await search_local_customer_candidates(
@@ -165,6 +167,8 @@ async def customer_candidates(
         kpp=kpp,
         email=email,
         search=search,
+        current_customer_id=current_customer_id,
+        suggested_customer_id=suggested_customer_id,
     )
 
 

@@ -108,6 +108,25 @@ def test_candidate_score_uses_inn_kpp_and_company_name():
 
 
 @pytest.mark.asyncio
+async def test_customer_candidate_search_always_includes_current_link(test_session):
+    current = Customer(name="Технический дубль без совпадающих реквизитов")
+    matching = Customer(name="ООО Ромашка", inn="7712345678")
+    test_session.add_all([current, matching])
+    await test_session.flush()
+
+    result = await service.search_local_customer_candidates(
+        test_session,
+        name="Ромашка",
+        inn="7712345678",
+        current_customer_id=current.id,
+    )
+
+    assert result[0]["id"] == current.id
+    assert "текущая связь" in result[0]["match_basis"]
+    assert any(row["id"] == matching.id and "ИНН" in row["match_basis"] for row in result)
+
+
+@pytest.mark.asyncio
 async def test_link_partssoft_customer_fills_all_empty_details(
     test_session,
     created_customers,

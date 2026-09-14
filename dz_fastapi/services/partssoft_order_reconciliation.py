@@ -934,12 +934,32 @@ async def search_local_customer_candidates(
     kpp: str = "",
     email: str = "",
     search: str = "",
+    current_customer_id: int | None = None,
+    suggested_customer_id: int | None = None,
     limit: int = 25,
 ) -> list[dict[str, Any]]:
-    customers = (await session.scalars(select(Customer))).all()
+    # Load only the fields displayed in the picker. Loading full Customer entities
+    # also triggers their select-in relationships and makes this small lookup slow
+    # on installations with a large customer/order history.
+    customers = (
+        await session.execute(
+            select(
+                Customer.id,
+                Customer.name,
+                Customer.inn,
+                Customer.kpp,
+                Customer.email_contact,
+            )
+        )
+    ).all()
     normalized_search = _normalized_text(search)
     search_digits = normalize_digits(search)
-    scored: list[tuple[int, Customer, list[str]]] = []
+    included_ids = {
+        int(customer_id)
+        for customer_id in (current_customer_id, suggested_customer_id)
+        if customer_id
+    }
+    scored: list[tuple[int, Any, list[str]]] = []
     for customer in customers:
         score, basis = _candidate_score(
             customer,
@@ -963,7 +983,13 @@ async def search_local_customer_candidates(
                 continue
             score += 100
             basis = ["ручной поиск", *basis]
-        if score > 0 or normalized_search:
+        if customer.id == current_customer_id:
+            score += 1000
+            basis = ["текущая связь", *basis]
+        elif customer.id == suggested_customer_id:
+            score += 1000
+            basis = ["предложено автоматически", *basis]
+        if score > 0 or normalized_search or customer.id in included_ids:
             scored.append((score, customer, basis))
     scored.sort(key=lambda row: (-row[0], normalize_name(row[1].name), row[1].id))
     return [
