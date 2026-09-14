@@ -205,6 +205,63 @@ def local_order_fingerprint(order: CustomerOrder) -> tuple[tuple[str, str, int, 
     return tuple(sorted(_local_item_signature(item) for item in order.items or []))
 
 
+def _normalized_order_number(value: Any) -> str:
+    return _normalized_text(value)
+
+
+def _find_matching_local_order(
+    candidates: list[CustomerOrder],
+    remote_order: dict[str, Any],
+    remote_date,
+) -> CustomerOrder | None:
+    remote_number = _normalized_order_number(_remote_order_number(remote_order))
+    if remote_number:
+        for candidate in candidates:
+            if _normalized_order_number(candidate.order_number) == remote_number:
+                return candidate
+    fingerprint = remote_order_fingerprint(remote_order)
+    if not fingerprint or remote_date is None:
+        return None
+    for candidate in candidates:
+        candidate_date = candidate.order_date
+        if candidate_date is None and candidate.received_at is not None:
+            candidate_date = candidate.received_at.date()
+        if candidate_date == remote_date and local_order_fingerprint(candidate) == fingerprint:
+            return candidate
+    return None
+
+
+async def _auto_process_partssoft_orders(
+    session: AsyncSession,
+) -> Counter[str]:
+    from dz_fastapi.services.customer_orders import process_manual_customer_order
+
+    counts: Counter[str] = Counter()
+    order_ids = (
+        await session.scalars(
+            select(CustomerOrder.id)
+            .where(
+                CustomerOrder.external_source == PARTS_SOFT_SOURCE,
+                CustomerOrder.status == CUSTOMER_ORDER_STATUS.NEW,
+            )
+            .order_by(CustomerOrder.id)
+        )
+    ).all()
+    for order_id in order_ids:
+        try:
+            await process_manual_customer_order(session, int(order_id))
+        except Exception:
+            await session.rollback()
+            counts["auto_process_errors"] += 1
+            logger.exception(
+                "Parts-Soft customer order auto-processing failed: order_id=%s",
+                order_id,
+            )
+        else:
+            counts["auto_processed"] += 1
+    return counts
+
+
 async def _fetch_orders(
     days: int,
     *,
@@ -1432,7 +1489,6 @@ async def sync_partssoft_orders(
 
         remote_created_at = _parse_datetime(remote_order.get("created_at"))
         remote_date = remote_created_at.date() if remote_created_at else None
-        fingerprint = remote_order_fingerprint(remote_order)
         probable_orders = (
             (
                 await session.scalars(
@@ -1440,23 +1496,45 @@ async def sync_partssoft_orders(
                     .options(selectinload(CustomerOrder.items))
                     .where(
                         CustomerOrder.customer_id == customer.id,
-                        or_(
-                            CustomerOrder.order_date == remote_date,
-                            func.date(CustomerOrder.received_at) == remote_date,
-                        ),
+                        CustomerOrder.external_source.is_(None),
                     )
+                    .order_by(CustomerOrder.received_at.desc(), CustomerOrder.id.desc())
                 )
             )
             .unique()
             .all()
-            if remote_date is not None
-            else []
         )
-        if fingerprint and any(
-            local_order_fingerprint(order) == fingerprint for order in probable_orders
-        ):
+        matching_order = _find_matching_local_order(
+            probable_orders,
+            remote_order,
+            remote_date,
+        )
+        if matching_order is not None:
+            matching_order.external_source = PARTS_SOFT_SOURCE
+            matching_order.external_order_id = external_order_id
+            matching_order.external_payload = remote_order
+            session.add(matching_order)
+            if not matching_order.items:
+                recovered_items = [
+                    parsed
+                    for index, item in enumerate(remote_order.get("order_items") or [], start=1)
+                    if (
+                        parsed := _remote_item_to_customer_order_item(
+                            item,
+                            order_id=matching_order.id,
+                            row_index=index,
+                        )
+                    )
+                    is not None
+                ]
+                if not recovered_items:
+                    await session.rollback()
+                    counts["invalid_items"] += 1
+                    continue
+                session.add_all(recovered_items)
             await session.commit()
-            counts["probable_duplicate"] += 1
+            existing_external_ids.add(external_order_id)
+            counts["linked_existing_order"] += 1
             continue
 
         order = CustomerOrder(
@@ -1502,6 +1580,7 @@ async def sync_partssoft_orders(
         existing_external_ids.add(external_order_id)
         counts["imported"] += 1
 
+    counts.update(await _auto_process_partssoft_orders(session))
     counts.update(await _auto_order_api_items(session, order_ids=imported_ids))
 
     return {

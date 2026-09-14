@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from dz_fastapi.models.email_account import EmailAccount
@@ -8,7 +10,12 @@ from dz_fastapi.models.partner import (
     CustomerOrderItem,
 )
 from dz_fastapi.services import customer_orders as customer_order_service
-from dz_fastapi.services.customer_orders import _fetch_order_messages, _is_resumable_import_stub
+from dz_fastapi.services.customer_orders import (
+    ParsedOrderRow,
+    _fetch_order_messages,
+    _find_partssoft_order_duplicate,
+    _is_resumable_import_stub,
+)
 
 
 @pytest.mark.asyncio
@@ -96,6 +103,54 @@ async def test_new_import_with_items_is_not_resumable(
     await test_session.flush()
 
     assert await _is_resumable_import_stub(test_session, order) is False
+
+
+@pytest.mark.asyncio
+async def test_email_import_finds_existing_partssoft_order(
+    test_session,
+    created_customers,
+):
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        external_source="PARTS_SOFT",
+        external_order_id="9004",
+        order_number="WEB-9004",
+        order_date=date(2026, 9, 9),
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=order.id,
+            row_index=1,
+            oem="ABC-123",
+            brand="HAVAL",
+            requested_qty=2,
+            requested_price=1500.50,
+        )
+    )
+    await test_session.commit()
+
+    duplicate = await _find_partssoft_order_duplicate(
+        test_session,
+        customer_id=created_customers[0].id,
+        rows=[
+            ParsedOrderRow(
+                row_index=1,
+                oem="abc-123",
+                brand="haval",
+                name=None,
+                requested_qty=2,
+                requested_price=1500.5,
+            )
+        ],
+        order_number="WEB-9004",
+        order_date=date(2026, 9, 9),
+    )
+
+    assert duplicate is not None
+    assert duplicate.id == order.id
 
 
 @pytest.mark.asyncio

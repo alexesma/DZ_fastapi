@@ -11,6 +11,7 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerExternalReference,
     CustomerOrder,
+    CustomerOrderItem,
     PartsSoftOrderSnapshot,
     Provider,
     ProviderExternalReference,
@@ -306,13 +307,14 @@ async def test_sync_imports_retail_order_once_and_preserves_offer_origin(
     first = await service.sync_partssoft_orders(test_session)
     second = await service.sync_partssoft_orders(test_session)
 
-    assert first["counts"] == {"imported": 1}
+    assert first["counts"] == {"auto_processed": 1, "imported": 1}
     assert second["counts"] == {"already_imported": 1}
     order = await test_session.get(CustomerOrder, first["imported_order_ids"][0])
     await test_session.refresh(order, attribute_names=["items", "customer"])
     assert order.external_source == "PARTS_SOFT"
     assert order.external_order_id == "9001"
     assert order.import_origin == "partssoft_recovery"
+    assert order.status == CUSTOMER_ORDER_STATUS.PROCESSED
     assert order.source_subject == "Восстановлен из Parts-Soft"
     assert order.customer.name == "retail-login-701"
     reference = await test_session.scalar(
@@ -329,6 +331,78 @@ async def test_sync_imports_retail_order_once_and_preserves_offer_origin(
     assert item.external_warehouse_id == "66"
     assert item.source_resolution_status == "api_ready"
     assert item.source_payload["hash_key"] == "offer-hash"
+
+
+@pytest.mark.asyncio
+async def test_sync_links_partssoft_identity_to_existing_email_order(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    local_order = CustomerOrder(
+        customer_id=customer.id,
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+        order_number="WEB-9003",
+        order_date=service._parse_datetime("2026-09-09T10:15:00+03:00").date(),
+        source_email="orders@example.com",
+        file_hash="d" * 64,
+    )
+    test_session.add(local_order)
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=local_order.id,
+            row_index=1,
+            oem="ABC-123",
+            brand="HAVAL",
+            requested_qty=2,
+            requested_price=Decimal("1500.50"),
+        )
+    )
+    await test_session.commit()
+
+    remote_order = {
+        "id": 9003,
+        "created_at": "2026-09-09T10:15:00+03:00",
+        "load_order_client_number": "WEB-9003",
+        "customer_id": 703,
+        "customer": {"id": 703, "compile_name": "Клиент"},
+        "order_items": [
+            {
+                "id": 8003,
+                "oem": "ABC-123",
+                "make_name": "HAVAL",
+                "qnt": 2,
+                "cost": "1500.50",
+            }
+        ],
+    }
+
+    async def fake_fetch_orders(_days, *, region_id=None):
+        created = service._parse_datetime(remote_order["created_at"])
+        return created, created, [remote_order]
+
+    async def fake_resolve_customer(_session, _remote_order):
+        return customer, "linked"
+
+    monkeypatch.setattr(service, "_fetch_orders", fake_fetch_orders)
+    monkeypatch.setattr(service, "_resolve_sync_customer", fake_resolve_customer)
+    monkeypatch.setattr(service, "PARTSSOFT_API_AUTO_ORDER_ENABLED", False)
+
+    result = await service.sync_partssoft_orders(test_session)
+
+    assert result["counts"] == {"linked_existing_order": 1}
+    orders = (
+        await test_session.scalars(
+            select(CustomerOrder).where(CustomerOrder.customer_id == customer.id)
+        )
+    ).all()
+    assert len(orders) == 1
+    assert orders[0].id == local_order.id
+    assert orders[0].external_source == "PARTS_SOFT"
+    assert orders[0].external_order_id == "9003"
+    assert orders[0].file_hash == "d" * 64
 
 
 @pytest.mark.asyncio
