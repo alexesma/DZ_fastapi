@@ -892,6 +892,7 @@ class ProviderPriceListConfig(Base):
     min_quantity = Column(Integer, nullable=True)
     max_quantity = Column(Integer, nullable=True)
     exclude_positions = Column(JSON, default=[])
+    excluded_brands = Column(JSON, default=list)
     max_days_without_update = Column(Integer, nullable=True, default=3)
     last_stale_alert_at = Column(DateTime(timezone=True), nullable=True)
     stale_override_until = Column(DateTime(timezone=True), nullable=True)

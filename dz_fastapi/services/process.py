@@ -2176,6 +2176,14 @@ def _normalize_exclude_positions(exclude_positions):
     return normalized
 
 
+def _normalize_excluded_brands(excluded_brands):
+    return {
+        " ".join(str(brand or "").split()).casefold()
+        for brand in excluded_brands or []
+        if str(brand or "").strip()
+    }
+
+
 def _apply_provider_filters(items, provider_list_conf):
     if not items:
         return items
@@ -2184,6 +2192,9 @@ def _apply_provider_filters(items, provider_list_conf):
     min_quantity = provider_list_conf.min_quantity
     max_quantity = provider_list_conf.max_quantity
     exclude_positions = _normalize_exclude_positions(provider_list_conf.exclude_positions)
+    excluded_brands = _normalize_excluded_brands(
+        getattr(provider_list_conf, "excluded_brands", [])
+    )
 
     filtered = []
     removed = 0
@@ -2192,6 +2203,10 @@ def _apply_provider_filters(items, provider_list_conf):
         quantity = int(item.get("quantity", 0))
         brand = str(item.get("brand", "")).strip().upper()
         oem = str(item.get("oem_number", "")).strip().upper()
+
+        if " ".join(brand.split()).casefold() in excluded_brands:
+            removed += 1
+            continue
 
         if min_price is not None and price < min_price:
             removed += 1

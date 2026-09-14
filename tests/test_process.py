@@ -1,6 +1,8 @@
+from types import SimpleNamespace
+
 import pytest
 
-from dz_fastapi.services.process import assign_brand
+from dz_fastapi.services.process import _apply_provider_filters, assign_brand
 
 BRAND_TEST_CASES = {
     "CHERY_HAVAL": [
@@ -106,3 +108,22 @@ def test_assign_brand(oem_code, expected_brand):
     assert assign_brand(oem_code) == expected_brand, (
         f"OEM: {oem_code} | Expected: {expected_brand} " f"| Got: {assign_brand(oem_code)}"
     )
+
+
+def test_provider_filter_excludes_multiple_brands_and_exact_position():
+    config = SimpleNamespace(
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        excluded_brands=["Haval", "  CHERY  "],
+        exclude_positions=[{"brand": "GEELY", "oem": "G-2"}],
+    )
+    items = [
+        {"brand": "HAVAL", "oem_number": "H-1", "price": 100, "quantity": 1},
+        {"brand": "chery", "oem_number": "C-1", "price": 100, "quantity": 1},
+        {"brand": "GEELY", "oem_number": "G-1", "price": 100, "quantity": 1},
+        {"brand": "GEELY", "oem_number": "G-2", "price": 100, "quantity": 1},
+    ]
+
+    assert _apply_provider_filters(items, config) == [items[2]]
