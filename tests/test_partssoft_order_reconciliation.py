@@ -204,8 +204,8 @@ async def test_automatic_legal_customer_match_requires_confirmation(
     monkeypatch,
 ):
     customer = created_customers[0]
-    customer.inn = "7701234567"
-    customer.kpp = "770101001"
+    customer.inn = "77-01-234-567"
+    customer.kpp = "770 101 001"
     await test_session.commit()
 
     resolved, result = await service._resolve_sync_customer(
@@ -236,6 +236,27 @@ async def test_automatic_legal_customer_match_requires_confirmation(
     assert reference.is_verified is False
     assert reference.match_basis == "automatic_match"
     assert reference.external_payload["id"] == 777
+
+    resolved_again, repeated_result = await service._resolve_sync_customer(
+        test_session,
+        {
+            "customer_id": 777,
+            "customer": {
+                "id": 777,
+                "login_or_email": "wholesale-777",
+                "essential": {
+                    "company_name": "ООО Партнёр",
+                    "inn": "7701234567",
+                    "kpp": "770101001",
+                },
+            },
+        },
+    )
+    assert resolved_again.id == customer.id
+    assert repeated_result == "linked"
+    assert len((await test_session.scalars(select(Customer))).all()) == len(
+        created_customers
+    )
 
     async def fake_fetch_customer(_external_customer_id):
         return {
@@ -721,6 +742,73 @@ async def test_reconciliation_reads_saved_seven_day_snapshot(
 
 
 @pytest.mark.asyncio
+async def test_cached_probable_duplicate_is_linked_to_existing_order(
+    test_session,
+    created_customers,
+):
+    now = service.now_moscow()
+    customer = created_customers[0]
+    reference = CustomerExternalReference(
+        customer_id=customer.id,
+        source_system="PARTS_SOFT",
+        external_customer_id=1702,
+        is_active=True,
+        is_verified=True,
+        match_basis="manual",
+    )
+    local_order = CustomerOrder(
+        customer_id=customer.id,
+        order_number="CLIENT-9902",
+        order_date=now.date(),
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add_all([reference, local_order])
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=local_order.id,
+            row_index=1,
+            oem="A-2",
+            brand="BRAND",
+            requested_qty=1,
+            requested_price=100,
+        )
+    )
+    test_session.add(
+        PartsSoftOrderSnapshot(
+            external_order_id="9902",
+            order_created_at=now,
+            external_customer_id=1702,
+            payload={
+                "id": 9902,
+                "load_order_client_number": "CLIENT-9902",
+                "created_at": now.isoformat(),
+                "customer_id": 1702,
+                "customer": {"id": 1702, "compile_name": customer.name},
+                "order_items": [
+                    {
+                        "id": 2,
+                        "oem": "A-2",
+                        "make_name": "BRAND",
+                        "qnt": 1,
+                        "cost": 100,
+                    }
+                ],
+            },
+            last_seen_at=now,
+        )
+    )
+    await test_session.commit()
+
+    result = await service._link_cached_partssoft_order_duplicates(test_session)
+
+    assert result == {"linked_historical_order": 1}
+    await test_session.refresh(local_order)
+    assert local_order.external_source == "PARTS_SOFT"
+    assert local_order.external_order_id == "9902"
+
+
+@pytest.mark.asyncio
 async def test_link_can_merge_existing_partssoft_customer_duplicate(
     test_session,
     monkeypatch,
@@ -758,3 +846,44 @@ async def test_link_can_merge_existing_partssoft_customer_duplicate(
     await test_session.refresh(reference)
     assert order.customer_id == target.id
     assert reference.customer_id == target.id
+
+
+@pytest.mark.asyncio
+async def test_repair_merges_auto_created_partssoft_customer_by_legal_identity(
+    test_session,
+):
+    target = Customer(
+        name="Основной клиент",
+        inn="77-01-234-567",
+        kpp="770 101 001",
+    )
+    duplicate = Customer(
+        name="Parts-Soft duplicate",
+        inn="7701234567",
+        kpp="770101001",
+    )
+    test_session.add_all([target, duplicate])
+    await test_session.flush()
+    order = CustomerOrder(customer_id=duplicate.id, order_number="PS-DUP-1")
+    reference = CustomerExternalReference(
+        customer_id=duplicate.id,
+        source_system="PARTS_SOFT",
+        external_customer_id=1901,
+        is_active=True,
+        is_verified=False,
+        match_basis="created_from_partssoft",
+    )
+    test_session.add_all([order, reference])
+    await test_session.commit()
+    reference_id = reference.id
+
+    result = await service.repair_partssoft_customer_duplicates(test_session)
+
+    assert result == {"customers_merged": 1}
+    assert await test_session.get(Customer, duplicate.id) is None
+    await test_session.refresh(order)
+    reference = await test_session.get(CustomerExternalReference, reference_id)
+    assert order.customer_id == target.id
+    assert reference.customer_id == target.id
+    assert reference.is_verified is True
+    assert reference.match_basis == "automatic_exact_identity"

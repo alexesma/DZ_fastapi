@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -259,6 +259,81 @@ async def _auto_process_partssoft_orders(
             )
         else:
             counts["auto_processed"] += 1
+    return counts
+
+
+async def _link_cached_partssoft_order_duplicates(
+    session: AsyncSession,
+) -> Counter[str]:
+    counts: Counter[str] = Counter()
+    remote_orders = await _load_order_snapshots(
+        session,
+        start=now_moscow() - timedelta(days=MAX_RECONCILIATION_DAYS),
+    )
+    references = (
+        await session.scalars(
+            select(CustomerExternalReference).where(
+                CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
+                CustomerExternalReference.is_active.is_(True),
+            )
+        )
+    ).all()
+    customer_by_external_id = {
+        int(reference.external_customer_id): int(reference.customer_id)
+        for reference in references
+        if reference.external_customer_id is not None
+    }
+    existing_external_ids = set(
+        (
+            await session.scalars(
+                select(CustomerOrder.external_order_id).where(
+                    CustomerOrder.external_source == PARTS_SOFT_SOURCE,
+                    CustomerOrder.external_order_id.is_not(None),
+                )
+            )
+        ).all()
+    )
+    for remote_order in remote_orders:
+        external_order_id = _text(remote_order.get("id"))
+        remote_customer_id = _integer(_remote_customer(remote_order).get("external_id"))
+        customer_id = customer_by_external_id.get(remote_customer_id or 0)
+        if (
+            not external_order_id
+            or external_order_id in existing_external_ids
+            or customer_id is None
+        ):
+            continue
+        candidates = (
+            await session.scalars(
+                select(CustomerOrder)
+                .options(selectinload(CustomerOrder.items))
+                .where(
+                    CustomerOrder.customer_id == customer_id,
+                    CustomerOrder.external_source.is_(None),
+                )
+                .order_by(CustomerOrder.received_at.desc(), CustomerOrder.id.desc())
+            )
+        ).unique().all()
+        remote_created_at = _parse_datetime(remote_order.get("created_at"))
+        matching_order = _find_matching_local_order(
+            candidates,
+            remote_order,
+            remote_created_at.date() if remote_created_at else None,
+        )
+        if matching_order is None:
+            continue
+        matching_order.external_source = PARTS_SOFT_SOURCE
+        matching_order.external_order_id = external_order_id
+        matching_order.external_payload = remote_order
+        session.add(matching_order)
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            counts["historical_link_conflicts"] += 1
+            continue
+        existing_external_ids.add(external_order_id)
+        counts["linked_historical_order"] += 1
     return counts
 
 
@@ -1105,6 +1180,104 @@ async def _unique_customer_name(session: AsyncSession, preferred: str, external_
     return candidate
 
 
+async def _exact_customer_candidates(
+    session: AsyncSession,
+    remote: dict[str, Any],
+) -> list[Customer]:
+    inn = normalize_digits(remote.get("inn"))
+    kpp = normalize_digits(remote.get("kpp"))
+    email = normalize_email(remote.get("email"))
+    customers = (await session.scalars(select(Customer))).all()
+    if inn and kpp:
+        return [
+            customer
+            for customer in customers
+            if normalize_digits(customer.inn) == inn
+            and normalize_digits(customer.kpp) == kpp
+        ]
+    if not inn and email:
+        return [
+            customer
+            for customer in customers
+            if normalize_email(customer.email_contact) == email
+        ]
+    return []
+
+
+async def repair_partssoft_customer_duplicates(
+    session: AsyncSession,
+) -> dict[str, int]:
+    """Merge only customers with a strict legal or retail identity match."""
+    customers = (await session.scalars(select(Customer).order_by(Customer.id))).all()
+    references = (
+        await session.scalars(
+            select(CustomerExternalReference).where(
+                CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
+                CustomerExternalReference.is_active.is_(True),
+            )
+        )
+    ).all()
+    auto_created_ids = {
+        int(reference.customer_id)
+        for reference in references
+        if reference.match_basis == "created_from_partssoft"
+    }
+    for reference in references:
+        if reference.match_basis == "created_from_partssoft":
+            reference.is_verified = True
+            session.add(reference)
+    groups: dict[tuple[str, ...], list[Customer]] = {}
+    for customer in customers:
+        inn = normalize_digits(customer.inn)
+        kpp = normalize_digits(customer.kpp)
+        email = normalize_email(customer.email_contact)
+        if inn and kpp:
+            key = ("legal", inn, kpp)
+        elif email:
+            key = ("retail_email", email)
+        else:
+            continue
+        groups.setdefault(key, []).append(customer)
+
+    counts: Counter[str] = Counter()
+    for duplicate_group in groups.values():
+        unique_ids = sorted({int(customer.id) for customer in duplicate_group})
+        if len(unique_ids) < 2 or not auto_created_ids.intersection(unique_ids):
+            continue
+        target_id = unique_ids[0]
+        target = await session.get(Customer, target_id)
+        if target is None:
+            continue
+        try:
+            merged_in_group = 0
+            await session.execute(
+                update(CustomerExternalReference)
+                .where(CustomerExternalReference.customer_id.in_(unique_ids))
+                .values(
+                    is_verified=True,
+                    match_basis="automatic_exact_identity",
+                )
+            )
+            for source_id in unique_ids[1:]:
+                await merge_customer_records(
+                    session,
+                    source_customer_id=source_id,
+                    target_customer=target,
+                )
+                merged_in_group += 1
+            await session.commit()
+            counts["customers_merged"] += merged_in_group
+        except (IntegrityError, ValueError):
+            await session.rollback()
+            counts["merge_conflicts"] += 1
+            logger.exception(
+                "Parts-Soft automatic customer duplicate merge failed: ids=%s",
+                unique_ids,
+            )
+    await session.commit()
+    return dict(counts)
+
+
 def _fill_customer_from_partssoft(customer: Customer, remote: dict[str, Any]) -> None:
     for remote_field, local_field in {
         "legal_name": "legal_name",
@@ -1152,38 +1325,21 @@ async def _resolve_sync_customer(
             CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
             CustomerExternalReference.external_customer_id == external_id,
             CustomerExternalReference.is_active.is_(True),
-            CustomerExternalReference.is_verified.is_(True),
         )
     )
     customer = await session.get(Customer, reference.customer_id) if reference else None
     customer_created = False
     if customer is None:
-        candidates: list[Customer] = []
+        candidates = await _exact_customer_candidates(session, remote)
         inn = normalize_digits(remote.get("inn"))
-        kpp = normalize_digits(remote.get("kpp"))
-        email = normalize_email(remote.get("email"))
-        if inn and kpp:
-            candidates = list(
-                (
-                    await session.scalars(
-                        select(Customer).where(Customer.inn == inn, Customer.kpp == kpp)
-                    )
-                ).all()
-            )
         if not candidates and inn:
-            same_inn = list(
-                (await session.scalars(select(Customer).where(Customer.inn == inn))).all()
-            )
+            same_inn = [
+                row
+                for row in (await session.scalars(select(Customer))).all()
+                if normalize_digits(row.inn) == inn
+            ]
             if same_inn:
                 return None, "customer_legal_details_conflict"
-        if not candidates and not inn and email:
-            candidates = list(
-                (
-                    await session.scalars(
-                        select(Customer).where(func.lower(Customer.email_contact) == email)
-                    )
-                ).all()
-            )
         if not candidates and not inn and normalize_digits(remote.get("phone")):
             phone = normalize_digits(remote.get("phone"))
             all_customers = (await session.scalars(select(Customer))).all()
@@ -1252,10 +1408,7 @@ async def _resolve_sync_customer(
         # A newly created retail card belongs to this exact Parts-Soft ID.
         # Names are deliberately not used as identity, so two Alexanders stay
         # separate customers. Existing-card matches still require review.
-        reference.is_verified = bool(
-            not remote.get("inn")
-            and (customer_created or reference.match_basis == "created_from_partssoft")
-        )
+        reference.is_verified = bool(customer_created)
         reference.match_basis = "created_from_partssoft" if customer_created else "automatic_match"
     session.add_all([customer, reference])
     await session.flush()
@@ -1452,6 +1605,7 @@ async def sync_partssoft_orders(
     else:
         await _store_order_snapshots(session, remote_orders)
     counts: Counter[str] = Counter()
+    counts.update(await repair_partssoft_customer_duplicates(session))
     imported_ids: list[int] = []
 
     existing_external_ids = set(
@@ -1580,6 +1734,7 @@ async def sync_partssoft_orders(
         existing_external_ids.add(external_order_id)
         counts["imported"] += 1
 
+    counts.update(await _link_cached_partssoft_order_duplicates(session))
     counts.update(await _auto_process_partssoft_orders(session))
     counts.update(await _auto_order_api_items(session, order_ids=imported_ids))
 
@@ -1602,9 +1757,13 @@ async def reconcile_partssoft_orders(
     days = max(1, min(int(days), MAX_RECONCILIATION_DAYS))
     end = now_moscow()
     start = end - timedelta(days=days)
+    maintenance_counts: Counter[str] = Counter()
     if refresh_remote:
         start, end, remote_orders = await _fetch_orders(days, region_id=None)
         await _store_order_snapshots(session, remote_orders)
+        maintenance_counts.update(await repair_partssoft_customer_duplicates(session))
+        maintenance_counts.update(await _link_cached_partssoft_order_duplicates(session))
+        maintenance_counts.update(await _auto_process_partssoft_orders(session))
     else:
         remote_orders = await _load_order_snapshots(session, start=start)
         if not remote_orders:
@@ -1797,7 +1956,7 @@ async def reconcile_partssoft_orders(
         )
 
     return {
-        "read_only": True,
+        "read_only": not refresh_remote,
         "cached": not refresh_remote,
         "days": days,
         "date_from": start.isoformat(),
@@ -1809,6 +1968,7 @@ async def reconcile_partssoft_orders(
         "qualified_orders": len(results),
         "items_total": sum(row["items_count"] for row in results),
         "counts": dict(sorted(counts.items())),
+        "maintenance_counts": dict(sorted(maintenance_counts.items())),
         "orders": results,
         "cache_updated_at": await session.scalar(
             select(func.max(PartsSoftOrderSnapshot.last_seen_at))
