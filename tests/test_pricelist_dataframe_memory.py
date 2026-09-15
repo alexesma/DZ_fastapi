@@ -157,6 +157,7 @@ async def test_supplier_uses_pricelist_multiplicity(
 ):
     provider = created_providers[0]
     provider.is_own_price = False
+    created_pricelist_config.multiplicity_col = 5
     pricelist = await _pricelist_with_rows(
         test_session,
         created_brand,
@@ -170,6 +171,28 @@ async def test_supplier_uses_pricelist_multiplicity(
     )
 
     assert frame.iloc[0]['multiplicity'] == 4
+
+
+@pytest.mark.anyio
+async def test_supplier_without_multiplicity_column_uses_product_card(
+    test_session, created_brand, created_providers, created_pricelist_config
+):
+    provider = created_providers[0]
+    provider.is_own_price = False
+    created_pricelist_config.multiplicity_col = None
+    pricelist = await _pricelist_with_rows(
+        test_session,
+        created_brand,
+        provider,
+        created_pricelist_config,
+        [('13422PT0013', 3, 40.0, 2, 1)],
+    )
+
+    frame = await crud_pricelist.fetch_pricelist_dataframe(
+        pricelist.id, test_session
+    )
+
+    assert frame.iloc[0]['multiplicity'] == 2
 
 
 @pytest.mark.anyio

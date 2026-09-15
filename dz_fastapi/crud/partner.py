@@ -2142,6 +2142,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             .options(
                 joinedload(PriceListAutoPartAssociation.autopart).joinedload(AutoPart.brand),
                 joinedload(PriceListAutoPartAssociation.pricelist).joinedload(PriceList.provider),
+                joinedload(PriceListAutoPartAssociation.pricelist).joinedload(PriceList.config),
             )
             .where(PriceListAutoPartAssociation.pricelist_id == pricelist_id)
         )
@@ -2199,16 +2200,24 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     PriceList.provider_id,
                     PriceList.provider_config_id,
                     func.coalesce(Provider.is_own_price, False),
+                    ProviderPriceListConfig.multiplicity_col,
                 )
                 .outerjoin(Provider, Provider.id == PriceList.provider_id)
+                .outerjoin(
+                    ProviderPriceListConfig,
+                    ProviderPriceListConfig.id == PriceList.provider_config_id,
+                )
                 .where(PriceList.id == pricelist_id)
             )
         ).first()
         if header is None:
             return pd.DataFrame(columns=list(self.PRICELIST_DF_COLUMNS))
 
+        supplier_provides_multiplicity = header[4] is not None
         multiplicity_source = (
-            AutoPart.multiplicity if bool(header[3]) else PriceListAutoPartAssociation.multiplicity
+            AutoPart.multiplicity
+            if bool(header[3]) or not supplier_provides_multiplicity
+            else PriceListAutoPartAssociation.multiplicity
         )
         stmt = (
             select(
@@ -2282,10 +2291,14 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         "multiplicity": max(
                             int(
                                 (
-                                    autopart.multiplicity
-                                    if assoc.pricelist.provider
-                                    and assoc.pricelist.provider.is_own_price
-                                    else assoc.multiplicity
+                                    assoc.multiplicity
+                                    if (
+                                        assoc.pricelist.provider
+                                        and not assoc.pricelist.provider.is_own_price
+                                        and assoc.pricelist.config
+                                        and assoc.pricelist.config.multiplicity_col is not None
+                                    )
+                                    else autopart.multiplicity
                                 )
                                 or 1
                             ),
