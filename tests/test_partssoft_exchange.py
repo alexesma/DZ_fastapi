@@ -46,6 +46,35 @@ async def test_product_outbox_creates_remote_product_and_marks_sent(
 
 
 @pytest.mark.asyncio
+async def test_product_outbox_records_remote_error_after_rollback(
+    test_session,
+    created_autopart,
+    monkeypatch,
+):
+    row = PartsSoftProductOutbox(
+        autopart_id=created_autopart.id,
+        operation="upsert",
+        status="pending",
+    )
+    test_session.add(row)
+    await test_session.commit()
+    row_id = row.id
+
+    async def fake_upsert(_autopart):
+        raise RuntimeError("Parts-Soft rejected product")
+
+    monkeypatch.setattr(service, "_send_product_upsert", fake_upsert)
+    result = await service.process_product_outbox(test_session)
+
+    assert result == {"processed": 1, "counts": {"errors": 1}}
+    failed = await test_session.get(PartsSoftProductOutbox, row_id)
+    assert failed.status == "error"
+    assert failed.attempts == 1
+    assert failed.locked_at is None
+    assert failed.last_error == "Parts-Soft rejected product"
+
+
+@pytest.mark.asyncio
 async def test_document_sync_imports_matched_invoices_once(
     test_session,
     created_customers,

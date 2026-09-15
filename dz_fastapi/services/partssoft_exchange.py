@@ -229,6 +229,9 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
 
     counts: Counter[str] = Counter()
     for row in rows:
+        # A rollback expires ORM attributes. Keep the primary key separately so
+        # the error path never tries to lazy-load ``row.id`` outside greenlet.
+        row_id = row.id
         try:
             autopart = await session.scalar(
                 select(AutoPart)
@@ -265,7 +268,10 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
             await session.commit()
         except Exception as exc:
             await session.rollback()
-            row = await session.get(PartsSoftProductOutbox, row.id)
+            row = await session.get(PartsSoftProductOutbox, row_id)
+            if row is None:
+                counts["errors"] += 1
+                continue
             row.attempts = int(row.attempts or 0) + 1
             row.last_error = str(exc)[:4000]
             row.status = "error"
