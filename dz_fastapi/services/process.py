@@ -114,7 +114,10 @@ from dz_fastapi.services.email import (
     describe_email_delivery,
     send_email_with_attachment,
 )
-from dz_fastapi.services.email_outbox import enqueue_email
+from dz_fastapi.services.email_outbox import (
+    cancel_superseded_customer_pricelist_outbox,
+    enqueue_email,
+)
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
 from dz_fastapi.services.regulatory import import_supplier_regulatory
 from dz_fastapi.services.utils import (
@@ -3008,6 +3011,20 @@ async def send_pricelist(
                     relay_recipients.append(recipient)
         if not relay_recipients:
             raise RuntimeError("Для отправки прайс-листа не заданы получатели")
+
+        cancelled_count = await cancel_superseded_customer_pricelist_outbox(
+            session,
+            customer_config_id=int(config.id),
+            current_pricelist_id=int(customer_pricelist_id),
+        )
+        if cancelled_count:
+            logger.info(
+                "Cancelled superseded customer pricelist relay messages: "
+                "config=%s current_pricelist_id=%s count=%s",
+                config.id,
+                customer_pricelist_id,
+                cancelled_count,
+            )
 
         for recipient in relay_recipients:
             await enqueue_email(

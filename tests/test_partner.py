@@ -3036,6 +3036,101 @@ async def test_smtp_customer_pricelist_uses_external_relay(
 
 
 @pytest.mark.asyncio
+async def test_customer_pricelist_relay_cancels_superseded_unclaimed_messages(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    customer = created_customers[0]
+    account = EmailAccount(
+        name="Customer price relay",
+        email="price-relay@example.com",
+        password="secret",
+        transport="smtp",
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        smtp_use_ssl=True,
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.flush()
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="RELAY SUPERSEDE CONFIG",
+        outgoing_email_account_id=account.id,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    old_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        customer_config_id=config.id,
+        date=date.today(),
+        generation_status="queued",
+    )
+    current_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        customer_config_id=config.id,
+        date=date.today(),
+        generation_status="generated",
+    )
+    test_session.add_all([old_pricelist, current_pricelist])
+    await test_session.flush()
+    old_outbox = EmailOutbox(
+        status=EMAIL_OUTBOX_STATUS.PENDING,
+        from_email=account.email,
+        to_email="old@example.com",
+        source_type="customer_pricelist",
+        source_id=old_pricelist.id,
+    )
+    test_session.add(old_outbox)
+    await test_session.commit()
+    artifact_path = tmp_path / "latest.xlsx"
+    artifact_path.write_bytes(b"latest-price")
+
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: pytest.fail("SMTP must be handled by the relay"),
+    )
+    result = await process_service.send_pricelist(
+        session=test_session,
+        df_excel=None,
+        customer=customer,
+        config=config,
+        to_emails=["latest@example.com"],
+        subject="Latest price",
+        body="Body",
+        attachment_bytes=b"latest-price",
+        attachment_filename="latest.xlsx",
+        attachment_local_path=str(artifact_path),
+        attachment_content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        customer_pricelist_id=current_pricelist.id,
+    )
+
+    await test_session.refresh(old_outbox)
+    await test_session.refresh(old_pricelist)
+    current_rows = list(
+        (
+            await test_session.scalars(
+                select(EmailOutbox).where(
+                    EmailOutbox.source_type == "customer_pricelist",
+                    EmailOutbox.source_id == current_pricelist.id,
+                )
+            )
+        ).all()
+    )
+    assert result == "queued"
+    assert old_outbox.status == EMAIL_OUTBOX_STATUS.CANCELLED
+    assert old_pricelist.generation_status == "rejected"
+    assert len(current_rows) == 1
+    assert current_rows[0].status == EMAIL_OUTBOX_STATUS.PENDING
+
+
+@pytest.mark.asyncio
 async def test_customer_pricelist_relay_terminal_error_updates_draft(
     test_session: AsyncSession,
     created_customers: list[Customer],

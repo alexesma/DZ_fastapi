@@ -198,6 +198,61 @@ async def enqueue_email(
     return row
 
 
+async def cancel_superseded_customer_pricelist_outbox(
+    session: AsyncSession,
+    *,
+    customer_config_id: int,
+    current_pricelist_id: int,
+) -> int:
+    """Cancel unclaimed letters for older files of the same configuration."""
+    old_pricelists = list(
+        (
+            await session.scalars(
+                select(CustomerPriceList).where(
+                    CustomerPriceList.customer_config_id == customer_config_id,
+                    CustomerPriceList.id != current_pricelist_id,
+                )
+            )
+        ).all()
+    )
+    if not old_pricelists:
+        return 0
+
+    old_by_id = {item.id: item for item in old_pricelists}
+    rows = list(
+        (
+            await session.scalars(
+                select(EmailOutbox)
+                .where(
+                    EmailOutbox.source_type == "customer_pricelist",
+                    EmailOutbox.source_id.in_(old_by_id),
+                    EmailOutbox.status == EMAIL_OUTBOX_STATUS.PENDING,
+                    EmailOutbox.claimed_at.is_(None),
+                )
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
+    )
+    if not rows:
+        return 0
+
+    affected_pricelist_ids: set[int] = set()
+    for row in rows:
+        row.status = EMAIL_OUTBOX_STATUS.CANCELLED
+        row.last_error = "Отменено: сформирован более новый прайс-лист"
+        affected_pricelist_ids.add(int(row.source_id))
+        session.add(row)
+
+    for pricelist_id in affected_pricelist_ids:
+        pricelist = old_by_id[pricelist_id]
+        pricelist.generation_status = "rejected"
+        pricelist.send_error = "Отменено: сформирован более новый прайс-лист"
+        session.add(pricelist)
+
+    await session.flush()
+    return len(rows)
+
+
 async def list_pending_outbox(
     session: AsyncSession, *, limit: int = 50
 ) -> list[EmailOutbox]:
