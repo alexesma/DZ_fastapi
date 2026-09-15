@@ -37,3 +37,13 @@ class PricelistStaleActionResponse(BaseModel):
     action: str
     available_at: Optional[datetime] = None
     override_until: Optional[datetime] = None
+
+
+class RelayOfflineActionRequest(BaseModel):
+    action: Literal["snooze_30_minutes"]
+
+
+class RelayOfflineActionResponse(BaseModel):
+    notification_id: int
+    action: str
+    available_at: datetime

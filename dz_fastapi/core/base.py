@@ -139,6 +139,7 @@ from dz_fastapi.models.price_control import (
     PriceControlSource,
     PriceControlSourceRecommendation,
 )
+from dz_fastapi.models.relay import RelayHeartbeat  # noqa
 from dz_fastapi.models.process_architecture import ProcessArchitectureAnnotation  # noqa
 from dz_fastapi.models.settings import (
     CustomerOrderInboxSettings,
@@ -170,6 +171,7 @@ __all__ = [
     "CustomerExternalReference",
     "CustomerReclamationEmail",
     "EmailOutbox",
+    "RelayHeartbeat",
     "TelegramOutbox",
     "Reclamation",
     "ReclamationAttachment",

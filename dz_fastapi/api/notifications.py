@@ -16,8 +16,11 @@ from dz_fastapi.schemas.notification import (
     AppNotificationResponse,
     PricelistStaleActionRequest,
     PricelistStaleActionResponse,
+    RelayOfflineActionRequest,
+    RelayOfflineActionResponse,
 )
 from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.services.relay_health import RELAY_OFFLINE_NOTIFICATION_TYPE
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -83,7 +86,10 @@ async def mark_notification_read(
     if not notification or notification.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Notification not found")
     payload = notification.payload if isinstance(notification.payload, dict) else {}
-    if payload.get("notification_type") == "pricelist_stale_action":
+    if payload.get("notification_type") in {
+        "pricelist_stale_action",
+        RELAY_OFFLINE_NOTIFICATION_TYPE,
+    }:
         raise HTTPException(
             status_code=409,
             detail="Choose an action for the stale supplier price",
@@ -121,7 +127,10 @@ async def mark_all_notifications_read(
     now = now_moscow()
     for item in items:
         payload = item.payload if isinstance(item.payload, dict) else {}
-        if payload.get("notification_type") == "pricelist_stale_action":
+        if payload.get("notification_type") in {
+            "pricelist_stale_action",
+            RELAY_OFFLINE_NOTIFICATION_TYPE,
+        }:
             continue
         item.read_at = now
         session.add(item)
@@ -203,4 +212,45 @@ async def handle_pricelist_stale_action(
         notification_id=notification.id,
         action=request.action,
         override_until=override_until,
+    )
+
+
+@router.post(
+    "/{notification_id}/relay-offline-action",
+    response_model=RelayOfflineActionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def handle_relay_offline_action(
+    notification_id: int,
+    request: RelayOfflineActionRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    notification = await session.get(AppNotification, notification_id)
+    if not notification or notification.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    payload = notification.payload if isinstance(notification.payload, dict) else {}
+    if payload.get("notification_type") != RELAY_OFFLINE_NOTIFICATION_TYPE:
+        raise HTTPException(status_code=409, detail="Notification does not require this action")
+
+    now = now_moscow()
+    available_at = now + timedelta(minutes=30)
+    notification.read_at = now
+    session.add(notification)
+    replacement = await create_notification(
+        session,
+        user_id=current_user.id,
+        title=notification.title,
+        message=notification.message,
+        level=notification.level,
+        link=notification.link,
+        payload=payload,
+        available_at=available_at,
+        commit=False,
+    )
+    await session.commit()
+    return RelayOfflineActionResponse(
+        notification_id=replacement.id,
+        action=request.action,
+        available_at=available_at,
     )

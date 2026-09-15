@@ -110,6 +110,7 @@ from dz_fastapi.services.process import (
 )
 from dz_fastapi.services.production_waves import create_scheduled_production_wave
 from dz_fastapi.services.reclamations import cleanup_closed_reclamation_files
+from dz_fastapi.services.relay_health import check_email_relay_health
 from dz_fastapi.services.runtime_memory import process_rss_mb, trim_process_memory
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import mark_auto_refused_supplier_items
@@ -853,6 +854,18 @@ def start_scheduler(app: FastAPI):
         hour="0-23",
         minute="*",
         second=5,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        func=check_email_relay_health_task,
+        trigger="cron",
+        args=[app],
+        id="check_email_relay_health",
+        name="Check external email relay health",
+        minute="*",
+        second=45,
         replace_existing=True,
         max_instances=1,
         coalesce=True,
@@ -2172,6 +2185,24 @@ async def _mark_scheduler_ran(session: AsyncSession, setting, when: datetime) ->
     setting.last_run_at = when
     session.add(setting)
     await session.commit()
+
+
+async def check_email_relay_health_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="email_relay_health",
+        job_name="Check external email relay health",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            result = await check_email_relay_health(session)
+            trace.details.update(result)
+            if result.get("status") == "offline":
+                logger.warning(
+                    "External email relay is offline: pending=%s last_seen_at=%s",
+                    result.get("pending_count"),
+                    result.get("last_seen_at"),
+                )
 
 
 async def send_scheduled_customer_pricelists_task(app: FastAPI):

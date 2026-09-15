@@ -24,6 +24,7 @@ from dz_fastapi.services.email_outbox import (
     mark_outbox_sent,
     serialize_outbox_for_relay,
 )
+from dz_fastapi.services.relay_health import record_relay_heartbeat
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -59,12 +60,16 @@ async def outbox_claim(
     _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
+    await record_relay_heartbeat(session, worker=worker)
     rows = await claim_pending_outbox(
         session,
         worker=worker,
         limit=limit,
         lease_seconds=lease_seconds,
     )
+    # claim_pending_outbox commits when it claims rows. An empty queue still
+    # needs to persist the heartbeat.
+    await session.commit()
     return [serialize_outbox_for_relay(row) for row in rows]
 
 
