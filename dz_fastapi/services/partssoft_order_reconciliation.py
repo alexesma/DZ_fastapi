@@ -41,6 +41,7 @@ from dz_fastapi.models.partner import CUSTOMER_ORDER_STATUS, TYPE_PRICES
 from dz_fastapi.models.partssoft import PartsSoftProductOutbox
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.order import OrderPositionOut
+from dz_fastapi.services.customer_order_identity import canonical_order_number
 from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
@@ -205,8 +206,41 @@ def local_order_fingerprint(order: CustomerOrder) -> tuple[tuple[str, str, int, 
     return tuple(sorted(_local_item_signature(item) for item in order.items or []))
 
 
+def _core_item_fingerprint(items: list[Any], *, remote: bool) -> tuple[tuple[str, int], ...]:
+    quantities: Counter[str] = Counter()
+    for item in items:
+        oem = item.get("oem") if remote else item.oem
+        quantity = item.get("qnt") if remote else item.requested_qty
+        normalized_oem = preprocess_oem_number(_text(oem))
+        if normalized_oem:
+            quantities[normalized_oem] += int(quantity or 0)
+    return tuple(sorted(quantities.items()))
+
+
+def _items_total(items: list[Any], *, remote: bool) -> Decimal | None:
+    total = Decimal("0")
+    has_price = False
+    for item in items:
+        price = _decimal(item.get("cost") if remote else item.requested_price)
+        if price is None:
+            continue
+        quantity = _integer(item.get("qnt") if remote else item.requested_qty) or 0
+        total += price * quantity
+        has_price = True
+    return total.quantize(Decimal("0.01")) if has_price else None
+
+
+def _timestamps_are_close(first: datetime | None, second: datetime | None, minutes: int) -> bool:
+    if first is None or second is None:
+        return False
+    try:
+        return abs((first - second).total_seconds()) <= minutes * 60
+    except TypeError:
+        return False
+
+
 def _normalized_order_number(value: Any) -> str:
-    return _normalized_text(value)
+    return canonical_order_number(value)
 
 
 def _find_matching_local_order(
@@ -223,10 +257,38 @@ def _find_matching_local_order(
     if not fingerprint or remote_date is None:
         return None
     for candidate in candidates:
+        candidate_number = _normalized_order_number(candidate.order_number)
+        if remote_number and candidate_number and remote_number != candidate_number:
+            continue
         candidate_date = candidate.order_date
         if candidate_date is None and candidate.received_at is not None:
             candidate_date = candidate.received_at.date()
         if candidate_date == remote_date and local_order_fingerprint(candidate) == fingerprint:
+            return candidate
+    remote_items = list(remote_order.get("order_items") or [])
+    core_fingerprint = _core_item_fingerprint(remote_items, remote=True)
+    if not core_fingerprint:
+        return None
+    remote_total = _items_total(remote_items, remote=True)
+    remote_created_at = _parse_datetime(remote_order.get("created_at"))
+    for candidate in candidates:
+        candidate_number = _normalized_order_number(candidate.order_number)
+        if remote_number and candidate_number and remote_number != candidate_number:
+            continue
+        candidate_date = candidate.order_date
+        if candidate_date is None and candidate.received_at is not None:
+            candidate_date = candidate.received_at.date()
+        if candidate_date != remote_date:
+            continue
+        local_items = list(candidate.items or [])
+        if _core_item_fingerprint(local_items, remote=False) != core_fingerprint:
+            continue
+        local_total = _items_total(local_items, remote=False)
+        totals_match = (
+            remote_total is not None and local_total is not None and remote_total == local_total
+        )
+        max_minutes = 120 if totals_match else 15
+        if _timestamps_are_close(remote_created_at, candidate.received_at, max_minutes):
             return candidate
     return None
 

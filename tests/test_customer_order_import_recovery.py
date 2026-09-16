@@ -154,6 +154,94 @@ async def test_email_import_finds_existing_partssoft_order(
 
 
 @pytest.mark.asyncio
+async def test_email_import_matches_verbose_partssoft_order_number(
+    test_session,
+    created_customers,
+):
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        external_source="PARTS_SOFT",
+        external_order_id="217300",
+        order_number="Заказ № 37137 от 16.09.2026 8:59:40",
+        order_date=date(2026, 9, 16),
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.commit()
+
+    duplicate = await _find_partssoft_order_duplicate(
+        test_session,
+        customer_id=created_customers[0].id,
+        rows=[
+            ParsedOrderRow(
+                row_index=1,
+                oem="different-source-format",
+                brand="",
+                name=None,
+                requested_qty=1,
+                requested_price=None,
+            )
+        ],
+        order_number="№ 37137 от",
+        order_date=date(2026, 9, 16),
+    )
+
+    assert duplicate is not None
+    assert duplicate.id == order.id
+
+
+@pytest.mark.asyncio
+async def test_email_import_matches_numberless_partssoft_order_by_content(
+    test_session,
+    created_customers,
+):
+    received_at = customer_order_service.now_moscow()
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        external_source="PARTS_SOFT",
+        external_order_id="217301",
+        order_number="#",
+        order_date=received_at.date(),
+        received_at=received_at,
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=order.id,
+            row_index=1,
+            oem="BH-3888-E",
+            brand="NOK ORIGINAL",
+            requested_qty=2,
+            requested_price=5056,
+        )
+    )
+    await test_session.commit()
+
+    duplicate = await _find_partssoft_order_duplicate(
+        test_session,
+        customer_id=created_customers[0].id,
+        rows=[
+            ParsedOrderRow(
+                row_index=1,
+                oem="BH3888E",
+                brand="NOK",
+                name=None,
+                requested_qty=2,
+                requested_price=5056,
+            )
+        ],
+        order_number="4072",
+        order_date=received_at.date(),
+        received_at=received_at,
+    )
+
+    assert duplicate is not None
+    assert duplicate.id == order.id
+
+
+@pytest.mark.asyncio
 async def test_targeted_recovery_fetches_interrupted_order_uid(
     test_session,
     created_customers,

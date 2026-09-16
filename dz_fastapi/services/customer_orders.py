@@ -4,6 +4,7 @@ import hashlib
 import logging
 import os
 import re
+from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -82,6 +83,7 @@ from dz_fastapi.models.partner import (
     SupplierOrderItem,
 )
 from dz_fastapi.services.credit_control import assert_customer_credit_available
+from dz_fastapi.services.customer_order_identity import canonical_order_number
 from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
@@ -1567,7 +1569,7 @@ def _compute_order_requested_total(
 
 
 def _normalized_order_number(value: object) -> str:
-    return str(value or "").strip().casefold()
+    return canonical_order_number(value)
 
 
 def _order_item_money(value: object) -> str:
@@ -1595,6 +1597,42 @@ def _parsed_order_fingerprint(
     )
 
 
+def _order_core_fingerprint(
+    rows: List[ParsedOrderRow] | list[CustomerOrderItem],
+) -> tuple[tuple[str, int], ...]:
+    quantities: Counter[str] = Counter()
+    for row in rows:
+        normalized_oem = preprocess_oem_number(str(getattr(row, "oem", "") or ""))
+        if normalized_oem:
+            quantities[normalized_oem] += int(getattr(row, "requested_qty", 0) or 0)
+    return tuple(sorted(quantities.items()))
+
+
+def _customer_order_requested_total(order: CustomerOrder) -> Optional[float]:
+    total = 0.0
+    has_price = False
+    for item in order.items or []:
+        if item.requested_price is None:
+            continue
+        has_price = True
+        total += float(item.requested_price) * int(item.requested_qty or 0)
+    return round(total, 2) if has_price else None
+
+
+def _timestamps_are_close(
+    first: Optional[datetime],
+    second: Optional[datetime],
+    *,
+    max_minutes: int,
+) -> bool:
+    if first is None or second is None:
+        return False
+    try:
+        return abs((first - second).total_seconds()) <= max_minutes * 60
+    except TypeError:
+        return False
+
+
 async def _find_partssoft_order_duplicate(
     session: AsyncSession,
     *,
@@ -1602,6 +1640,7 @@ async def _find_partssoft_order_duplicate(
     rows: List[ParsedOrderRow],
     order_number: Optional[str],
     order_date: Optional[date],
+    received_at: Optional[datetime] = None,
     exclude_order_id: Optional[int] = None,
 ) -> Optional[CustomerOrder]:
     stmt = (
@@ -1628,6 +1667,9 @@ async def _find_partssoft_order_duplicate(
     if not fingerprint:
         return None
     for candidate in candidates:
+        candidate_number = _normalized_order_number(candidate.order_number)
+        if normalized_number and candidate_number and normalized_number != candidate_number:
+            continue
         candidate_date = candidate.order_date
         if candidate_date is None and candidate.received_at is not None:
             candidate_date = candidate.received_at.date()
@@ -1645,6 +1687,30 @@ async def _find_partssoft_order_duplicate(
             )
         )
         if candidate_fingerprint == fingerprint:
+            return candidate
+    core_fingerprint = _order_core_fingerprint(rows)
+    if not core_fingerprint:
+        return None
+    requested_total = _compute_order_requested_total(rows)
+    for candidate in candidates:
+        candidate_number = _normalized_order_number(candidate.order_number)
+        if normalized_number and candidate_number and normalized_number != candidate_number:
+            continue
+        candidate_date = candidate.order_date
+        if candidate_date is None and candidate.received_at is not None:
+            candidate_date = candidate.received_at.date()
+        if candidate_date != order_date:
+            continue
+        if _order_core_fingerprint(list(candidate.items or [])) != core_fingerprint:
+            continue
+        candidate_total = _customer_order_requested_total(candidate)
+        totals_match = (
+            requested_total is not None
+            and candidate_total is not None
+            and abs(requested_total - candidate_total) < 0.01
+        )
+        max_minutes = 120 if totals_match else 15
+        if _timestamps_are_close(received_at, candidate.received_at, max_minutes=max_minutes):
             return candidate
     return None
 
@@ -4682,6 +4748,7 @@ async def process_customer_orders(
                 rows=parsed_rows,
                 order_number=order_number_file or order_number_hint,
                 order_date=order_date,
+                received_at=order.received_at,
                 exclude_order_id=order.id,
             )
             if duplicate_partssoft_order is not None:

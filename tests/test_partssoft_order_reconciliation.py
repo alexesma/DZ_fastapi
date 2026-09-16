@@ -446,6 +446,98 @@ async def test_sync_links_partssoft_identity_to_existing_email_order(
 
 
 @pytest.mark.asyncio
+async def test_sync_matches_email_order_with_shortened_display_number(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    local_order = CustomerOrder(
+        customer_id=customer.id,
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+        order_number="№ 37137 от",
+        order_date=service._parse_datetime("2026-09-16T08:10:00+03:00").date(),
+        source_email="orders@example.com",
+        file_hash="e" * 64,
+    )
+    test_session.add(local_order)
+    await test_session.commit()
+
+    remote_order = {
+        "id": 217300,
+        "created_at": "2026-09-16T08:10:00+03:00",
+        "load_order_client_number": "Заказ № 37137 от 16.09.2026 8:59:40",
+        "customer_id": 704,
+        "customer": {"id": 704, "compile_name": "Клиент"},
+        "order_items": [{"id": 8004, "oem": "A-1", "make_name": "BRAND", "qnt": 1}],
+    }
+
+    async def fake_fetch_orders(_days, *, region_id=None):
+        created = service._parse_datetime(remote_order["created_at"])
+        return created, created, [remote_order]
+
+    async def fake_resolve_customer(_session, _remote_order):
+        return customer, "linked"
+
+    monkeypatch.setattr(service, "_fetch_orders", fake_fetch_orders)
+    monkeypatch.setattr(service, "_resolve_sync_customer", fake_resolve_customer)
+    monkeypatch.setattr(service, "PARTSSOFT_API_AUTO_ORDER_ENABLED", False)
+
+    result = await service.sync_partssoft_orders(test_session)
+
+    assert result["counts"] == {"linked_existing_order": 1}
+    orders = (
+        await test_session.scalars(
+            select(CustomerOrder).where(CustomerOrder.customer_id == customer.id)
+        )
+    ).all()
+    assert len(orders) == 1
+    assert orders[0].id == local_order.id
+    assert orders[0].external_order_id == "217300"
+
+
+def test_partssoft_numberless_order_matches_by_content_total_and_time():
+    received_at = service._parse_datetime("2026-09-16T08:16:00+03:00")
+    local_order = CustomerOrder(
+        id=4072,
+        customer_id=944,
+        order_number="4072",
+        order_date=received_at.date(),
+        received_at=received_at,
+    )
+    local_order.items = [
+        CustomerOrderItem(
+            oem="BH-3888-E",
+            brand="NOK ORIGINAL",
+            requested_qty=2,
+            requested_price=Decimal("5056.00"),
+        )
+    ]
+    remote_order = {
+        "id": 217301,
+        "created_at": "2026-09-16T08:20:00+03:00",
+        "load_order_client_number": "#",
+        "order_items": [
+            {
+                "id": 8005,
+                "oem": "BH3888E",
+                "make_name": "NOK",
+                "qnt": 2,
+                "cost": "5056.00",
+            }
+        ],
+    }
+
+    matched = service._find_matching_local_order(
+        [local_order],
+        remote_order,
+        received_at.date(),
+    )
+
+    assert matched is local_order
+
+
+@pytest.mark.asyncio
 async def test_api_source_items_are_sent_once_and_marked(
     test_session,
     monkeypatch,
