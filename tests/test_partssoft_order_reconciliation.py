@@ -8,6 +8,7 @@ from dz_fastapi.models.autopart import AutoPart, Photo
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     CUSTOMER_ORDER_STATUS,
+    Client,
     Customer,
     CustomerExternalReference,
     CustomerOrder,
@@ -70,6 +71,38 @@ def test_remote_order_number_uses_client_number_first():
         )
         == "CLIENT-1"
     )
+
+
+@pytest.mark.asyncio
+async def test_resolve_customer_does_not_reuse_email_owned_by_another_client(
+    test_session,
+):
+    existing = Client(name="Системный клиент", email_contact="admin@dragonzap.ru")
+    test_session.add(existing)
+    await test_session.commit()
+
+    customer, result = await service._resolve_sync_customer(
+        test_session,
+        {
+            "customer_id": 924,
+            "customer": {
+                "id": 924,
+                "compile_name": "Розничный покупатель",
+                "email": "admin@dragonzap.ru",
+            },
+        },
+    )
+    await test_session.commit()
+
+    assert result == "created"
+    assert customer.id != existing.id
+    assert customer.email_contact is None
+    reference = await test_session.scalar(
+        select(CustomerExternalReference).where(
+            CustomerExternalReference.external_customer_id == 924
+        )
+    )
+    assert reference.customer_id == customer.id
 
 
 def test_order_fingerprints_normalize_and_sort_rows():

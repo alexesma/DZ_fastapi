@@ -1268,6 +1268,16 @@ async def _unique_customer_name(session: AsyncSession, preferred: str, external_
     return candidate
 
 
+async def _available_customer_email(session: AsyncSession, value: Any) -> str | None:
+    email = normalize_email(value)
+    if not email or not Customer.is_valid_email(email):
+        return None
+    existing_client_id = await session.scalar(
+        select(Client.id).where(func.lower(Client.email_contact) == email).limit(1)
+    )
+    return email if existing_client_id is None else None
+
+
 async def _exact_customer_candidates(
     session: AsyncSession,
     remote: dict[str, Any],
@@ -1454,11 +1464,7 @@ async def _resolve_sync_customer(
         customer = Customer(
             name=await _unique_customer_name(session, preferred_name, external_id),
             legal_name=_text(remote.get("legal_name")) or None,
-            email_contact=(
-                remote.get("email")
-                if remote.get("email") and Customer.is_valid_email(remote.get("email"))
-                else None
-            ),
+            email_contact=await _available_customer_email(session, remote.get("email")),
             type_prices=(TYPE_PRICES.WHOLESALE if remote.get("inn") else TYPE_PRICES.RETAIL),
             registration_source=_partssoft_registration_source(remote_raw),
         )
@@ -1723,7 +1729,18 @@ async def sync_partssoft_orders(
             counts["existing_site_order"] += 1
             continue
 
-        customer, customer_result = await _resolve_sync_customer(session, remote_order)
+        try:
+            customer, customer_result = await _resolve_sync_customer(session, remote_order)
+        except IntegrityError:
+            await session.rollback()
+            counts["customer_identity_conflict"] += 1
+            logger.exception(
+                "Parts-Soft order skipped after customer identity conflict: "
+                "external_order_id=%s external_customer_id=%s",
+                external_order_id,
+                _remote_customer(remote_order).get("external_id"),
+            )
+            continue
         if customer is None:
             await session.rollback()
             counts[customer_result] += 1
