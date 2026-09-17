@@ -13,6 +13,8 @@ from dz_fastapi.models.partner import (
     CustomerExternalReference,
     CustomerOrder,
     CustomerOrderItem,
+    Order,
+    OrderItem,
     PartsSoftOrderSnapshot,
     Provider,
     ProviderExternalReference,
@@ -527,6 +529,71 @@ async def test_sync_matches_email_order_with_shortened_display_number(
     assert len(orders) == 1
     assert orders[0].id == local_order.id
     assert orders[0].external_order_id == "217300"
+
+
+@pytest.mark.asyncio
+async def test_sync_skips_own_site_order_with_legacy_tracking_comment(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    provider = Provider(name="API supplier")
+    test_session.add(provider)
+    await test_session.flush()
+    site_order = Order(provider_id=provider.id, customer_id=customer.id)
+    test_session.add(site_order)
+    await test_session.flush()
+    test_session.add(
+        OrderItem(
+            order_id=site_order.id,
+            oem_number="9165160818",
+            brand_name="TOYOTA-LEXUS",
+            quantity=20,
+            price=80,
+            tracking_uuid="dw1227031936",
+        )
+    )
+    await test_session.commit()
+
+    remote_order = {
+        "id": 217446,
+        "created_at": "2026-09-17T09:37:13.771+03:00",
+        "source_type": "api",
+        "customer_id": 924,
+        "customer": {"id": 924, "compile_name": "1C"},
+        "order_items": [
+            {
+                "id": 472607,
+                "oem": "9165160818",
+                "make_name": "TOYOTA-LEXUS",
+                "qnt": 20,
+                "cost": 80,
+                "comment": "dw1227031936",
+            }
+        ],
+    }
+
+    async def fake_fetch_orders(_days, *, region_id=None):
+        created = service._parse_datetime(remote_order["created_at"])
+        return created, created, [remote_order]
+
+    async def fail_resolve_customer(*_args, **_kwargs):
+        raise AssertionError("own site order must be detected before customer resolution")
+
+    monkeypatch.setattr(service, "_fetch_orders", fake_fetch_orders)
+    monkeypatch.setattr(service, "_resolve_sync_customer", fail_resolve_customer)
+    monkeypatch.setattr(service, "PARTSSOFT_API_AUTO_ORDER_ENABLED", False)
+
+    result = await service.sync_partssoft_orders(test_session)
+
+    assert result["counts"] == {"existing_site_order": 1}
+    assert (
+        await test_session.scalar(
+            select(CustomerOrder.id).where(CustomerOrder.external_order_id == "217446")
+        )
+        is None
+    )
 
 
 def test_partssoft_numberless_order_matches_by_content_total_and_time():

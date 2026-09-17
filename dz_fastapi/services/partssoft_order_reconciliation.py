@@ -103,6 +103,18 @@ def _is_order_tracking_token(value: Any) -> bool:
     )
 
 
+def _remote_item_tracking_value(item: dict[str, Any]) -> str:
+    containers = [item, item.get("sys_info"), item.get("source"), item.get("offer")]
+    for container in containers:
+        if not isinstance(container, dict):
+            continue
+        for key in ("comment", "tracking_uuid", "request_tracking_uuid"):
+            value = _text(container.get(key)).lower()
+            if value:
+                return value
+    return ""
+
+
 def _money(value: Any) -> str:
     if value in (None, ""):
         return ""
@@ -1719,12 +1731,14 @@ async def sync_partssoft_orders(
             continue
 
         tracking_ids = [
-            _text(item.get("comment")).lower()
+            tracking_value
             for item in remote_order.get("order_items") or []
-            if _is_order_tracking_token(item.get("comment"))
+            if (tracking_value := _remote_item_tracking_value(item))
         ]
         if tracking_ids and await session.scalar(
-            select(OrderItem.id).where(OrderItem.tracking_uuid.in_(tracking_ids)).limit(1)
+            select(OrderItem.id)
+            .where(func.lower(OrderItem.tracking_uuid).in_(tracking_ids))
+            .limit(1)
         ):
             counts["existing_site_order"] += 1
             continue
@@ -1912,17 +1926,17 @@ async def reconcile_partssoft_orders(
     external_order_map = {_text(row.external_order_id): row.id for row in external_orders}
 
     tracking_values = {
-        _text(item.get("comment")).lower()
+        tracking_value
         for order in remote_orders
         for item in order.get("order_items") or []
-        if _is_order_tracking_token(item.get("comment"))
+        if (tracking_value := _remote_item_tracking_value(item))
     }
     tracking_map: dict[str, int] = {}
     if tracking_values:
         tracking_rows = (
             await session.execute(
                 select(OrderItem.tracking_uuid, OrderItem.order_id).where(
-                    OrderItem.tracking_uuid.in_(tracking_values)
+                    func.lower(OrderItem.tracking_uuid).in_(tracking_values)
                 )
             )
         ).all()
@@ -1954,9 +1968,9 @@ async def reconcile_partssoft_orders(
         external_order_id = _text(remote_order.get("id"))
         items = remote_order.get("order_items") or []
         item_tracking_ids = [
-            _text(item.get("comment")).lower()
+            tracking_value
             for item in items
-            if _is_order_tracking_token(item.get("comment"))
+            if (tracking_value := _remote_item_tracking_value(item))
         ]
         matched_site_order_ids = {
             tracking_map[value] for value in item_tracking_ids if value in tracking_map
