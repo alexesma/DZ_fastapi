@@ -56,7 +56,7 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
-from dz_fastapi.models.inventory import Warehouse
+from dz_fastapi.models.inventory import StockByLocation, Warehouse
 from dz_fastapi.models.nomenclature import (
     ApplicabilityNode,
     HonestSignCategory,
@@ -1398,7 +1398,11 @@ async def get_storage_locations(
     limit: int = 100,
     warehouse_id: Optional[int] = Query(default=None),
     include_system: bool = Query(default=False),
-    include_autoparts: bool = Query(default=True),
+    # Тяжёлый путь — грузит каждую запчасть в каждом месте вместе с
+    # категориями и обратной связью мест. Тот же класс мины, что
+    # /customers/: безопасно только пока все вызовы явно просят true.
+    # Не рискуем — по умолчанию выключено, включают осознанно.
+    include_autoparts: bool = Query(default=False),
 ):
     storages = await crud_storage.get_multi(
         session,
@@ -1546,13 +1550,35 @@ async def delete_storage_location(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Системное место хранения нельзя удалить.",
         )
-    if storage.autoparts:
+    # Проверяем реальный остаток, а не только метку членства: она могла
+    # быть снята с карточки товара отдельно от движения (до правки эта
+    # рассинхронизация была возможна) и не отражать, что на месте
+    # физически ещё лежит товар. На storagelocation.id стоит ON DELETE
+    # CASCADE у stockbylocation — без этой проверки удаление места
+    # молча стирало бы остаток, минуя историю движений.
+    stock_result = await session.execute(
+        select(func.sum(StockByLocation.quantity)).where(
+            StockByLocation.storage_location_id == storage_id,
+            StockByLocation.quantity > 0,
+        )
+    )
+    real_quantity = int(stock_result.scalar() or 0)
+    if real_quantity:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Нельзя удалить: в месте хранения «{storage.name}» "
-                f"находится {len(storage.autoparts)} запчасть(-ей). "
-                "Сначала переместите товары в другое место."
+                f"по факту {real_quantity} шт. Сначала переместите товар "
+                "складским движением."
+            ),
+        )
+    if storage.autoparts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Нельзя удалить: за местом хранения «{storage.name}» "
+                f"числится {len(storage.autoparts)} запчасть(-ей) без "
+                "остатка. Снимите метку в карточке товара."
             ),
         )
     await session.delete(storage)
@@ -1570,10 +1596,6 @@ async def get_storage_autoparts(
     session: AsyncSession = Depends(get_session),
 ):
     """Return StockByLocation records for the given storage location."""
-    from dz_fastapi.models.inventory import StockByLocation
-
-    # avoid circular import
-
     storage = await session.get(StorageLocation, storage_id)
     if not storage:
         raise HTTPException(
@@ -2026,6 +2048,31 @@ async def get_autoparts_catalog(
                 row.cross_count or 0
             )
 
+    # Места хранения — из фактического остатка (StockByLocation), а не
+    # из метки в карточке товара. Метка снимается и ставится вручную и
+    # не обязана совпадать с тем, где товар лежит на самом деле; менять
+    # её отдельно от складского движения по одной этой позиции больше
+    # нельзя (см. update_full), но старые карточки могли разойтись
+    # раньше — показываем то, что подтверждено остатком.
+    real_locations: dict[int, list[str]] = {}
+    if items:
+        location_stmt = (
+            select(StockByLocation.autopart_id, StorageLocation.name)
+            .join(
+                StorageLocation,
+                StorageLocation.id == StockByLocation.storage_location_id,
+            )
+            .where(
+                StockByLocation.autopart_id.in_(ap_ids),
+                StockByLocation.quantity > 0,
+            )
+            .order_by(StorageLocation.name.asc())
+        )
+        for row in (await session.execute(location_stmt)).all():
+            real_locations.setdefault(int(row.autopart_id), []).append(
+                row.name
+            )
+
     catalog_items = []
     for ap in items:
         catalog_items.append(
@@ -2064,7 +2111,7 @@ async def get_autoparts_catalog(
                 applicability_names=applicability_names.get(ap.id, []),
                 cross_count=cross_counts.get(ap.id, 0),
                 categories=ap.categories,
-                storage_locations=ap.storage_locations,
+                storage_locations=real_locations.get(ap.id, []),
                 stock_quantity=stock_map.get(ap.id, 0),
             )
         )
@@ -2167,6 +2214,36 @@ async def _availability_by_autopart(
     return сводка
 
 
+async def _real_storage_locations(
+    session: AsyncSession,
+    autopart_ids: list[int],
+) -> dict[int, list[str]]:
+    """Места хранения по фактическому остатку, а не по метке в карточке.
+
+    Метка (AutoPart.storage_locations) снимается и ставится вручную и
+    может разойтись с тем, где товар лежит по факту — только это,
+    подтверждённое остатком, и стоит показывать в сводке наличия.
+    """
+    if not autopart_ids:
+        return {}
+    stmt = (
+        select(StockByLocation.autopart_id, StorageLocation.name)
+        .join(
+            StorageLocation,
+            StorageLocation.id == StockByLocation.storage_location_id,
+        )
+        .where(
+            StockByLocation.autopart_id.in_(autopart_ids),
+            StockByLocation.quantity > 0,
+        )
+        .order_by(StorageLocation.name.asc())
+    )
+    result: dict[int, list[str]] = {}
+    for row in (await session.execute(stmt)).all():
+        result.setdefault(int(row.autopart_id), []).append(row.name)
+    return result
+
+
 def _to_float_or_none(value) -> Optional[float]:
     if value is None:
         return None
@@ -2194,10 +2271,7 @@ async def get_autopart_availability(
     позиция = (
         await session.execute(
             select(AutoPart)
-            .options(
-                selectinload(AutoPart.brand),
-                selectinload(AutoPart.storage_locations),
-            )
+            .options(selectinload(AutoPart.brand))
             .where(AutoPart.id == autopart_id)
         )
     ).scalar_one_or_none()
@@ -2211,9 +2285,7 @@ async def get_autopart_availability(
                 .where(AutoPartCross.source_autopart_id == autopart_id)
                 .options(
                     selectinload(AutoPartCross.cross_brand),
-                    selectinload(AutoPartCross.cross_autopart).selectinload(
-                        AutoPart.storage_locations
-                    ),
+                    selectinload(AutoPartCross.cross_autopart),
                 )
                 .order_by(AutoPartCross.priority.asc())
             )
@@ -2227,6 +2299,7 @@ async def get_autopart_availability(
         if cross.cross_autopart_id:
             нужные_позиции.append(int(cross.cross_autopart_id))
     наличие = await _availability_by_autopart(session, нужные_позиции)
+    места = await _real_storage_locations(session, нужные_позиции)
 
     def собрать(
         ap: Optional[AutoPart],
@@ -2242,11 +2315,7 @@ async def get_autopart_availability(
             oem_number=oem,
             name=ap.name if ap is not None else None,
             own_quantity=int((свод or {}).get("own_quantity") or 0),
-            storage_locations=[
-                location.name for location in (ap.storage_locations or [])
-            ]
-            if ap is not None
-            else [],
+            storage_locations=места.get(int(ap.id), []) if ap is not None else [],
             suppliers_count=int((свод or {}).get("suppliers_count") or 0),
             supplier_quantity=int((свод or {}).get("supplier_quantity") or 0),
             best_price=(свод or {}).get("best_price"),

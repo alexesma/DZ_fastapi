@@ -2485,3 +2485,55 @@ class ReturnItem(Base):
     autopart = relationship("AutoPart", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     lot = relationship("StockLot", lazy="noload")
+
+
+class AdHocLabelPrintEvent(Base):
+    """Кто и когда печатал этикетку товара или бирку места хранения.
+
+    Товарные этикетки и бирки мест хранения не хранятся в базе как
+    отдельные объекты — их собирают на лету из поиска по номенклатуре
+    или из имени места. У этикеток волны сборки и кросс-докинга есть
+    печатная история (print_count, print_events), а у этих двух видов
+    её не было вовсе: если этикетка отклеилась или принтер зажевал
+    бумагу, никакого следа не оставалось. Здесь — одна запись на
+    каждое нажатие «Печать», без привязки к конкретной физической
+    этикетке.
+    """
+
+    __tablename__ = "adhoclabelprintevent"
+
+    kind = Column(String(20), nullable=False, index=True)  # product | location
+    autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    storage_location_id = Column(
+        Integer,
+        ForeignKey("storagelocation.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Снимок того, что было напечатано: бренд/артикул/штрихкод/копии на
+    # каждую позицию. Не ссылка на текущее состояние карточки — она
+    # могла измениться после печати.
+    items = Column(JSON, nullable=False, default=list)
+    total_labels = Column(Integer, nullable=False, default=0)
+    printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    printed_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    autopart = relationship("AutoPart", lazy="joined")
+    storage_location = relationship("StorageLocation", lazy="joined")
+    printed_by_user = relationship("User", lazy="joined")
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('product', 'location')",
+            name="ck_adhoc_label_print_event_kind",
+        ),
+    )

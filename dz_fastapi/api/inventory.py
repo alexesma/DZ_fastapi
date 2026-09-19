@@ -29,6 +29,7 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, StorageLocation, autopart_storage_association
 from dz_fastapi.models.inventory import (
+    AdHocLabelPrintEvent,
     DragonzapProductionGroup,
     InventoryItem,
     InventorySession,
@@ -60,6 +61,8 @@ from dz_fastapi.models.inventory import (
 from dz_fastapi.models.partner import CustomerOrderItem, SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.inventory import (
+    AdHocLabelPrintEventOut,
+    AdHocLabelPrintRequest,
     BackfillResult,
     DocumentBulkSyncRequest,
     DocumentBulkSyncResult,
@@ -1711,6 +1714,107 @@ async def mark_production_wave_labels_printed_route(
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [_production_wave_label_out(label) for label in labels]
+
+
+def _adhoc_label_print_event_out(event: AdHocLabelPrintEvent) -> AdHocLabelPrintEventOut:
+    printed_by = getattr(event, "printed_by_user", None)
+    return AdHocLabelPrintEventOut(
+        id=event.id,
+        kind=event.kind,
+        autopart_id=event.autopart_id,
+        storage_location_id=event.storage_location_id,
+        items=event.items or [],
+        total_labels=event.total_labels,
+        printed_by_name=getattr(printed_by, "name", None),
+        printed_at=event.printed_at,
+    )
+
+
+async def _record_adhoc_label_print(
+    session: AsyncSession,
+    *,
+    kind: str,
+    data: AdHocLabelPrintRequest,
+    user_id: int,
+) -> AdHocLabelPrintEvent:
+    if not data.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Список этикеток пуст",
+        )
+    total = sum(max(1, int(item.copies or 1)) for item in data.items)
+    event = AdHocLabelPrintEvent(
+        kind=kind,
+        autopart_id=data.autopart_id,
+        storage_location_id=data.storage_location_id,
+        items=[item.model_dump() for item in data.items],
+        total_labels=total,
+        printed_by_user_id=user_id,
+    )
+    session.add(event)
+    await session.commit()
+    await session.refresh(event, attribute_names=["printed_by_user"])
+    return event
+
+
+@router.post(
+    "/labels/product/print-events",
+    response_model=AdHocLabelPrintEventOut,
+    summary="Записать печать товарных этикеток",
+)
+async def record_product_label_print(
+    data: AdHocLabelPrintRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    event = await _record_adhoc_label_print(
+        session, kind="product", data=data, user_id=current_user.id
+    )
+    return _adhoc_label_print_event_out(event)
+
+
+@router.post(
+    "/labels/location/print-events",
+    response_model=AdHocLabelPrintEventOut,
+    summary="Записать печать бирки места хранения",
+)
+async def record_location_label_print(
+    data: AdHocLabelPrintRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    event = await _record_adhoc_label_print(
+        session, kind="location", data=data, user_id=current_user.id
+    )
+    return _adhoc_label_print_event_out(event)
+
+
+@router.get(
+    "/labels/print-events",
+    response_model=list[AdHocLabelPrintEventOut],
+    summary="Журнал печати товарных этикеток и бирок мест хранения",
+)
+async def list_adhoc_label_print_events(
+    kind: Optional[str] = Query(default=None, pattern="^(product|location)$"),
+    autopart_id: Optional[int] = Query(default=None),
+    storage_location_id: Optional[int] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+):
+    stmt = select(AdHocLabelPrintEvent).order_by(
+        AdHocLabelPrintEvent.printed_at.desc()
+    )
+    if kind:
+        stmt = stmt.where(AdHocLabelPrintEvent.kind == kind)
+    if autopart_id is not None:
+        stmt = stmt.where(AdHocLabelPrintEvent.autopart_id == autopart_id)
+    if storage_location_id is not None:
+        stmt = stmt.where(
+            AdHocLabelPrintEvent.storage_location_id == storage_location_id
+        )
+    stmt = stmt.limit(limit)
+    events = (await session.execute(stmt)).scalars().all()
+    return [_adhoc_label_print_event_out(event) for event in events]
 
 
 async def _run_wave_action(

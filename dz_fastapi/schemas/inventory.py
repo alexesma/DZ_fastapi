@@ -433,6 +433,42 @@ class ProductionWaveLabelPrintRequest(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
 
 
+# ─── AdHocLabelPrintEvent ───────────────────────────────────────────────────
+# Журнал печати для товарных этикеток и бирок мест хранения — этих
+# этикеток нет в базе как объектов, они собираются на лету, поэтому
+# журнал не привязывается к конкретной этикетке, а фиксирует само
+# действие печати.
+
+
+class AdHocLabelPrintItem(BaseModel):
+    """Снимок одной напечатанной этикетки внутри события."""
+
+    brand_name: Optional[str] = None
+    oem_number: Optional[str] = None
+    name: Optional[str] = None
+    barcode: Optional[str] = None
+    copies: int = Field(default=1, ge=1)
+
+
+class AdHocLabelPrintRequest(BaseModel):
+    autopart_id: Optional[int] = None
+    storage_location_id: Optional[int] = None
+    items: List[AdHocLabelPrintItem] = Field(default_factory=list)
+
+
+class AdHocLabelPrintEventOut(BaseModel):
+    id: int
+    kind: str
+    autopart_id: Optional[int] = None
+    storage_location_id: Optional[int] = None
+    items: List[AdHocLabelPrintItem]
+    total_labels: int
+    printed_by_name: Optional[str] = None
+    printed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ─── StockMovement ───────────────────────────────────────────────────────────
 
 

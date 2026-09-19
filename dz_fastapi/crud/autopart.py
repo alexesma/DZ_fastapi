@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import and_, exists, func, or_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
@@ -31,7 +31,7 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
-from dz_fastapi.models.inventory import Warehouse
+from dz_fastapi.models.inventory import StockByLocation, Warehouse
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
@@ -556,6 +556,50 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart.categories = list(cats_result.scalars().all())
 
         if storage_location_ids is not None:
+            # «Места хранения» в карточке — это метка членства, а не
+            # остаток. Реальное количество лежит в StockByLocation и
+            # обновляется только складскими движениями. Раньше форму
+            # можно было сохранить, сняв метку с места, где физически
+            # ещё лежит товар: связь пропадала, а строка StockByLocation
+            # оставалась — невидимая ни в карточке, ни в проверке перед
+            # удалением места (она тоже смотрит на эти метки). Удалить
+            # такое «пустое» место можно было одним кликом — вместе с
+            # ним по ON DELETE CASCADE исчезал и остаток, без единого
+            # движения и без следа.
+            current_location_ids = {
+                loc.id for loc in (autopart.storage_locations or [])
+            }
+            removed_ids = current_location_ids - set(storage_location_ids)
+            if removed_ids:
+                stock_result = await session.execute(
+                    select(
+                        StorageLocation.name,
+                        StockByLocation.quantity,
+                    )
+                    .join(
+                        StockByLocation,
+                        StockByLocation.storage_location_id
+                        == StorageLocation.id,
+                    )
+                    .where(
+                        StockByLocation.autopart_id == autopart.id,
+                        StorageLocation.id.in_(removed_ids),
+                        StockByLocation.quantity > 0,
+                    )
+                )
+                blocking = stock_result.all()
+                if blocking:
+                    details = ", ".join(
+                        f"«{name}» — {qty} шт." for name, qty in blocking
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Нельзя снять место хранения, пока там есть "
+                            f"остаток: {details}. Сначала переместите "
+                            "товар складским движением."
+                        ),
+                    )
             locs_result = await session.execute(
                 select(StorageLocation).where(
                     StorageLocation.id.in_(storage_location_ids)
@@ -981,7 +1025,7 @@ class CRUDStorageLocation(
         limit: int = 100,
         warehouse_id: Optional[int] = None,
         include_system: bool = False,
-        include_autoparts: bool = True,
+        include_autoparts: bool = False,
     ) -> List[StorageLocation]:
         try:
             loader_options = [selectinload(StorageLocation.warehouse)]

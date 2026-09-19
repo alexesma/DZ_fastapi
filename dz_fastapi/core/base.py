@@ -36,6 +36,7 @@ from dz_fastapi.models.finance import (  # noqa
 )
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxForceProcessAudit
 from dz_fastapi.models.inventory import (  # noqa
+    AdHocLabelPrintEvent,
     CrossDockingLabel,
     CrossDockingLabelPrintEvent,
     DragonzapProductionGroup,

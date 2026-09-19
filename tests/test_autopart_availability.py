@@ -10,8 +10,9 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.autopart import AutoPart, StorageLocation, autopart_storage_association
+from dz_fastapi.models.autopart import AutoPart, StorageLocation
 from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.inventory import StockByLocation
 from dz_fastapi.models.partner import (
     PriceList,
     PriceListAutoPartAssociation,
@@ -121,11 +122,12 @@ async def test_availability_separates_own_stock_from_suppliers(
     место = StorageLocation(name="RACK A1")
     test_session.add(место)
     await test_session.flush()
-    # Через связь напрямую: обращение к отношению в асинхронной сессии
-    # вызвало бы ленивую подгрузку.
-    await test_session.execute(
-        autopart_storage_association.insert().values(
-            autopart_id=деталь.id, storage_location_id=место.id
+    # «Место» в ответе строится из фактического остатка (StockByLocation),
+    # а не из метки в карточке товара — метка может разойтись с тем,
+    # что реально на складе.
+    test_session.add(
+        StockByLocation(
+            autopart_id=деталь.id, storage_location_id=место.id, quantity=7
         )
     )
     await test_session.commit()

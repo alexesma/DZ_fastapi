@@ -514,8 +514,11 @@ class AutoPartCatalogItem(BaseModel):
 
     @field_validator("storage_locations", mode="before")
     def get_storage_location_names(cls, v):
+        # Каталог собирает имена сам (из фактического остатка), поэтому
+        # сюда приходит уже готовый список строк; объекты StorageLocation
+        # принимаем тоже — для совместимости с прежними вызовами.
         if v:
-            return [s.name for s in v]
+            return [item if isinstance(item, str) else item.name for item in v]
         return []
 
 
