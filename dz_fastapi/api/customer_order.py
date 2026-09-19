@@ -71,6 +71,7 @@ from dz_fastapi.services.cross_docking import (
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
+    force_process_partssoft_customer_order,
     forward_latest_customer_order_for_config,
     process_customer_orders,
     process_manual_customer_order,
@@ -826,6 +827,33 @@ async def process_manual_order_endpoint(
     if credit_check is not None and credit_check.should_warn:
         response = response.model_copy(update={"credit_warning": credit_check.to_detail()})
     return response
+
+
+@router.post(
+    "/{order_id}/process-partssoft-locally",
+    response_model=CustomerOrderResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def force_process_partssoft_order_endpoint(
+    order_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await force_process_partssoft_customer_order(
+            session=session,
+            order_id=order_id,
+        )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    order = await crud_customer_order.get_by_id(session=session, order_id=order.id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.patch(

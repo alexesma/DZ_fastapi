@@ -33,7 +33,7 @@ except ImportError:  # pragma: no cover - fallback for older imap_tools
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import func
@@ -1351,8 +1351,19 @@ async def _load_latest_customer_pricelist(
     if customer_config_id is not None:
         base_stmt = base_stmt.where(CustomerPriceList.customer_config_id == customer_config_id)
     ordering = (CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
+    # Действующим считаем и отправленный прайс, и собранный без рассылки:
+    # клиент может заказывать через сайт, и тогда письма нет, а цены и
+    # подстановка наших аналогов должны работать. Старые строки знают
+    # только sent_at, поэтому проверяем оба поля.
     sent_result = await session.execute(
-        base_stmt.where(CustomerPriceList.sent_at.is_not(None)).order_by(*ordering).limit(1)
+        base_stmt.where(
+            or_(
+                CustomerPriceList.published_at.is_not(None),
+                CustomerPriceList.sent_at.is_not(None),
+            )
+        )
+        .order_by(*ordering)
+        .limit(1)
     )
     sent = sent_result.unique().scalars().first()
     if sent is not None:
@@ -3839,6 +3850,43 @@ async def _process_partssoft_wholesale_order(
         await _send_reject_report(session, order, rejected_items)
     await session.refresh(order)
     return order
+
+
+async def force_process_partssoft_customer_order(
+    session: AsyncSession,
+    order_id: int,
+) -> CustomerOrder:
+    """Move a site-managed Parts-Soft order into the local purchase workflow."""
+    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
+    if not order:
+        raise LookupError("Order not found")
+    if str(order.external_source or "").upper() != "PARTS_SOFT":
+        raise ValueError("Принудительная обработка доступна только для заказов Parts-Soft")
+
+    config = await crud_customer_order_config.get_by_customer_id(
+        session=session,
+        customer_id=order.customer_id,
+    )
+    if not config or not config.pricelist_config_id:
+        raise ValueError("Для клиента не настроена конфигурация заказов с клиентским прайсом")
+
+    item_ids = [int(item.id) for item in (order.items or [])]
+    if not item_ids:
+        raise ValueError("Order has no items")
+    supplier_link = await session.scalar(
+        select(SupplierOrderItem.id)
+        .where(SupplierOrderItem.customer_order_item_id.in_(item_ids))
+        .limit(1)
+    )
+    stock_link = await session.scalar(
+        select(StockOrderItem.id)
+        .where(StockOrderItem.customer_order_item_id.in_(item_ids))
+        .limit(1)
+    )
+    if supplier_link is not None or stock_link is not None:
+        raise ValueError("Заказ уже имеет локальные складские или поставщицкие заказы")
+
+    return await _process_partssoft_wholesale_order(session, order, config)
 
 
 async def update_customer_order(

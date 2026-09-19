@@ -999,6 +999,70 @@ async def test_partssoft_wholesale_order_uses_local_processing_config(
 
 
 @pytest.mark.asyncio
+async def test_site_processed_partssoft_order_can_be_forced_into_local_workflow(
+    test_session,
+    monkeypatch,
+):
+    from dz_fastapi.services.customer_orders import force_process_partssoft_customer_order
+
+    customer = Customer(name="Клиент для принудительной обработки")
+    test_session.add(customer)
+    await test_session.flush()
+    pricelist_config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="Force Parts-Soft processing test",
+    )
+    test_session.add(pricelist_config)
+    await test_session.flush()
+    config = CustomerOrderConfig(
+        customer_id=customer.id,
+        pricelist_config_id=pricelist_config.id,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+    )
+    order = CustomerOrder(
+        customer_id=customer.id,
+        external_source="PARTS_SOFT",
+        external_order_id="force-9012",
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add_all([config, order])
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id,
+        row_index=1,
+        oem="FORCE-1",
+        brand="TEST",
+        requested_qty=1,
+        requested_price=Decimal("100"),
+        status=CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+        source_resolution_status="partssoft_processed",
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    calls = []
+
+    async def fake_local_processing(session, selected_order, selected_config):
+        calls.append((selected_order.id, selected_config.id))
+        return selected_order
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._process_partssoft_wholesale_order",
+        fake_local_processing,
+    )
+
+    processed = await force_process_partssoft_customer_order(
+        test_session,
+        order.id,
+    )
+
+    assert processed.id == order.id
+    assert calls == [(order.id, config.id)]
+
+
+@pytest.mark.asyncio
 async def test_reconciliation_reads_saved_seven_day_snapshot(
     test_session,
     created_customers,
