@@ -4182,6 +4182,23 @@ async def process_customer_pricelist(
     recipients = config.emails or (
         [customer.email_outgoing_price] if customer.email_outgoing_price else []
     )
+    if should_send and not recipients:
+        # Расписание есть, получателей нет — это рабочий случай, а не
+        # ошибка: клиент заказывает через сайт и прайс по почте не
+        # получает. Весь конвейер отрабатывает, файл собирается, прайс
+        # становится действующим, письмо не уходит. Без этого подбор под
+        # заказ не видел наших аналогов и отказывал при товаре в
+        # наличии — прайс для него просто не существовал.
+        customer_pricelist.published_at = now_moscow()
+        customer_pricelist.send_error = None
+        should_send = False
+        logger.info(
+            "Прайс клиента %s собран без отправки: получатели не указаны "
+            "(конфигурация %s, позиций %s)",
+            customer.name,
+            config.id,
+            customer_pricelist.positions_count,
+        )
     if should_send:
         logger.debug("Calling send_pricelist")
         try:
@@ -4205,6 +4222,7 @@ async def process_customer_pricelist(
                 customer_pricelist.generation_status = "queued"
             else:
                 customer_pricelist.sent_at = handled_at
+                customer_pricelist.published_at = handled_at
                 customer_pricelist.generation_status = "sent"
                 config.last_sent_at = handled_at
             customer_pricelist.send_error = None

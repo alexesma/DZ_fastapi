@@ -651,6 +651,13 @@ class CustomerPriceList(Base):
         index=True,
     )
     sent_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    # Когда прайс стал действующим предложением клиенту. Отдельно от
+    # sent_at: клиент может работать без рассылки — заказывать через
+    # сайт, — и тогда письма нет, а цены и подстановка наших аналогов
+    # должны работать. Прежде подбор под заказ смотрел только на
+    # sent_at, и у такого клиента аналог со склада не подставлялся
+    # вовсе: заказ уходил в отказ при товаре в наличии.
+    published_at = Column(DateTime(timezone=True), nullable=True, index=True)
     generation_status = Column(String(24), nullable=False, default="generated", index=True)
     generated_at = Column(DateTime(timezone=True), nullable=True, index=True)
     artifact_path = Column(Text, nullable=True)
