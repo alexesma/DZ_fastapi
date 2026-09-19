@@ -44,9 +44,7 @@ def _normalize_email_account_ids(values) -> tuple[int, ...]:
 def _effective_order_mailbox_scope(
     config: CustomerOrderConfig,
 ) -> tuple[int, ...]:
-    scoped_ids = _normalize_email_account_ids(
-        getattr(config, "email_account_ids", None)
-    )
+    scoped_ids = _normalize_email_account_ids(getattr(config, "email_account_ids", None))
     if scoped_ids:
         return scoped_ids
     account_id = getattr(config, "email_account_id", None)
@@ -64,9 +62,7 @@ class CRUDCustomerOrderConfig:
         self, session: AsyncSession, config_id: int
     ) -> Optional[CustomerOrderConfig]:
         result = await session.execute(
-            select(CustomerOrderConfig).where(
-                CustomerOrderConfig.id == config_id
-            )
+            select(CustomerOrderConfig).where(CustomerOrderConfig.id == config_id)
         )
         return result.scalars().first()
 
@@ -98,9 +94,7 @@ class CRUDCustomerOrderConfig:
         self, session: AsyncSession, customer_id: int
     ) -> List[CustomerOrderConfig]:
         result = await session.execute(
-            select(CustomerOrderConfig).where(
-                CustomerOrderConfig.customer_id == customer_id
-            )
+            select(CustomerOrderConfig).where(CustomerOrderConfig.customer_id == customer_id)
         )
         return result.scalars().all()
 
@@ -132,9 +126,7 @@ class CRUDCustomerOrderConfig:
         await session.refresh(config)
         return config
 
-    async def delete(
-        self, session: AsyncSession, config: CustomerOrderConfig
-    ) -> None:
+    async def delete(self, session: AsyncSession, config: CustomerOrderConfig) -> None:
         await session.delete(config)
         await session.commit()
 
@@ -144,9 +136,7 @@ class CRUDCustomerOrderConfig:
         customer_id: int,
         data: dict,
     ) -> CustomerOrderConfig:
-        config = await self.get_by_customer_id(
-            session=session, customer_id=customer_id
-        )
+        config = await self.get_by_customer_id(session=session, customer_id=customer_id)
         if config is None:
             config = CustomerOrderConfig(customer_id=customer_id, **data)
             session.add(config)
@@ -164,13 +154,20 @@ class CRUDCustomerOrderConfig:
 
 class CRUDCustomerOrder:
     async def get_by_id(
-        self, session: AsyncSession, order_id: int
+        self,
+        session: AsyncSession,
+        order_id: int,
+        *,
+        include_deleted: bool = False,
     ) -> Optional[CustomerOrder]:
-        result = await session.execute(
+        stmt = (
             select(CustomerOrder)
             .options(joinedload(CustomerOrder.items))
             .where(CustomerOrder.id == order_id)
         )
+        if not include_deleted:
+            stmt = stmt.where(CustomerOrder.deleted_at.is_(None))
+        result = await session.execute(stmt)
         return result.scalars().first()
 
     async def list_orders(
@@ -183,9 +180,13 @@ class CRUDCustomerOrder:
         skip: int = 0,
         limit: int = 100,
     ) -> List[CustomerOrder]:
-        stmt = select(CustomerOrder).options(
-            joinedload(CustomerOrder.items),
-            joinedload(CustomerOrder.customer),
+        stmt = (
+            select(CustomerOrder)
+            .options(
+                joinedload(CustomerOrder.items),
+                joinedload(CustomerOrder.customer),
+            )
+            .where(CustomerOrder.deleted_at.is_(None))
         )
         if customer_id is not None:
             stmt = stmt.where(CustomerOrder.customer_id == customer_id)
@@ -193,19 +194,13 @@ class CRUDCustomerOrder:
             stmt = stmt.where(CustomerOrder.status == status)
         if date_from is not None:
             stmt = stmt.where(
-                CustomerOrder.received_at
-                >= datetime.combine(date_from, datetime.min.time())
+                CustomerOrder.received_at >= datetime.combine(date_from, datetime.min.time())
             )
         if date_to is not None:
             stmt = stmt.where(
-                CustomerOrder.received_at
-                <= datetime.combine(date_to, datetime.max.time())
+                CustomerOrder.received_at <= datetime.combine(date_to, datetime.max.time())
             )
-        stmt = (
-            stmt.order_by(CustomerOrder.received_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
+        stmt = stmt.order_by(CustomerOrder.received_at.desc()).offset(skip).limit(limit)
         result = await session.execute(stmt)
         return result.unique().scalars().all()
 
@@ -241,6 +236,7 @@ class CRUDCustomerOrder:
             )
             .outerjoin(Customer, Customer.id == CustomerOrder.customer_id)
             .where(CustomerOrder.received_at >= date_from)
+            .where(CustomerOrder.deleted_at.is_(None))
             .order_by(
                 CustomerOrder.received_at.desc(),
                 CustomerOrder.id.desc(),
@@ -249,9 +245,7 @@ class CRUDCustomerOrder:
         )
 
         if kind == "brand":
-            stmt = stmt.where(
-                func.lower(CustomerOrderItem.brand) == normalized
-            )
+            stmt = stmt.where(func.lower(CustomerOrderItem.brand) == normalized)
         else:
             stmt = stmt.where(func.lower(CustomerOrderItem.oem) == normalized)
 
@@ -278,9 +272,7 @@ class CRUDStockOrder:
                 joinedload(StockOrder.items)
                 .joinedload(StockOrderItem.autopart)
                 .selectinload(AutoPart.storage_locations),
-                joinedload(StockOrder.items).joinedload(
-                    StockOrderItem.picked_by_user
-                ),
+                joinedload(StockOrder.items).joinedload(StockOrderItem.picked_by_user),
                 joinedload(StockOrder.items)
                 .joinedload(StockOrderItem.supplier_receipt_item)
                 .joinedload(SupplierReceiptItem.receipt)
@@ -293,22 +285,18 @@ class CRUDStockOrder:
             stmt = stmt.where(StockOrder.customer_id == customer_id)
         if date_from is not None:
             stmt = stmt.where(
-                StockOrder.created_at
-                >= datetime.combine(date_from, datetime.min.time())
+                StockOrder.created_at >= datetime.combine(date_from, datetime.min.time())
             )
         if date_to is not None:
             stmt = stmt.where(
-                StockOrder.created_at
-                <= datetime.combine(date_to, datetime.max.time())
+                StockOrder.created_at <= datetime.combine(date_to, datetime.max.time())
             )
         if brand_id is not None or storage_location_id is not None:
             stmt = stmt.join(StockOrderItem).join(AutoPart)
             if brand_id is not None:
                 stmt = stmt.join(Brand).where(Brand.id == brand_id)
             if storage_location_id is not None:
-                stmt = stmt.where(
-                    AutoPart.storage_locations.any(id=storage_location_id)
-                )
+                stmt = stmt.where(AutoPart.storage_locations.any(id=storage_location_id))
         stmt = stmt.offset(skip).limit(limit)
         result = await session.execute(stmt)
         return result.scalars().unique().all()
@@ -374,14 +362,9 @@ class CRUDSupplierOrder:
         if status is not None:
             stmt = stmt.where(SupplierOrder.status == status)
         if date_from is not None:
-            stmt = stmt.where(
-                period_column
-                >= datetime.combine(date_from, datetime.min.time())
-            )
+            stmt = stmt.where(period_column >= datetime.combine(date_from, datetime.min.time()))
         if date_to is not None:
-            stmt = stmt.where(
-                period_column <= datetime.combine(date_to, datetime.max.time())
-            )
+            stmt = stmt.where(period_column <= datetime.combine(date_to, datetime.max.time()))
         if use_sent_at_for_period:
             stmt = stmt.order_by(
                 period_column.desc(),

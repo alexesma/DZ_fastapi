@@ -1232,6 +1232,12 @@ class CustomerOrder(Base):
     response_file_path = Column(String(255), nullable=True)
     response_file_name = Column(String(255), nullable=True)
     error_details = Column(String(500), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     customer = relationship("Customer", back_populates="customer_orders")
     order_config = relationship("CustomerOrderConfig")

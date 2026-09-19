@@ -317,6 +317,7 @@ async def _auto_process_partssoft_orders(
             .where(
                 CustomerOrder.external_source == PARTS_SOFT_SOURCE,
                 CustomerOrder.status == CUSTOMER_ORDER_STATUS.NEW,
+                CustomerOrder.deleted_at.is_(None),
             )
             .order_by(CustomerOrder.id)
         )

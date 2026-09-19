@@ -12,7 +12,9 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerExternalReference,
     CustomerOrder,
+    CustomerOrderConfig,
     CustomerOrderItem,
+    CustomerPriceListConfig,
     Order,
     OrderItem,
     PartsSoftOrderSnapshot,
@@ -308,9 +310,7 @@ async def test_automatic_legal_customer_match_requires_confirmation(
     )
     assert resolved_again.id == customer.id
     assert repeated_result == "linked"
-    assert len((await test_session.scalars(select(Customer))).all()) == len(
-        created_customers
-    )
+    assert len((await test_session.scalars(select(Customer))).all()) == len(created_customers)
 
     async def fake_fetch_customer(_external_customer_id):
         return {
@@ -404,7 +404,7 @@ async def test_sync_imports_retail_order_once_and_preserves_offer_origin(
     assert item.external_offer_id == "4401"
     assert item.external_provider_id == "55"
     assert item.external_warehouse_id == "66"
-    assert item.source_resolution_status == "api_ready"
+    assert item.source_resolution_status == "partssoft_processed"
     assert item.source_payload["hash_key"] == "offer-hash"
 
 
@@ -906,7 +906,96 @@ async def test_partssoft_order_process_does_not_require_email_config(
     assert processed.status == CUSTOMER_ORDER_STATUS.PROCESSED
     assert item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
     assert item.ship_qty == 3
-    assert item.source_resolution_status == "partssoft_price"
+    assert item.source_resolution_status == "partssoft_processed"
+
+
+@pytest.mark.asyncio
+async def test_partssoft_wholesale_order_uses_local_processing_config(
+    test_session,
+    monkeypatch,
+):
+    from dz_fastapi.services.customer_orders import process_manual_customer_order
+
+    customer = Customer(name="Оптовый клиент Parts-Soft")
+    test_session.add(customer)
+    await test_session.flush()
+    pricelist_config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="Оптовый Parts-Soft test",
+    )
+    test_session.add(pricelist_config)
+    await test_session.flush()
+    config = CustomerOrderConfig(
+        customer_id=customer.id,
+        pricelist_config_id=pricelist_config.id,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+    )
+    test_session.add(config)
+    order = CustomerOrder(
+        customer_id=customer.id,
+        external_source="PARTS_SOFT",
+        external_order_id="9011",
+        status=CUSTOMER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    source_item = service._remote_item_to_customer_order_item(
+        {
+            "id": 8011,
+            "oem": "13422PT0013",
+            "make_name": "HONDA",
+            "detail_name": "Деталь",
+            "qnt": 2,
+            "cost": "1200.00",
+            "price_id": 383,
+            "provider_id": 44,
+        },
+        order_id=order.id,
+        row_index=1,
+    )
+    test_session.add(source_item)
+    await test_session.commit()
+
+    calls = []
+
+    async def fake_process_rows(session, selected_config, selected_order, rows):
+        calls.append((selected_config.id, rows[0].oem, rows[0].requested_qty))
+        matched_item = CustomerOrderItem(
+            order_id=selected_order.id,
+            row_index=rows[0].row_index,
+            oem=rows[0].oem,
+            brand=rows[0].brand,
+            name=rows[0].name,
+            requested_qty=rows[0].requested_qty,
+            requested_price=rows[0].requested_price,
+            status=CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+            ship_qty=rows[0].requested_qty,
+        )
+        session.add(matched_item)
+        selected_order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+        await session.commit()
+        await session.refresh(matched_item)
+        return [matched_item], []
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._process_manual_rows",
+        fake_process_rows,
+    )
+
+    processed = await process_manual_customer_order(test_session, order.id)
+    matched_item = (
+        await test_session.execute(
+            select(CustomerOrderItem).where(CustomerOrderItem.order_id == order.id)
+        )
+    ).scalar_one()
+
+    assert calls == [(config.id, "13422PT0013", 2)]
+    assert processed.status == CUSTOMER_ORDER_STATUS.PROCESSED
+    assert matched_item.external_order_item_id == "8011"
+    assert matched_item.external_offer_id == "383"
+    assert matched_item.source_resolution_status == "local_workflow"
 
 
 @pytest.mark.asyncio

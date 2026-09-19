@@ -274,6 +274,12 @@ class CustomerOrderManualCreate(BaseModel):
     items: List[CustomerOrderManualItemCreate] = Field(default_factory=list)
 
 
+class CustomerOrderUpdate(BaseModel):
+    customer_id: Optional[int] = None
+    order_number: Optional[str] = Field(default=None, max_length=255)
+    order_date: Optional[date] = None
+
+
 class SupplierOrderManualItemCreate(BaseModel):
     autopart_id: Optional[int] = None
     oem: str
@@ -305,6 +311,7 @@ class CustomerOrderResponse(BaseModel):
     external_source: Optional[str] = None
     external_order_id: Optional[str] = None
     import_origin: Optional[str] = None
+    processing_owner: Optional[str] = None
     recovered_at: Optional[datetime] = None
 
     order_number: Optional[str]
@@ -366,18 +373,10 @@ class CustomerOrderItemStatsResponse(BaseModel):
     current_customer_name: Optional[str] = None
     current_customer_summary: CustomerOrderStatsSummary
     all_customers_summary: CustomerOrderStatsSummary
-    current_customer_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(
-        default_factory=list
-    )
-    all_customers_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(
-        default_factory=list
-    )
-    current_customer_recent: List[CustomerOrderStatsRecentRow] = Field(
-        default_factory=list
-    )
-    all_customers_recent: List[CustomerOrderStatsRecentRow] = Field(
-        default_factory=list
-    )
+    current_customer_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(default_factory=list)
+    all_customers_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(default_factory=list)
+    current_customer_recent: List[CustomerOrderStatsRecentRow] = Field(default_factory=list)
+    all_customers_recent: List[CustomerOrderStatsRecentRow] = Field(default_factory=list)
 
 
 class CustomerOrderSummaryResponse(BaseModel):
@@ -385,11 +384,13 @@ class CustomerOrderSummaryResponse(BaseModel):
     customer_id: int
     customer_name: Optional[str] = None
     order_number: Optional[str] = None
+    order_date: Optional[date] = None
     received_at: datetime
     status: CUSTOMER_ORDER_STATUS
     external_source: Optional[str] = None
     external_order_id: Optional[str] = None
     import_origin: Optional[str] = None
+    processing_owner: Optional[str] = None
     recovered_at: Optional[datetime] = None
     total_sum: float = 0.0
     stock_sum: float = 0.0
@@ -825,9 +826,7 @@ class CrossDockingLabelResponse(BaseModel):
     last_printed_at: Optional[datetime] = None
     last_printed_by_name: Optional[str] = None
     last_print_reason: Optional[str] = None
-    print_history: List[CrossDockingLabelPrintEventResponse] = Field(
-        default_factory=list
-    )
+    print_history: List[CrossDockingLabelPrintEventResponse] = Field(default_factory=list)
 
 
 class CrossDockingLabelPrintRequest(BaseModel):

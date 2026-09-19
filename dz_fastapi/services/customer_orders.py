@@ -2771,7 +2771,10 @@ async def forward_latest_customer_order_for_config(
         await session.execute(
             select(CustomerOrder)
             .options(selectinload(CustomerOrder.items))
-            .where(CustomerOrder.order_config_id == config_id)
+            .where(
+                CustomerOrder.order_config_id == config_id,
+                CustomerOrder.deleted_at.is_(None),
+            )
             .order_by(CustomerOrder.id.desc())
             .limit(1)
         )
@@ -3369,7 +3372,10 @@ async def try_finalize_customer_order_response(
         await session.execute(
             select(CustomerOrder)
             .options(selectinload(CustomerOrder.items))
-            .where(CustomerOrder.id == order_id)
+            .where(
+                CustomerOrder.id == order_id,
+                CustomerOrder.deleted_at.is_(None),
+            )
         )
     ).scalar_one_or_none()
     if not order:
@@ -3714,6 +3720,16 @@ async def process_manual_customer_order(
     if order.status != CUSTOMER_ORDER_STATUS.NEW:
         raise ValueError("Order already processed")
     if str(order.external_source or "").upper() == "PARTS_SOFT":
+        config = await crud_customer_order_config.get_by_customer_id(
+            session=session,
+            customer_id=order.customer_id,
+        )
+        if config and config.pricelist_config_id:
+            return await _process_partssoft_wholesale_order(
+                session,
+                order,
+                config,
+            )
         return await _process_partssoft_customer_order(session, order)
     config = await crud_customer_order_config.get_by_customer_id(
         session=session, customer_id=order.customer_id
@@ -3755,6 +3771,119 @@ async def process_manual_customer_order(
         await _send_reject_report(session, order, rejected_items)
     await session.refresh(order)
     return order
+
+
+async def _process_partssoft_wholesale_order(
+    session: AsyncSession,
+    order: CustomerOrder,
+    config: CustomerOrderConfig,
+) -> CustomerOrder:
+    """Run a linked wholesale site order through the regular purchase flow.
+
+    Parts-Soft identifiers and the original row payload remain attached to the
+    newly matched rows, while supplier and stock orders are built from the
+    current local customer pricelist just like an email order.
+    """
+    if not order.items:
+        raise ValueError("Order has no items")
+
+    source_rows = []
+    parsed_rows = []
+    for idx, item in enumerate(order.items, start=1):
+        row_index = item.row_index or idx
+        parsed_rows.append(
+            ParsedOrderRow(
+                row_index=row_index,
+                oem=item.oem,
+                brand=item.brand,
+                name=item.name,
+                requested_qty=item.requested_qty,
+                requested_price=item.requested_price,
+            )
+        )
+        source_rows.append(
+            {
+                "row_index": row_index,
+                "external_order_item_id": item.external_order_item_id,
+                "external_offer_id": item.external_offer_id,
+                "external_provider_id": item.external_provider_id,
+                "external_warehouse_id": item.external_warehouse_id,
+                "source_payload": dict(item.source_payload or {}),
+            }
+        )
+
+    await session.execute(delete(CustomerOrderItem).where(CustomerOrderItem.order_id == order.id))
+    await session.flush()
+    order_items, rejected_items = await _process_manual_rows(
+        session,
+        config,
+        order,
+        parsed_rows,
+    )
+
+    source_by_row = {row["row_index"]: row for row in source_rows}
+    for item in order_items:
+        source = source_by_row.get(item.row_index)
+        if source is None:
+            continue
+        item.external_order_item_id = source["external_order_item_id"]
+        item.external_offer_id = source["external_offer_id"]
+        item.external_provider_id = source["external_provider_id"]
+        item.external_warehouse_id = source["external_warehouse_id"]
+        item.source_payload = source["source_payload"]
+        item.source_resolution_status = "local_workflow"
+        session.add(item)
+    await session.commit()
+
+    if rejected_items:
+        await _send_reject_report(session, order, rejected_items)
+    await session.refresh(order)
+    return order
+
+
+async def update_customer_order(
+    session: AsyncSession,
+    order_id: int,
+    *,
+    customer_id: int | None,
+    order_number: str | None,
+    order_date: date | None,
+    fields_set: set[str],
+) -> CustomerOrder:
+    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
+    if not order:
+        raise LookupError("Order not found")
+
+    if "customer_id" in fields_set and customer_id != order.customer_id:
+        if order.status != CUSTOMER_ORDER_STATUS.NEW:
+            raise ValueError("Клиента можно изменить только до обработки заказа")
+        customer = await session.get(Customer, customer_id)
+        if customer is None:
+            raise ValueError("Customer not found")
+        order.customer_id = customer_id
+    if "order_number" in fields_set:
+        order.order_number = (order_number or "").strip() or None
+    if "order_date" in fields_set:
+        order.order_date = order_date
+
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def soft_delete_customer_order(
+    session: AsyncSession,
+    order_id: int,
+    *,
+    user_id: int | None,
+) -> None:
+    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
+    if not order:
+        raise LookupError("Order not found")
+    order.deleted_at = now_moscow()
+    order.deleted_by_user_id = user_id
+    session.add(order)
+    await session.commit()
 
 
 async def _process_partssoft_customer_order(
@@ -3805,10 +3934,7 @@ async def _process_partssoft_customer_order(
         item.ship_qty = item.requested_qty
         item.reject_qty = 0
         item.matched_price = item.requested_price
-        if not item.source_resolution_status or item.source_resolution_status == "unresolved":
-            item.source_resolution_status = (
-                "partssoft_price" if item.external_offer_id else "partssoft_managed"
-            )
+        item.source_resolution_status = "partssoft_processed"
         _clear_reject_reason(item)
         session.add(item)
 
@@ -3984,6 +4110,7 @@ async def retry_customer_order_errors_for_config(
         .where(
             CustomerOrder.order_config_id == config_id,
             CustomerOrder.status == CUSTOMER_ORDER_STATUS.ERROR,
+            CustomerOrder.deleted_at.is_(None),
         )
         .order_by(CustomerOrder.received_at.asc(), CustomerOrder.id.asc())
     )
