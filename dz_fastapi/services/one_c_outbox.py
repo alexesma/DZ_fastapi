@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import zlib
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable, Optional
@@ -325,22 +326,46 @@ async def enqueue_one_c_event(
     # A business transition is immutable. Its snapshot may nevertheless gain
     # derived values after first enqueue (for example FIFO allocations after
     # posting). Such changes must not create a second delivery to 1C.
-    existing = (
+    bind = session.get_bind()
+    if bind.dialect.name == "postgresql":
+        type_key = zlib.crc32(entity_type.encode("utf-8"))
+        if type_key >= 2**31:
+            type_key -= 2**32
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(:type_key, :entity_id)"),
+            {
+                "type_key": type_key,
+                "entity_id": int(entity_id),
+            },
+        )
+
+    latest = (
         await session.execute(
             select(OneCExchangeEvent)
             .where(
                 OneCExchangeEvent.entity_type == entity_type,
                 OneCExchangeEvent.entity_id == entity_id,
-                OneCExchangeEvent.event_type == event_type,
             )
             .order_by(OneCExchangeEvent.id.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
-    if existing is not None:
-        return existing
+    if latest is not None and latest.event_type == event_type:
+        return latest
 
-    idempotency_key = f"{entity_type}:{entity_id}:{event_type}"
+    transition_no = 1
+    if latest is not None:
+        transition_no = int(
+            await session.scalar(
+                select(func.count(OneCExchangeEvent.id)).where(
+                    OneCExchangeEvent.entity_type == entity_type,
+                    OneCExchangeEvent.entity_id == entity_id,
+                )
+            )
+            or 0
+        ) + 1
+    base_key = f"{entity_type}:{entity_id}:{event_type}"
+    idempotency_key = base_key if transition_no == 1 else f"{base_key}:{transition_no}"
     event = OneCExchangeEvent(
         entity_type=entity_type,
         entity_id=entity_id,

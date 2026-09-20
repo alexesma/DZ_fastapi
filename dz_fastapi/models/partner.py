@@ -1121,6 +1121,8 @@ class CustomerPriceListConfig(Base):
     is_active = Column(Boolean, default=True)
     last_sent_at = Column(DateTime(timezone=True), nullable=True)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    generation_lock_token = Column(String(64), nullable=True)
+    generation_locked_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("Customer", back_populates="pricelist_configs")
     outgoing_email_account = relationship("EmailAccount", lazy="selectin")
@@ -1213,6 +1215,9 @@ class CustomerOrder(Base):
     external_source = Column(String(32), nullable=True, index=True)
     external_order_id = Column(String(128), nullable=True)
     import_origin = Column(String(64), nullable=True, index=True)
+    processing_owner = Column(String(32), nullable=True, index=True)
+    processing_state = Column(String(32), nullable=True, index=True)
+    identity_match_basis = Column(String(64), nullable=True)
     recovered_at = Column(DateTime(timezone=True), nullable=True)
     external_payload = Column(JSON, nullable=False, default=dict)
     status = Column(

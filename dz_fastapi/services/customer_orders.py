@@ -83,7 +83,11 @@ from dz_fastapi.models.partner import (
     SupplierOrderItem,
 )
 from dz_fastapi.services.credit_control import assert_customer_credit_available
-from dz_fastapi.services.customer_order_identity import canonical_order_number
+from dz_fastapi.services.customer_order_identity import (
+    canonical_order_number,
+    lock_customer_order_identity,
+    match_customer_order,
+)
 from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
@@ -1654,6 +1658,28 @@ async def _find_partssoft_order_duplicate(
     received_at: Optional[datetime] = None,
     exclude_order_id: Optional[int] = None,
 ) -> Optional[CustomerOrder]:
+    match = await _find_partssoft_order_duplicate_match(
+        session,
+        customer_id=customer_id,
+        rows=rows,
+        order_number=order_number,
+        order_date=order_date,
+        received_at=received_at,
+        exclude_order_id=exclude_order_id,
+    )
+    return match.order if match is not None else None
+
+
+async def _find_partssoft_order_duplicate_match(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    rows: List[ParsedOrderRow],
+    order_number: Optional[str],
+    order_date: Optional[date],
+    received_at: Optional[datetime] = None,
+    exclude_order_id: Optional[int] = None,
+):
     stmt = (
         select(CustomerOrder)
         .options(selectinload(CustomerOrder.items))
@@ -1667,63 +1693,13 @@ async def _find_partssoft_order_duplicate(
     if exclude_order_id is not None:
         stmt = stmt.where(CustomerOrder.id != exclude_order_id)
     candidates = (await session.scalars(stmt)).unique().all()
-    normalized_number = _normalized_order_number(order_number)
-    if normalized_number:
-        for candidate in candidates:
-            if _normalized_order_number(candidate.order_number) == normalized_number:
-                return candidate
-    if order_date is None:
-        return None
-    fingerprint = _parsed_order_fingerprint(rows)
-    if not fingerprint:
-        return None
-    for candidate in candidates:
-        candidate_number = _normalized_order_number(candidate.order_number)
-        if normalized_number and candidate_number and normalized_number != candidate_number:
-            continue
-        candidate_date = candidate.order_date
-        if candidate_date is None and candidate.received_at is not None:
-            candidate_date = candidate.received_at.date()
-        if candidate_date != order_date:
-            continue
-        candidate_fingerprint = tuple(
-            sorted(
-                (
-                    str(item.oem or "").strip().casefold(),
-                    str(item.brand or "").strip().casefold(),
-                    int(item.requested_qty or 0),
-                    _order_item_money(item.requested_price),
-                )
-                for item in candidate.items
-            )
-        )
-        if candidate_fingerprint == fingerprint:
-            return candidate
-    core_fingerprint = _order_core_fingerprint(rows)
-    if not core_fingerprint:
-        return None
-    requested_total = _compute_order_requested_total(rows)
-    for candidate in candidates:
-        candidate_number = _normalized_order_number(candidate.order_number)
-        if normalized_number and candidate_number and normalized_number != candidate_number:
-            continue
-        candidate_date = candidate.order_date
-        if candidate_date is None and candidate.received_at is not None:
-            candidate_date = candidate.received_at.date()
-        if candidate_date != order_date:
-            continue
-        if _order_core_fingerprint(list(candidate.items or [])) != core_fingerprint:
-            continue
-        candidate_total = _customer_order_requested_total(candidate)
-        totals_match = (
-            requested_total is not None
-            and candidate_total is not None
-            and abs(requested_total - candidate_total) < 0.01
-        )
-        max_minutes = 120 if totals_match else 15
-        if _timestamps_are_close(received_at, candidate.received_at, max_minutes=max_minutes):
-            return candidate
-    return None
+    return match_customer_order(
+        candidates,
+        incoming_number=order_number,
+        incoming_date=order_date,
+        incoming_at=received_at,
+        incoming_items=rows,
+    )
 
 
 def _get_response_ship_price_value(
@@ -2966,6 +2942,8 @@ async def _process_manual_rows(
     config: CustomerOrderConfig,
     order: CustomerOrder,
     parsed_rows: List[ParsedOrderRow],
+    *,
+    commit: bool = True,
 ):
     await assert_customer_credit_available(
         session,
@@ -3183,8 +3161,57 @@ async def _process_manual_rows(
 
     order.status = CUSTOMER_ORDER_STATUS.PROCESSED
     order.processed_at = now_moscow()
-    await session.commit()
+    order.processing_owner = "LOCAL"
+    order.processing_state = "LOCAL_PROCESSED"
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
     return order_items, rejected_items
+
+
+async def _get_customer_order_for_processing(
+    session: AsyncSession,
+    order_id: int,
+) -> CustomerOrder | None:
+    """Lock one order so concurrent workers cannot create procurement twice."""
+
+    return (
+        await session.execute(
+            select(CustomerOrder)
+            .options(selectinload(CustomerOrder.items))
+            .where(
+                CustomerOrder.id == order_id,
+                CustomerOrder.deleted_at.is_(None),
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+
+async def _partssoft_local_processing_config(
+    session: AsyncSession,
+    order: CustomerOrder,
+) -> tuple[CustomerOrderConfig | None, str | None]:
+    """Return the single valid wholesale route or an explicit review reason."""
+
+    customer = await session.get(Customer, int(order.customer_id))
+    if customer is None or not re.sub(r"\D", "", str(customer.inn or "")):
+        return None, None
+    configs = [
+        config
+        for config in await crud_customer_order_config.list_by_customer_id(
+            session=session,
+            customer_id=order.customer_id,
+        )
+        if config.pricelist_config_id
+    ]
+    if len(configs) > 1:
+        return None, "CONFIG_AMBIGUOUS"
+    if not configs:
+        return None, "WHOLESALE_CONFIG_MISSING"
+    return configs[0], None
 
 
 def _build_order_response_buffer(
@@ -3529,7 +3556,7 @@ async def _create_import_order_stub(
         file_hash=file_hash,
     )
     session.add(order)
-    await session.commit()
+    await session.flush()
     await session.refresh(order)
     return order
 
@@ -3578,6 +3605,75 @@ async def _is_resumable_import_stub(
         )
     ).scalar_one_or_none()
     return item_id is None
+
+
+def _is_same_file_delivery(
+    order: CustomerOrder,
+    msg,
+    *,
+    sender: str,
+    order_number_hint: Optional[str],
+) -> bool:
+    """Distinguish a redelivery from a legitimate repeated order file.
+
+    A file hash alone is not a business order identifier: a customer may send
+    an unchanged template with the same rows again on another day. Mailbox UID,
+    a stable order number, or a short delivery interval are strong enough to
+    suppress the duplicate without blocking that later order.
+    """
+    incoming_uid = _safe_uid_as_int(getattr(msg, "uid", None))
+    same_sender = (order.source_email or "").strip().casefold() == sender.strip().casefold()
+    if incoming_uid is not None and order.source_uid == incoming_uid and same_sender:
+        return True
+
+    existing_number = canonical_order_number(order.order_number)
+    incoming_number = canonical_order_number(order_number_hint)
+    if existing_number and incoming_number and existing_number == incoming_number:
+        return True
+
+    incoming_received_at = getattr(msg, "received_at", None)
+    if order.received_at is None or incoming_received_at is None:
+        # Preserve conservative legacy handling for records which do not carry
+        # enough delivery metadata to prove that this is a new order.
+        return True
+    try:
+        return abs((incoming_received_at - order.received_at).total_seconds()) <= 12 * 3600
+    except TypeError:
+        return incoming_received_at.date() == order.received_at.date()
+
+
+async def _find_duplicate_file_delivery(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    file_hash: str,
+    msg,
+    sender: str,
+    order_number_hint: Optional[str],
+) -> Optional[CustomerOrder]:
+    candidates = (
+        await session.scalars(
+            select(CustomerOrder)
+            .where(
+                CustomerOrder.customer_id == customer_id,
+                CustomerOrder.file_hash == file_hash,
+            )
+            .order_by(CustomerOrder.received_at.desc(), CustomerOrder.id.desc())
+        )
+    ).all()
+    return next(
+        (
+            order
+            for order in candidates
+            if _is_same_file_delivery(
+                order,
+                msg,
+                sender=sender,
+                order_number_hint=order_number_hint,
+            )
+        ),
+        None,
+    )
 
 
 async def _store_import_error(
@@ -3725,22 +3821,33 @@ async def process_manual_customer_order(
     session: AsyncSession,
     order_id: int,
 ) -> CustomerOrder:
-    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
+    order = await _get_customer_order_for_processing(session, order_id)
     if not order:
         raise LookupError("Order not found")
     if order.status != CUSTOMER_ORDER_STATUS.NEW:
         raise ValueError("Order already processed")
     if str(order.external_source or "").upper() == "PARTS_SOFT":
-        config = await crud_customer_order_config.get_by_customer_id(
-            session=session,
-            customer_id=order.customer_id,
-        )
-        if config and config.pricelist_config_id:
+        config, review_reason = await _partssoft_local_processing_config(session, order)
+        if config is not None:
+            order.processing_owner = "LOCAL"
+            order.processing_state = "LOCAL_PROCESSING"
+            await session.flush()
             return await _process_partssoft_wholesale_order(
                 session,
                 order,
                 config,
             )
+        if review_reason is not None:
+            order.processing_owner = "REVIEW_REQUIRED"
+            order.processing_state = review_reason
+            session.add(order)
+            await session.commit()
+            raise ValueError(
+                "Маршрут оптового заказа Parts-Soft требует настройки: "
+                f"{review_reason}"
+            )
+        order.processing_owner = "PARTS_SOFT_SITE"
+        order.processing_state = "EXTERNAL_UNVERIFIED"
         return await _process_partssoft_customer_order(session, order)
     config = await crud_customer_order_config.get_by_customer_id(
         session=session, customer_id=order.customer_id
@@ -3749,6 +3856,9 @@ async def process_manual_customer_order(
         raise ValueError("Customer order config not found")
     if not config.pricelist_config_id:
         raise ValueError("Order config must be linked to a pricelist config")
+    order.processing_owner = "LOCAL"
+    order.processing_state = "LOCAL_PROCESSING"
+    await session.flush()
 
     existing_link = await session.execute(
         select(SupplierOrderItem.id)
@@ -3830,6 +3940,7 @@ async def _process_partssoft_wholesale_order(
         config,
         order,
         parsed_rows,
+        commit=False,
     )
 
     source_by_row = {row["row_index"]: row for row in source_rows}
@@ -3844,6 +3955,8 @@ async def _process_partssoft_wholesale_order(
         item.source_payload = source["source_payload"]
         item.source_resolution_status = "local_workflow"
         session.add(item)
+    order.processing_owner = "LOCAL"
+    order.processing_state = "LOCAL_PROCESSED"
     await session.commit()
 
     if rejected_items:
@@ -3857,18 +3970,28 @@ async def force_process_partssoft_customer_order(
     order_id: int,
 ) -> CustomerOrder:
     """Move a site-managed Parts-Soft order into the local purchase workflow."""
-    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
+    order = await _get_customer_order_for_processing(session, order_id)
     if not order:
         raise LookupError("Order not found")
     if str(order.external_source or "").upper() != "PARTS_SOFT":
         raise ValueError("Принудительная обработка доступна только для заказов Parts-Soft")
 
-    config = await crud_customer_order_config.get_by_customer_id(
-        session=session,
-        customer_id=order.customer_id,
-    )
-    if not config or not config.pricelist_config_id:
+    configs = [
+        config
+        for config in await crud_customer_order_config.list_by_customer_id(
+            session=session,
+            customer_id=order.customer_id,
+        )
+        if config.pricelist_config_id
+    ]
+    if not configs:
         raise ValueError("Для клиента не настроена конфигурация заказов с клиентским прайсом")
+    if len(configs) > 1:
+        raise ValueError(
+            "У клиента несколько активных конфигураций заказов; "
+            "оставьте одну или выберите маршрут вручную"
+        )
+    config = configs[0]
 
     item_ids = [int(item.id) for item in (order.items or [])]
     if not item_ids:
@@ -3886,6 +4009,9 @@ async def force_process_partssoft_customer_order(
     if supplier_link is not None or stock_link is not None:
         raise ValueError("Заказ уже имеет локальные складские или поставщицкие заказы")
 
+    order.processing_owner = "LOCAL"
+    order.processing_state = "LOCAL_PROCESSING"
+    await session.flush()
     return await _process_partssoft_wholesale_order(session, order, config)
 
 
@@ -3989,6 +4115,8 @@ async def _process_partssoft_customer_order(
     order.status = CUSTOMER_ORDER_STATUS.PROCESSED
     order.processed_at = now_moscow()
     order.error_details = None
+    order.processing_owner = "PARTS_SOFT_SITE"
+    order.processing_state = "EXTERNAL_UNVERIFIED"
     session.add(order)
     await session.commit()
     await session.refresh(order)
@@ -4800,13 +4928,19 @@ async def process_customer_orders(
                 body_text = _strip_html(msg.html)
             order_number_hint = _extract_order_number(config, msg.subject, filename, body_text)
 
-            existing = await session.execute(
-                select(CustomerOrder).where(
-                    CustomerOrder.customer_id == config.customer_id,
-                    CustomerOrder.file_hash == file_hash,
-                )
+            # The Parts-Soft poller and the mailbox poller may see the same
+            # order at the same time. Hold one customer-scoped transaction
+            # lock from the first duplicate check through the final outcome.
+            await lock_customer_order_identity(session, int(config.customer_id))
+
+            existing_order = await _find_duplicate_file_delivery(
+                session,
+                customer_id=int(config.customer_id),
+                file_hash=file_hash,
+                msg=msg,
+                sender=sender,
+                order_number_hint=order_number_hint,
             )
-            existing_order = existing.scalars().first()
             if existing_order:
                 if await _is_resumable_import_stub(session, existing_order):
                     order = existing_order
@@ -4898,7 +5032,7 @@ async def process_customer_orders(
             if not order.order_number:
                 order.order_number = order_number_file or order_number_hint
             session.add(order)
-            await session.commit()
+            await session.flush()
 
             requested_total = _compute_order_requested_total(parsed_rows)
             if not parsed_rows:
@@ -4917,7 +5051,7 @@ async def process_customer_orders(
                 )
                 continue
 
-            duplicate_partssoft_order = await _find_partssoft_order_duplicate(
+            duplicate_match = await _find_partssoft_order_duplicate_match(
                 session,
                 customer_id=config.customer_id,
                 rows=parsed_rows,
@@ -4925,6 +5059,9 @@ async def process_customer_orders(
                 order_date=order_date,
                 received_at=order.received_at,
                 exclude_order_id=order.id,
+            )
+            duplicate_partssoft_order = (
+                duplicate_match.order if duplicate_match is not None else None
             )
             if duplicate_partssoft_order is not None:
                 stub_source_path = _order_source_storage_path(order)
@@ -4936,6 +5073,10 @@ async def process_customer_orders(
                 duplicate_partssoft_order.source_subject = getattr(msg, "subject", None)
                 duplicate_partssoft_order.source_filename = filename
                 duplicate_partssoft_order.file_hash = file_hash
+                duplicate_partssoft_order.identity_match_basis = duplicate_match.basis
+                if duplicate_partssoft_order.processing_owner == "PARTS_SOFT_SITE":
+                    duplicate_partssoft_order.processing_owner = "REVIEW_REQUIRED"
+                    duplicate_partssoft_order.processing_state = "EMAIL_SOURCE_CONFLICT"
                 await _save_order_source_file(duplicate_partssoft_order, file_bytes)
                 session.add(duplicate_partssoft_order)
                 await session.delete(order)

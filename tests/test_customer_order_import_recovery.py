@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,7 +16,50 @@ from dz_fastapi.services.customer_orders import (
     _fetch_order_messages,
     _find_partssoft_order_duplicate,
     _is_resumable_import_stub,
+    _is_same_file_delivery,
 )
+
+
+def test_same_file_hash_on_later_day_is_a_new_order_without_stable_identity():
+    received_at = datetime(2026, 9, 18, 8, 0, tzinfo=timezone.utc)
+    order = CustomerOrder(
+        received_at=received_at,
+        source_email="orders@example.com",
+        source_uid=100,
+        order_number="#",
+    )
+    repeated_template = SimpleNamespace(
+        uid=200,
+        received_at=received_at + timedelta(days=1),
+    )
+
+    assert not _is_same_file_delivery(
+        order,
+        repeated_template,
+        sender="orders@example.com",
+        order_number_hint="#",
+    )
+
+
+def test_same_file_hash_with_same_order_number_is_a_duplicate_on_later_day():
+    received_at = datetime(2026, 9, 18, 8, 0, tzinfo=timezone.utc)
+    order = CustomerOrder(
+        received_at=received_at,
+        source_email="orders@example.com",
+        source_uid=100,
+        order_number="ORDER-42",
+    )
+    redelivery = SimpleNamespace(
+        uid=200,
+        received_at=received_at + timedelta(days=1),
+    )
+
+    assert _is_same_file_delivery(
+        order,
+        redelivery,
+        sender="orders@example.com",
+        order_number_hint="Заказ ORDER-42",
+    )
 
 
 @pytest.mark.asyncio

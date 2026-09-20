@@ -330,11 +330,18 @@ async def claim_pending_outbox(
 
 
 async def mark_outbox_sent(
-    session: AsyncSession, *, outbox_id: int
+    session: AsyncSession,
+    *,
+    outbox_id: int,
+    worker: str | None = None,
 ) -> EmailOutbox:
     row = await session.get(EmailOutbox, outbox_id)
     if row is None:
         raise ValueError("Письмо не найдено")
+    if row.status == EMAIL_OUTBOX_STATUS.SENT:
+        return row
+    if worker and row.claimed_by != worker:
+        raise ValueError("Захват письма принадлежит другому relay")
     row.status = EMAIL_OUTBOX_STATUS.SENT
     row.sent_at = now_moscow()
     row.attempts = int(row.attempts or 0) + 1
@@ -376,6 +383,7 @@ async def mark_outbox_error(
     outbox_id: int,
     error: str,
     retry: bool = True,
+    worker: str | None = None,
 ) -> EmailOutbox:
     row = await session.get(EmailOutbox, outbox_id)
     if row is None:
@@ -384,6 +392,8 @@ async def mark_outbox_error(
         # SMTP мог пройти, а HTTP-ответ mark-sent потеряться. Никогда не
         # возвращаем уже отправленное письмо в очередь: иначе уйдёт дубль.
         return row
+    if worker and row.claimed_by != worker:
+        raise ValueError("Захват письма принадлежит другому relay")
     row.attempts = int(row.attempts or 0) + 1
     row.last_error = (error or "")[:2000]
     # Снимаем захват: письмо снова свободно для повторного взятия релеем
@@ -415,6 +425,32 @@ async def mark_outbox_error(
                 "error": row.last_error,
             },
         )
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def renew_outbox_claim(
+    session: AsyncSession,
+    *,
+    outbox_id: int,
+    worker: str,
+) -> EmailOutbox:
+    row = (
+        await session.scalars(
+            select(EmailOutbox)
+            .where(EmailOutbox.id == outbox_id)
+            .with_for_update()
+        )
+    ).first()
+    if row is None:
+        raise ValueError("Письмо не найдено")
+    if row.status != EMAIL_OUTBOX_STATUS.PENDING:
+        raise ValueError("Письмо уже не ожидает отправки")
+    if row.claimed_by != worker:
+        raise ValueError("Захват письма принадлежит другому relay")
+    row.claimed_at = now_moscow()
+    session.add(row)
     await session.commit()
     await session.refresh(row)
     return row

@@ -596,6 +596,75 @@ async def test_sync_skips_own_site_order_with_legacy_tracking_comment(
     )
 
 
+@pytest.mark.asyncio
+async def test_sync_keeps_partial_site_tracking_match_for_review(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    provider = Provider(name="API supplier")
+    test_session.add(provider)
+    await test_session.flush()
+    site_order = Order(provider_id=provider.id, customer_id=customer.id)
+    test_session.add(site_order)
+    await test_session.flush()
+    test_session.add(
+        OrderItem(
+            order_id=site_order.id,
+            oem_number="KNOWN-1",
+            brand_name="BRAND",
+            quantity=1,
+            price=100,
+            tracking_uuid="tracking-known",
+        )
+    )
+    await test_session.commit()
+
+    remote_order = {
+        "id": 217447,
+        "created_at": "2026-09-17T09:37:13.771+03:00",
+        "customer_id": 924,
+        "customer": {"id": 924, "compile_name": "1C"},
+        "order_items": [
+            {
+                "id": 1,
+                "oem": "KNOWN-1",
+                "make_name": "BRAND",
+                "qnt": 1,
+                "comment": "tracking-known",
+            },
+            {
+                "id": 2,
+                "oem": "UNKNOWN-2",
+                "make_name": "BRAND",
+                "qnt": 1,
+                "comment": "tracking-new",
+            },
+        ],
+    }
+
+    async def fake_fetch_orders(_days, *, region_id=None):
+        created = service._parse_datetime(remote_order["created_at"])
+        return created, created, [remote_order]
+
+    async def fail_resolve_customer(*_args, **_kwargs):
+        raise AssertionError("partial site order must remain in reconciliation")
+
+    monkeypatch.setattr(service, "_fetch_orders", fake_fetch_orders)
+    monkeypatch.setattr(service, "_resolve_sync_customer", fail_resolve_customer)
+
+    result = await service.sync_partssoft_orders(test_session)
+
+    assert result["counts"] == {"partial_site_match": 1}
+    assert (
+        await test_session.scalar(
+            select(CustomerOrder.id).where(CustomerOrder.external_order_id == "217447")
+        )
+        is None
+    )
+
+
 def test_partssoft_numberless_order_matches_by_content_total_and_time():
     received_at = service._parse_datetime("2026-09-16T08:16:00+03:00")
     local_order = CustomerOrder(
@@ -635,6 +704,116 @@ def test_partssoft_numberless_order_matches_by_content_total_and_time():
     )
 
     assert matched is local_order
+
+
+def test_partssoft_order_matches_by_content_when_display_numbers_differ():
+    received_at = service._parse_datetime("2026-09-16T08:16:00+03:00")
+    local_order = CustomerOrder(
+        id=4072,
+        customer_id=944,
+        order_number="4072",
+        order_date=received_at.date(),
+        received_at=received_at,
+    )
+    local_order.items = [
+        CustomerOrderItem(
+            oem="BH-3888-E",
+            brand="NOK",
+            requested_qty=2,
+            requested_price=Decimal("5056.00"),
+        )
+    ]
+    remote_order = {
+        "id": 217301,
+        "created_at": "2026-09-16T08:20:00+03:00",
+        "load_order_client_number": "SITE-217301",
+        "order_items": [
+            {
+                "id": 8005,
+                "oem": "BH3888E",
+                "make_name": "NOK ORIGINAL",
+                "qnt": 2,
+                "cost": "5056.00",
+            }
+        ],
+    }
+
+    assert service._find_matching_local_order(
+        [local_order], remote_order, received_at.date()
+    ) is local_order
+
+
+def test_partssoft_order_number_alone_does_not_match_another_date_or_total():
+    local_received_at = service._parse_datetime("2026-09-15T08:16:00+03:00")
+    remote_received_at = service._parse_datetime("2026-09-16T08:20:00+03:00")
+    local_order = CustomerOrder(
+        id=4072,
+        customer_id=944,
+        order_number="ORDER-77",
+        order_date=local_received_at.date(),
+        received_at=local_received_at,
+    )
+    local_order.items = [
+        CustomerOrderItem(
+            oem="OLD-1",
+            brand="BRAND-A",
+            requested_qty=1,
+            requested_price=Decimal("100.00"),
+        )
+    ]
+    remote_order = {
+        "id": 217302,
+        "created_at": remote_received_at.isoformat(),
+        "load_order_client_number": "ORDER-77",
+        "order_items": [
+            {
+                "oem": "NEW-2",
+                "make_name": "BRAND-B",
+                "qnt": 3,
+                "cost": "900.00",
+            }
+        ],
+    }
+
+    assert service._find_matching_local_order(
+        [local_order], remote_order, remote_received_at.date()
+    ) is None
+
+
+def test_partssoft_fallback_does_not_ignore_brand_or_total():
+    received_at = service._parse_datetime("2026-09-16T08:16:00+03:00")
+    local_order = CustomerOrder(
+        id=4072,
+        customer_id=944,
+        order_number=None,
+        order_date=received_at.date(),
+        received_at=received_at,
+    )
+    local_order.items = [
+        CustomerOrderItem(
+            oem="BH3888E",
+            brand="NOK",
+            requested_qty=2,
+            requested_price=Decimal("5056.00"),
+        )
+    ]
+    remote_order = {
+        "id": 217303,
+        "created_at": "2026-09-16T08:20:00+03:00",
+        "load_order_client_number": "#",
+        "order_items": [
+            {
+                "oem": "BH3888E",
+                "make_name": "OTHER",
+                "qnt": 2,
+                "cost": "9999.00",
+            }
+        ],
+    }
+
+    assert service._find_matching_local_order(
+        [local_order], remote_order, received_at.date()
+    ) is None
 
 
 @pytest.mark.asyncio
@@ -916,7 +1095,7 @@ async def test_partssoft_wholesale_order_uses_local_processing_config(
 ):
     from dz_fastapi.services.customer_orders import process_manual_customer_order
 
-    customer = Customer(name="Оптовый клиент Parts-Soft")
+    customer = Customer(name="Оптовый клиент Parts-Soft", inn="7701234567")
     test_session.add(customer)
     await test_session.flush()
     pricelist_config = CustomerPriceListConfig(
@@ -960,7 +1139,14 @@ async def test_partssoft_wholesale_order_uses_local_processing_config(
 
     calls = []
 
-    async def fake_process_rows(session, selected_config, selected_order, rows):
+    async def fake_process_rows(
+        session,
+        selected_config,
+        selected_order,
+        rows,
+        *,
+        commit=True,
+    ):
         calls.append((selected_config.id, rows[0].oem, rows[0].requested_qty))
         matched_item = CustomerOrderItem(
             order_id=selected_order.id,

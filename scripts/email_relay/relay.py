@@ -221,12 +221,22 @@ class ApiClient:
         return resp.json()
 
     def mark_sent(self, outbox_id: int) -> None:
-        self._post_with_retry(f"/email-outbox/{outbox_id}/mark-sent")
+        self._post_with_retry(
+            f"/email-outbox/{outbox_id}/mark-sent",
+            params={"worker": self.config.worker_id},
+        )
 
     def mark_error(self, outbox_id: int, error: str, retry: bool = True) -> None:
         self._post_with_retry(
             f"/email-outbox/{outbox_id}/mark-error",
+            params={"worker": self.config.worker_id},
             json={"error": error[:2000], "retry": retry},
+        )
+
+    def renew(self, outbox_id: int) -> None:
+        self._post_with_retry(
+            f"/email-outbox/{outbox_id}/renew",
+            params={"worker": self.config.worker_id},
         )
 
     def telegram_pending(self) -> list[dict]:
@@ -436,6 +446,7 @@ def process_once(client: ApiClient, config: RelayConfig,
             continue
 
         try:
+            client.renew(outbox_id)
             message = build_message(item, from_email or smtp_cfg.get("username"))
             send_via_smtp(
                 smtp_cfg,

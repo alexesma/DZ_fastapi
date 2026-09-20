@@ -4,7 +4,8 @@ import hashlib
 import logging
 import os
 import re
-from datetime import date, datetime
+import uuid
+from datetime import date, datetime, timedelta
 from functools import partial
 from io import BytesIO
 from pathlib import Path
@@ -18,7 +19,7 @@ from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import func, insert, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
@@ -3205,7 +3206,7 @@ async def _persist_customer_pricelist_artifact(
     return attachment_bytes
 
 
-async def process_customer_pricelist(
+async def _process_customer_pricelist_unlocked(
     customer: Customer,
     request: CustomerPriceListCreate,
     session: AsyncSession,
@@ -4260,6 +4261,84 @@ async def process_customer_pricelist(
         generation_summary=generation_summary,
     )
     return response
+
+
+async def process_customer_pricelist(
+    customer: Customer,
+    request: CustomerPriceListCreate,
+    session: AsyncSession,
+    include_autoparts_response: bool = True,
+    delivery_mode: str = "auto",
+) -> CustomerPriceListResponse:
+    """Generate one config at a time across HTTP and scheduler processes."""
+    customer_id = int(request.customer_id)
+    lock_token = uuid.uuid4().hex
+    locked_at = now_moscow()
+    stale_before = locked_at - timedelta(hours=2)
+    claimed_id = await session.scalar(
+        update(CustomerPriceListConfig)
+        .where(
+            CustomerPriceListConfig.id == request.config_id,
+            CustomerPriceListConfig.customer_id == customer_id,
+            or_(
+                CustomerPriceListConfig.generation_lock_token.is_(None),
+                CustomerPriceListConfig.generation_locked_at.is_(None),
+                CustomerPriceListConfig.generation_locked_at < stale_before,
+            ),
+        )
+        .values(
+            generation_lock_token=lock_token,
+            generation_locked_at=locked_at,
+        )
+        .returning(CustomerPriceListConfig.id)
+    )
+    if claimed_id is None:
+        await session.rollback()
+        config_exists = await session.scalar(
+            select(CustomerPriceListConfig.id).where(
+                CustomerPriceListConfig.id == request.config_id,
+                CustomerPriceListConfig.customer_id == customer_id,
+            )
+        )
+        if config_exists is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No pricelist configuration found for the customer",
+            )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Этот прайс уже формируется. Дождитесь завершения текущего "
+                "запуска и обновите страницу."
+            ),
+        )
+    await session.commit()
+
+    try:
+        locked_customer = await session.get(Customer, customer_id)
+        if locked_customer is None:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        return await _process_customer_pricelist_unlocked(
+            customer=locked_customer,
+            request=request,
+            session=session,
+            include_autoparts_response=include_autoparts_response,
+            delivery_mode=delivery_mode,
+        )
+    finally:
+        # The implementation intentionally commits its long stages. A token
+        # prevents an old worker from clearing a newer lock after stale-lock
+        # recovery, and rollback makes cleanup possible after any DB error.
+        await session.rollback()
+        await session.execute(
+            update(CustomerPriceListConfig)
+            .where(
+                CustomerPriceListConfig.id == request.config_id,
+                CustomerPriceListConfig.generation_lock_token == lock_token,
+            )
+            .values(generation_lock_token=None, generation_locked_at=None)
+        )
+        await session.commit()
 
 
 def write_error_for_bulk(

@@ -22,6 +22,7 @@ from dz_fastapi.services.email_outbox import (
     list_pending_outbox,
     mark_outbox_error,
     mark_outbox_sent,
+    renew_outbox_claim,
     serialize_outbox_for_relay,
 )
 from dz_fastapi.services.relay_health import record_relay_heartbeat
@@ -102,11 +103,16 @@ async def outbox_list(
 )
 async def outbox_mark_sent(
     outbox_id: int,
+    worker: Optional[str] = Query(default=None, min_length=1, max_length=128),
     _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        return await mark_outbox_sent(session, outbox_id=outbox_id)
+        return await mark_outbox_sent(
+            session,
+            outbox_id=outbox_id,
+            worker=worker,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -119,6 +125,7 @@ async def outbox_mark_sent(
 async def outbox_mark_error(
     outbox_id: int,
     payload: OutboxMarkErrorIn,
+    worker: Optional[str] = Query(default=None, min_length=1, max_length=128),
     _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
@@ -128,6 +135,28 @@ async def outbox_mark_error(
             outbox_id=outbox_id,
             error=payload.error,
             retry=payload.retry,
+            worker=worker,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{outbox_id}/renew",
+    response_model=EmailOutboxOut,
+    summary="Продлить захват письма перед отправкой",
+)
+async def outbox_renew(
+    outbox_id: int,
+    worker: str = Query(..., min_length=1, max_length=128),
+    _: None = Depends(require_email_relay),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await renew_outbox_claim(
+            session,
+            outbox_id=outbox_id,
+            worker=worker,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

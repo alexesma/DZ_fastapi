@@ -21,6 +21,7 @@ from dz_fastapi.services.one_c_outbox import (
     CHANNEL_COMMERCEML,
     CHANNEL_JSON,
     ENTITY_SHIPMENT,
+    EVENT_CANCELLED,
     EVENT_POSTED,
     acknowledge_delivery_batch,
     backfill_pending_shipment_events,
@@ -147,6 +148,37 @@ async def test_one_c_backfill_does_not_duplicate_changed_shipment_snapshot(
     repeated = await enqueue_shipment_event(test_session, shipment.id)
     assert repeated.id == first.id
     assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 1
+
+
+@pytest.mark.asyncio
+async def test_one_c_reposting_after_cancel_creates_new_transition(
+    test_session,
+    created_autopart,
+    created_customers,
+):
+    shipment = await _create_posted_shipment(
+        test_session,
+        autopart_id=created_autopart.id,
+        customer_id=created_customers[0].id,
+        number="DZ-OUTBOX-REPOST",
+    )
+
+    first_post = await enqueue_shipment_event(test_session, shipment.id)
+    await test_session.commit()
+    cancelled = await enqueue_shipment_event(
+        test_session,
+        shipment.id,
+        EVENT_CANCELLED,
+    )
+    await test_session.commit()
+    second_post = await enqueue_shipment_event(test_session, shipment.id)
+    await test_session.commit()
+    repeated = await enqueue_shipment_event(test_session, shipment.id)
+
+    assert first_post.id != cancelled.id != second_post.id
+    assert repeated.id == second_post.id
+    assert second_post.idempotency_key.endswith(":3")
+    assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 3
 
 
 @pytest.mark.asyncio

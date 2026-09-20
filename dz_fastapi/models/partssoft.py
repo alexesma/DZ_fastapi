@@ -24,6 +24,7 @@ class PartsSoftProductOutbox(Base):
     external_product_id = Column(BigInteger, nullable=True, index=True)
     operation = Column(String(16), nullable=False, default="upsert")
     status = Column(String(16), nullable=False, default="pending", index=True)
+    change_version = Column(Integer, nullable=False, default=1)
     attempts = Column(Integer, nullable=False, default=0)
     last_error = Column(Text, nullable=True)
     available_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)

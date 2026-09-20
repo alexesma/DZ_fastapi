@@ -41,7 +41,11 @@ from dz_fastapi.models.partner import CUSTOMER_ORDER_STATUS, TYPE_PRICES
 from dz_fastapi.models.partssoft import PartsSoftProductOutbox
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.order import OrderPositionOut
-from dz_fastapi.services.customer_order_identity import canonical_order_number
+from dz_fastapi.services.customer_order_identity import (
+    canonical_order_number,
+    lock_customer_order_identity,
+    match_customer_order,
+)
 from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
@@ -260,49 +264,22 @@ def _find_matching_local_order(
     remote_order: dict[str, Any],
     remote_date,
 ) -> CustomerOrder | None:
-    remote_number = _normalized_order_number(_remote_order_number(remote_order))
-    if remote_number:
-        for candidate in candidates:
-            if _normalized_order_number(candidate.order_number) == remote_number:
-                return candidate
-    fingerprint = remote_order_fingerprint(remote_order)
-    if not fingerprint or remote_date is None:
-        return None
-    for candidate in candidates:
-        candidate_number = _normalized_order_number(candidate.order_number)
-        if remote_number and candidate_number and remote_number != candidate_number:
-            continue
-        candidate_date = candidate.order_date
-        if candidate_date is None and candidate.received_at is not None:
-            candidate_date = candidate.received_at.date()
-        if candidate_date == remote_date and local_order_fingerprint(candidate) == fingerprint:
-            return candidate
-    remote_items = list(remote_order.get("order_items") or [])
-    core_fingerprint = _core_item_fingerprint(remote_items, remote=True)
-    if not core_fingerprint:
-        return None
-    remote_total = _items_total(remote_items, remote=True)
-    remote_created_at = _parse_datetime(remote_order.get("created_at"))
-    for candidate in candidates:
-        candidate_number = _normalized_order_number(candidate.order_number)
-        if remote_number and candidate_number and remote_number != candidate_number:
-            continue
-        candidate_date = candidate.order_date
-        if candidate_date is None and candidate.received_at is not None:
-            candidate_date = candidate.received_at.date()
-        if candidate_date != remote_date:
-            continue
-        local_items = list(candidate.items or [])
-        if _core_item_fingerprint(local_items, remote=False) != core_fingerprint:
-            continue
-        local_total = _items_total(local_items, remote=False)
-        totals_match = (
-            remote_total is not None and local_total is not None and remote_total == local_total
-        )
-        max_minutes = 120 if totals_match else 15
-        if _timestamps_are_close(remote_created_at, candidate.received_at, max_minutes):
-            return candidate
-    return None
+    match = _match_local_order_decision(candidates, remote_order, remote_date)
+    return match.order if match is not None else None
+
+
+def _match_local_order_decision(
+    candidates: list[CustomerOrder],
+    remote_order: dict[str, Any],
+    remote_date,
+):
+    return match_customer_order(
+        candidates,
+        incoming_number=_remote_order_number(remote_order),
+        incoming_date=remote_date,
+        incoming_at=_parse_datetime(remote_order.get("created_at")),
+        incoming_items=remote_order.get("order_items") or [],
+    )
 
 
 async def _auto_process_partssoft_orders(
@@ -390,16 +367,25 @@ async def _link_cached_partssoft_order_duplicates(
             )
         ).unique().all()
         remote_created_at = _parse_datetime(remote_order.get("created_at"))
-        matching_order = _find_matching_local_order(
+        match_decision = _match_local_order_decision(
             candidates,
             remote_order,
             remote_created_at.date() if remote_created_at else None,
         )
+        matching_order = match_decision.order if match_decision is not None else None
         if matching_order is None:
             continue
         matching_order.external_source = PARTS_SOFT_SOURCE
         matching_order.external_order_id = external_order_id
         matching_order.external_payload = remote_order
+        matching_order.identity_match_basis = match_decision.basis
+        if not matching_order.processing_owner:
+            matching_order.processing_owner = "LOCAL"
+            matching_order.processing_state = (
+                "LOCAL_PROCESSED"
+                if matching_order.status != CUSTOMER_ORDER_STATUS.NEW
+                else "LOCAL_PENDING"
+            )
         session.add(matching_order)
         try:
             await session.commit()
@@ -1731,18 +1717,36 @@ async def sync_partssoft_orders(
             counts["already_imported"] += 1
             continue
 
-        tracking_ids = [
+        tracking_ids = {
             tracking_value
             for item in remote_order.get("order_items") or []
             if (tracking_value := _remote_item_tracking_value(item))
-        ]
-        if tracking_ids and await session.scalar(
-            select(OrderItem.id)
-            .where(func.lower(OrderItem.tracking_uuid).in_(tracking_ids))
-            .limit(1)
-        ):
-            counts["existing_site_order"] += 1
-            continue
+        }
+        if tracking_ids:
+            tracking_rows = (
+                await session.execute(
+                    select(OrderItem.tracking_uuid, OrderItem.order_id).where(
+                        func.lower(OrderItem.tracking_uuid).in_(tracking_ids)
+                    )
+                )
+            ).all()
+            matched_tracking_ids = {
+                _text(row.tracking_uuid).lower() for row in tracking_rows
+            }
+            matched_site_order_ids = {int(row.order_id) for row in tracking_rows}
+            if matched_tracking_ids == tracking_ids and len(matched_site_order_ids) == 1:
+                counts["existing_site_order"] += 1
+                continue
+            if matched_tracking_ids:
+                # Importing the whole remote order would duplicate the rows
+                # which already belong to a locally created site order.  Keep
+                # the complete remote payload in the reconciliation snapshot
+                # and require review of this mixed/ambiguous order.
+                if len(matched_site_order_ids) > 1:
+                    counts["site_order_conflict"] += 1
+                else:
+                    counts["partial_site_match"] += 1
+                continue
 
         try:
             customer, customer_result = await _resolve_sync_customer(session, remote_order)
@@ -1761,6 +1765,8 @@ async def sync_partssoft_orders(
             counts[customer_result] += 1
             continue
 
+        await lock_customer_order_identity(session, int(customer.id))
+
         remote_created_at = _parse_datetime(remote_order.get("created_at"))
         remote_date = remote_created_at.date() if remote_created_at else None
         probable_orders = (
@@ -1778,15 +1784,24 @@ async def sync_partssoft_orders(
             .unique()
             .all()
         )
-        matching_order = _find_matching_local_order(
+        match_decision = _match_local_order_decision(
             probable_orders,
             remote_order,
             remote_date,
         )
+        matching_order = match_decision.order if match_decision is not None else None
         if matching_order is not None:
             matching_order.external_source = PARTS_SOFT_SOURCE
             matching_order.external_order_id = external_order_id
             matching_order.external_payload = remote_order
+            matching_order.identity_match_basis = match_decision.basis
+            if not matching_order.processing_owner:
+                matching_order.processing_owner = "LOCAL"
+                matching_order.processing_state = (
+                    "LOCAL_PROCESSED"
+                    if matching_order.status != CUSTOMER_ORDER_STATUS.NEW
+                    else "LOCAL_PENDING"
+                )
             session.add(matching_order)
             if not matching_order.items:
                 recovered_items = [

@@ -216,6 +216,9 @@ def _serialize_customer_order_for_user(
 
 
 def _customer_order_processing_owner(order) -> Optional[str]:
+    persisted = str(getattr(order, "processing_owner", "") or "").strip()
+    if persisted:
+        return persisted
     if str(getattr(order, "external_source", "") or "").upper() != "PARTS_SOFT":
         return None
     if any(
@@ -633,6 +636,8 @@ async def list_customer_order_summary(
                 external_order_id=order.external_order_id,
                 import_origin=order.import_origin,
                 processing_owner=_customer_order_processing_owner(order),
+                processing_state=order.processing_state,
+                identity_match_basis=order.identity_match_basis,
                 recovered_at=order.recovered_at,
                 total_sum=float(total_sum),
                 stock_sum=float(stock_sum),

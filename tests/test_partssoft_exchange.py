@@ -75,6 +75,40 @@ async def test_product_outbox_records_remote_error_after_rollback(
 
 
 @pytest.mark.asyncio
+async def test_product_outbox_keeps_newer_change_pending(
+    test_session,
+    created_autopart,
+    monkeypatch,
+):
+    row = PartsSoftProductOutbox(
+        autopart_id=created_autopart.id,
+        operation="upsert",
+        status="pending",
+        change_version=1,
+    )
+    test_session.add(row)
+    await test_session.commit()
+
+    async def fake_upsert(_autopart):
+        row.change_version = 2
+        row.status = "pending"
+        await test_session.flush()
+        return 88002, {"product": {"id": 88002}}, []
+
+    monkeypatch.setattr(service, "_send_product_upsert", fake_upsert)
+    result = await service.process_product_outbox(test_session)
+
+    assert result == {
+        "processed": 1,
+        "counts": {"superseded": 1, "upserted": 1},
+    }
+    await test_session.refresh(row)
+    assert row.status == "pending"
+    assert row.change_version == 2
+    assert row.sent_at is None
+
+
+@pytest.mark.asyncio
 async def test_document_sync_imports_matched_invoices_once(
     test_session,
     created_customers,
@@ -165,6 +199,21 @@ async def test_document_sync_imports_matched_invoices_once(
     assert invoice.total_amount == Decimal("1200")
     receipt_item = await test_session.scalar(select(SupplierReceiptItem))
     assert receipt_item.marking_codes == ["010123456789012321ABC"]
+
+    customer_invoice["sum"] = 1300
+    customer_invoice["status"] = "corrected"
+    changed = await service.sync_partssoft_documents(test_session, days=30)
+
+    assert changed["counts"]["changed_after_import"] == 1
+    await test_session.refresh(invoice)
+    assert invoice.total_amount == Decimal("1200")
+    changed_snapshot = await test_session.scalar(
+        select(PartsSoftDocumentSnapshot).where(
+            PartsSoftDocumentSnapshot.document_type == "invoice"
+        )
+    )
+    assert changed_snapshot.import_status == "changed_after_import"
+    assert "требуется сверка" in changed_snapshot.import_error
 
 
 @pytest.mark.asyncio

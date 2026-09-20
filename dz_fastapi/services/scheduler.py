@@ -151,6 +151,10 @@ CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
     512,
     int(os.getenv("CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB", "5500")),
 )
+CUSTOMER_PRICELIST_RETRY_MINUTES = max(
+    5,
+    int(os.getenv("CUSTOMER_PRICELIST_RETRY_MINUTES", "30")),
+)
 PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
     512,
     int(os.getenv("PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB", "4500")),
@@ -2261,7 +2265,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                                     CustomerPriceList.customer_config_id.in_(config_ids),
                                     CustomerPriceList.generated_at.is_not(None),
                                     CustomerPriceList.generation_status.in_(
-                                        ("queued", "sent", "send_failed")
+                                        ("queued", "sent")
                                     ),
                                 )
                                 .group_by(CustomerPriceList.customer_config_id)
@@ -2278,7 +2282,11 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                     if _schedule_was_handled(config.last_sent_at, scheduled_at):
                         continue
                     if _schedule_was_handled(config.last_attempt_at, scheduled_at):
-                        continue
+                        retry_after = config.last_attempt_at + timedelta(
+                            minutes=CUSTOMER_PRICELIST_RETRY_MINUTES
+                        )
+                        if now < retry_after:
+                            continue
                     latest_attempt_at = latest_delivery_attempt_by_config.get(config.id)
                     if _customer_pricelist_delivery_attempt_handled(
                         latest_attempt_at,

@@ -85,7 +85,10 @@ class CRUDCustomerOrderConfig:
     ) -> Optional[CustomerOrderConfig]:
         result = await session.execute(
             select(CustomerOrderConfig)
-            .where(CustomerOrderConfig.customer_id == customer_id)
+            .where(
+                CustomerOrderConfig.customer_id == customer_id,
+                CustomerOrderConfig.is_active.is_(True),
+            )
             .order_by(CustomerOrderConfig.id.desc())
         )
         return result.scalars().first()
@@ -94,7 +97,10 @@ class CRUDCustomerOrderConfig:
         self, session: AsyncSession, customer_id: int
     ) -> List[CustomerOrderConfig]:
         result = await session.execute(
-            select(CustomerOrderConfig).where(CustomerOrderConfig.customer_id == customer_id)
+            select(CustomerOrderConfig).where(
+                CustomerOrderConfig.customer_id == customer_id,
+                CustomerOrderConfig.is_active.is_(True),
+            )
         )
         return result.scalars().all()
 

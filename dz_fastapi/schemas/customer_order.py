@@ -312,6 +312,8 @@ class CustomerOrderResponse(BaseModel):
     external_order_id: Optional[str] = None
     import_origin: Optional[str] = None
     processing_owner: Optional[str] = None
+    processing_state: Optional[str] = None
+    identity_match_basis: Optional[str] = None
     recovered_at: Optional[datetime] = None
 
     order_number: Optional[str]
@@ -391,6 +393,8 @@ class CustomerOrderSummaryResponse(BaseModel):
     external_order_id: Optional[str] = None
     import_origin: Optional[str] = None
     processing_owner: Optional[str] = None
+    processing_state: Optional[str] = None
+    identity_match_basis: Optional[str] = None
     recovered_at: Optional[datetime] = None
     total_sum: float = 0.0
     stock_sum: float = 0.0

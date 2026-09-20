@@ -82,7 +82,11 @@ def _remote_product_id(payload: Any) -> int | None:
     return None
 
 
-async def _local_product_form(autopart: AutoPart) -> tuple[aiohttp.FormData, list[str]]:
+async def _local_product_form(
+    autopart: AutoPart,
+    *,
+    force_all_photos: bool = False,
+) -> tuple[aiohttp.FormData, list[str]]:
     form = aiohttp.FormData()
     values = {
         "product[detail_name]": autopart.name,
@@ -100,7 +104,11 @@ async def _local_product_form(autopart: AutoPart) -> tuple[aiohttp.FormData, lis
             form.add_field(key, str(value))
 
     payload = autopart.partssoft_payload or {}
-    already_uploaded = set(payload.get("_outbound_photo_urls") or [])
+    already_uploaded = (
+        set()
+        if force_all_photos
+        else set(payload.get("_outbound_photo_urls") or [])
+    )
     uploaded_urls: list[str] = []
     upload_root = Path(get_upload_dir()).resolve()
     for photo in autopart.photos or []:
@@ -139,7 +147,10 @@ async def _send_product_upsert(autopart: AutoPart) -> tuple[int, dict[str, Any],
         async with client.request(method, url, data=form, allow_redirects=False) as response:
             if response.status == 404 and external_id is not None:
                 # The remote copy was deleted. Our database is authoritative, so recreate it.
-                form, uploaded_urls = await _local_product_form(autopart)
+                form, uploaded_urls = await _local_product_form(
+                    autopart,
+                    force_all_photos=True,
+                )
                 async with client.post(
                     f"{base_url}/products.json",
                     data=form,
@@ -232,6 +243,7 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
         # A rollback expires ORM attributes. Keep the primary key separately so
         # the error path never tries to lazy-load ``row.id`` outside greenlet.
         row_id = row.id
+        claimed_version = int(row.change_version or 1)
         try:
             autopart = await session.scalar(
                 select(AutoPart)
@@ -261,16 +273,36 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
                 counts["upserted"] += 1
                 if uploaded_urls:
                     counts["photos_uploaded"] += len(uploaded_urls)
-            row.status = "sent"
-            row.sent_at = now_moscow()
-            row.locked_at = None
-            row.last_error = None
+            await session.refresh(row)
+            # ``refresh`` is required to see a version increment made by the
+            # database trigger while the HTTP request was in flight.  It also
+            # discards unflushed ORM values, so restore the remote identifier
+            # returned by Parts-Soft before committing the completed attempt.
+            if row.operation != "delete" and autopart is not None:
+                row.external_product_id = external_id
+            if int(row.change_version or 1) == claimed_version:
+                row.status = "sent"
+                row.sent_at = now_moscow()
+                row.locked_at = None
+                row.last_error = None
+            else:
+                # A trigger queued a newer local edit while this network
+                # request was running. Keep that new version pending.
+                row.status = "pending"
+                row.locked_at = None
+                counts["superseded"] += 1
             await session.commit()
         except Exception as exc:
             await session.rollback()
             row = await session.get(PartsSoftProductOutbox, row_id)
             if row is None:
                 counts["errors"] += 1
+                continue
+            if int(row.change_version or 1) != claimed_version:
+                row.status = "pending"
+                row.locked_at = None
+                await session.commit()
+                counts["superseded"] += 1
                 continue
             row.attempts = int(row.attempts or 0) + 1
             row.last_error = str(exc)[:4000]
@@ -527,6 +559,13 @@ async def sync_partssoft_documents(
                 counts["snapshots_created"] += 1
             else:
                 counts["snapshots_updated"] += 1
+            previous_payload = dict(snapshot.payload or {})
+            already_imported = bool(
+                snapshot.local_payment_invoice_id or snapshot.local_supplier_receipt_id
+            )
+            changed_after_import = bool(
+                already_imported and previous_payload and previous_payload != payload
+            )
             snapshot.external_counterparty_id = _integer(payload.get("customer_id"))
             snapshot.document_number = _text(payload.get("no")) or str(external_id)
             snapshot.document_date = _document_date(payload)
@@ -536,12 +575,20 @@ async def sync_partssoft_documents(
             snapshot.payload = payload
             snapshot.last_synced_at = now_moscow()
             snapshot.import_error = None
-            already_imported = bool(
-                snapshot.local_payment_invoice_id or snapshot.local_supplier_receipt_id
-            )
             if already_imported:
-                snapshot.import_status = "imported"
-                counts["already_imported"] += 1
+                if changed_after_import:
+                    # Do not silently rewrite an accounting or warehouse
+                    # document which may already be checked locally. Surface
+                    # the changed Parts-Soft version for controlled review.
+                    snapshot.import_status = "changed_after_import"
+                    snapshot.import_error = (
+                        "Документ изменён в Parts-Soft после импорта; "
+                        "требуется сверка локального документа"
+                    )
+                    counts["changed_after_import"] += 1
+                else:
+                    snapshot.import_status = "imported"
+                    counts["already_imported"] += 1
                 continue
             try:
                 async with session.begin_nested():
