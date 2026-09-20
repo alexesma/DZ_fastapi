@@ -70,6 +70,14 @@ def test_fallback_does_not_ignore_brand_or_total():
     assert _match([order], _incoming(None, brand="OTHER", price="9999")) is None
 
 
+def test_same_oem_quantity_and_total_match_despite_brand_alias_difference():
+    order = _order(None, items=[_item("BH3888E", "NOK", 2, "5056.00")])
+    match = _match([order], _incoming(None, brand="HOT-PARTS", price="5056.00"))
+    assert match is not None
+    assert match.order is order
+    assert match.basis == "date_oem_qty_total_time"
+
+
 def test_ambiguous_equal_candidates_require_review():
     first = _order(None)
     second = _order(None)

@@ -120,6 +120,25 @@ def _core_fingerprint(items: Iterable[Any]) -> tuple[tuple[str, str, int], ...]:
     return tuple(sorted((oem, brand, quantity) for (oem, brand), quantity in quantities.items()))
 
 
+def _oem_quantity_fingerprint(items: Iterable[Any]) -> tuple[tuple[str, int], ...]:
+    """Return the order shape without supplier-specific brand spelling.
+
+    Email files and Parts-Soft occasionally describe the same item with a
+    catalogue brand on one side and a commercial/alias brand on the other.
+    Quantity by normalized OEM plus the exact order total is still strong
+    duplicate evidence when the customer, business date and arrival window
+    already match.
+    """
+
+    quantities: dict[str, int] = {}
+    for item in items:
+        oem, _brand, quantity, _price = _item_signature(item)
+        if not oem:
+            continue
+        quantities[oem] = quantities.get(oem, 0) + quantity
+    return tuple(sorted(quantities.items()))
+
+
 def _total(items: Iterable[Any]) -> Decimal | None:
     total = Decimal("0")
     has_price = False
@@ -168,6 +187,7 @@ def match_customer_order(
     number = canonical_order_number(incoming_number)
     fingerprint = _fingerprint(items)
     core = _core_fingerprint(items)
+    oem_quantities = _oem_quantity_fingerprint(items)
     total = _total(items)
     ranked: list[tuple[int, str, Any]] = []
 
@@ -189,11 +209,12 @@ def match_customer_order(
         numbers_equal = bool(number and candidate_number and number == candidate_number)
         exact_items = bool(fingerprint and _fingerprint(candidate_items) == fingerprint)
         core_items = bool(core and _core_fingerprint(candidate_items) == core)
+        oem_quantity_items = bool(
+            oem_quantities and _oem_quantity_fingerprint(candidate_items) == oem_quantities
+        )
         candidate_total = _total(candidate_items)
         totals_equal = bool(
-            total is not None
-            and candidate_total is not None
-            and total == candidate_total
+            total is not None and candidate_total is not None and total == candidate_total
         )
         close_in_time = _timestamps_close(
             incoming_at,
@@ -211,6 +232,8 @@ def match_customer_order(
             ranked.append((250, "date_items", candidate))
         elif core_items and totals_equal and close_in_time:
             ranked.append((200, "date_core_total_time", candidate))
+        elif oem_quantity_items and totals_equal and close_in_time:
+            ranked.append((175, "date_oem_qty_total_time", candidate))
 
     if not ranked:
         return None

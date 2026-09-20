@@ -5,12 +5,16 @@ import pytest
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
+from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 from dz_fastapi.services.customer_orders import (
+    ConfirmedOwnCrossAlias,
     OfferRow,
     ParsedOrderRow,
     _apply_matched_email_state_for_configs,
     _build_current_offers,
     _canonicalize_brand_key,
+    _get_order_offer_sources,
+    _merge_confirmed_own_cross_offers,
     _merge_published_dragonzap_alias_offers,
     _normalize_key,
     _normalize_oem_key,
@@ -88,6 +92,92 @@ def test_published_dragonzap_alias_maps_to_physical_stock_offer():
     assert matched.price == 125.0
     assert matched.match_type == "dragonzap_cross"
     assert matched.actual_oem == "DZT113001111BA"
+
+
+def test_confirmed_cross_maps_only_own_stock_without_overriding_direct_offer():
+    alias = ConfirmedOwnCrossAlias(
+        source_autopart_id=501,
+        source_oem="DZ1086001128",
+        source_brand="DRAGONZAP",
+        advertised_oem="1086001128",
+        advertised_brand="HOT-PARTS",
+    )
+    own_offer = OfferRow(
+        autopart_id=501,
+        provider_id=1,
+        provider_config_id=2,
+        quantity=1,
+        price=536.0,
+        supplier_price=536.0,
+        is_own_price=True,
+        actual_oem="DZ1086001128",
+        actual_brand="DRAGONZAP",
+    )
+    source_key = _normalize_key("DZ1086001128", "DRAGONZAP", None)
+
+    offers = _merge_confirmed_own_cross_offers([alias], {source_key: own_offer})
+    matched = offers[_normalize_key("1086001128", "HOT-PARTS", None)]
+    assert matched.autopart_id == 501
+    assert matched.match_type == "confirmed_own_cross"
+
+    direct_key = _normalize_key("1086001128", "HOT-PARTS", None)
+    direct_offer = OfferRow(
+        autopart_id=999,
+        provider_id=8,
+        provider_config_id=9,
+        quantity=5,
+        price=500.0,
+        supplier_price=500.0,
+        is_own_price=False,
+    )
+    offers = _merge_confirmed_own_cross_offers(
+        [alias],
+        {source_key: own_offer, direct_key: direct_offer},
+    )
+    assert offers[direct_key] is direct_offer
+
+    supplier_offer = OfferRow(
+        autopart_id=700,
+        provider_id=9,
+        provider_config_id=10,
+        quantity=20,
+        price=400.0,
+        supplier_price=400.0,
+        is_own_price=False,
+    )
+    assert _normalize_key("1086001128", "HOT-PARTS", None) not in (
+        _merge_confirmed_own_cross_offers([alias], {source_key: supplier_offer})
+    )
+
+
+@pytest.mark.asyncio
+async def test_order_sources_always_include_active_own_price(monkeypatch):
+    configured_source = SimpleNamespace(provider_config_id=10, enabled=True)
+    own_provider = Provider(id=1, is_own_price=True)
+    own_config = ProviderPriceListConfig(id=20, provider_id=1, is_active=True)
+    own_config.provider = own_provider
+
+    async def _fake_sources(*args, **kwargs):
+        return [configured_source]
+
+    class _ScalarRows:
+        def all(self):
+            return [own_config]
+
+    class _Session:
+        async def scalars(self, _statement):
+            return _ScalarRows()
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders." "crud_customer_pricelist_source.get_by_config_id",
+        _fake_sources,
+    )
+
+    sources = await _get_order_offer_sources(_Session(), SimpleNamespace(id=77))
+
+    assert [source.provider_config_id for source in sources] == [10, 20]
+    assert sources[1].enabled is True
+    assert sources[1].markup == pytest.approx(1.0)
 
 
 def test_source_filters_can_ignore_price_and_quantity_thresholds():
@@ -389,6 +479,17 @@ async def test_order_context_loads_only_requested_and_alias_source_oems(monkeypa
         offered_oems.update(kwargs.get("required_oems") or set())
         return {}
 
+    async def _fake_confirmed_crosses(*args, **kwargs):
+        return [
+            ConfirmedOwnCrossAlias(
+                source_autopart_id=502,
+                source_oem="DZ-CATALOGUE-CROSS",
+                source_brand="DRAGONZAP",
+                advertised_oem=requested.oem,
+                advertised_brand=requested.brand,
+            )
+        ]
+
     monkeypatch.setattr(
         "dz_fastapi.services.customer_orders._load_brand_alias_map",
         _fake_brand_aliases,
@@ -405,9 +506,17 @@ async def test_order_context_loads_only_requested_and_alias_source_oems(monkeypa
         "dz_fastapi.services.customer_orders._build_current_offers",
         _fake_offers,
     )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._load_confirmed_own_cross_aliases",
+        _fake_confirmed_crosses,
+    )
 
     config = SimpleNamespace(customer_id=946, pricelist_config_id=11)
     await _prepare_customer_order_context(None, config, [requested])
 
     assert loaded_oems == {"202001932AA"}
-    assert offered_oems == {"202001932AA", "DZ2906150XSZ08A"}
+    assert offered_oems == {
+        "202001932AA",
+        "DZ2906150XSZ08A",
+        "DZCATALOGUECROSS",
+    }

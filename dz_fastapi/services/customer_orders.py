@@ -58,6 +58,7 @@ from dz_fastapi.crud.partner import (
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
@@ -74,9 +75,11 @@ from dz_fastapi.models.partner import (
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
     CustomerPriceListPublishedAlias,
+    CustomerPriceListSource,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
+    ProviderPriceListConfig,
     StockOrder,
     StockOrderItem,
     SupplierOrder,
@@ -224,6 +227,15 @@ class OfferRow:
     actual_oem: Optional[str] = None
     actual_brand: Optional[str] = None
     actual_name: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ConfirmedOwnCrossAlias:
+    source_autopart_id: int
+    source_oem: str
+    source_brand: str
+    advertised_oem: str
+    advertised_brand: str
 
 
 @dataclass
@@ -1443,15 +1455,180 @@ def _merge_published_dragonzap_alias_offers(
     return merged
 
 
+def _merge_confirmed_own_cross_offers(
+    aliases: List[ConfirmedOwnCrossAlias],
+    offers: Dict[Tuple[str, str], OfferRow],
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> Dict[Tuple[str, str], OfferRow]:
+    """Expose confirmed catalogue crosses for physical Dragonzap stock.
+
+    A cross is deliberately allowed only when its source offer belongs to our
+    own price. Supplier substitutions remain controlled by the customer's
+    configured sources and cannot silently replace the requested item.
+    """
+
+    if not aliases or not offers:
+        return offers
+    merged = dict(offers)
+    own_offers_by_autopart = {
+        int(offer.autopart_id): offer
+        for offer in offers.values()
+        if offer.is_own_price and offer.quantity > 0 and offer.price > 0
+    }
+    for alias in aliases:
+        source_offer = own_offers_by_autopart.get(int(alias.source_autopart_id))
+        if source_offer is None:
+            continue
+        advertised_key = _normalize_key(
+            alias.advertised_oem,
+            alias.advertised_brand,
+            brand_aliases,
+        )
+        if advertised_key in merged:
+            continue
+        merged[advertised_key] = OfferRow(
+            autopart_id=source_offer.autopart_id,
+            provider_id=source_offer.provider_id,
+            provider_config_id=source_offer.provider_config_id,
+            quantity=source_offer.quantity,
+            price=source_offer.price,
+            supplier_price=source_offer.supplier_price,
+            is_own_price=True,
+            match_type="confirmed_own_cross",
+            actual_oem=source_offer.actual_oem or alias.source_oem,
+            actual_brand=source_offer.actual_brand or alias.source_brand,
+            actual_name=source_offer.actual_name,
+        )
+    return merged
+
+
+async def _load_confirmed_own_cross_aliases(
+    session: AsyncSession,
+    parsed_rows: List[ParsedOrderRow],
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> List[ConfirmedOwnCrossAlias]:
+    requested_keys = {
+        _normalize_key(row.oem, row.brand, brand_aliases)
+        for row in parsed_rows
+        if _normalize_oem_key(row.oem)
+    }
+    requested_oems = {key[0] for key in requested_keys}
+    if not requested_oems:
+        return []
+
+    rows = (
+        (
+            await session.scalars(
+                select(AutoPartCross)
+                .options(
+                    joinedload(AutoPartCross.source_autopart).joinedload(AutoPart.brand),
+                    joinedload(AutoPartCross.cross_brand),
+                )
+                .where(
+                    AutoPartCross.cross_oem_number.in_(requested_oems),
+                )
+            )
+        )
+        .unique()
+        .all()
+    )
+    aliases: List[ConfirmedOwnCrossAlias] = []
+    for cross in rows:
+        source = cross.source_autopart
+        cross_brand = cross.cross_brand
+        source_brand = getattr(getattr(source, "brand", None), "name", None)
+        advertised_brand = getattr(cross_brand, "name", None)
+        if not source or not source_brand or not advertised_brand:
+            continue
+        advertised_key = _normalize_key(
+            cross.cross_oem_number,
+            advertised_brand,
+            brand_aliases,
+        )
+        if advertised_key not in requested_keys:
+            continue
+        aliases.append(
+            ConfirmedOwnCrossAlias(
+                source_autopart_id=int(source.id),
+                source_oem=str(source.oem_number),
+                source_brand=str(source_brand),
+                advertised_oem=str(cross.cross_oem_number),
+                advertised_brand=str(advertised_brand),
+            )
+        )
+    return aliases
+
+
+def _make_virtual_own_source(
+    config_id: int,
+    provider_config: ProviderPriceListConfig,
+) -> CustomerPriceListSource:
+    source = CustomerPriceListSource(
+        customer_config_id=config_id,
+        provider_config_id=int(provider_config.id),
+        enabled=True,
+        markup=1.0,
+        mask_price_quantity=False,
+        brand_markups={},
+        brand_filters={},
+        position_filters={},
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        additional_filters={},
+    )
+    source.provider_config = provider_config
+    return source
+
+
+async def _get_order_offer_sources(
+    session: AsyncSession,
+    config: CustomerPriceListConfig,
+) -> List[CustomerPriceListSource]:
+    """Return configured sources plus active own-price fallbacks.
+
+    Our physical stock must remain eligible for fulfilling an order even when
+    an administrator forgot to add one of the Dragonzap price configurations
+    to an older customer card. The fallback is used only during order
+    allocation; it does not silently change the customer's mailing settings.
+    """
+
+    sources = list(
+        await crud_customer_pricelist_source.get_by_config_id(
+            config_id=config.id,
+            session=session,
+        )
+    )
+    if session is None:  # Pure unit tests and offline price calculations.
+        return sources
+    configured_ids = {int(source.provider_config_id) for source in sources}
+    own_configs = (
+        await session.scalars(
+            select(ProviderPriceListConfig)
+            .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
+            .options(selectinload(ProviderPriceListConfig.provider))
+            .where(
+                Provider.is_own_price.is_(True),
+                ProviderPriceListConfig.is_active.is_(True),
+            )
+            .order_by(ProviderPriceListConfig.id.asc())
+        )
+    ).all()
+    for provider_config in own_configs:
+        if int(provider_config.id) in configured_ids:
+            continue
+        sources.append(_make_virtual_own_source(int(config.id), provider_config))
+    return sources
+
+
 async def _build_current_offers(
     session: AsyncSession,
     config: CustomerPriceListConfig,
     brand_aliases: Optional[Dict[str, str]] = None,
     required_oems: Optional[set[str]] = None,
 ) -> Dict[Tuple[str, str], OfferRow]:
-    sources = await crud_customer_pricelist_source.get_by_config_id(
-        config_id=config.id, session=session
-    )
+    sources = await _get_order_offer_sources(session, config)
     combined_data = []
     for source in sources:
         if not source.enabled:
@@ -1852,10 +2029,7 @@ async def _diagnose_missing_offer_reason(
             "К заказу не привязана конфигурация клиентского прайса.",
         )
 
-    sources = await crud_customer_pricelist_source.get_by_config_id(
-        config_id=pricelist_config.id,
-        session=session,
-    )
+    sources = await _get_order_offer_sources(session, pricelist_config)
     enabled_sources = [source for source in sources if source.enabled]
     if not enabled_sources:
         return (
@@ -2897,6 +3071,11 @@ async def _prepare_customer_order_context(
     parsed_rows: List[ParsedOrderRow],
 ):
     brand_aliases = await _load_brand_alias_map(session)
+    confirmed_cross_aliases = await _load_confirmed_own_cross_aliases(
+        session,
+        parsed_rows,
+        brand_aliases,
+    )
     requested_oems = {
         _normalize_oem_key(row.oem) for row in parsed_rows if _normalize_oem_key(row.oem)
     }
@@ -2919,6 +3098,7 @@ async def _prepare_customer_order_context(
         if last_pricelist
         else set()
     )
+    source_oems.update(_normalize_oem_key(alias.source_oem) for alias in confirmed_cross_aliases)
     offers = (
         await _build_current_offers(
             session,
@@ -2931,6 +3111,11 @@ async def _prepare_customer_order_context(
     )
     offers = _merge_published_dragonzap_alias_offers(
         last_pricelist,
+        offers,
+        brand_aliases,
+    )
+    offers = _merge_confirmed_own_cross_offers(
+        confirmed_cross_aliases,
         offers,
         brand_aliases,
     )
@@ -3843,8 +4028,7 @@ async def process_manual_customer_order(
             session.add(order)
             await session.commit()
             raise ValueError(
-                "Маршрут оптового заказа Parts-Soft требует настройки: "
-                f"{review_reason}"
+                f"Маршрут оптового заказа Parts-Soft требует настройки: {review_reason}"
             )
         order.processing_owner = "PARTS_SOFT_SITE"
         order.processing_state = "EXTERNAL_UNVERIFIED"
