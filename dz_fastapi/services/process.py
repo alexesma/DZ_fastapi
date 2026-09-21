@@ -1891,6 +1891,30 @@ def _sync_dragonzap_alias_prices(
             alias["price"] = prices[source_key]
 
 
+def _text_sanity_score(df: pd.DataFrame) -> float:
+    """Насколько похож распознанный текст на настоящую кириллицу/латиницу.
+
+    Разделитель колонок — ASCII-символ, поэтому любая однобайтная
+    кодировка (cp1251, koi8-r, cp866, latin1) одинаково успешно режет
+    файл на колонки, даже если сама кодировка выбрана неверно: колонки
+    появятся, а в ячейках будет каша вида "Äàò÷çàäíõîäà" вместо
+    "Датчик заднего хода". Разделитель тут не отличает верную кодировку
+    от случайно подошедшей, поэтому дальше сверяем сам текст: буквы
+    U+0080–U+024F вне кириллического диапазона — верный признак, что
+    кириллицу прочитали не той кодировкой.
+    """
+    sample = " ".join(str(v) for v in df.head(50).to_numpy().flatten())[:5000]
+    if not sample:
+        return 0.0
+    good = sum(
+        1
+        for ch in sample
+        if ch.isascii() or "А" <= ch <= "я" or ch in "ЁёІіЇїЎў"
+    )
+    suspicious = sum(1 for ch in sample if "" <= ch <= "ɏ" and not ("А" <= ch <= "я"))
+    return (good - suspicious * 2) / len(sample)
+
+
 def open_csv(file: bytes) -> pd.DataFrame:
     encodings = [
         "utf-8-sig",
@@ -1902,6 +1926,7 @@ def open_csv(file: bytes) -> pd.DataFrame:
         "latin1",
     ]
     separators = [",", ";", "\t", "|"]
+    best: tuple[float, pd.DataFrame, str, str] | None = None
     for encoding in encodings:
         for sep in separators:
             try:
@@ -1913,14 +1938,19 @@ def open_csv(file: bytes) -> pd.DataFrame:
                     encoding=encoding,
                 )
                 if df.shape[1] > 1:
-                    logger.debug(
-                        "CSV detected with encoding=%s, separator=%s",
-                        encoding,
-                        sep,
-                    )
-                    return df
+                    score = _text_sanity_score(df)
+                    if best is None or score > best[0]:
+                        best = (score, df, encoding, sep)
             except (UnicodeDecodeError, pd.errors.ParserError):
                 continue
+    if best is not None:
+        _, df, encoding, sep = best
+        logger.debug(
+            "CSV detected with encoding=%s, separator=%s",
+            encoding,
+            sep,
+        )
+        return df
     raise HTTPException(status_code=400, detail="Invalid CSV file.")
 
 

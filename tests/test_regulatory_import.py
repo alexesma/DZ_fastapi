@@ -16,6 +16,7 @@ from dz_fastapi.models.certificate import Certificate
 from dz_fastapi.models.nomenclature import HonestSignCategory
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.regulatory import (
+    _certificate_values_from_supplier_row,
     _split_certificate,
     chunked,
     import_supplier_regulatory,
@@ -121,6 +122,22 @@ def test_certificate_text_splits_into_flag_and_number():
     assert _split_certificate(None) == (None, None)
 
 
+def test_certificate_number_is_extracted_from_swis_registry_url():
+    url = (
+        "https://swis.trade.kg/Registry/CertificateOfConformity?"
+        "RegisterNumber=ЕАЭС+KG417%2F039.TH.02.04891&S"
+    )
+    assert _certificate_values_from_supplier_row(
+        {"eac_cert_number": None, "eac_cert_url": url}
+    ) == (True, "ЕАЭС KG417/039.TH.02.04891", url)
+
+
+def test_plain_internal_code_is_not_accepted_as_certificate_url():
+    assert _certificate_values_from_supplier_row(
+        {"eac_cert_number": None, "eac_cert_url": "COSMO-12345"}
+    ) == (None, None, None)
+
+
 # ── импорт в карточки ───────────────────────────────────────────────────
 
 
@@ -164,6 +181,37 @@ async def test_import_fills_card_and_respects_manual(
     assert stats["skipped_manual"] == 1
     await test_session.refresh(created_autopart)
     assert created_autopart.tnved_code == "0000000000"
+
+
+@pytest.mark.asyncio
+async def test_import_keeps_swis_doc_url_without_certificate_number(
+    test_session, created_autopart, created_brand
+):
+    url = "https://swis.trade.kg/Doc/501e0f9e-f0d6-4e0a-a38c-475dbfb0ee66"
+    rows = [
+        {
+            "brand": created_brand.name,
+            "article": created_autopart.oem_number,
+            "name": "",
+            "tnved_code": None,
+            "okpd2_code": None,
+            "honest_sign": None,
+            "eac_cert_number": None,
+            "eac_cert_url": url,
+        }
+    ]
+
+    stats = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+
+    await test_session.refresh(created_autopart)
+    assert stats["matched"] == 1
+    assert stats["updated"] == 1
+    assert created_autopart.certification_required is True
+    assert created_autopart.eac_cert_number is None
+    assert created_autopart.eac_cert_url == url
+    assert created_autopart.regulatory_source == "supplier_doc"
 
 
 @pytest.mark.asyncio

@@ -25,6 +25,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Optional
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 from sqlalchemy import func, or_, select
@@ -201,6 +202,44 @@ def _split_certificate(value: Optional[str]) -> tuple[Optional[bool], Optional[s
     if text.casefold() == CERTIFICATION_NOT_REQUIRED_TEXT.casefold():
         return False, None
     return True, text
+
+
+def _certificate_values_from_supplier_row(
+    row: dict[str, Any],
+) -> tuple[Optional[bool], Optional[str], Optional[str]]:
+    """Возвращает признак, номер и безопасную ссылку из строки прайса.
+
+    Некоторые поставщики, включая Cosmo Nal, передают только URL. В
+    ссылках на карточку SWIS номер лежит в ``RegisterNumber``; ссылки
+    вида ``/Doc/<uuid>`` номера не содержат, но сами по себе пригодны для
+    выгрузки клиенту. Произвольный текст из колонки ссылкой не считаем:
+    у Cosmo эта же колонка исторически подписана «Внутренний код».
+    """
+    raw_url = str(row.get("eac_cert_url") or "").strip()
+    url: Optional[str] = None
+    if raw_url:
+        parsed = urlparse(raw_url)
+        if parsed.scheme.casefold() in {"http", "https"} and parsed.netloc:
+            url = raw_url
+
+    required, number = _split_certificate(row.get("eac_cert_number"))
+    if number or not url:
+        return required, number, url
+
+    parsed = urlparse(url)
+    for key, values in parse_qs(parsed.query).items():
+        if key.casefold() != "registernumber":
+            continue
+        extracted = next(
+            (" ".join(value.split()) for value in values if value.strip()),
+            None,
+        )
+        if extracted:
+            return True, extracted, url
+
+    # Ссылка /Doc/<uuid> подтверждает, что документ для позиции есть,
+    # хотя его номер из самого URL восстановить невозможно.
+    return True, None, url
 
 
 # asyncpg не принимает больше 32767 параметров на запрос, а IN-список
@@ -413,14 +452,14 @@ async def _upsert_certificates(
     """Заводит сертификаты из файла, номер — естественный ключ."""
     wanted: dict[str, dict[str, Any]] = {}
     for row in rows:
-        required, number = _split_certificate(row.get("eac_cert_number"))
+        required, number, cert_url = _certificate_values_from_supplier_row(row)
         if not required or not number:
             continue
         entry = wanted.setdefault(
             number, {"url": None, "brands": set()}
         )
-        if row.get("eac_cert_url") and not entry["url"]:
-            entry["url"] = row["eac_cert_url"]
+        if cert_url and not entry["url"]:
+            entry["url"] = cert_url
         entry["brands"].add(str(row.get("brand") or "").strip())
     if not wanted:
         return {}
@@ -552,7 +591,9 @@ async def import_supplier_regulatory(
         {
             number
             for row in targets.values()
-            for required, number in [_split_certificate(row.get("eac_cert_number"))]
+            for required, number, _ in [
+                _certificate_values_from_supplier_row(row)
+            ]
             if required and number
         }
     )
@@ -592,8 +633,8 @@ async def import_supplier_regulatory(
                 stats["skipped_manual"] += 1
                 continue
 
-            required, cert_number = _split_certificate(
-                row.get("eac_cert_number")
+            required, cert_number, cert_url = (
+                _certificate_values_from_supplier_row(row)
             )
             certificate = certificates.get(cert_number) if cert_number else None
             cert_problems = (
@@ -615,6 +656,21 @@ async def import_supplier_regulatory(
                 changes["tnved_code"] = row["tnved_code"]
             if row.get("okpd2_code") and not part.okpd2_code:
                 changes["okpd2_code"] = row["okpd2_code"]
+            # URL вида /Doc/<uuid> не содержит номера документа. Храним
+            # его в карточке напрямую, чтобы он не потерялся и попал в
+            # клиентский прайс. Существующую связь с полноценным
+            # сертификатом такой ссылкой не заменяем.
+            if (
+                cert_url
+                and not cert_number
+                and not part.certificates
+                and (
+                    not part.eac_cert_url
+                    or part.regulatory_source == "supplier_doc"
+                )
+                and part.eac_cert_url != cert_url
+            ):
+                changes["eac_cert_url"] = cert_url
             # Документ поставщика важнее автоматического правила. Ручное
             # решение защищено ранним continue выше.
             if required is True and part.certification_required is not True:

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
@@ -15,6 +15,7 @@ from dz_fastapi.crud.settings import (
     crud_price_check_schedule,
     crud_scheduler_setting,
 )
+from dz_fastapi.models.partner import PriceList, ProviderPriceListConfig
 from dz_fastapi.services.runtime_memory import process_rss_mb
 
 
@@ -418,5 +419,54 @@ async def provider_config_intake_problems(
         elif row.get("rounding_warning") is None:
             row["rounding_warning"] = str(warning)
             row["rounding_detected_at"] = getattr(run, "started_at", None)
+
+    # Отсутствие нового письма после успешной загрузки — штатное состояние,
+    # а не проблема настройки. Оставляем ``only_already_loaded_emails`` в
+    # сводке лишь тогда, когда последнего прайса уже нет либо он старше
+    # допустимого для конфигурации срока. Иначе свежий COSMOPART после каждого
+    # почтового прохода ошибочно показывал все свои конфигурации как требующие
+    # внимания.
+    already_loaded_ids = [
+        config_id
+        for config_id, row in problems.items()
+        if row.get("outcome") == "only_already_loaded_emails"
+        and not row.get("rounding_warning")
+    ]
+    if already_loaded_ids:
+        latest_price_dates = (
+            select(
+                PriceList.provider_config_id.label("provider_config_id"),
+                func.max(PriceList.date).label("last_price_date"),
+            )
+            .where(PriceList.provider_config_id.in_(already_loaded_ids))
+            .group_by(PriceList.provider_config_id)
+            .subquery()
+        )
+        freshness_rows = (
+            await session.execute(
+                select(
+                    ProviderPriceListConfig.id,
+                    ProviderPriceListConfig.max_days_without_update,
+                    latest_price_dates.c.last_price_date,
+                )
+                .outerjoin(
+                    latest_price_dates,
+                    latest_price_dates.c.provider_config_id
+                    == ProviderPriceListConfig.id,
+                )
+                .where(ProviderPriceListConfig.id.in_(already_loaded_ids))
+            )
+        ).all()
+        today = now_moscow().date()
+        for config_id, max_days_without_update, last_price_date in freshness_rows:
+            if last_price_date is None:
+                continue
+            threshold = (
+                3
+                if max_days_without_update is None
+                else max(0, int(max_days_without_update))
+            )
+            if (today - last_price_date).days <= threshold:
+                problems.pop(int(config_id), None)
 
     return [problems[key] for key in sorted(problems)]

@@ -498,6 +498,58 @@ async def test_intake_problems_keep_latest_run_only(test_session):
 
 
 @pytest.mark.asyncio
+async def test_intake_problems_ignore_old_uid_when_pricelist_is_fresh(
+    test_session, created_providers, created_pricelist_config
+):
+    """Повторный проход без нового письма не требует внимания."""
+    from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.models.partner import PriceList
+    from dz_fastapi.models.settings import ExecutionTrace
+    from dz_fastapi.services.monitoring import provider_config_intake_problems
+
+    провайдер = created_providers[0]
+    test_session.add(
+        PriceList(
+            provider_id=провайдер.id,
+            provider_config_id=created_pricelist_config.id,
+            date=now_moscow().date(),
+            is_active=True,
+        )
+    )
+    test_session.add(
+        ExecutionTrace(
+            trace_type='scheduler_job',
+            job_key='download_price_provider',
+            job_name='Download price provider',
+            status='success',
+            started_at=now_moscow(),
+            details={
+                'email_processing_summary': {
+                    'download_diagnostics': {
+                        'problems': [
+                            {
+                                'config_id': created_pricelist_config.id,
+                                'provider_id': провайдер.id,
+                                'config': 'Cosmo',
+                                'outcome': 'only_already_loaded_emails',
+                                'emails_seen': 7,
+                                'emails_matched': 7,
+                                'skipped_old_uid': 7,
+                            }
+                        ]
+                    }
+                }
+            },
+        )
+    )
+    await test_session.commit()
+
+    строки = await provider_config_intake_problems(test_session, провайдер.id)
+
+    assert строки == []
+
+
+@pytest.mark.asyncio
 async def test_intake_problems_include_rounding_warning(
     test_session, created_providers, created_pricelist_config
 ):
