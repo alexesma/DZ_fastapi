@@ -110,6 +110,33 @@ async def test_merge_does_not_overwrite_filled_fields(async_client, test_session
 
 
 @pytest.mark.asyncio
+async def test_merge_moves_unique_contact_email(async_client, test_session):
+    """Почта дубля сначала освобождается, затем переносится в основную карточку."""
+    основной = await _клиент(
+        test_session,
+        name="Основной без почты",
+        type_prices="Wholesale",
+    )
+    дубль = await _клиент(
+        test_session,
+        name="Дубль с почтой",
+        type_prices="Wholesale",
+        email_contact="orders@example.com",
+    )
+
+    ответ = await async_client.post(
+        f"/customers/{основной.id}/merge",
+        json={"source_customer_id": дубль.id},
+    )
+
+    assert ответ.status_code == 200, ответ.text
+    test_session.expunge_all()
+    остался = await test_session.get(Customer, основной.id)
+    assert остался.email_contact == "orders@example.com"
+    assert await test_session.get(Customer, дубль.id) is None
+
+
+@pytest.mark.asyncio
 async def test_merge_survives_shared_reclamation_email(async_client, test_session):
     """Одинаковая почта рекламаций у дублей не ломает объединение.
 

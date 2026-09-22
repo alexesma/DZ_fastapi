@@ -1575,7 +1575,24 @@ async def merge_customer_records(
     if source is None:
         raise LookupError("Дубль клиента не найден")
 
+    # email_contact уникален во всей таблице client. Если просто присвоить
+    # почту основной карточке, ORM попытается обновить её раньше удаления
+    # дубля и PostgreSQL справедливо вернёт ix_client_email_contact. Сначала
+    # освобождаем значение у дубля отдельным flush, затем переносим его.
+    переносимая_почта = None
+    if (
+        not str(getattr(target_customer, "email_contact", None) or "").strip()
+        and str(getattr(source, "email_contact", None) or "").strip()
+    ):
+        переносимая_почта = source.email_contact
+        source.email_contact = None
+        session.add(source)
+        await session.flush()
+
     for field in CRUDCustomer.MERGEABLE_FIELDS:
+        if field == "email_contact" and переносимая_почта:
+            target_customer.email_contact = переносимая_почта
+            continue
         текущее = str(getattr(target_customer, field, None) or "").strip()
         из_дубля = getattr(source, field, None)
         if not текущее and str(из_дубля or "").strip():
