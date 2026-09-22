@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from sqlalchemy import select
 
+from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.services.process import (
     _apply_pricelist_regulatory,
@@ -96,7 +97,7 @@ async def test_pricelist_intake_writes_regulatory(
     test_session.add(config)
     await test_session.commit()
 
-    await process_provider_pricelist(
+    created = await process_provider_pricelist(
         provider=created_providers[0],
         file_content=_excel_bytes(_frame(created_brand.name)),
         file_extension='xlsx',
@@ -122,6 +123,16 @@ async def test_pricelist_intake_writes_regulatory(
     assert part.okpd2_code == '29.32.30.390'
     assert part.eac_cert_number == CERT
     assert part.eac_cert_url == CERT_URL
+
+    frame = await crud_pricelist.fetch_pricelist_dataframe(
+        created.id, test_session
+    )
+    offer = frame.loc[frame["autopart_id"] == part.id].iloc[0]
+    assert offer["tnved_code"] == "8708801000"
+    assert offer["okpd2_code"] == "29.32.30.390"
+    assert bool(offer["certification_required"]) is True
+    assert offer["eac_cert_number"] == CERT
+    assert offer["eac_cert_url"] == CERT_URL
 
 
 @pytest.mark.anyio

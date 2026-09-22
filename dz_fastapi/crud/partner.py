@@ -1850,6 +1850,17 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         "quantity": quantity,
                         "price": price,
                         "multiplicity": autopart_assoc_data.get("multiplicity"),
+                        "tnved_code": autopart_assoc_data.get("tnved_code"),
+                        "okpd2_code": autopart_assoc_data.get("okpd2_code"),
+                        "certification_required": autopart_assoc_data.get(
+                            "certification_required"
+                        ),
+                        "eac_cert_number": autopart_assoc_data.get(
+                            "eac_cert_number"
+                        ),
+                        "eac_cert_url": autopart_assoc_data.get(
+                            "eac_cert_url"
+                        ),
                     }
                 )
 
@@ -1908,6 +1919,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     "quantity": qty,
                     "price": prc,
                     "multiplicity": mult,
+                    "tnved_code": row.get("tnved_code"),
+                    "okpd2_code": row.get("okpd2_code"),
+                    "certification_required": row.get(
+                        "certification_required"
+                    ),
+                    "eac_cert_number": row.get("eac_cert_number"),
+                    "eac_cert_url": row.get("eac_cert_url"),
                 }
                 bulk_insert_map[autopart_id] = assoc_row
 
@@ -2188,6 +2206,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         "quantity",
         "price",
         "multiplicity",
+        "tnved_code",
+        "okpd2_code",
+        "certification_required",
+        "eac_cert_number",
+        "eac_cert_url",
     )
 
     async def fetch_pricelist_dataframe(
@@ -2246,6 +2269,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 PriceListAutoPartAssociation.quantity,
                 PriceListAutoPartAssociation.price,
                 func.coalesce(multiplicity_source, 1),
+                PriceListAutoPartAssociation.tnved_code,
+                PriceListAutoPartAssociation.okpd2_code,
+                PriceListAutoPartAssociation.certification_required,
+                PriceListAutoPartAssociation.eac_cert_number,
+                PriceListAutoPartAssociation.eac_cert_url,
             )
             .join(
                 AutoPart,

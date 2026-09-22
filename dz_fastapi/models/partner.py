@@ -495,6 +495,13 @@ class PriceListAutoPartAssociation(Base):
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=False)
     multiplicity = Column(Integer, nullable=False, default=1, server_default="1")
+    # Реквизиты относятся к предложению поставщика: один и тот же товар
+    # разные поставщики могут ввозить по разным сертификатам.
+    tnved_code = Column(String(20), nullable=True)
+    okpd2_code = Column(String(20), nullable=True)
+    certification_required = Column(Boolean, nullable=True)
+    eac_cert_number = Column(String(150), nullable=True)
+    eac_cert_url = Column(String(500), nullable=True)
 
     pricelist = relationship("PriceList", back_populates="autopart_associations")
     autopart = relationship("AutoPart", back_populates="price_list_associations")

@@ -265,6 +265,18 @@ def prepare_excel_data_from_records(
         *REGULATORY_COLUMNS,
     ]
     regulatory_map = regulatory_by_autopart_id or {}
+
+    def offer_value(record: dict, field: str):
+        value = record.get(field)
+        if value is None:
+            return None
+        try:
+            if pd.isna(value):
+                return None
+        except (TypeError, ValueError):
+            pass
+        return value
+
     rows = []
     for record in records:
         autopart_id = record.get("autopart_id")
@@ -280,7 +292,31 @@ def prepare_excel_data_from_records(
             "Цена": record.get("price"),
             "Кратность": normalize_multiplicity(record.get("multiplicity")),
         }
-        row.update(regulatory_columns_for(regulatory_map.get(key)))
+        regulatory = dict(regulatory_map.get(key) or {})
+        for field in ("tnved_code", "okpd2_code"):
+            value = offer_value(record, field)
+            if value:
+                regulatory[field] = value
+        offer_has_certificate = any(
+            offer_value(record, field) is not None
+            for field in (
+                "certification_required",
+                "eac_cert_number",
+                "eac_cert_url",
+            )
+        )
+        if offer_has_certificate:
+            regulatory["certification_required"] = offer_value(
+                record, "certification_required"
+            )
+            regulatory["eac_cert_number"] = offer_value(
+                record, "eac_cert_number"
+            )
+            regulatory["eac_cert_url"] = offer_value(
+                record, "eac_cert_url"
+            )
+            regulatory["eac_cert_valid_until"] = None
+        row.update(regulatory_columns_for(regulatory))
         rows.append(row)
     return pd.DataFrame(rows, columns=columns)
 

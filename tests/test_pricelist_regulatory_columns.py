@@ -5,6 +5,8 @@
 тестом: молча уехавшая клиенту пустая или переименованная колонка
 означает отказ в приёмке прайса.
 """
+import math
+
 from dz_fastapi.services.utils import (
     CERTIFICATION_NOT_REQUIRED_TEXT,
     REGULATORY_COLUMNS,
@@ -76,6 +78,51 @@ def test_filled_attributes_land_in_row():
     assert row["Честный знак"] == "Фильтры"
     assert row["Номер сертификата ЕАС"] == "ЕАЭС RU Д-CN.РА01.В.12345/24"
     assert row["Ссылка ФГИС"].startswith("https://pub.fsa.gov.ru/")
+
+
+def test_supplier_offer_certificate_wins_and_url_works_without_number():
+    """Выгружаем документ выбранного предложения, а не другого поставщика."""
+    record = {
+        **_record(),
+        "certification_required": True,
+        "eac_cert_number": None,
+        "eac_cert_url": "https://swis.trade.kg/Doc/cosmo-document",
+    }
+    card_attrs = {
+        1: {
+            "certification_required": True,
+            "eac_cert_number": "ЧУЖОЙ СЕРТИФИКАТ",
+            "eac_cert_url": "https://example.invalid/other-supplier",
+        }
+    }
+
+    row = prepare_excel_data_from_records([record], card_attrs).iloc[0]
+
+    assert row["Номер сертификата ЕАС"] == ""
+    assert row["Ссылка ФГИС"] == (
+        "https://swis.trade.kg/Doc/cosmo-document"
+    )
+
+
+def test_empty_legacy_offer_falls_back_to_product_card_certificate():
+    record = {
+        **_record(),
+        "certification_required": math.nan,
+        "eac_cert_number": math.nan,
+        "eac_cert_url": math.nan,
+    }
+    card_attrs = {
+        1: {
+            "certification_required": True,
+            "eac_cert_number": "ЕАЭС RU Д-CN.РА01.В.12345/24",
+            "eac_cert_url": "https://pub.fsa.gov.ru/document",
+        }
+    }
+
+    row = prepare_excel_data_from_records([record], card_attrs).iloc[0]
+
+    assert row["Номер сертификата ЕАС"] == "ЕАЭС RU Д-CN.РА01.В.12345/24"
+    assert row["Ссылка ФГИС"] == "https://pub.fsa.gov.ru/document"
 
 
 def test_not_required_wins_over_stale_number():

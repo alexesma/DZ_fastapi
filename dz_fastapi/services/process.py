@@ -120,7 +120,10 @@ from dz_fastapi.services.email_outbox import (
     enqueue_email,
 )
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
-from dz_fastapi.services.regulatory import import_supplier_regulatory
+from dz_fastapi.services.regulatory import (
+    _certificate_values_from_supplier_row,
+    import_supplier_regulatory,
+)
 from dz_fastapi.services.utils import (
     CERTIFICATION_NOT_REQUIRED_TEXT,
     brand_filters,
@@ -2174,6 +2177,30 @@ def _prepare_pricelist_data(
 
     autoparts_data = data_df.to_dict(orient="records")
     deduplicated_data = deduplicate_autoparts_data(autoparts_data)
+    regulatory_by_key = {
+        (
+            str(row.get("brand") or "").strip().casefold(),
+            preprocess_oem_number(str(row.get("article") or "")),
+        ): row
+        for row in regulatory_rows
+    }
+    for item in deduplicated_data:
+        regulatory = regulatory_by_key.get(
+            (
+                str(item.get("brand") or "").strip().casefold(),
+                preprocess_oem_number(str(item.get("oem_number") or "")),
+            )
+        )
+        if regulatory is None:
+            continue
+        required, cert_number, cert_url = (
+            _certificate_values_from_supplier_row(regulatory)
+        )
+        item["tnved_code"] = regulatory.get("tnved_code")
+        item["okpd2_code"] = regulatory.get("okpd2_code")
+        item["certification_required"] = required
+        item["eac_cert_number"] = cert_number
+        item["eac_cert_url"] = cert_url
     dedup_rows = len(deduplicated_data)
     del autoparts_data
     del data_df
@@ -2433,6 +2460,13 @@ async def process_provider_pricelist(
                     "quantity": int(item["quantity"]),
                     "price": float(item["price"]),
                     "multiplicity": int(item.get("multiplicity") or 1),
+                    "tnved_code": item.get("tnved_code"),
+                    "okpd2_code": item.get("okpd2_code"),
+                    "certification_required": item.get(
+                        "certification_required"
+                    ),
+                    "eac_cert_number": item.get("eac_cert_number"),
+                    "eac_cert_url": item.get("eac_cert_url"),
                 }
             )
         except KeyError as ke:

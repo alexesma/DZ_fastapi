@@ -303,6 +303,11 @@ class PriceListAutoPartAssociationResponse(BaseModel):
     quantity: int
     price: float
     multiplicity: int = 1
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -311,6 +316,11 @@ class PriceListAutoPartAssociationCreate(BaseModel):
     quantity: int
     price: float
     multiplicity: int = 1
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
