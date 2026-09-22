@@ -4,13 +4,21 @@
 проверяется на синтетических данных. Смысл в том, чтобы незнакомый ответ
 не ронял сверку и не приводил к записи мусора в срок действия.
 """
+
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.certificate import Certificate, autopart_certificate_association
-from dz_fastapi.services.registry_lookup import extract_registry_fields, parse_registry_reference
+from dz_fastapi.services.registry_lookup import (
+    extract_registry_fields,
+    extract_swis_document_fields,
+    parse_registry_reference,
+    parse_swis_document_reference,
+    resolve_swis_certificate_numbers,
+)
 from dz_fastapi.services.regulatory import refresh_autopart_certificate_cache
 from dz_fastapi.services.utils import is_certificate_usable
 
@@ -19,23 +27,23 @@ from dz_fastapi.services.utils import is_certificate_usable
 
 def test_certificate_link_parsed():
     assert parse_registry_reference(
-        'https://pub.fsa.gov.ru/rss/certificate/view/3246778/baseInfo'
-    ) == ('rss', '3246778')
+        "https://pub.fsa.gov.ru/rss/certificate/view/3246778/baseInfo"
+    ) == ("rss", "3246778")
 
 
 def test_declaration_link_parsed():
     assert parse_registry_reference(
-        'https://pub.fsa.gov.ru/rds/declaration/view/21352747/common'
-    ) == ('rds', '21352747')
+        "https://pub.fsa.gov.ru/rds/declaration/view/21352747/common"
+    ) == ("rds", "21352747")
 
 
 @pytest.mark.parametrize(
-    'url',
+    "url",
     [
         None,
-        '',
-        'https://tsouz.belgiss.by/#!/tsouz/certifs/3224079/view',
-        'https://swis.trade.kg/Doc/76dd818a',
+        "",
+        "https://tsouz.belgiss.by/#!/tsouz/certifs/3224079/view",
+        "https://swis.trade.kg/Doc/76dd818a",
     ],
 )
 def test_other_registries_not_parsed(url):
@@ -43,34 +51,99 @@ def test_other_registries_not_parsed(url):
     assert parse_registry_reference(url) is None
 
 
+def test_swis_document_link_parsed_without_accepting_other_hosts():
+    url = "https://swis.trade.kg/Doc/501e0f9e-f0d6-4e0a-a38c-475dbfb0ee66"
+    assert parse_swis_document_reference(url) == url
+    assert parse_swis_document_reference("https://example.org/Doc/501e0f9e") is None
+    assert parse_swis_document_reference("https://swis.trade.kg/Registry/x") is None
+
+
 # ── разбор ответа реестра ───────────────────────────────────────────────
 
 
 def test_fields_extracted_from_nested_payload():
     payload = {
-        'result': {
-            'certInfo': {'certRegDate': '2023-04-17', 'certEndDate': '2028-04-16'},
-            'status': {'name': 'Действует'},
+        "result": {
+            "certInfo": {"certRegDate": "2023-04-17", "certEndDate": "2028-04-16"},
+            "status": {"name": "Действует"},
         }
     }
     assert extract_registry_fields(payload) == {
-        'valid_from': date(2023, 4, 17),
-        'valid_until': date(2028, 4, 16),
-        'status': 'active',
+        "valid_from": date(2023, 4, 17),
+        "valid_until": date(2028, 4, 16),
+        "status": "active",
     }
 
 
 def test_russian_date_format_and_suspended_status():
-    payload = {'declRegDate': '17.04.2023', 'statusName': 'Приостановлен'}
+    payload = {"declRegDate": "17.04.2023", "statusName": "Приостановлен"}
     fields = extract_registry_fields(payload)
-    assert fields['valid_from'] == date(2023, 4, 17)
-    assert fields['status'] == 'suspended'
+    assert fields["valid_from"] == date(2023, 4, 17)
+    assert fields["status"] == "suspended"
 
 
 def test_unknown_payload_yields_nothing():
     """Незнакомая структура не должна давать выдуманных дат."""
-    assert extract_registry_fields({'foo': 'bar', 'items': [1, 2, 3]}) == {}
+    assert extract_registry_fields({"foo": "bar", "items": [1, 2, 3]}) == {}
     assert extract_registry_fields(None) == {}
+
+
+def test_fields_extracted_from_swis_html():
+    html = """
+    <table>
+      <tr><td>Регистрационный номер документа</td>
+          <td>ЕАЭС KG417/039.CN.02.05755</td></tr>
+      <tr><td>Дата начала действия</td><td>31.08.2025</td></tr>
+      <tr><td>Дата окончания действия</td><td>30.08.2029</td></tr>
+      <tr><td>Признак действия</td><td>Действует</td></tr>
+    </table>
+    """
+    assert extract_swis_document_fields(html) == {
+        "number": "ЕАЭС KG417/039.CN.02.05755",
+        "valid_from": date(2025, 8, 31),
+        "valid_until": date(2029, 8, 30),
+        "status": "active",
+    }
+
+
+@pytest.mark.anyio
+async def test_swis_link_fills_number_and_creates_certificate(
+    test_session, created_autopart, monkeypatch
+):
+    url = "https://swis.trade.kg/Doc/501e0f9e-f0d6-4e0a-a38c-475dbfb0ee66"
+    created_autopart.eac_cert_number = None
+    created_autopart.eac_cert_url = url
+    created_autopart.certification_required = True
+    test_session.add(created_autopart)
+    await test_session.commit()
+
+    async def fake_fetch(client, requested_url):
+        assert requested_url == url
+        return {
+            "number": "ЕАЭС KG417/039.CN.02.05755",
+            "valid_from": date(2025, 8, 31),
+            "valid_until": date(2029, 8, 30),
+            "status": "active",
+        }
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.registry_lookup.fetch_swis_document",
+        fake_fetch,
+    )
+    stats = await resolve_swis_certificate_numbers(test_session, limit=50)
+
+    assert stats["swis_candidates"] == 1
+    assert stats["swis_numbers_found"] == 1
+    assert stats["swis_cards_filled"] == 1
+    await test_session.refresh(created_autopart)
+    assert created_autopart.eac_cert_number == "ЕАЭС KG417/039.CN.02.05755"
+    certificate = (
+        await test_session.execute(
+            select(Certificate).where(Certificate.number == "ЕАЭС KG417/039.CN.02.05755")
+        )
+    ).scalar_one()
+    assert certificate.url == url
+    assert certificate.valid_until == date(2029, 8, 30)
 
 
 # ── годность документа ──────────────────────────────────────────────────
@@ -85,7 +158,7 @@ def test_suspended_is_not_usable_even_within_term():
     assert (
         is_certificate_usable(
             valid_until=date.today() + timedelta(days=365),
-            status='suspended',
+            status="suspended",
         )
         is False
     )
@@ -98,21 +171,19 @@ def test_empty_dates_and_status_stay_usable():
 
 
 @pytest.mark.anyio
-async def test_cache_drops_certificate_stopped_by_registry(
-    test_session, created_brand
-):
+async def test_cache_drops_certificate_stopped_by_registry(test_session, created_brand):
     """Реестр сообщил, что документ прекращён: номер обязан уйти из
     карточки, иначе он останется в прайсе."""
     part = AutoPart(
         brand_id=created_brand.id,
-        oem_number='REG0001',
-        name='Фильтр',
+        oem_number="REG0001",
+        name="Фильтр",
         certification_required=True,
     )
     certificate = Certificate(
-        number='ЕАЭС RU С-BE.НВ07.В.00826/23',
-        status='terminated',
-        source='registry',
+        number="ЕАЭС RU С-BE.НВ07.В.00826/23",
+        status="terminated",
+        source="registry",
     )
     test_session.add_all([part, certificate])
     await test_session.flush()

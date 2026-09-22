@@ -5,6 +5,7 @@
 видел. Здесь те же функции, что и в services/regulatory, но доступные
 из интерфейса.
 """
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -169,10 +170,11 @@ async def refresh_from_registry(
     dry_run: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
 ):
-    """Берёт срок и состояние документа из реестра ФГИС.
+    """Берёт номер, срок и состояние документа из открытых реестров.
 
-    Реестр отвечает медленно, поэтому за один вызов сверяем ограниченную
-    порцию: кнопку можно нажать несколько раз подряд.
+    Для карточек SWIS сначала восстанавливает отсутствующий номер по
+    ссылке /Doc/<uuid>. Реестры отвечают медленно, поэтому за один вызов
+    сверяем ограниченную порцию: кнопку можно нажать несколько раз.
     """
     return RegistryRefreshResponse(
         **await refresh_certificates_from_registry(
@@ -195,9 +197,7 @@ async def get_suspicious_links(
     session: AsyncSession = Depends(get_session),
 ):
     """Связи позиция-документ, не прошедшие проверку."""
-    return SuspiciousLinksResponse(
-        **await suspicious_certificate_links(session, limit=limit)
-    )
+    return SuspiciousLinksResponse(**await suspicious_certificate_links(session, limit=limit))
 
 
 @router.post(
@@ -217,9 +217,7 @@ async def upload_tnved_okpd2_table(
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     return TnvedOkpd2ImportResponse(
-        **await import_tnved_okpd2_table(
-            session, rows, source=file.filename, dry_run=dry_run
-        )
+        **await import_tnved_okpd2_table(session, rows, source=file.filename, dry_run=dry_run)
     )
 
 
@@ -235,7 +233,5 @@ async def fill_okpd2_from_tnved(
 ):
     """Проставляет ОКПД 2 там, где соответствие однозначно."""
     return Okpd2FromTnvedResponse(
-        **await apply_okpd2_from_tnved(
-            session, dry_run=dry_run, only_empty=only_empty
-        )
+        **await apply_okpd2_from_tnved(session, dry_run=dry_run, only_empty=only_empty)
     )

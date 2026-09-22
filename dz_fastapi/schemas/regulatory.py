@@ -68,6 +68,12 @@ class RegulatoryRulesResponse(BaseModel):
 
 class RegistryRefreshResponse(BaseModel):
     dry_run: bool = False
+    # Карточки SWIS вида /Doc/<uuid>: сначала восстанавливаем номер по
+    # публичной HTML-странице, затем сохраняем обычный сертификат.
+    swis_candidates: int = 0
+    swis_answered: int = 0
+    swis_numbers_found: int = 0
+    swis_cards_filled: int = 0
     # Документов, подходящих под фильтр, и из них — с разбираемой ссылкой.
     candidates: int = 0
     supported: int = 0
