@@ -233,6 +233,7 @@ class CustomerOrderItemResponse(BaseModel):
     reject_qty: Optional[int]
     status: CUSTOMER_ORDER_ITEM_STATUS
     supplier_id: Optional[int]
+    provider_config_id: Optional[int] = None
     external_order_item_id: Optional[str] = None
     external_offer_id: Optional[str] = None
     external_provider_id: Optional[str] = None
@@ -418,6 +419,7 @@ class SupplierOrderItemResponse(BaseModel):
 class SupplierOrderResponse(BaseModel):
     id: int
     provider_id: int
+    provider_config_id: Optional[int] = None
     status: SUPPLIER_ORDER_STATUS
     created_at: datetime
     scheduled_at: Optional[datetime]
@@ -457,6 +459,8 @@ class SupplierOrderDetailResponse(BaseModel):
     id: int
     provider_id: int
     provider_name: Optional[str] = None
+    provider_config_id: Optional[int] = None
+    provider_config_name: Optional[str] = None
     status: SUPPLIER_ORDER_STATUS
     created_at: datetime
     scheduled_at: Optional[datetime]
@@ -472,6 +476,8 @@ class SupplierOrderDetailResponse(BaseModel):
 class SupplierOrderSummaryResponse(BaseModel):
     id: int
     provider_id: int
+    provider_config_id: Optional[int] = None
+    provider_config_name: Optional[str] = None
     status: SUPPLIER_ORDER_STATUS
     created_at: datetime
     customer_order_id: Optional[int] = None

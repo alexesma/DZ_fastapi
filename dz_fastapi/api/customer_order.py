@@ -1523,6 +1523,10 @@ async def list_supplier_orders(
             SupplierOrderSummaryResponse(
                 id=order.id,
                 provider_id=order.provider_id,
+                provider_config_id=order.provider_config_id,
+                provider_config_name=(
+                    order.provider_config.name_price if order.provider_config else None
+                ),
                 status=order.status,
                 created_at=order.created_at,
                 customer_order_id=(customer_order.id if customer_order else None),
@@ -2098,6 +2102,8 @@ async def get_supplier_order_detail(
         id=order.id,
         provider_id=order.provider_id,
         provider_name=order.provider.name if order.provider else None,
+        provider_config_id=order.provider_config_id,
+        provider_config_name=(order.provider_config.name_price if order.provider_config else None),
         status=order.status,
         created_at=order.created_at,
         scheduled_at=order.scheduled_at,

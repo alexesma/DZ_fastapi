@@ -291,6 +291,7 @@ class Provider(Client):
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
+    split_orders_by_pricelist = Column(Boolean, default=False, nullable=False)
     # Рекламации/возвраты поставщику: принимает ли возвраты вообще,
     # его срок возврата (дней от нашего поступления), список брендов,
     # которые он НЕ принимает, и email для запросов возврата.
@@ -1301,6 +1302,12 @@ class CustomerOrderItem(Base):
         default=CUSTOMER_ORDER_ITEM_STATUS.NEW,
     )
     supplier_id = Column(Integer, ForeignKey("provider.id"), nullable=True)
+    provider_config_id = Column(
+        Integer,
+        ForeignKey("providerpricelistconfig.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True)
     match_type = Column(String(32), nullable=True)
     actual_oem = Column(String(255), nullable=True)
@@ -1313,6 +1320,7 @@ class CustomerOrderItem(Base):
 
     order = relationship("CustomerOrder", back_populates="items")
     supplier = relationship("Provider")
+    provider_config = relationship("ProviderPriceListConfig")
     autopart = relationship("AutoPart", lazy="joined")
 
     __table_args__ = (
@@ -1326,6 +1334,12 @@ class CustomerOrderItem(Base):
 
 class SupplierOrder(Base):
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
+    provider_config_id = Column(
+        Integer,
+        ForeignKey("providerpricelistconfig.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     source_type = Column(
         String(32),
         nullable=False,
@@ -1349,6 +1363,7 @@ class SupplierOrder(Base):
     response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
 
     provider = relationship("Provider")
+    provider_config = relationship("ProviderPriceListConfig")
     created_by_user = relationship("User", foreign_keys=[created_by_user_id])
     items = relationship(
         "SupplierOrderItem",

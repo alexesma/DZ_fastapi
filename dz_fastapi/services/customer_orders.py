@@ -229,6 +229,67 @@ class OfferRow:
     actual_name: Optional[str] = None
 
 
+def _optional_int(value) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _supplier_order_source_config_id(
+    *,
+    split_orders_by_pricelist: bool,
+    provider_config_id: Optional[int],
+) -> Optional[int]:
+    """The grouping key stored on a generated supplier order."""
+    if not split_orders_by_pricelist:
+        return None
+    return _optional_int(provider_config_id)
+
+
+async def _get_or_create_open_supplier_order(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    provider_config_id: Optional[int],
+) -> SupplierOrder:
+    source_filter = (
+        SupplierOrder.provider_config_id.is_(None)
+        if provider_config_id is None
+        else SupplierOrder.provider_config_id == provider_config_id
+    )
+    order_stmt = (
+        select(SupplierOrder)
+        .where(
+            SupplierOrder.provider_id == provider_id,
+            source_filter,
+            SupplierOrder.status.in_(
+                [
+                    SUPPLIER_ORDER_STATUS.NEW,
+                    SUPPLIER_ORDER_STATUS.SCHEDULED,
+                ]
+            ),
+        )
+        .order_by(SupplierOrder.created_at.asc())
+        .limit(1)
+    )
+    supplier_order = (await session.execute(order_stmt)).scalar_one_or_none()
+    if supplier_order is not None:
+        return supplier_order
+    supplier_order = SupplierOrder(
+        provider_id=provider_id,
+        provider_config_id=provider_config_id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    session.add(supplier_order)
+    await session.flush()
+    return supplier_order
+
+
 @dataclass(frozen=True)
 class ConfirmedOwnCrossAlias:
     source_autopart_id: int
@@ -1711,7 +1772,7 @@ async def _build_current_offers(
         offers[key] = OfferRow(
             autopart_id=int(row.get("autopart_id")),
             provider_id=int(row.get("provider_id")),
-            provider_config_id=row.get("provider_config_id"),
+            provider_config_id=_optional_int(row.get("provider_config_id")),
             quantity=int(row.get("quantity") or 0),
             price=float(row.get("price") or 0),
             supplier_price=supplier_price,
@@ -2479,6 +2540,11 @@ def _build_supplier_order_attachment_bytes(
     provider_name = str(getattr(getattr(order, "provider", None), "name", "") or "").strip()
     provider_alias = _supplier_order_provider_alias(order.provider)
     provider_line = " ".join(part for part in [provider_name, provider_alias] if part).strip()
+    provider_config_name = str(
+        getattr(getattr(order, "provider_config", None), "name_price", "") or ""
+    ).strip()
+    if provider_config_name:
+        provider_line = f"{provider_line} / {provider_config_name}".strip(" / ")
 
     sheet.merge_cells("H1:J1")
     cell_h1 = sheet["H1"]
@@ -2605,6 +2671,11 @@ def _build_supplier_order_body_html(
     provider_name = str(getattr(getattr(order, "provider", None), "name", "") or "").strip()
     provider_alias = _supplier_order_provider_alias(order.provider)
     provider_line = " ".join(part for part in [provider_name, provider_alias] if part).strip()
+    provider_config_name = str(
+        getattr(getattr(order, "provider_config", None), "name_price", "") or ""
+    ).strip()
+    if provider_config_name:
+        provider_line = f"{provider_line} / {provider_config_name}".strip(" / ")
     row_lines = "".join(
         (
             "<tr>"
@@ -3143,10 +3214,25 @@ async def _process_manual_rows(
     ) = await _prepare_customer_order_context(session, config, parsed_rows)
 
     order_items: List[CustomerOrderItem] = []
-    supplier_items: Dict[int, List[CustomerOrderItem]] = {}
+    supplier_items: Dict[Tuple[int, Optional[int]], List[CustomerOrderItem]] = {}
     stock_items: List[CustomerOrderItem] = []
     rejected_items: List[CustomerOrderItem] = []
     allocated_qty_by_autopart: Dict[int, int] = {}
+    supplier_provider_ids = {
+        int(offer.provider_id) for offer in offers.values() if not offer.is_own_price
+    }
+    split_provider_ids: set[int] = set()
+    if supplier_provider_ids:
+        split_provider_ids = set(
+            (
+                await session.scalars(
+                    select(Provider.id).where(
+                        Provider.id.in_(supplier_provider_ids),
+                        Provider.split_orders_by_pricelist.is_(True),
+                    )
+                )
+            ).all()
+        )
 
     for row in parsed_rows:
         key = _normalize_key(row.oem, row.brand, brand_aliases)
@@ -3260,8 +3346,10 @@ async def _process_manual_rows(
                 allocated_qty_by_autopart[int(offer.autopart_id)] = already_allocated + ship_qty
                 if offer.is_own_price:
                     item.supplier_id = None
+                    item.provider_config_id = None
                 else:
                     item.supplier_id = offer.provider_id
+                    item.provider_config_id = _optional_int(offer.provider_config_id)
                 if ship_qty == 0:
                     item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
                     _set_reject_reason(
@@ -3285,7 +3373,11 @@ async def _process_manual_rows(
         if item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK and item.ship_qty:
             stock_items.append(item)
         elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER and item.ship_qty:
-            supplier_items.setdefault(item.supplier_id, []).append(item)
+            source_config_id = _supplier_order_source_config_id(
+                split_orders_by_pricelist=(int(item.supplier_id) in split_provider_ids),
+                provider_config_id=item.provider_config_id,
+            )
+            supplier_items.setdefault((int(item.supplier_id), source_config_id), []).append(item)
         elif item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
             rejected_items.append(item)
 
@@ -3307,29 +3399,12 @@ async def _process_manual_rows(
                 )
             )
 
-    for provider_id, items in supplier_items.items():
-        order_stmt = (
-            select(SupplierOrder)
-            .where(
-                SupplierOrder.provider_id == provider_id,
-                SupplierOrder.status.in_(
-                    [
-                        SUPPLIER_ORDER_STATUS.NEW,
-                        SUPPLIER_ORDER_STATUS.SCHEDULED,
-                    ]
-                ),
-            )
-            .order_by(SupplierOrder.created_at.asc())
-            .limit(1)
+    for (provider_id, provider_config_id), items in supplier_items.items():
+        supplier_order = await _get_or_create_open_supplier_order(
+            session,
+            provider_id=provider_id,
+            provider_config_id=provider_config_id,
         )
-        supplier_order = (await session.execute(order_stmt)).scalar_one_or_none()
-        if not supplier_order:
-            supplier_order = SupplierOrder(
-                provider_id=provider_id,
-                status=SUPPLIER_ORDER_STATUS.NEW,
-            )
-            session.add(supplier_order)
-            await session.flush()
         for item in items:
             session.add(
                 SupplierOrderItem(
@@ -5406,6 +5481,7 @@ async def send_supplier_orders(
             .joinedload(SupplierOrderItem.autopart)
             .joinedload(AutoPart.brand),
             joinedload(SupplierOrder.provider),
+            joinedload(SupplierOrder.provider_config),
         )
     )
     result = await session.execute(stmt)
@@ -5449,6 +5525,11 @@ async def send_supplier_orders(
                 total_sum=total_sum,
             )
             subject = f"Заказ поставщику № {order.id}"
+            provider_config_name = str(
+                getattr(order.provider_config, "name_price", "") or ""
+            ).strip()
+            if provider_config_name:
+                subject = f"{subject} / {provider_config_name}"
             if override_email:
                 original_recipient_label = original_recipient or "не указан"
                 subject = f"[STUB] {subject}"
@@ -5653,6 +5734,7 @@ async def update_customer_order_item_manual(
                 await session.delete(existing_order)
         item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
         item.supplier_id = None
+        item.provider_config_id = None
         item.ship_qty = 0
         item.reject_qty = item.requested_qty
         _set_reject_reason(
@@ -5731,6 +5813,7 @@ async def update_customer_order_item_manual(
 
         item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
         item.supplier_id = None
+        item.provider_config_id = None
         item.ship_qty = item.requested_qty
         item.reject_qty = 0
         _clear_reject_reason(item)
@@ -5746,23 +5829,6 @@ async def update_customer_order_item_manual(
             await session.rollback()
         return item
 
-    if existing_item and existing_order:
-        if not _is_modifiable(existing_order):
-            raise ValueError("Supplier order already sent")
-        if existing_order.provider_id != supplier_id:
-            await session.delete(existing_item)
-            await session.flush()
-            remaining_stmt = (
-                select(SupplierOrderItem.id)
-                .where(SupplierOrderItem.supplier_order_id == existing_order.id)
-                .limit(1)
-            )
-            remaining = (await session.execute(remaining_stmt)).scalar_one_or_none()
-            if remaining is None:
-                await session.delete(existing_order)
-            existing_item = None
-            existing_order = None
-
     if existing_stock_item and existing_stock_order:
         if not _is_stock_modifiable(existing_stock_order):
             raise ValueError("Stock order already closed")
@@ -5777,30 +5843,6 @@ async def update_customer_order_item_manual(
         if remaining is None:
             await session.delete(existing_stock_order)
 
-    supplier_order = existing_order
-    if not supplier_order:
-        order_stmt = (
-            select(SupplierOrder)
-            .where(
-                SupplierOrder.provider_id == supplier_id,
-                SupplierOrder.status.in_(
-                    [
-                        SUPPLIER_ORDER_STATUS.NEW,
-                        SUPPLIER_ORDER_STATUS.SCHEDULED,
-                    ]
-                ),
-            )
-            .order_by(SupplierOrder.created_at.asc())
-            .limit(1)
-        )
-        supplier_order = (await session.execute(order_stmt)).scalar_one_or_none()
-        if not supplier_order:
-            supplier_order = SupplierOrder(
-                provider_id=supplier_id, status=SUPPLIER_ORDER_STATUS.NEW
-            )
-            session.add(supplier_order)
-            await session.flush()
-
     # Resolve supplier price: always use the supplier's own price list price,
     # never fall back to the customer's requested_price (that is the customer-
     # facing sale price, not what we pay the supplier).
@@ -5810,9 +5852,13 @@ async def update_customer_order_item_manual(
     #      (may be from a previous pricelist run)
     #   3. None (leave blank rather than use customer price)
     supplier_price: Optional[float] = None
+    matched_provider_config_id: Optional[int] = None
     if item.autopart_id and supplier_id:
         price_stmt = (
-            select(PriceListAutoPartAssociation.price)
+            select(
+                PriceListAutoPartAssociation.price,
+                PriceList.provider_config_id,
+            )
             .join(PriceList)
             .where(
                 PriceList.provider_id == supplier_id,
@@ -5824,9 +5870,45 @@ async def update_customer_order_item_manual(
             )
             .limit(1)
         )
-        supplier_price = (await session.execute(price_stmt)).scalar_one_or_none()
+        price_row = (await session.execute(price_stmt)).first()
+        if price_row is not None:
+            supplier_price = price_row.price
+            matched_provider_config_id = _optional_int(price_row.provider_config_id)
     if not supplier_price and item.matched_price:
         supplier_price = float(item.matched_price)
+
+    order_provider_config_id = _supplier_order_source_config_id(
+        split_orders_by_pricelist=bool(getattr(provider, "split_orders_by_pricelist", False)),
+        provider_config_id=matched_provider_config_id,
+    )
+
+    if existing_item and existing_order:
+        if not _is_modifiable(existing_order):
+            raise ValueError("Supplier order already sent")
+        if (
+            existing_order.provider_id != supplier_id
+            or existing_order.provider_config_id != order_provider_config_id
+        ):
+            await session.delete(existing_item)
+            await session.flush()
+            remaining_stmt = (
+                select(SupplierOrderItem.id)
+                .where(SupplierOrderItem.supplier_order_id == existing_order.id)
+                .limit(1)
+            )
+            remaining = (await session.execute(remaining_stmt)).scalar_one_or_none()
+            if remaining is None:
+                await session.delete(existing_order)
+            existing_item = None
+            existing_order = None
+
+    supplier_order = existing_order
+    if not supplier_order:
+        supplier_order = await _get_or_create_open_supplier_order(
+            session,
+            provider_id=int(supplier_id),
+            provider_config_id=order_provider_config_id,
+        )
 
     if existing_item and supplier_order and supplier_order.id == existing_order.id:
         existing_item.quantity = item.requested_qty
@@ -5848,6 +5930,7 @@ async def update_customer_order_item_manual(
 
     item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
     item.supplier_id = supplier_id
+    item.provider_config_id = matched_provider_config_id
     item.ship_qty = item.requested_qty
     item.reject_qty = 0
     _clear_reject_reason(item)

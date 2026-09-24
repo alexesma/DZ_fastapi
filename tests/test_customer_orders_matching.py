@@ -13,6 +13,7 @@ from dz_fastapi.services.customer_orders import (
     _apply_matched_email_state_for_configs,
     _build_current_offers,
     _canonicalize_brand_key,
+    _get_or_create_open_supplier_order,
     _get_order_offer_sources,
     _merge_confirmed_own_cross_offers,
     _merge_published_dragonzap_alias_offers,
@@ -20,6 +21,7 @@ from dz_fastapi.services.customer_orders import (
     _normalize_oem_key,
     _prepare_customer_order_context,
     _repair_cp1251_mojibake,
+    _supplier_order_source_config_id,
 )
 from dz_fastapi.services.process import _apply_source_filters
 
@@ -27,6 +29,69 @@ from dz_fastapi.services.process import _apply_source_filters
 def test_normalize_oem_key_matches_autopart_storage_rules():
     assert _normalize_oem_key("90119-08419") == "9011908419"
     assert _normalize_oem_key(" 90 119/08419 ") == "9011908419"
+
+
+def test_supplier_order_source_config_respects_provider_setting():
+    assert (
+        _supplier_order_source_config_id(
+            split_orders_by_pricelist=False,
+            provider_config_id=12,
+        )
+        is None
+    )
+    assert (
+        _supplier_order_source_config_id(
+            split_orders_by_pricelist=True,
+            provider_config_id=12,
+        )
+        == 12
+    )
+
+
+@pytest.mark.asyncio
+async def test_open_supplier_orders_are_isolated_by_pricelist_config(
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    configs = [
+        ProviderPriceListConfig(
+            provider_id=provider.id,
+            start_row=1,
+            oem_col=0,
+            brand_col=1,
+            qty_col=2,
+            price_col=3,
+            name_price=name,
+        )
+        for name in ("PRICE_A", "PRICE_B")
+    ]
+    test_session.add_all(configs)
+    await test_session.flush()
+    first = await _get_or_create_open_supplier_order(
+        test_session,
+        provider_id=provider.id,
+        provider_config_id=configs[0].id,
+    )
+    same = await _get_or_create_open_supplier_order(
+        test_session,
+        provider_id=provider.id,
+        provider_config_id=configs[0].id,
+    )
+    second = await _get_or_create_open_supplier_order(
+        test_session,
+        provider_id=provider.id,
+        provider_config_id=configs[1].id,
+    )
+    general = await _get_or_create_open_supplier_order(
+        test_session,
+        provider_id=provider.id,
+        provider_config_id=None,
+    )
+
+    assert same.id == first.id
+    assert second.id != first.id
+    assert general.id not in {first.id, second.id}
 
 
 def test_normalize_brand_name_matches_existing_rules():

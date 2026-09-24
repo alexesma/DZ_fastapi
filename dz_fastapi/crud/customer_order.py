@@ -324,6 +324,7 @@ class CRUDSupplierOrder:
                 .selectinload(SupplierOrderItem.autopart)
                 .selectinload(AutoPart.brand),
                 selectinload(SupplierOrder.provider),
+                selectinload(SupplierOrder.provider_config),
             )
             .where(SupplierOrder.id == order_id)
         )
@@ -348,6 +349,7 @@ class CRUDSupplierOrder:
         )
         stmt = select(SupplierOrder).options(
             selectinload(SupplierOrder.provider),
+            selectinload(SupplierOrder.provider_config),
             selectinload(SupplierOrder.items)
             .selectinload(SupplierOrderItem.customer_order_item)
             .selectinload(CustomerOrderItem.order)

@@ -97,6 +97,7 @@ class ProviderBase(ClientBase):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    split_orders_by_pricelist: bool = False
     supplier_response_allow_shipping_docs: Optional[bool] = True
     supplier_response_allow_response_files: Optional[bool] = True
     supplier_response_allow_text_status: Optional[bool] = True
@@ -180,6 +181,7 @@ class ProviderUpdate(BaseModel):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    split_orders_by_pricelist: Optional[bool] = None
     supplier_response_allow_shipping_docs: Optional[bool] = None
     supplier_response_allow_response_files: Optional[bool] = None
     supplier_response_allow_text_status: Optional[bool] = None
