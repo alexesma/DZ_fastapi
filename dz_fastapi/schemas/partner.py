@@ -1714,6 +1714,11 @@ class ProviderPriceListConfigOut(BaseModel):
     multiplicity_col: int | None = None
     qty_col: int
     price_col: int
+    tnved_col: int | None = None
+    okpd2_col: int | None = None
+    honest_sign_col: int | None = None
+    eac_cert_col: int | None = None
+    eac_cert_url_col: int | None = None
     min_price: float | None = None
     max_price: float | None = None
     min_quantity: int | None = None

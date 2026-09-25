@@ -819,6 +819,11 @@ async def test_update_provider_pricelist_config(
         "name_price": "UPDATED_PRICE",
         "min_delivery_day": 2,
         "max_delivery_day": 5,
+        "tnved_col": 6,
+        "okpd2_col": 7,
+        "honest_sign_col": 8,
+        "eac_cert_col": 9,
+        "eac_cert_url_col": 10,
     }
 
     response = await async_client.patch(
@@ -831,6 +836,22 @@ async def test_update_provider_pricelist_config(
     assert data["name_price"] == "UPDATED_PRICE"
     assert data["min_delivery_day"] == 2
     assert data["max_delivery_day"] == 5
+    assert data["tnved_col"] == 6
+    assert data["okpd2_col"] == 7
+    assert data["honest_sign_col"] == 8
+    assert data["eac_cert_col"] == 9
+    assert data["eac_cert_url_col"] == 10
+
+    full_response = await async_client.get(f"/providers/{provider.id}/full")
+    assert full_response.status_code == 200, full_response.text
+    full_config = next(
+        row for row in full_response.json()["pricelist_configs"] if row["id"] == config.id
+    )
+    assert full_config["tnved_col"] == 6
+    assert full_config["okpd2_col"] == 7
+    assert full_config["honest_sign_col"] == 8
+    assert full_config["eac_cert_col"] == 9
+    assert full_config["eac_cert_url_col"] == 10
 
 
 @pytest.mark.asyncio
