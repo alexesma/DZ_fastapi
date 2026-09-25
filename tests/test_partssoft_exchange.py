@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from dz_fastapi.models.finance import PaymentInvoice
 from dz_fastapi.models.partner import (
@@ -43,6 +44,40 @@ async def test_product_outbox_creates_remote_product_and_marks_sent(
     assert row.status == "sent"
     assert row.external_product_id == 88001
     assert created_autopart.partssoft_product_id == 88001
+
+
+@pytest.mark.asyncio
+async def test_product_outbox_supports_sessions_that_expire_on_commit(
+    test_session,
+    created_autopart,
+    monkeypatch,
+):
+    row = PartsSoftProductOutbox(
+        autopart_id=created_autopart.id,
+        operation="upsert",
+        status="pending",
+    )
+    test_session.add(row)
+    await test_session.commit()
+    row_id = row.id
+
+    async def fake_upsert(autopart):
+        assert autopart.id == created_autopart.id
+        return 88003, {"product": {"id": 88003}}, []
+
+    monkeypatch.setattr(service, "_send_product_upsert", fake_upsert)
+    session_factory = async_sessionmaker(
+        test_session.bind,
+        expire_on_commit=True,
+    )
+    async with session_factory() as expiring_session:
+        result = await service.process_product_outbox(expiring_session)
+
+    assert result == {"processed": 1, "counts": {"upserted": 1}}
+    test_session.expire_all()
+    saved = await test_session.get(PartsSoftProductOutbox, row_id)
+    assert saved.status == "sent"
+    assert saved.external_product_id == 88003
 
 
 @pytest.mark.asyncio

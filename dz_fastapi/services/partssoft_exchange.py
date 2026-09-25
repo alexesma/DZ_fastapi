@@ -232,6 +232,10 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
     # Claim the whole batch before doing network I/O. Committing one row at a
     # time would release the locks on the remaining pending rows and let a
     # second scheduler instance send the same product concurrently.
+    claimed_rows = [
+        (int(row.id), int(row.change_version or 1))
+        for row in rows
+    ]
     for row in rows:
         row.status = "processing"
         row.locked_at = now
@@ -239,12 +243,20 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
         await session.commit()
 
     counts: Counter[str] = Counter()
-    for row in rows:
-        # A rollback expires ORM attributes. Keep the primary key separately so
-        # the error path never tries to lazy-load ``row.id`` outside greenlet.
-        row_id = row.id
-        claimed_version = int(row.change_version or 1)
+    for row_id, claimed_version in claimed_rows:
         try:
+            # Production sessions may expire ORM attributes after commit.  An
+            # explicit async reload prevents implicit I/O through ``row.id`` or
+            # another attribute and also refreshes rows left from the batch
+            # after the previous item was committed.
+            row = await session.get(
+                PartsSoftProductOutbox,
+                row_id,
+                populate_existing=True,
+            )
+            if row is None:
+                counts["errors"] += 1
+                continue
             autopart = await session.scalar(
                 select(AutoPart)
                 .where(AutoPart.id == row.autopart_id)
@@ -311,7 +323,10 @@ async def process_product_outbox(session: AsyncSession, limit: int = 25) -> dict
             row.available_at = now_moscow() + timedelta(minutes=min(60, 2 ** min(row.attempts, 6)))
             await session.commit()
             counts["errors"] += 1
-    return {"processed": len(rows), "counts": dict(sorted(counts.items()))}
+    return {
+        "processed": len(claimed_rows),
+        "counts": dict(sorted(counts.items())),
+    }
 
 
 async def product_outbox_status(session: AsyncSession) -> dict[str, int]:
