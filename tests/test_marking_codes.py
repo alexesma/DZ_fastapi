@@ -1,3 +1,5 @@
+import pytest
+
 from dz_fastapi.services.marking_codes import normalize_marking_codes
 
 
@@ -85,3 +87,17 @@ def test_extract_cis_and_status_variants():
         {"cis": "01b", "status": "RETIRED"}
     ) == ("01b", "RETIRED")
     assert _extract_cis_and_status({}) == ("", "")
+
+
+@pytest.mark.asyncio
+async def test_marking_discrepancies_static_route_is_not_treated_as_code_id(
+    async_client,
+    test_session,
+):
+    response = await async_client.get(
+        "/inventory/marking-codes/discrepancies",
+        params={"limit": 100},
+    )
+
+    assert response.status_code == 200, response.text
+    assert isinstance(response.json(), list)

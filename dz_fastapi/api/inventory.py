@@ -5057,21 +5057,6 @@ async def marking_codes_list(
 
 
 @router.get(
-    "/marking-codes/{marking_code_id}/movements",
-    summary="История движений кода маркировки",
-)
-async def marking_code_movements(
-    marking_code_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    from dz_fastapi.services.marking_codes import get_marking_code_movements
-
-    return await get_marking_code_movements(
-        session, marking_code_id=marking_code_id
-    )
-
-
-@router.get(
     "/marking-codes/discrepancies",
     summary="Расхождения приёмки: число КИЗ не совпадает со штуками",
 )
@@ -5083,6 +5068,21 @@ async def marking_discrepancies(
 
     return await list_receipt_marking_discrepancies(
         session, limit=limit
+    )
+
+
+@router.get(
+    "/marking-codes/{marking_code_id}/movements",
+    summary="История движений кода маркировки",
+)
+async def marking_code_movements(
+    marking_code_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.marking_codes import get_marking_code_movements
+
+    return await get_marking_code_movements(
+        session, marking_code_id=marking_code_id
     )
 
 
