@@ -72,11 +72,14 @@ def upgrade() -> None:
     # неуникальный индекс из первоначальной миграции только дублирует его.
     op.drop_index("ix_autopartturnoversummary_autopart_id", table_name=table)
 
-    # Полный ночной срез фильтруется по времени до группировки по позиции.
+    # История прайсов добавляется по времени и уже содержит десятки
+    # миллионов строк. BRIN подходит для диапазонов created_at и не требует
+    # гигабайтов временного места при деплое, как обычный B-tree.
     op.create_index(
         "ix_autopartpricehistory_created_at",
         "autopartpricehistory",
         ["created_at"],
+        postgresql_using="brin",
     )
     op.create_index(
         "ix_customerorder_received_at",

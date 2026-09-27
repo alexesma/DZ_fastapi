@@ -495,7 +495,11 @@ class AutoPartPriceHistory(Base):
     provider = relationship("Provider")
 
     __table_args__ = (
-        Index("ix_autopartpricehistory_created_at", "created_at"),
+        Index(
+            "ix_autopartpricehistory_created_at",
+            "created_at",
+            postgresql_using="brin",
+        ),
         Index(
             "idx_autopart_price_history_autopart_provider_created_at",
             "autopart_id",
