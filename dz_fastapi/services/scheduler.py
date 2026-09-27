@@ -100,7 +100,10 @@ from dz_fastapi.services.placed_orders import (
 )
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.pricelist_guard import describe_rounded_quantities
-from dz_fastapi.services.pricelist_review_queue import process_next_provider_pricelist_review
+from dz_fastapi.services.pricelist_review_queue import (
+    cleanup_completed_pricelist_review_files,
+    process_next_provider_pricelist_review,
+)
 from dz_fastapi.services.process import (
     StaleCustomerPricelistSourcesError,
     customer_pricelist_requires_draft,
@@ -2956,10 +2959,12 @@ async def cleanup_old_pricelists_task(app: FastAPI):
                 total_deleted_customer += deleted
                 if deleted == 0:
                     break
+            deleted_review_files = await cleanup_completed_pricelist_review_files(session)
             logger.info(
                 f"Cleanup finished. "
                 f"Deleted provider pricelists: {total_deleted}; "
-                f"deleted customer pricelists: {total_deleted_customer}"
+                f"deleted customer pricelists: {total_deleted_customer}; "
+                f"deleted completed review files: {deleted_review_files}"
             )
             if setting:
                 await _mark_scheduler_ran(session, setting, now_moscow())

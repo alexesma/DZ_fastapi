@@ -2478,6 +2478,16 @@ class CRUDCustomerPriceList(
         if not ids:
             return 0
 
+        artifact_paths = list(
+            (
+                await session.execute(
+                    select(CustomerPriceList.artifact_path).where(
+                        CustomerPriceList.id.in_(ids)
+                    )
+                )
+            ).scalars()
+        )
+
         await session.execute(
             delete(CustomerPriceListAutoPartAssociation).where(
                 CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(ids)
@@ -2485,6 +2495,7 @@ class CRUDCustomerPriceList(
         )
         await session.execute(delete(CustomerPriceList).where(CustomerPriceList.id.in_(ids)))
         await session.commit()
+        self._unlink_artifacts(artifact_paths)
         return len(ids)
 
     async def create(

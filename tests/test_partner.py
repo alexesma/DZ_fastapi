@@ -613,6 +613,40 @@ async def test_delete_older_customer_pricelists_uses_bulk_cleanup(
 
 
 @pytest.mark.asyncio
+async def test_scheduled_customer_pricelist_cleanup_removes_artifact_files(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    tmp_path,
+):
+    customer = created_customers[0]
+    today = date.today()
+    artifact_paths = []
+    pricelists = []
+    for offset in (2, 1, 0):
+        artifact_path = tmp_path / f"customer-price-{offset}.xlsx"
+        artifact_path.write_bytes(b"price")
+        artifact_paths.append(artifact_path)
+        pricelists.append(
+            CustomerPriceList(
+                customer_id=customer.id,
+                date=today - timedelta(days=offset),
+                is_active=True,
+                artifact_path=str(artifact_path),
+            )
+        )
+    test_session.add_all(pricelists)
+    await test_session.commit()
+
+    deleted = await crud_customer_pricelist.cleanup_old_pricelists_keep_last_n(
+        session=test_session,
+        keep_last_n=1,
+    )
+
+    assert deleted == 2
+    assert [path.exists() for path in artifact_paths] == [False, False, True]
+
+
+@pytest.mark.asyncio
 async def test_get_customer_not_found(test_session: AsyncSession, async_client: AsyncClient):
     invalid_customer_id = 99999
 

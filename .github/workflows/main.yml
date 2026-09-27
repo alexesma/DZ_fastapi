@@ -227,7 +227,9 @@ jobs:
       with:
         fetch-depth: 0
         submodules: recursive
-    # Копируем docker-compose.production.yml на продакшен-сервер
+    # На сервере нужны только compose-файлы: код живёт в образах.
+    # Копирование всего checkout оставляло на проде .git/objects; из-за
+    # overwrite старые Git-объекты не удалялись и выросли до десятков ГБ.
     - name: Copy docker-compose.yml via ssh
       uses: appleboy/scp-action@master
     # Передаём параметры для action appleboy/scp-action:
@@ -236,8 +238,8 @@ jobs:
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        source: "./" # старый "infra/dev/docker-compose.dev.yaml"
-        target: "/root/DZ_fastapi" # старый "/root/DZ_fastapi/infra/dev/"
+        source: "infra/dev/docker-compose.yaml,infra/dev/docker-compose.prod.yaml"
+        target: "/root/DZ_fastapi"
         strip_components: 0
         overwrite: true
 

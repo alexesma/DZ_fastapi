@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
+from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
@@ -18,6 +19,9 @@ logger = logging.getLogger("dz_fastapi")
 
 PRICELIST_REVIEW_ROOT = os.path.realpath(os.path.join("uploads", "pricelist_reviews"))
 PRICELIST_REVIEW_PROCESSING_STALE_HOURS = 6
+PRICELIST_REVIEW_FILE_RETENTION_DAYS = int(
+    os.getenv("PRICELIST_REVIEW_FILE_RETENTION_DAYS", "30")
+)
 
 
 def pricelist_review_file_path(review: ProviderPricelistReview) -> str:
@@ -40,6 +44,66 @@ def pricelist_review_file_path(review: ProviderPricelistReview) -> str:
 def read_pricelist_review_file(file_path: str) -> bytes:
     with open(file_path, "rb") as file_handle:
         return file_handle.read()
+
+
+async def cleanup_completed_pricelist_review_files(
+    session: AsyncSession,
+    *,
+    retention_days: int = PRICELIST_REVIEW_FILE_RETENTION_DAYS,
+) -> int:
+    """Delete files that can no longer participate in review processing.
+
+    Superseded candidates are safe to remove as soon as a newer candidate
+    exists. Approved and rejected files are retained for a limited audit
+    window; their database metadata remains available after file cleanup.
+    """
+    now = now_moscow()
+    decided_before = now - timedelta(days=max(1, int(retention_days)))
+    superseded_before = now - timedelta(hours=1)
+    rows = (
+        await session.execute(
+            select(
+                ProviderPricelistReview.id,
+                ProviderPricelistReview.file_path,
+            ).where(
+                (
+                    (ProviderPricelistReview.status == "superseded")
+                    & (ProviderPricelistReview.created_at < superseded_before)
+                )
+                | (
+                    ProviderPricelistReview.status.in_(("approved", "rejected"))
+                    & (ProviderPricelistReview.decided_at.is_not(None))
+                    & (ProviderPricelistReview.decided_at < decided_before)
+                )
+            )
+        )
+    ).all()
+
+    review_root = Path(PRICELIST_REVIEW_ROOT).resolve()
+
+    def _unlink() -> int:
+        deleted = 0
+        for _review_id, raw_path in rows:
+            path = Path(str(raw_path or "")).resolve()
+            if path == review_root or review_root not in path.parents:
+                logger.warning(
+                    "Skipped pricelist review file outside storage root: %s",
+                    raw_path,
+                )
+                continue
+            try:
+                if path.is_file():
+                    path.unlink()
+                    deleted += 1
+            except OSError as exc:
+                logger.warning(
+                    "Could not delete completed pricelist review file %s: %s",
+                    raw_path,
+                    exc,
+                )
+        return deleted
+
+    return await asyncio.to_thread(_unlink)
 
 
 async def mark_pricelist_review_notifications_read(
