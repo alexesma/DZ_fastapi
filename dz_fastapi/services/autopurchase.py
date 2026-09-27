@@ -2968,6 +2968,7 @@ async def _load_customer_order_requested_by_oem_windows(
             CustomerOrder.received_at >= max_cutoff,
             # Заказы с ошибкой обработки в спрос не попадают.
             CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
+            CustomerOrder.deleted_at.is_(None),
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
@@ -3018,9 +3019,12 @@ async def _load_open_customer_backlog_by_oem(
             CustomerOrderItem.oem,
             func.sum(CustomerOrderItem.requested_qty).label("qty"),
         )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
             CustomerOrderItem.status == CUSTOMER_ORDER_ITEM_STATUS.NEW,
             CustomerOrderItem.requested_qty > 0,
+            CustomerOrder.deleted_at.is_(None),
+            CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
         )
         .group_by(CustomerOrderItem.oem)
     )
@@ -3038,9 +3042,12 @@ async def _load_open_customer_backlog_by_oem(
             CustomerOrderItem,
             CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
         )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
             StockOrder.status == STOCK_ORDER_STATUS.NEW,
             StockOrderItem.quantity > 0,
+            CustomerOrder.deleted_at.is_(None),
+            CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
         )
         .group_by(CustomerOrderItem.oem)
     )
@@ -3059,9 +3066,12 @@ async def _load_open_customer_backlog_by_oem(
             CustomerOrderItem,
             CustomerOrderItem.id == SupplierOrderItem.customer_order_item_id,
         )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
             SupplierOrder.status != SUPPLIER_ORDER_STATUS.REMOVED,
             SupplierOrderItem.quantity > 0,
+            CustomerOrder.deleted_at.is_(None),
+            CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
         )
     )
     for oem_raw, ordered_qty, received_qty in (
@@ -3127,6 +3137,7 @@ async def _load_customer_order_period_metrics_by_oem(
             CustomerOrder.received_at >= max_cutoff,
             # Заказы с ошибкой обработки не считаем.
             CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
+            CustomerOrder.deleted_at.is_(None),
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )

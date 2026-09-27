@@ -287,6 +287,7 @@ class SupplierOrderManualItemCreate(BaseModel):
     brand: str
     name: Optional[str] = None
     quantity: int = Field(gt=0)
+    multiplicity: int = Field(default=1, ge=1)
     price: Optional[Decimal] = None
     min_delivery_day: Optional[int] = None
     max_delivery_day: Optional[int] = None

@@ -78,7 +78,12 @@ class OrderPositionOut(BaseModel):
     sup_logo: Optional[str] = Field(
         None, description="Маркер/логотип поставщика на сайте"
     )
-    quantity: int = Field(..., description="Количество к заказу")
+    quantity: int = Field(..., gt=0, description="Количество к заказу")
+    multiplicity: int = Field(
+        default=1,
+        ge=1,
+        description="Кратность заказа для проверки перед отправкой",
+    )
     confirmed_price: float = Field(..., description="Цена за штуку")
     min_delivery_day: Optional[int] = Field(
         None, description="Минимальный срок доставки в днях"

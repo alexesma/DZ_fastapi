@@ -227,6 +227,7 @@ class AutopartOfferRow(BaseModel):
     provider_config_name: Optional[str] = None
     price: float
     quantity: int
+    multiplicity: int = Field(default=1, ge=1)
     min_delivery_day: Optional[int] = None
     max_delivery_day: Optional[int] = None
     pricelist_id: int
@@ -504,6 +505,10 @@ class AutoPartCatalogItem(BaseModel):
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
     stock_quantity: int = 0
+    is_turnover_top: bool = False
+    is_market_opportunity: bool = False
+    turnover_score: Optional[float] = None
+    recommended_order_qty: int = 0
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("categories", mode="before")
@@ -575,6 +580,110 @@ class AutopartAvailabilityItem(BaseModel):
     priority: Optional[int] = None
 
 
+class AutopartTurnoverSummaryOut(BaseModel):
+    """Сводка спроса: принятые строки заказов + движение остатка у
+    поставщиков. Фактические отгрузки хранятся отдельно и будут заполнены,
+    когда складской контур станет источником факта.
+    """
+
+    autopart_id: int
+    sold_qty_30d: int = 0
+    sold_qty_90d: int = 0
+    daily_velocity_30d: float = 0.0
+    daily_velocity_90d: float = 0.0
+    order_count_30d: int = 0
+    customer_count_90d: int = 0
+    active_weeks_90d: int = 0
+    shipped_qty_30d: Optional[int] = None
+    shipped_qty_90d: Optional[int] = None
+    shipments_data_available: bool = False
+    supplier_count: int = 0
+    min_purchase_price: Optional[float] = None
+    avg_purchase_price: Optional[float] = None
+    median_purchase_price: Optional[float] = None
+    min_price_provider_id: Optional[int] = None
+    min_price_provider_name: Optional[str] = None
+    min_price_pricelist_date: Optional[date] = None
+    price_vs_90d_pct: Optional[float] = None
+    supplier_qty_trend_30d: Optional[float] = None
+    trend_supplier_count: int = 0
+    declining_supplier_count: int = 0
+    supplier_trends: List[dict] = Field(default_factory=list)
+    current_stock_qty: int = 0
+    reserved_qty: int = 0
+    free_stock_qty: int = 0
+    in_transit_qty: int = 0
+    open_backlog_qty: int = 0
+    multiplicity: int = 1
+    lead_time_days: Optional[float] = None
+    safety_stock_days: int = 7
+    target_stock_qty: int = 0
+    recommended_order_qty: int = 0
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    demand_score: float = 0.0
+    market_score: float = 0.0
+    price_score: float = 0.0
+    recommendation_score: float = 0.0
+    is_market_opportunity: bool = False
+    turnover_percentile: Optional[float] = None
+    is_top: bool = False
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AutopartTurnoverReportItem(BaseModel):
+    """Строка отчёта «спрос + рынок + выгодная цена»."""
+
+    autopart_id: int
+    oem_number: str
+    brand_name: Optional[str] = None
+    name: Optional[str] = None
+    sold_qty_30d: int = 0
+    sold_qty_90d: int = 0
+    daily_velocity_30d: float = 0.0
+    daily_velocity_90d: float = 0.0
+    order_count_30d: int = 0
+    active_weeks_90d: int = 0
+    supplier_count: int = 0
+    min_purchase_price: Optional[float] = None
+    avg_purchase_price: Optional[float] = None
+    median_purchase_price: Optional[float] = None
+    min_price_provider_name: Optional[str] = None
+    min_price_pricelist_date: Optional[date] = None
+    price_vs_90d_pct: Optional[float] = None
+    supplier_qty_trend_30d: Optional[float] = None
+    trend_supplier_count: int = 0
+    declining_supplier_count: int = 0
+    current_stock_qty: int = 0
+    reserved_qty: int = 0
+    free_stock_qty: int = 0
+    in_transit_qty: int = 0
+    open_backlog_qty: int = 0
+    multiplicity: int = 1
+    lead_time_days: Optional[float] = None
+    target_stock_qty: int = 0
+    recommended_order_qty: int = 0
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    demand_score: float = 0.0
+    market_score: float = 0.0
+    price_score: float = 0.0
+    recommendation_score: float = 0.0
+    is_market_opportunity: bool = False
+    turnover_percentile: Optional[float] = None
+    is_top: bool = False
+
+
+class AutopartTurnoverReportResponse(BaseModel):
+    items: List[AutopartTurnoverReportItem] = Field(default_factory=list)
+    total: int = 0
+    offset: int = 0
+    limit: int = 100
+    updated_at: Optional[datetime] = None
+
+
 class AutopartAvailabilityResponse(BaseModel):
     """Наличие позиции и её аналогов одним запросом.
 
@@ -591,12 +700,8 @@ class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
     photos: List[AutoPartPhotoOut] = Field(default_factory=list)
     crosses: List[CrossOut] = Field(default_factory=list)
-    honest_sign_categories: List[HonestSignCategoryOut] = Field(
-        default_factory=list
-    )
-    applicability_nodes: List[ApplicabilityNodeFlatOut] = Field(
-        default_factory=list
-    )
+    honest_sign_categories: List[HonestSignCategoryOut] = Field(default_factory=list)
+    applicability_nodes: List[ApplicabilityNodeFlatOut] = Field(default_factory=list)
 
     @field_validator("brand_name", mode="before")
     def get_brand_name(cls, v):
@@ -629,9 +734,7 @@ class CategoryCreate(CategoryBase):
 
 # Schema for updating an existing category
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = Field(
-        None, min_length=1, max_length=MAX_NAME_CATEGORY
-    )
+    name: Optional[str] = Field(None, min_length=1, max_length=MAX_NAME_CATEGORY)
     comment: Optional[str] = None
     parent_id: Optional[int] = None
 
@@ -664,9 +767,7 @@ CategoryResponse.model_rebuild()
 class StorageLocationBase(BaseModel):
     name: Annotated[
         str,
-        StringConstraints(
-            pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION
-        ),
+        StringConstraints(pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION),
     ]
     location_type: Optional[str] = None  # shelf / pallet / bin / floor / other
     capacity: Optional[int] = None  # max SKUs (None = unlimited)
@@ -680,9 +781,7 @@ class StorageLocationCreate(StorageLocationBase):
 class StorageLocationUpdate(BaseModel):
     name: Annotated[
         Optional[str],
-        StringConstraints(
-            pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION
-        ),
+        StringConstraints(pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION),
     ] = None
     location_type: Optional[str] = None
     capacity: Optional[int] = None
@@ -716,16 +815,13 @@ class AutopartOrderRequest(BaseModel):
         ge=1,
         description="Глубина поиска минимальной цены (в месяцах)",
     )
-    email_to: EmailStr = Field(
-        default=EMAIL_NAME_ORDER, description="Email получателя отчета"
-    )
+    email_to: EmailStr = Field(default=EMAIL_NAME_ORDER, description="Email получателя отчета")
     telegram_chat_id: str = Field(
         default=TELEGRAM_TO, description="Telegram чат для отправки отчета"
     )
     autoparts: Optional[Dict[int, Tuple[float, float]]] = Field(
         None,
-        description="Автозапчасти с минимальным "
-        "балансом и количеством для заказа",
+        description="Автозапчасти с минимальным " "балансом и количеством для заказа",
     )
     threshold_percent: float = Field(
         default=PERCENT_MIN_BALANS_FOR_ORDER,
@@ -742,6 +838,4 @@ class ConfirmedOffer(BaseModel):
     quantity: int = Field(..., gt=0, description="Заказываемое количество")
     price: float = Field(..., gt=0, description="Цена за единицу товара")
     total_cost: float = Field(..., gt=0, description="Общая стоимость позиции")
-    historical_min_price: int = Field(
-        ..., gt=0, description="Исторически минимальная цена"
-    )
+    historical_min_price: int = Field(..., gt=0, description="Исторически минимальная цена")

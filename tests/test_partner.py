@@ -680,6 +680,61 @@ async def test_update_customer_success(
 
 
 @pytest.mark.asyncio
+async def test_update_customer_reports_conflicting_provider_name(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+):
+    provider = Provider(name="ЭЛЕМЕНТ")
+    test_session.add(provider)
+    await test_session.commit()
+
+    customer = created_customers[0]
+    current = await async_client.get(f"/customers/{customer.id}/")
+    payload = current.json()
+    payload["name"] = "ЭЛЕМЕНТ"
+
+    response = await async_client.patch(
+        f"/customers/{customer.id}/",
+        json=payload,
+    )
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "CLIENT_NAME_CONFLICT"
+    assert detail["field"] == "name"
+    assert detail["conflict"] == {
+        "id": provider.id,
+        "name": "ЭЛЕМЕНТ",
+        "role": "поставщик",
+    }
+    assert f"поставщик #{provider.id}" in detail["message"]
+
+
+@pytest.mark.asyncio
+async def test_update_customer_reports_conflicting_contact_email(
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+):
+    customer, conflict = created_customers[:2]
+    current = await async_client.get(f"/customers/{customer.id}/")
+    payload = current.json()
+    payload["email_contact"] = conflict.email_contact
+
+    response = await async_client.patch(
+        f"/customers/{customer.id}/",
+        json=payload,
+    )
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "CLIENT_EMAIL_CONFLICT"
+    assert detail["field"] == "email_contact"
+    assert detail["conflict"]["id"] == conflict.id
+    assert detail["conflict"]["role"] == "клиент"
+
+
+@pytest.mark.asyncio
 async def test_update_customer_saves_credit_and_return_terms(
     test_session: AsyncSession,
     async_client: AsyncClient,

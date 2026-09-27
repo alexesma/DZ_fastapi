@@ -44,9 +44,7 @@ def _build_autopart_barcode(connection, target, brand_name: str) -> str:
     if collision is None:
         return candidate
 
-    digest = sha1(
-        f"{target.brand_id}:{target.oem_number}".encode("utf-8")
-    ).hexdigest()[:10]
+    digest = sha1(f"{target.brand_id}:{target.oem_number}".encode("utf-8")).hexdigest()[:10]
     suffix = f"~{target.brand_id:x}-{digest}"
     return f"{base[:MAX_LIGHT_BARCODE - len(suffix)]}{suffix}"
 
@@ -195,15 +193,9 @@ class AutoPart(Base):
         CheckConstraint("height > 0", name="check_height_positive"),
         CheckConstraint("length > 0", name="check_length_positive"),
         CheckConstraint("weight > 0", name="check_weight_positive"),
-        CheckConstraint(
-            "purchase_price >= 0", name="check_purchase_price_non_negative"
-        ),
-        CheckConstraint(
-            "retail_price >= 0", name="check_retail_price_non_negative"
-        ),
-        CheckConstraint(
-            "wholesale_price >= 0", name="check_wholesale_price_non_negative"
-        ),
+        CheckConstraint("purchase_price >= 0", name="check_purchase_price_non_negative"),
+        CheckConstraint("retail_price >= 0", name="check_retail_price_non_negative"),
+        CheckConstraint("wholesale_price >= 0", name="check_wholesale_price_non_negative"),
     )
     categories = relationship(
         "Category",
@@ -321,14 +313,9 @@ def preprocess_auto_part_update(mapper, connection, target):
     if state.attrs.description.history.has_changes() and target.description:
         target.description = change_string(target.description)
 
-    if (
-        state.attrs.brand_id.history.has_changes()
-        or state.attrs.oem_number.history.has_changes()
-    ):
+    if state.attrs.brand_id.history.has_changes() or state.attrs.oem_number.history.has_changes():
         if not target.brand:
-            raise ValueError(
-                "Нельзя изменить автозапчасть без указания бренда."
-            )
+            raise ValueError("Нельзя изменить автозапчасть без указания бренда.")
         target.barcode = f"{target.brand.name}{target.oem_number}"
     target.barcode = _truncate_if_needed(
         target.barcode,
@@ -344,9 +331,7 @@ class Category(Base):
 
     name = Column(String(MAX_NAME_CATEGORY), nullable=False, unique=True)
     parent_id = Column(Integer, ForeignKey("category.id"), nullable=True)
-    children = relationship(
-        "Category", back_populates="parent", lazy="selectin"
-    )
+    children = relationship("Category", back_populates="parent", lazy="selectin")
     parent = relationship(
         "Category",
         remote_side=lambda: [Category.id],
@@ -418,9 +403,7 @@ class StorageLocation(Base):
         lazy="joined",
     )
     __table_args__ = (
-        CheckConstraint(
-            "name ~ '^[A-Z0-9 /]+$'", name="latin_characters_only"
-        ),
+        CheckConstraint("name ~ '^[A-Z0-9 /]+$'", name="latin_characters_only"),
         UniqueConstraint(
             "warehouse_id",
             "system_code",
@@ -486,9 +469,7 @@ autopart_category_association = Table(
         nullable=False,
     ),
     PrimaryKeyConstraint("autopart_id", "category_id"),
-    UniqueConstraint(
-        "autopart_id", "category_id", name="unique_autopart_category"
-    ),
+    UniqueConstraint("autopart_id", "category_id", name="unique_autopart_category"),
 )
 
 
@@ -499,9 +480,7 @@ class AutoPartPriceHistory(Base):
 
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=False)
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
-    provider_config_id = Column(
-        Integer, ForeignKey("providerpricelistconfig.id"), nullable=True
-    )
+    provider_config_id = Column(Integer, ForeignKey("providerpricelistconfig.id"), nullable=True)
     pricelist_id = Column(Integer, nullable=False, index=True)
 
     created_at = Column(
@@ -516,6 +495,7 @@ class AutoPartPriceHistory(Base):
     provider = relationship("Provider")
 
     __table_args__ = (
+        Index("ix_autopartpricehistory_created_at", "created_at"),
         Index(
             "idx_autopart_price_history_autopart_provider_created_at",
             "autopart_id",
@@ -549,9 +529,7 @@ class AutoPartRestockDecision(Base):
 
 
 class AutoPartRestockDecisionSupplier(Base):
-    restock_decision_id = Column(
-        Integer, ForeignKey("autopartrestockdecision.id")
-    )
+    restock_decision_id = Column(Integer, ForeignKey("autopartrestockdecision.id"))
     supplier_id = Column(Integer, ForeignKey("provider.id"))
     status = Column(
         SAEnum(
@@ -575,17 +553,13 @@ class AutoPartRestockDecisionSupplier(Base):
     quantity = Column(Integer, nullable=True)
     hash_key = Column(String(255), nullable=True, index=True)
     system_hash = Column(String(255), nullable=True, index=True)
-    restock_decision = relationship(
-        "AutoPartRestockDecision", back_populates="suppliers"
-    )
+    restock_decision = relationship("AutoPartRestockDecision", back_populates="suppliers")
     brand_name = Column(String)
     min_delivery_day = Column(Integer, default=1)
     max_delivery_day = Column(Integer, default=3)
     supplier = relationship("Provider")
     order_items = relationship("OrderItem", back_populates="restock_supplier")
-    tracking_uuid = Column(
-        String(36), default=lambda: str(uuid4()), unique=True, index=True
-    )
+    tracking_uuid = Column(String(36), default=lambda: str(uuid4()), unique=True, index=True)
 
 
 class AutoPurchaseRun(Base):
@@ -593,9 +567,7 @@ class AutoPurchaseRun(Base):
         Integer, ForeignKey("providerpricelistconfig.id"), nullable=False, index=True
     )
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False, index=True)
-    initiated_by_user_id = Column(
-        Integer, ForeignKey("app_user.id"), nullable=True, index=True
-    )
+    initiated_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(String(32), nullable=False, default="completed", index=True)
@@ -616,13 +588,9 @@ class AutoPurchaseRun(Base):
 class AutoPurchaseRunItem(Base):
     run_id = Column(Integer, ForeignKey("autopurchaserun.id"), nullable=False, index=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
-    selected_supplier_id = Column(
-        Integer, ForeignKey("provider.id"), nullable=True, index=True
-    )
+    selected_supplier_id = Column(Integer, ForeignKey("provider.id"), nullable=True, index=True)
     sent_order_id = Column(Integer, ForeignKey("order.id"), nullable=True, index=True)
-    sent_customer_id = Column(
-        Integer, ForeignKey("customer.id"), nullable=True, index=True
-    )
+    sent_customer_id = Column(Integer, ForeignKey("customer.id"), nullable=True, index=True)
 
     oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
     brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True, index=True)
@@ -687,13 +655,13 @@ class AutoPurchaseForecastSnapshot(Base):
     __tablename__ = "autopurchaseforecastsnapshot"
 
     created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False,
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
         index=True,
     )
     run_id = Column(Integer, nullable=True, index=True)
-    autopart_id = Column(
-        Integer, ForeignKey("autopart.id"), nullable=True, index=True
-    )
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
     oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
     brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True)
 
@@ -774,5 +742,93 @@ class AutoPurchaseExcludedItem(Base):
             "oem_number",
             "brand_name",
             name="uq_autopurchaseexcludeditem_oem_brand",
+        ),
+    )
+
+
+class AutoPartTurnoverSummary(Base):
+    """Сводка по обороту позиции — считается ночной задачей, не вручную.
+
+    Два независимых сигнала под одной крышей: скорость спроса по принятым
+    заказам клиентов и скорость истощения остатка у
+    поставщиков (из истории их прайсов) — сигнал спроса на рынке, а не
+    у нас. Процентиль оборота считается внутри бренда: абсолютные цифры
+    у шин и масляных фильтров несравнимы.
+    """
+
+    autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sold_qty_30d = Column(Integer, nullable=False, default=0)
+    sold_qty_90d = Column(Integer, nullable=False, default=0)
+    daily_velocity_30d = Column(Float, nullable=False, default=0.0)
+    daily_velocity_90d = Column(Float, nullable=False, default=0.0)
+    order_count_30d = Column(Integer, nullable=False, default=0)
+    customer_count_90d = Column(Integer, nullable=False, default=0)
+    active_weeks_90d = Column(Integer, nullable=False, default=0)
+
+    # Поля уже заложены отдельно от спроса по заказам. Пока фактические
+    # отгрузки в системе ведутся не полностью, значения остаются NULL, а
+    # интерфейс честно показывает, что источник факта ещё не подключён.
+    shipped_qty_30d = Column(Integer, nullable=True)
+    shipped_qty_90d = Column(Integer, nullable=True)
+    shipments_data_available = Column(Boolean, nullable=False, default=False)
+
+    supplier_count = Column(Integer, nullable=False, default=0)
+    min_purchase_price = Column(DECIMAL(10, 2), nullable=True)
+    avg_purchase_price = Column(DECIMAL(10, 2), nullable=True)
+    median_purchase_price = Column(DECIMAL(10, 2), nullable=True)
+    min_price_provider_id = Column(Integer, ForeignKey("provider.id"), nullable=True)
+    min_price_provider_name = Column(String(255), nullable=True)
+    min_price_pricelist_date = Column(Date, nullable=True)
+    price_vs_90d_pct = Column(Float, nullable=True)
+
+    # Средний наклон остатка у поставщиков за 30 дней (шт/день).
+    # Отрицательное значение — остаток стабильно тает (высокий спрос
+    # на рынке), положительное — накапливается.
+    supplier_qty_trend_30d = Column(Float, nullable=True)
+    trend_supplier_count = Column(Integer, nullable=False, default=0)
+    declining_supplier_count = Column(Integer, nullable=False, default=0)
+    supplier_trends = Column(JSON, nullable=False, default=list)
+
+    # Складской и закупочный контекст. Эти показатели превращают отчёт из
+    # списка популярности в объяснимую рекомендацию к заказу.
+    current_stock_qty = Column(Integer, nullable=False, default=0)
+    reserved_qty = Column(Integer, nullable=False, default=0)
+    free_stock_qty = Column(Integer, nullable=False, default=0)
+    in_transit_qty = Column(Integer, nullable=False, default=0)
+    open_backlog_qty = Column(Integer, nullable=False, default=0)
+    multiplicity = Column(Integer, nullable=False, default=1)
+    lead_time_days = Column(Float, nullable=True)
+    safety_stock_days = Column(Integer, nullable=False, default=7)
+    target_stock_qty = Column(Integer, nullable=False, default=0)
+    recommended_order_qty = Column(Integer, nullable=False, default=0)
+
+    category_id = Column(Integer, ForeignKey("category.id"), nullable=True)
+    category_name = Column(String(255), nullable=True)
+    demand_score = Column(Float, nullable=False, default=0.0)
+    market_score = Column(Float, nullable=False, default=0.0)
+    price_score = Column(Float, nullable=False, default=0.0)
+    recommendation_score = Column(Float, nullable=False, default=0.0, index=True)
+    is_market_opportunity = Column(Boolean, nullable=False, default=False, index=True)
+
+    turnover_percentile = Column(Float, nullable=True, index=True)
+    is_top = Column(Boolean, nullable=False, default=False, index=True)
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+
+    autopart = relationship("AutoPart")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "autopart_id",
+            name="uq_autopartturnoversummary_autopart_id",
         ),
     )

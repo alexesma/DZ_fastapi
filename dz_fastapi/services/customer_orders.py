@@ -4590,6 +4590,10 @@ async def create_manual_supplier_order(
             quantity = int(item.get("quantity") or 0)
         except (TypeError, ValueError):
             quantity = 0
+        try:
+            multiplicity = max(int(item.get("multiplicity") or 1), 1)
+        except (TypeError, ValueError):
+            multiplicity = 1
         price_raw = item.get("price")
         try:
             price_value = float(price_raw) if price_raw is not None else None
@@ -4597,6 +4601,11 @@ async def create_manual_supplier_order(
             price_value = None
         if not oem or not brand or quantity <= 0:
             continue
+        if quantity % multiplicity != 0:
+            raise ValueError(
+                f"Количество {quantity} для {brand} {oem} должно быть "
+                f"кратно {multiplicity}"
+            )
         cleaned_items.append(
             {
                 "autopart_id": autopart_id,
@@ -4604,6 +4613,7 @@ async def create_manual_supplier_order(
                 "brand": brand,
                 "name": (item.get("name") or "").strip() or None,
                 "quantity": quantity,
+                "multiplicity": multiplicity,
                 "price": price_value,
                 "min_delivery_day": item.get("min_delivery_day"),
                 "max_delivery_day": item.get("max_delivery_day"),

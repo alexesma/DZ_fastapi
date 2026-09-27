@@ -1,6 +1,9 @@
 from datetime import date, timedelta
 
+import pytest
+
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.partner import CustomerOrder, CustomerOrderItem
 from dz_fastapi.services.autopurchase import (
     _apply_recovery_mode,
     _blend_average_daily_horizons,
@@ -14,6 +17,8 @@ from dz_fastapi.services.autopurchase import (
     _get_target_cover_days,
     _has_sendable_site_identity,
     _is_dragonzap_brand,
+    _load_customer_order_requested_by_oem_windows,
+    _load_open_customer_backlog_by_oem,
     _normalize_brand_key,
     _plan_auto_allocations,
     _round_down_to_lot,
@@ -21,6 +26,57 @@ from dz_fastapi.services.autopurchase import (
     _select_best_site_supplier_by_lead_time,
     _select_best_site_supplier_by_price,
 )
+
+
+@pytest.mark.asyncio
+async def test_autopurchase_demand_excludes_deleted_orders(
+    test_session,
+    created_customers,
+):
+    now = now_moscow()
+    active_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        received_at=now - timedelta(days=1),
+    )
+    deleted_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        received_at=now - timedelta(days=1),
+        deleted_at=now,
+    )
+    test_session.add_all([active_order, deleted_order])
+    await test_session.flush()
+    test_session.add_all(
+        [
+            CustomerOrderItem(
+                order_id=active_order.id,
+                oem="DELETE-ME",
+                brand="TEST",
+                requested_qty=2,
+                status="NEW",
+            ),
+            CustomerOrderItem(
+                order_id=deleted_order.id,
+                oem="DELETE-ME",
+                brand="TEST",
+                requested_qty=100,
+                status="NEW",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    demand = await _load_customer_order_requested_by_oem_windows(
+        test_session,
+        ["DELETE-ME"],
+        windows=(30,),
+    )
+    backlog = await _load_open_customer_backlog_by_oem(
+        test_session,
+        ["DELETE-ME"],
+    )
+
+    assert demand[30]["DELETE-ME"] == 2
+    assert backlog["DELETE-ME"] == 2
 
 
 def test_select_best_site_supplier_by_price_ignores_non_positive_qty():
@@ -260,13 +316,9 @@ def test_select_autopurchase_supplier_respects_purchase_price_cap():
 def test_get_cross_brand_priority_prefers_dragonzap_donor_brands():
     assert _get_cross_brand_priority("CHERY") == 0
     assert _get_cross_brand_priority("Chery Automobile") == 0
-    assert _get_cross_brand_priority("JAC") < _get_cross_brand_priority(
-        "TOYOTA"
-    )
+    assert _get_cross_brand_priority("JAC") < _get_cross_brand_priority("TOYOTA")
     # Не из списка предпочтительных — в конец.
-    assert _get_cross_brand_priority("BOSCH") == _get_cross_brand_priority(
-        "TOYOTA"
-    )
+    assert _get_cross_brand_priority("BOSCH") == _get_cross_brand_priority("TOYOTA")
 
 
 def test_build_autopurchase_draft_rounds_up_to_supplier_lot():

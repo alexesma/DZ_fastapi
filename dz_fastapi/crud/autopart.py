@@ -25,6 +25,7 @@ from dz_fastapi.models.autopart import (
     AutoPartPriceHistory,
     AutoPartRestockDecision,
     AutoPartRestockDecisionSupplier,
+    AutoPartTurnoverSummary,
     Category,
     StorageLocation,
     preprocess_oem_number,
@@ -49,9 +50,7 @@ logger = logging.getLogger("dz_fastapi")
 
 # Поля, которые нельзя обнулить через обновление карточки: в модели они
 # NOT NULL, и попытка их очистить свалила бы запрос на уровне БД.
-NON_NULLABLE_AUTOPART_FIELDS = frozenset(
-    {"brand_id", "oem_number", "name", "barcode"}
-)
+NON_NULLABLE_AUTOPART_FIELDS = frozenset({"brand_id", "oem_number", "name", "barcode"})
 
 
 def get_recursive_selectinloads(depth: int):
@@ -59,9 +58,7 @@ def get_recursive_selectinloads(depth: int):
         if level == 0:
             return selectinload(Category.children)
         else:
-            return selectinload(Category.children).options(
-                recursive_load(level - 1)
-            )
+            return selectinload(Category.children).options(recursive_load(level - 1))
 
     return recursive_load(depth - 1)
 
@@ -94,14 +91,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         try:
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             category_name = autopart_data.pop("category_name", None)
-            storage_location_name = autopart_data.pop(
-                "storage_location_name", None
-            )
+            storage_location_name = autopart_data.pop("storage_location_name", None)
             # These are M2M IDs, not AutoPart columns — must be popped
             category_ids = autopart_data.pop("category_ids", None)
-            storage_location_ids = autopart_data.pop(
-                "storage_location_ids", None
-            )
+            storage_location_ids = autopart_data.pop("storage_location_ids", None)
             autopart_data["name"] = await change_string(autopart_data["name"])
             autopart = AutoPart(**autopart_data)
             # Keep the shared Brand ORM object outside the nested insert
@@ -110,9 +103,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart.brand_id = brand.id
             autopart.categories = []
             if category_name:
-                category = await crud_category.get_category_id_by_name(
-                    category_name, session
-                )
+                category = await crud_category.get_category_id_by_name(category_name, session)
                 if not category:
                     raise HTTPException(
                         status_code=400,
@@ -121,20 +112,13 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 autopart.categories.append(category)
             autopart.storage_locations = []
             if storage_location_name:
-                storage_location = (
-                    await (
-                        crud_storage.get_storage_location_id_by_name(
-                            storage_location_name, session
-                        )
-                    )
+                storage_location = await crud_storage.get_storage_location_id_by_name(
+                    storage_location_name, session
                 )
                 if not storage_location:
                     raise HTTPException(
                         status_code=400,
-                        detail=(
-                            f"Storage location "
-                            f"{storage_location_name} does not exist."
-                        ),
+                        detail=(f"Storage location " f"{storage_location_name} does not exist."),
                     )
                 autopart.storage_locations.append(storage_location)
             # Handle IDs-based M2M (catalog API)
@@ -147,9 +131,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                         autopart.categories.append(cat)
             if storage_location_ids:
                 locs_result = await session.execute(
-                    select(StorageLocation).where(
-                        StorageLocation.id.in_(storage_location_ids)
-                    )
+                    select(StorageLocation).where(StorageLocation.id.in_(storage_location_ids))
                 )
                 for loc in locs_result.scalars().all():
                     if loc not in autopart.storage_locations:
@@ -222,10 +204,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart = result.scalars().unique().one_or_none()
             return autopart
         except SQLAlchemyError as error:
-            logger.error(
-                f"Database error when fetching autopart "
-                f"{autopart_id}: {error}"
-            )
+            logger.error(f"Database error when fetching autopart " f"{autopart_id}: {error}")
             raise
 
     async def get_autopart_by_ids(
@@ -246,8 +225,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             return autoparts
         except SQLAlchemyError as error:
             logger.error(
-                f"Database error when fetching autoparts len = "
-                f"{len(autopart_ids)}: {error}"
+                f"Database error when fetching autoparts len = " f"{len(autopart_ids)}: {error}"
             )
             raise
 
@@ -258,10 +236,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         default_brand: Optional[Brand] = None,
     ) -> Optional[AutoPart]:
         try:
-            logger.debug(
-                f"Starting create_autopart_from_price "
-                f"with data: {new_autopart}"
-            )
+            logger.debug(f"Starting create_autopart_from_price " f"with data: {new_autopart}")
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             logger.debug(f"Extracted autopart_data: {autopart_data}")
             brand_name = autopart_data.pop("brand", None)
@@ -274,10 +249,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 )
                 logger.debug(f"Retrieved brand: {brand}")
                 if not brand:
-                    logger.warning(
-                        f"Brand {brand_name} not found. "
-                        f"Skipping autopart creation."
-                    )
+                    logger.warning(f"Brand {brand_name} not found. " f"Skipping autopart creation.")
                     return None
             elif default_brand:
                 brand = default_brand
@@ -290,9 +262,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 return None
 
             if "oem_number" in autopart_data and autopart_data["oem_number"]:
-                normalized_oem = preprocess_oem_number(
-                    autopart_data["oem_number"]
-                )
+                normalized_oem = preprocess_oem_number(autopart_data["oem_number"])
                 autopart_data["oem_number"] = normalized_oem
             else:
                 logger.error("oem_number is missing in autopart_data")
@@ -306,14 +276,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             logger.debug(f"Existing autopart: {existing_autopart}")
 
             if existing_autopart:
-                logger.debug(
-                    f"Autopart already exists: ID {existing_autopart.id}"
-                )
+                logger.debug(f"Autopart already exists: ID {existing_autopart.id}")
                 return existing_autopart
 
-            autopart_create_data = AutoPartCreate(
-                **autopart_data, brand_id=brand.id
-            )
+            autopart_create_data = AutoPartCreate(**autopart_data, brand_id=brand.id)
             logger.debug(f"AutopartCreate data: {autopart_create_data}")
 
             try:
@@ -329,12 +295,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 # Another importer may have committed the same brand/OEM
                 # while this row was waiting. The savepoint is rolled back,
                 # so the outer pricelist transaction remains usable.
-                existing_autopart = (
-                    await self.get_autopart_by_oem_brand_or_none(
-                        oem_number=autopart_data["oem_number"],
-                        brand_id=brand.id,
-                        session=session,
-                    )
+                existing_autopart = await self.get_autopart_by_oem_brand_or_none(
+                    oem_number=autopart_data["oem_number"],
+                    brand_id=brand.id,
+                    session=session,
                 )
                 if existing_autopart is not None:
                     return existing_autopart
@@ -366,9 +330,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         if oem is not None:
             stmt = stmt.where(AutoPart.oem_number == oem)
         if brand is not None:
-            brand_obj = await brand_crud.get_brand_by_name(
-                brand_name=brand, session=session
-            )
+            brand_obj = await brand_crud.get_brand_by_name(brand_name=brand, session=session)
             if not brand_obj:
                 raise HTTPException(status_code=404, detail="Brand not found")
             stmt = stmt.where(AutoPart.brand_id == brand_obj.id)
@@ -388,9 +350,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         stmt = (
             select(
                 AutoPart,
-                func.coalesce(PriceListAutoPartAssociation.quantity, 0).label(
-                    "current_stock"
-                ),
+                func.coalesce(PriceListAutoPartAssociation.quantity, 0).label("current_stock"),
             )
             .outerjoin(
                 PriceListAutoPartAssociation,
@@ -418,9 +378,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             elif current_stock < min_balance * float(threshold):
                 quantity_for_order = min_balance
             else:
-                quantity_for_order = math.ceil(
-                    min_balance * PERCENT_MIN_BALANS_FOR_ORDER
-                )
+                quantity_for_order = math.ceil(min_balance * PERCENT_MIN_BALANS_FOR_ORDER)
             order_dict[autopart.id] = [
                 min_balance,
                 quantity_for_order,
@@ -440,6 +398,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         partssoft: Optional[bool] = None,
         content: Optional[str] = None,
         links: Optional[str] = None,
+        turnover: Optional[str] = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[AutoPart], int]:
@@ -475,9 +434,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         # незаполненные карточки, а не просматривать их подряд.
         has_applicability = AutoPart.applicability_nodes.any()
         has_crosses = exists(
-            select(AutoPartCross.id).where(
-                AutoPartCross.source_autopart_id == AutoPart.id
-            )
+            select(AutoPartCross.id).where(AutoPartCross.source_autopart_id == AutoPart.id)
         )
         if links == "with_applicability":
             where_clauses.append(has_applicability)
@@ -487,6 +444,23 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             where_clauses.append(has_crosses)
         elif links == "without_crosses":
             where_clauses.append(~has_crosses)
+        turnover_summary = select(AutoPartTurnoverSummary.autopart_id).where(
+            AutoPartTurnoverSummary.autopart_id == AutoPart.id
+        )
+        if turnover == "top":
+            where_clauses.append(
+                exists(turnover_summary.where(AutoPartTurnoverSummary.is_top.is_(True)))
+            )
+        elif turnover == "market":
+            where_clauses.append(
+                exists(
+                    turnover_summary.where(AutoPartTurnoverSummary.is_market_opportunity.is_(True))
+                )
+            )
+        elif turnover == "needs_order":
+            where_clauses.append(
+                exists(turnover_summary.where(AutoPartTurnoverSummary.recommended_order_qty > 0))
+            )
 
         # COUNT (plain SQL, no ORM loading options)
         count_stmt = (
@@ -516,9 +490,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             .offset(offset)
             .limit(limit)
         )
-        items = list(
-            (await session.execute(items_stmt)).scalars().unique().all()
-        )
+        items = list((await session.execute(items_stmt)).scalars().unique().all())
         return items, total
 
     async def update_full(
@@ -529,9 +501,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     ) -> AutoPart:
         """Update autopart scalar fields + optional M2M replacement."""
         category_ids: Optional[list[int]] = data.pop("category_ids", None)
-        storage_location_ids: Optional[list[int]] = data.pop(
-            "storage_location_ids", None
-        )
+        storage_location_ids: Optional[list[int]] = data.pop("storage_location_ids", None)
         # Remove legacy single-name fields (handled elsewhere)
         data.pop("category_name", None)
         data.pop("storage_location_name", None)
@@ -566,9 +536,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             # такое «пустое» место можно было одним кликом — вместе с
             # ним по ON DELETE CASCADE исчезал и остаток, без единого
             # движения и без следа.
-            current_location_ids = {
-                loc.id for loc in (autopart.storage_locations or [])
-            }
+            current_location_ids = {loc.id for loc in (autopart.storage_locations or [])}
             removed_ids = current_location_ids - set(storage_location_ids)
             if removed_ids:
                 stock_result = await session.execute(
@@ -578,8 +546,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                     )
                     .join(
                         StockByLocation,
-                        StockByLocation.storage_location_id
-                        == StorageLocation.id,
+                        StockByLocation.storage_location_id == StorageLocation.id,
                     )
                     .where(
                         StockByLocation.autopart_id == autopart.id,
@@ -589,9 +556,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 )
                 blocking = stock_result.all()
                 if blocking:
-                    details = ", ".join(
-                        f"«{name}» — {qty} шт." for name, qty in blocking
-                    )
+                    details = ", ".join(f"«{name}» — {qty} шт." for name, qty in blocking)
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=(
@@ -601,9 +566,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                         ),
                     )
             locs_result = await session.execute(
-                select(StorageLocation).where(
-                    StorageLocation.id.in_(storage_location_ids)
-                )
+                select(StorageLocation).where(StorageLocation.id.in_(storage_location_ids))
             )
             autopart.storage_locations = list(locs_result.scalars().all())
 
@@ -692,9 +655,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
         result = await session.execute(stmt)
         return result.all()
 
-    async def save_restock_decision(
-        self, decisions: dict[int, dict], session: AsyncSession
-    ):
+    async def save_restock_decision(self, decisions: dict[int, dict], session: AsyncSession):
         for autopart_id, data in decisions.items():
             restock = AutoPartRestockDecision(
                 autopart_id=autopart_id,
@@ -711,9 +672,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
                 price=data["price"],
                 quantity=data["quantity"],
                 status=TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED,
-                send_method=(
-                    TYPE_SEND_METHOD.API if hash_key else TYPE_SEND_METHOD.MAIL
-                ),
+                send_method=(TYPE_SEND_METHOD.API if hash_key else TYPE_SEND_METHOD.MAIL),
                 hash_key=hash_key,
                 min_delivery_day=data["min_delivery_day"],
                 max_delivery_day=data["max_delivery_day"],
@@ -728,8 +687,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
         stmt = (
             select(AutoPartRestockDecisionSupplier)
             .where(
-                AutoPartRestockDecisionSupplier.status
-                == TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED
+                AutoPartRestockDecisionSupplier.status == TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED
             )
             .options(
                 selectinload(AutoPartRestockDecisionSupplier.restock_decision)
@@ -754,34 +712,24 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
             if sid not in orders:
                 orders[sid] = {
                     "supplier_id": sid,
-                    "supplier_name": getattr(
-                        row.supplier, "name", f"ID {sid}"
-                    ),
+                    "supplier_name": getattr(row.supplier, "name", f"ID {sid}"),
                     "total_sum": 0,
                     "send_method": row.send_method,
                     "delivery_days": None,
                     "order_status": row.status,
                     "positions": [],
                     "min_delivery_day": (
-                        row.min_delivery_day
-                        if row.min_delivery_day is not None
-                        else 1
+                        row.min_delivery_day if row.min_delivery_day is not None else 1
                     ),
                     "max_delivery_day": (
-                        row.max_delivery_day
-                        if row.max_delivery_day is not None
-                        else 3
+                        row.max_delivery_day if row.max_delivery_day is not None else 3
                     ),
                     "brand_name": row.brand_name,
                 }
             # Добавляем позицию
             orders[sid]["positions"].append(
                 OrderPositionOut(
-                    autopart_id=(
-                        restock_decision.autopart_id
-                        if restock_decision
-                        else None
-                    ),
+                    autopart_id=(restock_decision.autopart_id if restock_decision else None),
                     oem_number=getattr(autopart, "oem_number", None),
                     autopart_name=getattr(autopart, "name", None),
                     brand_name=brand_name,
@@ -796,16 +744,12 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
                     system_hash=getattr(row, "system_hash", None),
                 )
             )
-            orders[sid]["total_sum"] += float(row.price or 0) * (
-                row.quantity or 1
-            )
+            orders[sid]["total_sum"] += float(row.price or 0) * (row.quantity or 1)
         result = [SupplierOrderOut(**order) for order in orders.values()]
         logger.debug(f"Отправляемые данные: {result}")
         return result
 
-    async def update_position_status(
-        self, tracking_uuid: str, status: str, session: AsyncSession
-    ):
+    async def update_position_status(self, tracking_uuid: str, status: str, session: AsyncSession):
         stmt = select(AutoPartRestockDecisionSupplier).where(
             AutoPartRestockDecisionSupplier.tracking_uuid == tracking_uuid
         )
@@ -845,27 +789,19 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
         if not existing_items:
             raise HTTPException(
                 status_code=404,
-                detail="No AutoPartRestockDecisionSupplier "
-                "found for provided UUIDs",
+                detail="No AutoPartRestockDecisionSupplier " "found for provided UUIDs",
             )
-        items_to_update = [
-            item for item in existing_items if item.status != status
-        ]
+        items_to_update = [item for item in existing_items if item.status != status]
         if not items_to_update:
             return {
-                "message": "No items needed updating - "
-                "all already have the target status",
+                "message": "No items needed updating - " "all already have the target status",
                 "updated_items": [],
                 "updated_count": 0,
             }
         uuids_to_update = [item.tracking_uuid for item in items_to_update]
         stmt = (
             update(AutoPartRestockDecisionSupplier)
-            .where(
-                AutoPartRestockDecisionSupplier.tracking_uuid.in_(
-                    uuids_to_update
-                )
-            )
+            .where(AutoPartRestockDecisionSupplier.tracking_uuid.in_(uuids_to_update))
             .values(status=status)
         )
         await session.execute(stmt)
@@ -877,11 +813,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
                     "tracking_uuid": item.tracking_uuid,
                     "old_status": item.status,
                     "new_status": status,
-                    "autopart_id": (
-                        item.autopart_id
-                        if hasattr(item, "autopart_id")
-                        else None
-                    ),
+                    "autopart_id": (item.autopart_id if hasattr(item, "autopart_id") else None),
                     "hash_key": item.hash_key,
                 }
                 for item in items_to_update
@@ -890,9 +822,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
         }
 
 
-crud_autopart_restock_decision = CRUDAutopartRestockDecision(
-    AutoPartRestockDecision
-)
+crud_autopart_restock_decision = CRUDAutopartRestockDecision(AutoPartRestockDecision)
 
 
 class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
@@ -914,15 +844,11 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             raise error
 
     async def get_categories(session: AsyncSession):
-        result = await session.execute(
-            select(Category).options(selectinload(Category.children))
-        )
+        result = await session.execute(select(Category).options(selectinload(Category.children)))
         categories = result.scalars().all()
         return categories
 
-    async def get_category_by_id(
-        self, category_id: int, session: AsyncSession
-    ) -> Category:
+    async def get_category_by_id(self, category_id: int, session: AsyncSession) -> Category:
         try:
             stmt = (
                 select(Category)
@@ -934,9 +860,7 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         except SQLAlchemyError as error:
             raise error
 
-    async def get_category_id_by_name(
-        self, category_name: str, session: AsyncSession
-    ) -> Category:
+    async def get_category_id_by_name(self, category_name: str, session: AsyncSession) -> Category:
         try:
             stmt = select(Category).where(Category.name == category_name)
             result = await session.execute(stmt)
@@ -944,16 +868,13 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         except SQLAlchemyError as error:
             raise error
 
-    async def create_many(
-        self, category_data: List[CategoryCreate], session: AsyncSession
-    ):
+    async def create_many(self, category_data: List[CategoryCreate], session: AsyncSession):
         """
         Массово создать категории из списка CategoryCreate
         """
         try:
             category_objs = [
-                Category(**category.dict(exclude_unset=True))
-                for category in category_data
+                Category(**category.dict(exclude_unset=True)) for category in category_data
             ]
             session.add_all(category_objs)
             await session.commit()
@@ -964,9 +885,7 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         except IntegrityError as e:
             await session.rollback()
             detail = None
-            if hasattr(e.orig, "diag") and getattr(
-                e.orig.diag, "message_detail", None
-            ):
+            if hasattr(e.orig, "diag") and getattr(e.orig.diag, "message_detail", None):
                 detail = e.orig.diag.message_detail
             detail = detail or str(e)
             match = re.search(r"Key \(name\)=\((.+)\) already exists.", detail)
@@ -974,9 +893,7 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
                 duplicate_name = match.group(1)
                 detail = f"Category {duplicate_name} already exists"
 
-            raise HTTPException(
-                status_code=400, detail=f"Integrity error: {detail}"
-            ) from e
+            raise HTTPException(status_code=400, detail=f"Integrity error: {detail}") from e
         except SQLAlchemyError as error:
             await session.rollback()
             raise HTTPException(
@@ -1014,9 +931,7 @@ class CRUDWarehouse(CRUDBase[Warehouse, WarehouseCreate, WarehouseUpdate]):
         return result.scalars().unique().one_or_none()
 
 
-class CRUDStorageLocation(
-    CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]
-):
+class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]):
     async def get_multi(
         self,
         session: AsyncSession,
@@ -1073,9 +988,7 @@ class CRUDStorageLocation(
         self, storage_location_name: str, session: AsyncSession
     ) -> StorageLocation:
         try:
-            stmt = select(StorageLocation).where(
-                StorageLocation.name == storage_location_name
-            )
+            stmt = select(StorageLocation).where(StorageLocation.name == storage_location_name)
             result = await session.execute(stmt)
             return result.scalars().first()
         except SQLAlchemyError as error:
@@ -1088,8 +1001,7 @@ class CRUDStorageLocation(
     ):
         try:
             location_objs = [
-                StorageLocation(**loc.model_dump(exclude_unset=True))
-                for loc in locations_data
+                StorageLocation(**loc.model_dump(exclude_unset=True)) for loc in locations_data
             ]
             session.add_all(location_objs)
             await session.commit()
@@ -1099,9 +1011,7 @@ class CRUDStorageLocation(
         except IntegrityError as e:
             await session.rollback()
             detail = None
-            if hasattr(e.orig, "diag") and getattr(
-                e.orig.diag, "message_detail", None
-            ):
+            if hasattr(e.orig, "diag") and getattr(e.orig.diag, "message_detail", None):
                 detail = e.orig.diag.message_detail
             detail = detail or str(e)
             match = re.search(r"Key \(name\)=\((.+)\) already exists.", detail)
@@ -1109,9 +1019,7 @@ class CRUDStorageLocation(
                 duplicate_name = match.group(1)
                 detail = f"Storage location {duplicate_name} already exists"
 
-            raise HTTPException(
-                status_code=400, detail=f"Integrity error: {detail}"
-            ) from e
+            raise HTTPException(status_code=400, detail=f"Integrity error: {detail}") from e
 
         except SQLAlchemyError as e:
             await session.rollback()

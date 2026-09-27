@@ -281,6 +281,7 @@ async def test_get_autopart_offers_latest_pricelist(
         autopart_id=created_autopart.id,
         quantity=5,
         price=98.5,
+        multiplicity=4,
     )
     test_session.add_all([assoc_old, assoc_new])
     await test_session.commit()
@@ -302,9 +303,59 @@ async def test_get_autopart_offers_latest_pricelist(
     assert offer["provider_config_name"] == created_pricelist_config.name_price
     assert offer["price"] == 98.5
     assert offer["quantity"] == 5
+    # Для собственного прайса кратность всегда берётся из карточки товара,
+    # даже если в строке прайса сохранено другое значение.
+    assert offer["multiplicity"] == created_autopart.multiplicity
     assert offer["min_delivery_day"] == 2
     assert offer["max_delivery_day"] == 5
     assert offer["is_own_price"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_autopart_offers_uses_supplier_pricelist_multiplicity(
+    test_session,
+    created_autopart: AutoPart,
+    created_pricelist_config,
+    created_providers,
+):
+    provider = created_providers[0]
+    provider.is_own_price = False
+    created_autopart.multiplicity = 2
+    created_pricelist_config.multiplicity_col = 5
+    test_session.add_all(
+        [provider, created_autopart, created_pricelist_config]
+    )
+
+    pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 2, 10),
+    )
+    test_session.add(pricelist)
+    await test_session.commit()
+    await test_session.refresh(pricelist)
+
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id,
+            autopart_id=created_autopart.id,
+            quantity=20,
+            price=98.5,
+            multiplicity=4,
+        )
+    )
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get(
+            "/autoparts/offers/",
+            params={"oem": created_autopart.oem_number},
+        )
+
+    assert response.status_code == 200, response.text
+    offer = response.json()["offers"][0]
+    assert offer["multiplicity"] == 4
 
 
 @pytest.mark.asyncio
@@ -337,6 +388,7 @@ async def test_get_autopart_offers_separates_history_when_missing_in_latest(
         autopart_id=created_autopart.id,
         quantity=1,
         price=120.0,
+        multiplicity=3,
     )
     test_session.add(assoc_historical)
     await test_session.commit()
@@ -357,6 +409,7 @@ async def test_get_autopart_offers_separates_history_when_missing_in_latest(
     assert historical_offer["provider_config_id"] == (created_pricelist_config.id)
     assert historical_offer["price"] == 120.0
     assert historical_offer["quantity"] == 1
+    assert historical_offer["multiplicity"] == created_autopart.multiplicity
     assert historical_offer["pricelist_id"] == historical_pricelist.id
     assert historical_offer["pricelist_date"] == "2024-01-10"
 

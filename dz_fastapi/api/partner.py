@@ -41,6 +41,7 @@ from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
+    Client,
     Customer,
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
@@ -205,6 +206,144 @@ def _validate_order_insights_config_selection(
 
 
 router = APIRouter()
+
+
+async def _client_role(session: AsyncSession, client_id: int) -> str:
+    """Return a user-facing role for a shared client/provider identity."""
+
+    is_provider = (
+        await session.scalar(select(Provider.id).where(Provider.id == client_id))
+        is not None
+    )
+    is_customer = (
+        await session.scalar(select(Customer.id).where(Customer.id == client_id))
+        is not None
+    )
+    if is_provider and is_customer:
+        return "клиент и поставщик"
+    if is_provider:
+        return "поставщик"
+    if is_customer:
+        return "клиент"
+    return "контрагент"
+
+
+async def _find_client_field_conflict(
+    session: AsyncSession,
+    *,
+    field: str,
+    value: str | None,
+    exclude_client_id: int | None = None,
+) -> Client | None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    column = getattr(Client, field)
+    conditions = [func.lower(func.trim(column)) == normalized.casefold()]
+    if exclude_client_id is not None:
+        conditions.append(Client.id != exclude_client_id)
+    return (
+        await session.execute(select(Client).where(*conditions).limit(1))
+    ).scalar_one_or_none()
+
+
+async def _find_customer_outgoing_email_conflict(
+    session: AsyncSession,
+    *,
+    value: str | None,
+    exclude_customer_id: int | None = None,
+) -> Customer | None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    conditions = [
+        func.lower(func.trim(Customer.email_outgoing_price))
+        == normalized.casefold()
+    ]
+    if exclude_customer_id is not None:
+        conditions.append(Customer.id != exclude_customer_id)
+    return (
+        await session.execute(select(Customer).where(*conditions).limit(1))
+    ).scalar_one_or_none()
+
+
+async def _validate_customer_unique_fields(
+    session: AsyncSession,
+    values: dict,
+    *,
+    exclude_customer_id: int | None = None,
+) -> None:
+    """Raise a structured conflict that the UI can show next to the field."""
+
+    checks = (
+        ("name", "Название", "CLIENT_NAME_CONFLICT"),
+        ("email_contact", "Контактный email", "CLIENT_EMAIL_CONFLICT"),
+    )
+    for field, label, code in checks:
+        if field not in values:
+            continue
+        conflict = await _find_client_field_conflict(
+            session,
+            field=field,
+            value=values.get(field),
+            exclude_client_id=exclude_customer_id,
+        )
+        if conflict is None:
+            continue
+        role = await _client_role(session, conflict.id)
+        value = str(values.get(field) or "").strip()
+        advice = (
+            " Используйте различимые внутренние названия, например "
+            "«ЭЛЕМЕНТ (клиент)» и «ЭЛЕМЕНТ (поставщик)»."
+            if field == "name"
+            else " Укажите другой адрес или объедините дубли карточек."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": code,
+                "field": field,
+                "value": value,
+                "message": (
+                    f"{label} «{value}» уже используется: {role} "
+                    f"#{conflict.id} «{conflict.name}».{advice}"
+                ),
+                "conflict": {
+                    "id": conflict.id,
+                    "name": conflict.name,
+                    "role": role,
+                },
+            },
+        )
+
+    if "email_outgoing_price" not in values:
+        return
+    conflict = await _find_customer_outgoing_email_conflict(
+        session,
+        value=values.get("email_outgoing_price"),
+        exclude_customer_id=exclude_customer_id,
+    )
+    if conflict is None:
+        return
+    value = str(values.get("email_outgoing_price") or "").strip()
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "CUSTOMER_PRICE_EMAIL_CONFLICT",
+            "field": "email_outgoing_price",
+            "value": value,
+            "message": (
+                f"Email исходящих прайсов «{value}» уже используется клиентом "
+                f"#{conflict.id} «{conflict.name}». Укажите другой адрес или "
+                "объедините дубли карточек."
+            ),
+            "conflict": {
+                "id": conflict.id,
+                "name": conflict.name,
+                "role": "клиент",
+            },
+        },
+    )
 
 
 def _publication_rule_response(
@@ -992,44 +1131,41 @@ async def create_customer(
             detail="Name must not be empty after normalization.",
         )
     customer_in.name = normalized_name
-    existing_customer = await crud_customer.get_customer_or_none(
-        customer=customer_in.name, session=session
-    )
-    if existing_customer:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Customer with name {customer_in.name} already exists.",
-        )
+    await _validate_customer_unique_fields(session, customer_in.model_dump())
     try:
         customer = await crud_customer.create(obj_in=customer_in, session=session)
     except IntegrityError as e:
+        await session.rollback()
         error_message = str(e.orig)
         if ("duplicate key value violates " 'unique constraint "client_name_key"') in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(f"Customer with name {customer_in.name} already exists."),
+            await _validate_customer_unique_fields(
+                session,
+                {"name": customer_in.name},
             )
         elif (
             "duplicate key value violates " 'unique constraint "ix_client_email_contact"'
         ) in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(f"Customer with email " f"{customer_in.email_contact} already exists."),
+            await _validate_customer_unique_fields(
+                session,
+                {"email_contact": customer_in.email_contact},
             )
         elif (
             "duplicate key value violates " 'unique constraint "ix_customer_email_outgoing_price"'
         ) in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Customer with email " f"{customer_in.email_outgoing_price} already exists."
+            await _validate_customer_unique_fields(
+                session,
+                {"email_outgoing_price": customer_in.email_outgoing_price},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "CUSTOMER_SAVE_DATABASE_ERROR",
+                "message": (
+                    "База данных отклонила сохранение клиента. "
+                    "Проверьте уникальность названия и email."
                 ),
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Unexpected database error occurred.",
-            )
+            },
+        ) from e
     return CustomerResponse(
         id=customer.id,
         name=customer.name,
@@ -1439,32 +1575,51 @@ async def update_customer(
     if not update_data:
         raise HTTPException(status_code=404, detail="No data customer to update.")
 
+    await _validate_customer_unique_fields(
+        session,
+        update_data,
+        exclude_customer_id=customer_id,
+    )
+
     try:
         updated_customer = await crud_customer.update(
             db_obj=customer_db, obj_in=update_data, session=session
         )
     except IntegrityError as e:
+        await session.rollback()
         error_message = str(e.orig)
         if ("duplicate key value violates " 'unique constraint "client_name_key"') in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Customer with this name already exists.",
+            await _validate_customer_unique_fields(
+                session,
+                {"name": update_data.get("name")},
+                exclude_customer_id=customer_id,
             )
         if (
             "duplicate key value violates " 'unique constraint "ix_client_email_contact"'
         ) in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Customer with this contact email already exists.",
+            await _validate_customer_unique_fields(
+                session,
+                {"email_contact": update_data.get("email_contact")},
+                exclude_customer_id=customer_id,
             )
         if (
             "duplicate key value violates " 'unique constraint "ix_customer_email_outgoing_price"'
         ) in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Customer with this outgoing email already exists.",
+            await _validate_customer_unique_fields(
+                session,
+                {"email_outgoing_price": update_data.get("email_outgoing_price")},
+                exclude_customer_id=customer_id,
             )
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "CUSTOMER_SAVE_DATABASE_ERROR",
+                "message": (
+                    "База данных отклонила сохранение клиента. "
+                    "Проверьте уникальность названия и email."
+                ),
+            },
+        ) from e
     await session.commit()
     result = await session.execute(select(Customer).where(Customer.id == customer_id))
     updated_customer = result.scalars().first()

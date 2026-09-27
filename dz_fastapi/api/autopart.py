@@ -49,6 +49,7 @@ from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage,
 from dz_fastapi.crud.brand import brand_crud, brand_exists
 from dz_fastapi.models.autopart import (
     AutoPart,
+    AutoPartTurnoverSummary,
     Category,
     Photo,
     StorageLocation,
@@ -86,6 +87,9 @@ from dz_fastapi.schemas.autopart import (
     AutopartOwnStockRow,
     AutoPartPhotoOut,
     AutoPartResponse,
+    AutopartTurnoverReportItem,
+    AutopartTurnoverReportResponse,
+    AutopartTurnoverSummaryOut,
     AutoPartUpdate,
     BulkUpdateResponse,
     CategoryCreate,
@@ -151,11 +155,7 @@ def _storage_to_response(
         warehouse_name=warehouse.name if warehouse is not None else None,
         system_code=storage.system_code,
         is_system=bool(storage.system_code),
-        autoparts=(
-            list(getattr(storage, "autoparts", None) or [])
-            if include_autoparts
-            else []
-        ),
+        autoparts=(list(getattr(storage, "autoparts", None) or []) if include_autoparts else []),
     )
 
 
@@ -171,9 +171,7 @@ async def create_autopart_endpoint(
 ):
     brand_db = await brand_exists(autopart.brand_id, session)
     autopart = await crud_autopart.create_autopart(autopart, brand_db, session)
-    return await crud_autopart.get_autopart_by_id(
-        session=session, autopart_id=autopart.id
-    )
+    return await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart.id)
 
 
 @router.get(
@@ -207,9 +205,9 @@ async def get_autopart_offers(
         else_=2,
     )
 
-    partition_key = func.coalesce(
-        PriceList.provider_config_id, PriceList.provider_id
-    ).label("partition_key")
+    partition_key = func.coalesce(PriceList.provider_config_id, PriceList.provider_id).label(
+        "partition_key"
+    )
     latest_pricelist_rank = (
         func.row_number()
         .over(
@@ -244,6 +242,16 @@ async def get_autopart_offers(
             ProviderPriceListConfig.name_price.label("provider_config_name"),
             PriceListAutoPartAssociation.price.label("price"),
             PriceListAutoPartAssociation.quantity.label("quantity"),
+            case(
+                (
+                    or_(
+                        Provider.is_own_price.is_(True),
+                        ProviderPriceListConfig.multiplicity_col.is_(None),
+                    ),
+                    AutoPart.multiplicity,
+                ),
+                else_=PriceListAutoPartAssociation.multiplicity,
+            ).label("multiplicity"),
             ProviderPriceListConfig.min_delivery_day.label("min_delivery_day"),
             ProviderPriceListConfig.max_delivery_day.label("max_delivery_day"),
             PriceList.id.label("pricelist_id"),
@@ -288,9 +296,7 @@ async def get_autopart_offers(
         .over(
             partition_by=(
                 PriceListAutoPartAssociation.autopart_id,
-                func.coalesce(
-                    PriceList.provider_config_id, PriceList.provider_id
-                ),
+                func.coalesce(PriceList.provider_config_id, PriceList.provider_id),
             ),
             order_by=(PriceList.date.desc(), PriceList.id.desc()),
         )
@@ -310,13 +316,23 @@ async def get_autopart_offers(
             ProviderPriceListConfig.name_price.label("provider_config_name"),
             PriceListAutoPartAssociation.price.label("price"),
             PriceListAutoPartAssociation.quantity.label("quantity"),
+            case(
+                (
+                    or_(
+                        Provider.is_own_price.is_(True),
+                        ProviderPriceListConfig.multiplicity_col.is_(None),
+                    ),
+                    AutoPart.multiplicity,
+                ),
+                else_=PriceListAutoPartAssociation.multiplicity,
+            ).label("multiplicity"),
             ProviderPriceListConfig.min_delivery_day.label("min_delivery_day"),
             ProviderPriceListConfig.max_delivery_day.label("max_delivery_day"),
             PriceList.id.label("pricelist_id"),
             PriceList.date.label("pricelist_date"),
-            func.coalesce(
-                PriceList.provider_config_id, PriceList.provider_id
-            ).label("partition_key"),
+            func.coalesce(PriceList.provider_config_id, PriceList.provider_id).label(
+                "partition_key"
+            ),
             history_rank,
         )
         .select_from(PriceListAutoPartAssociation)
@@ -375,6 +391,7 @@ async def get_autopart_offers(
                 provider_config_name=row.get("provider_config_name"),
                 price=float(price_value) if price_value is not None else 0.0,
                 quantity=row.get("quantity") or 0,
+                multiplicity=max(int(row.get("multiplicity") or 1), 1),
                 min_delivery_day=row.get("min_delivery_day"),
                 max_delivery_day=row.get("max_delivery_day"),
                 pricelist_id=row["pricelist_id"],
@@ -403,6 +420,7 @@ async def get_autopart_offers(
                 provider_config_name=row.get("provider_config_name"),
                 price=float(price_value) if price_value is not None else 0.0,
                 quantity=row.get("quantity") or 0,
+                multiplicity=max(int(row.get("multiplicity") or 1), 1),
                 min_delivery_day=row.get("min_delivery_day"),
                 max_delivery_day=row.get("max_delivery_day"),
                 pricelist_id=row["pricelist_id"],
@@ -434,11 +452,14 @@ async def get_autopart_offers(
     our_stock_rows: list[AutopartOwnStockRow] = []
     if normalized_oem:
         exact_autopart_rows = (
-            await session.execute(
-                select(AutoPart.id)
-                .where(AutoPart.oem_number == normalized_oem)
+            (
+                await session.execute(
+                    select(AutoPart.id).where(AutoPart.oem_number == normalized_oem)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         exact_ids = set(int(row_id) for row_id in exact_autopart_rows)
         stock_autopart_ids = set(exact_ids)
         # Собираем кроссы искомой позиции в ЛЮБОМ направлении и независимо
@@ -449,12 +470,8 @@ async def get_autopart_offers(
         cross_conditions = [AutoPartCross.cross_oem_number == normalized_oem]
         if exact_ids:
             exact_id_list = list(exact_ids)
-            cross_conditions.append(
-                AutoPartCross.source_autopart_id.in_(exact_id_list)
-            )
-            cross_conditions.append(
-                AutoPartCross.cross_autopart_id.in_(exact_id_list)
-            )
+            cross_conditions.append(AutoPartCross.source_autopart_id.in_(exact_id_list))
+            cross_conditions.append(AutoPartCross.cross_autopart_id.in_(exact_id_list))
         cross_seed_rows = (
             await session.execute(
                 select(
@@ -474,9 +491,7 @@ async def get_autopart_offers(
                 session,
                 seed_autopart_ids=stock_autopart_ids,
             )
-            stock_autopart_ids.update(
-                int(item.autopart_id) for item in cross_items
-            )
+            stock_autopart_ids.update(int(item.autopart_id) for item in cross_items)
 
         if stock_autopart_ids:
             own_partition_key = func.coalesce(
@@ -535,9 +550,7 @@ async def get_autopart_offers(
                         (AutoPart.oem_number == normalized_oem, 0),
                         (
                             or_(
-                                AutoPart.id.in_(
-                                    [int(row_id) for row_id in exact_autopart_rows]
-                                ),
+                                AutoPart.id.in_([int(row_id) for row_id in exact_autopart_rows]),
                                 AutoPart.oem_number == normalized_oem,
                             ),
                             1,
@@ -558,11 +571,7 @@ async def get_autopart_offers(
                         oem_number=row["oem_number"],
                         brand_name=row.get("brand_name"),
                         name=row.get("autopart_name"),
-                        price=(
-                            float(price_value)
-                            if price_value is not None
-                            else 0.0
-                        ),
+                        price=(float(price_value) if price_value is not None else 0.0),
                         quantity=int(row.get("quantity") or 0),
                         pricelist_id=row["pricelist_id"],
                         pricelist_date=row.get("pricelist_date"),
@@ -604,9 +613,9 @@ async def get_own_stock_by_oems(
     if not normalized_oems:
         return OwnStockByOemsResponse(rows=[])
 
-    own_partition_key = func.coalesce(
-        PriceList.provider_config_id, PriceList.provider_id
-    ).label("own_partition_key")
+    own_partition_key = func.coalesce(PriceList.provider_config_id, PriceList.provider_id).label(
+        "own_partition_key"
+    )
     latest_own_pricelists = (
         select(
             PriceList.id.label("pricelist_id"),
@@ -763,12 +772,8 @@ async def search_autoparts_by_oem(
     summary="Получение автозапчасти по ID",
     response_model=AutoPartResponse,
 )
-async def get_autopart_endpoint(
-    autopart_id: int, session: AsyncSession = Depends(get_session)
-):
-    autopart = await crud_autopart.get_autopart_by_id(
-        autopart_id=autopart_id, session=session
-    )
+async def get_autopart_endpoint(autopart_id: int, session: AsyncSession = Depends(get_session)):
+    autopart = await crud_autopart.get_autopart_by_id(autopart_id=autopart_id, session=session)
     if not autopart:
         raise HTTPException(status_code=404, detail="Autopart not found")
     return autopart
@@ -856,9 +861,7 @@ async def bulk_update_autoparts(
                 with zipfile.ZipFile(io.BytesIO(file_content)) as zip:
                     zip_list = zip.namelist()
                     if not zip_list:
-                        raise HTTPException(
-                            status_code=400, detail="Zip archive is empty"
-                        )
+                        raise HTTPException(status_code=400, detail="Zip archive is empty")
 
                     file_in_zip = zip_list[0]
                     with zip.open(file_in_zip) as inner_file:
@@ -869,9 +872,7 @@ async def bulk_update_autoparts(
                 with rarfile.RarFile(io.BytesIO(file_content)) as rar:
                     rar_list = rar.namelist()
                     if not rar_list:
-                        raise HTTPException(
-                            status_code=400, detail="Rar archive is empty"
-                        )
+                        raise HTTPException(status_code=400, detail="Rar archive is empty")
                     file_in_rar = rar_list[0]
                     with rar.open(file_in_rar) as inner_file:
                         file_content = inner_file.read()
@@ -892,15 +893,11 @@ async def bulk_update_autoparts(
                     usecols=usecols_list,
                 )
             else:
-                raise HTTPException(
-                    status_code=400, detail="Unsupported file type"
-                )
+                raise HTTPException(status_code=400, detail="Unsupported file type")
             df.columns = col_names
             logger.debug(f"DataFrame:\n{df.head()}")
         except Exception as e:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid format file:{e}"
-            )
+            raise HTTPException(status_code=400, detail=f"Invalid format file:{e}")
 
         updated_ids = []
         not_found = []
@@ -931,9 +928,7 @@ async def bulk_update_autoparts(
             brand_obj = await brand_crud.get_brand_by_name_or_none(
                 brand_name=brand_name, session=session
             )
-            logger.debug(
-                f"Name brand = {brand_obj.name if brand_obj else None}"
-            )
+            logger.debug(f"Name brand = {brand_obj.name if brand_obj else None}")
             if not oem_number or not brand_obj:
                 write_error_for_bulk(
                     problem_items=record,
@@ -946,18 +941,14 @@ async def bulk_update_autoparts(
                 oem_number=oem_number, brand_id=brand_obj.id, session=session
             )
             if not autopart:
-                logger.debug(
-                    f"Autoparts not found {oem_number}, {brand_obj.name}"
-                )
+                logger.debug(f"Autoparts not found {oem_number}, {brand_obj.name}")
                 write_error_for_bulk(
                     problem_items=record,
                     not_found=not_found,
                     error_message="AutoPart not found",
                 )
                 continue
-            logger.debug(
-                f"Autoparts found = {autopart.name} {autopart.oem_number}"
-            )
+            logger.debug(f"Autoparts found = {autopart.name} {autopart.oem_number}")
             update_fields = {}
             relationship_updated = False
             if multiplicity_col is not None:
@@ -971,15 +962,12 @@ async def bulk_update_autoparts(
             if storage_locations_col is not None:
                 storage_locations = record.get("storage_locations")
                 if storage_locations not in (None, "", "null"):
-                    storage_obj = (
-                        await crud_storage.get_storage_location_id_by_name(
-                            storage_location_name=storage_locations,
-                            session=session,
-                        )
+                    storage_obj = await crud_storage.get_storage_location_id_by_name(
+                        storage_location_name=storage_locations,
+                        session=session,
                     )
                     logger.debug(
-                        f"Storage location = "
-                        f"{storage_obj.name if storage_obj else None}"
+                        f"Storage location = " f"{storage_obj.name if storage_obj else None}"
                     )
                     if storage_obj is None:
                         write_error_for_bulk(
@@ -1033,12 +1021,8 @@ async def bulk_update_autoparts(
         except Exception as e:
             logger.exception("Error during bulk update")
             await session.rollback()
-            raise HTTPException(
-                status_code=500, detail=f"Error during bulk update: {e}"
-            )
-        return BulkUpdateResponse(
-            updated_count=len(updated_ids), not_found_parts=not_found
-        )
+            raise HTTPException(status_code=500, detail=f"Error during bulk update: {e}")
+        return BulkUpdateResponse(updated_count=len(updated_ids), not_found_parts=not_found)
     except HTTPException:
         raise
     except Exception as e:
@@ -1057,9 +1041,7 @@ async def update_autopart(
     autopart: AutoPartUpdate = Body(...),
     session: AsyncSession = Depends(get_session),
 ):
-    autopart_db = await crud_autopart.get_autopart_by_id(
-        autopart_id=autopart_id, session=session
-    )
+    autopart_db = await crud_autopart.get_autopart_by_id(autopart_id=autopart_id, session=session)
     update_data = autopart.model_dump(exclude_unset=True)
     if autopart_db is None:
         raise HTTPException(status_code=404, detail="AutoPart not found")
@@ -1089,17 +1071,13 @@ async def create_category(
     category_in: CategoryCreate, session: AsyncSession = Depends(get_session)
 ):
     try:
-        result = await session.execute(
-            select(Category).where(Category.name == category_in.name)
-        )
+        result = await session.execute(select(Category).where(Category.name == category_in.name))
         existing_category = result.scalar_one_or_none()
 
         if existing_category:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Category with name {category_in.name} already exists."
-                ),
+                detail=(f"Category with name {category_in.name} already exists."),
             )
         new_category = Category(**category_in.model_dump())
         session.add(new_category)
@@ -1141,12 +1119,8 @@ async def get_categories(
     summary="Получение категории по ID",
     response_model=CategoryResponse,
 )
-async def get_category(
-    category_id: int, session: AsyncSession = Depends(get_session)
-):
-    category = await crud_category.get_category_by_id(
-        category_id=category_id, session=session
-    )
+async def get_category(category_id: int, session: AsyncSession = Depends(get_session)):
+    category = await crud_category.get_category_by_id(category_id=category_id, session=session)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     return category
@@ -1163,9 +1137,7 @@ async def update_category(
     category_in: CategoryUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    category_old = await crud_category.get_category_by_id(
-        category_id=category_id, session=session
-    )
+    category_old = await crud_category.get_category_by_id(category_id=category_id, session=session)
     if not category_old:
         raise HTTPException(status_code=404, detail="Category not found")
     try:
@@ -1192,9 +1164,7 @@ async def create_categories_bulk(
     categories_data: List[CategoryCreate],
     session: AsyncSession = Depends(get_session),
 ):
-    created_cats = await crud_category.create_many(
-        category_data=categories_data, session=session
-    )
+    created_cats = await crud_category.create_many(category_data=categories_data, session=session)
     return [CategoryResponse.from_orm(cat) for cat in created_cats]
 
 
@@ -1217,9 +1187,7 @@ async def create_warehouse(
             detail="Название склада не может быть пустым",
         )
     existing = (
-        await session.execute(
-            select(Warehouse).where(Warehouse.name == payload["name"])
-        )
+        await session.execute(select(Warehouse).where(Warehouse.name == payload["name"]))
     ).scalar_one_or_none()
     if existing is not None:
         raise HTTPException(
@@ -1329,9 +1297,7 @@ async def create_storage_location(
         default_warehouse = await ensure_default_warehouse(session)
         storage_in.warehouse_id = default_warehouse.id
     else:
-        warehouse = await crud_warehouse.get_by_id(
-            storage_in.warehouse_id, session
-        )
+        warehouse = await crud_warehouse.get_by_id(storage_in.warehouse_id, session)
         if warehouse is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1345,18 +1311,14 @@ async def create_storage_location(
         )
     try:
         result = await session.execute(
-            select(StorageLocation).where(
-                StorageLocation.name == storage_in.name
-            )
+            select(StorageLocation).where(StorageLocation.name == storage_in.name)
         )
         existing_storage = result.scalar_one_or_none()
 
         if existing_storage:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Storage with name {storage_in.name} already exists."
-                ),
+                detail=(f"Storage with name {storage_in.name} already exists."),
             )
         storage = await crud_storage.create(storage_in, session)
         storage = await crud_storage.get_storage_location_by_id(
@@ -1369,9 +1331,7 @@ async def create_storage_location(
         if "unique constraint" in str(error):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Storage with name {storage_in.name} already exists."
-                ),
+                detail=(f"Storage with name {storage_in.name} already exists."),
             ) from error
         elif "check constraint" in str(error):
             raise HTTPException(
@@ -1413,8 +1373,7 @@ async def get_storage_locations(
         include_autoparts=include_autoparts,
     )
     return [
-        _storage_to_response(storage, include_autoparts=include_autoparts)
-        for storage in storages
+        _storage_to_response(storage, include_autoparts=include_autoparts) for storage in storages
     ]
 
 
@@ -1425,16 +1384,12 @@ async def get_storage_locations(
     tags=["storage"],
     response_model=StorageLocationResponse,
 )
-async def get_storage_location(
-    storage_id: int, session: AsyncSession = Depends(get_session)
-):
+async def get_storage_location(storage_id: int, session: AsyncSession = Depends(get_session)):
     storage = await crud_storage.get_storage_location_by_id(
         storage_location_id=storage_id, session=session
     )
     if not storage:
-        raise HTTPException(
-            status_code=404, detail="Storage location not found"
-        )
+        raise HTTPException(status_code=404, detail="Storage location not found")
     return _storage_to_response(storage)
 
 
@@ -1454,9 +1409,7 @@ async def update_storage_location(
         storage_location_id=storage_id, session=session
     )
     if not storage_old:
-        raise HTTPException(
-            status_code=404, detail="Storage location not found"
-        )
+        raise HTTPException(status_code=404, detail="Storage location not found")
     if storage_old.system_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1542,9 +1495,7 @@ async def delete_storage_location(
     )
     storage = result.scalar_one_or_none()
     if not storage:
-        raise HTTPException(
-            status_code=404, detail="Место хранения не найдено"
-        )
+        raise HTTPException(status_code=404, detail="Место хранения не найдено")
     if storage.system_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1598,9 +1549,7 @@ async def get_storage_autoparts(
     """Return StockByLocation records for the given storage location."""
     storage = await session.get(StorageLocation, storage_id)
     if not storage:
-        raise HTTPException(
-            status_code=404, detail="Место хранения не найдено"
-        )
+        raise HTTPException(status_code=404, detail="Место хранения не найдено")
 
     rows = (
         (
@@ -1608,9 +1557,7 @@ async def get_storage_autoparts(
                 select(StockByLocation)
                 .where(StockByLocation.storage_location_id == storage_id)
                 .options(
-                    selectinload(StockByLocation.autopart).selectinload(
-                        AutoPart.brand
-                    ),
+                    selectinload(StockByLocation.autopart).selectinload(AutoPart.brand),
                     selectinload(StockByLocation.storage_location),
                 )
                 .order_by(StockByLocation.autopart_id)
@@ -1626,11 +1573,7 @@ async def get_storage_autoparts(
             "autopart_id": r.autopart_id,
             "oem_number": r.autopart.oem_number if r.autopart else None,
             "name": r.autopart.name if r.autopart else None,
-            "brand_name": (
-                r.autopart.brand.name
-                if (r.autopart and r.autopart.brand)
-                else ""
-            ),
+            "brand_name": (r.autopart.brand.name if (r.autopart and r.autopart.brand) else ""),
             "stock_quantity": r.quantity,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         }
@@ -1646,12 +1589,8 @@ async def get_storage_autoparts(
 )
 async def get_price_history_plot(
     oem_number: str,
-    date_start: Optional[str] = Query(
-        default=None, description="Start date in format YYYY-MM-DD"
-    ),
-    date_finish: Optional[str] = Query(
-        default=None, description="End date in format YYYY-MM-DD"
-    ),
+    date_start: Optional[str] = Query(default=None, description="Start date in format YYYY-MM-DD"),
+    date_finish: Optional[str] = Query(default=None, description="End date in format YYYY-MM-DD"),
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     # 1. Получаем запчасть по oem_number
@@ -1663,9 +1602,7 @@ async def get_price_history_plot(
     if not autoparts_for_analytic:
         logger.debug(f"No autoparts found for OEM {normalized_oem}")
     else:
-        names = ", ".join(
-            [autopart.name for autopart in autoparts_for_analytic]
-        )
+        names = ", ".join([autopart.name for autopart in autoparts_for_analytic])
         logger.debug(f"Autoparts found for OEM {oem_number}: {names}")
 
     start_dt, finish_dt = check_start_and_finish_date(date_start, date_finish)
@@ -1675,9 +1612,7 @@ async def get_price_history_plot(
         date_start=start_dt,
         date_finish=finish_dt,
     )
-    actual_df, step_df, stockout_df = prepare_price_history_plot_data(
-        df, finish_dt
-    )
+    actual_df, step_df, stockout_df = prepare_price_history_plot_data(df, finish_dt)
 
     fig = make_subplots(
         rows=2,
@@ -1699,9 +1634,7 @@ async def get_price_history_plot(
         color = palette[index % len(palette)]
         provider_step_df = step_df[step_df["provider"] == provider_name]
         provider_actual_df = actual_df[actual_df["provider"] == provider_name]
-        provider_stockout_df = stockout_df[
-            stockout_df["provider"] == provider_name
-        ]
+        provider_stockout_df = stockout_df[stockout_df["provider"] == provider_name]
 
         fig.add_trace(
             go.Scatter(
@@ -1919,8 +1852,7 @@ async def restock_autoparts(
     )
     return {
         "status": "success",
-        "message": "Отчет формируется и "
-        "будет отправлен на указанные контакты.",
+        "message": "Отчет формируется и " "будет отправлен на указанные контакты.",
     }
 
 
@@ -1936,15 +1868,9 @@ async def restock_autoparts(
     response_model=AutoPartCatalogResponse,
 )
 async def get_autoparts_catalog(
-    q_oem: Optional[str] = Query(
-        None, description="Поиск по OEM-номеру (от 3 символов)"
-    ),
-    q_name: Optional[str] = Query(
-        None, description="Поиск по наименованию (от 3 символов)"
-    ),
-    q_brand: Optional[str] = Query(
-        None, description="Поиск по бренду (от 3 символов)"
-    ),
+    q_oem: Optional[str] = Query(None, description="Поиск по OEM-номеру (от 3 символов)"),
+    q_name: Optional[str] = Query(None, description="Поиск по наименованию (от 3 символов)"),
+    q_brand: Optional[str] = Query(None, description="Поиск по бренду (от 3 символов)"),
     partssoft: Optional[bool] = Query(None, description="Фильтр по источнику Parts-Soft"),
     content: Optional[str] = Query(
         None,
@@ -1953,11 +1879,13 @@ async def get_autoparts_catalog(
     ),
     links: Optional[str] = Query(
         None,
-        pattern=(
-            "^(with_applicability|without_applicability"
-            "|with_crosses|without_crosses)$"
-        ),
+        pattern=("^(with_applicability|without_applicability" "|with_crosses|without_crosses)$"),
         description="Фильтр по применимости и кроссам",
+    ),
+    turnover: Optional[str] = Query(
+        None,
+        pattern="^(top|market|needs_order)$",
+        description="Фильтр по сигналу оборачиваемости",
     ),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -1971,6 +1899,7 @@ async def get_autoparts_catalog(
         partssoft=partssoft,
         content=content,
         links=links,
+        turnover=turnover,
         offset=offset,
         limit=limit,
     )
@@ -2015,12 +1944,9 @@ async def get_autoparts_catalog(
             )
             .join(
                 ApplicabilityNode,
-                ApplicabilityNode.id
-                == autopart_applicability_association.c.applicability_node_id,
+                ApplicabilityNode.id == autopart_applicability_association.c.applicability_node_id,
             )
-            .where(
-                autopart_applicability_association.c.autopart_id.in_(ap_ids)
-            )
+            .where(autopart_applicability_association.c.autopart_id.in_(ap_ids))
             .order_by(
                 autopart_applicability_association.c.autopart_id.asc(),
                 ApplicabilityNode.name.asc(),
@@ -2028,9 +1954,7 @@ async def get_autoparts_catalog(
         )
         for row in (await session.execute(node_stmt)).all():
             autopart_id = int(row.autopart_id)
-            applicability_counts[autopart_id] = (
-                applicability_counts.get(autopart_id, 0) + 1
-            )
+            applicability_counts[autopart_id] = applicability_counts.get(autopart_id, 0) + 1
             names = applicability_names.setdefault(autopart_id, [])
             if len(names) < 5:
                 names.append(str(row.name))
@@ -2044,9 +1968,7 @@ async def get_autoparts_catalog(
             .group_by(AutoPartCross.source_autopart_id)
         )
         for row in (await session.execute(cross_stmt)).all():
-            cross_counts[int(row.source_autopart_id)] = int(
-                row.cross_count or 0
-            )
+            cross_counts[int(row.source_autopart_id)] = int(row.cross_count or 0)
 
     # Места хранения — из фактического остатка (StockByLocation), а не
     # из метки в карточке товара. Метка снимается и ставится вручную и
@@ -2069,12 +1991,20 @@ async def get_autoparts_catalog(
             .order_by(StorageLocation.name.asc())
         )
         for row in (await session.execute(location_stmt)).all():
-            real_locations.setdefault(int(row.autopart_id), []).append(
-                row.name
+            real_locations.setdefault(int(row.autopart_id), []).append(row.name)
+
+    turnover_map: dict[int, AutoPartTurnoverSummary] = {}
+    if items:
+        turnover_rows = await session.execute(
+            select(AutoPartTurnoverSummary).where(
+                AutoPartTurnoverSummary.autopart_id.in_([ap.id for ap in items])
             )
+        )
+        turnover_map = {int(row.autopart_id): row for row in turnover_rows.scalars().all()}
 
     catalog_items = []
     for ap in items:
+        turnover_summary = turnover_map.get(int(ap.id))
         catalog_items.append(
             AutoPartCatalogItem(
                 id=ap.id,
@@ -2082,15 +2012,9 @@ async def get_autoparts_catalog(
                 brand_name=ap.brand.name if ap.brand else None,
                 oem_number=ap.oem_number,
                 name=ap.name,
-                purchase_price=(
-                    float(ap.purchase_price) if ap.purchase_price else None
-                ),
-                retail_price=(
-                    float(ap.retail_price) if ap.retail_price else None
-                ),
-                wholesale_price=(
-                    float(ap.wholesale_price) if ap.wholesale_price else None
-                ),
+                purchase_price=(float(ap.purchase_price) if ap.purchase_price else None),
+                retail_price=(float(ap.retail_price) if ap.retail_price else None),
+                wholesale_price=(float(ap.wholesale_price) if ap.wholesale_price else None),
                 minimum_balance=ap.minimum_balance,
                 min_balance_auto=ap.min_balance_auto,
                 barcode=ap.barcode,
@@ -2113,11 +2037,23 @@ async def get_autoparts_catalog(
                 categories=ap.categories,
                 storage_locations=real_locations.get(ap.id, []),
                 stock_quantity=stock_map.get(ap.id, 0),
+                is_turnover_top=bool(turnover_summary and turnover_summary.is_top),
+                is_market_opportunity=bool(
+                    turnover_summary and turnover_summary.is_market_opportunity
+                ),
+                turnover_score=(
+                    float(turnover_summary.recommendation_score)
+                    if turnover_summary is not None
+                    else None
+                ),
+                recommended_order_qty=(
+                    int(turnover_summary.recommended_order_qty or 0)
+                    if turnover_summary is not None
+                    else 0
+                ),
             )
         )
-    return AutoPartCatalogResponse(
-        items=catalog_items, total=total, offset=offset, limit=limit
-    )
+    return AutoPartCatalogResponse(items=catalog_items, total=total, offset=offset, limit=limit)
 
 
 def _latest_pricelists_subquery():
@@ -2127,9 +2063,9 @@ def _latest_pricelists_subquery():
     базе. Без отбора последнего наличие считалось бы по всем загрузкам
     сразу и завышалось в разы.
     """
-    partition_key = func.coalesce(
-        PriceList.provider_config_id, PriceList.provider_id
-    ).label("partition_key")
+    partition_key = func.coalesce(PriceList.provider_config_id, PriceList.provider_id).label(
+        "partition_key"
+    )
     rank = (
         func.row_number()
         .over(
@@ -2207,9 +2143,7 @@ async def _availability_by_autopart(
         запись["suppliers_count"] += int(row["suppliers_count"] or 0)
         запись["supplier_quantity"] += int(row["quantity"] or 0)
         цена = _to_float_or_none(row["best_price"])
-        if цена is not None and (
-            запись["best_price"] is None or цена < запись["best_price"]
-        ):
+        if цена is not None and (запись["best_price"] is None or цена < запись["best_price"]):
             запись["best_price"] = цена
     return сводка
 
@@ -2270,9 +2204,7 @@ async def get_autopart_availability(
     """
     позиция = (
         await session.execute(
-            select(AutoPart)
-            .options(selectinload(AutoPart.brand))
-            .where(AutoPart.id == autopart_id)
+            select(AutoPart).options(selectinload(AutoPart.brand)).where(AutoPart.id == autopart_id)
         )
     ).scalar_one_or_none()
     if позиция is None:
@@ -2320,9 +2252,7 @@ async def get_autopart_availability(
             supplier_quantity=int((свод or {}).get("supplier_quantity") or 0),
             best_price=(свод or {}).get("best_price"),
             cross_id=int(cross.id) if cross is not None else None,
-            is_bidirectional=(
-                bool(cross.is_bidirectional) if cross is not None else None
-            ),
+            is_bidirectional=(bool(cross.is_bidirectional) if cross is not None else None),
             priority=cross.priority if cross is not None else None,
         )
 
@@ -2385,14 +2315,192 @@ async def get_autopart_availability(
             собрать(
                 cross.cross_autopart,
                 oem=cross.cross_oem_number,
-                brand=(
-                    cross.cross_brand.name if cross.cross_brand else None
-                ),
+                brand=(cross.cross_brand.name if cross.cross_brand else None),
                 cross=cross,
             )
             for cross in crosses
         ],
     )
+
+
+@router.get(
+    "/autoparts/{autopart_id:int}/turnover-summary/",
+    tags=["autopart", "catalog"],
+    summary="Сводка спроса: наши заказы + движение остатка у поставщиков",
+    response_model=Optional[AutopartTurnoverSummaryOut],
+)
+async def get_autopart_turnover_summary(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    """Готовая строка для тултипа в поиске — без live-агрегации.
+
+    Считается ночной задачей (refresh_turnover_summary_task). Пустой
+    ответ (null) значит, что по позиции ещё нет ни заказов, ни свежих
+    предложений поставщиков — это не ошибка.
+    """
+    summary = (
+        await session.execute(
+            select(AutoPartTurnoverSummary).where(
+                AutoPartTurnoverSummary.autopart_id == autopart_id
+            )
+        )
+    ).scalar_one_or_none()
+    if summary is None:
+        return None
+    return AutopartTurnoverSummaryOut.model_validate(summary)
+
+
+@router.get(
+    "/autoparts/turnover-report/",
+    tags=["autopart", "catalog"],
+    summary="Позиции с хорошей оборачиваемостью и текущей ценой",
+    response_model=AutopartTurnoverReportResponse,
+)
+async def get_turnover_report(
+    brand_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    signal: str = Query(default="all", pattern="^(all|demand|market)$"),
+    only_top: bool = False,
+    min_supplier_count: int = 0,
+    min_score: float = Query(default=0, ge=0, le=100),
+    only_declining: bool = False,
+    needs_order: bool = False,
+    sort_by: str = Query(
+        default="score",
+        pattern="^(score|demand|market|price|recommended_qty)$",
+    ),
+    sort_desc: bool = True,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    """Demand-backed and market-only purchase candidates with pagination."""
+    stmt = (
+        select(AutoPartTurnoverSummary, AutoPart, Brand.name)
+        .join(AutoPart, AutoPart.id == AutoPartTurnoverSummary.autopart_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+    )
+    if brand_id is not None:
+        stmt = stmt.where(AutoPart.brand_id == brand_id)
+    if category_id is not None:
+        stmt = stmt.where(AutoPartTurnoverSummary.category_id == category_id)
+    if signal == "demand":
+        stmt = stmt.where(AutoPartTurnoverSummary.daily_velocity_30d > 0)
+    elif signal == "market":
+        stmt = stmt.where(AutoPartTurnoverSummary.is_market_opportunity.is_(True))
+    if only_top:
+        stmt = stmt.where(AutoPartTurnoverSummary.is_top.is_(True))
+    if min_supplier_count > 0:
+        stmt = stmt.where(AutoPartTurnoverSummary.supplier_count >= min_supplier_count)
+    if min_score > 0:
+        stmt = stmt.where(AutoPartTurnoverSummary.recommendation_score >= min_score)
+    if only_declining:
+        stmt = stmt.where(AutoPartTurnoverSummary.declining_supplier_count > 0)
+    if needs_order:
+        stmt = stmt.where(AutoPartTurnoverSummary.recommended_order_qty > 0)
+
+    count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+    total = int((await session.execute(count_stmt)).scalar_one() or 0)
+
+    sort_columns = {
+        "score": AutoPartTurnoverSummary.recommendation_score,
+        "demand": AutoPartTurnoverSummary.demand_score,
+        "market": AutoPartTurnoverSummary.market_score,
+        "price": AutoPartTurnoverSummary.price_score,
+        "recommended_qty": AutoPartTurnoverSummary.recommended_order_qty,
+    }
+    sort_column = sort_columns[sort_by]
+    ordering = sort_column.desc() if sort_desc else sort_column.asc()
+    stmt = (
+        stmt.order_by(
+            ordering,
+            AutoPartTurnoverSummary.recommendation_score.desc(),
+            AutoPart.id.asc(),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = (await session.execute(stmt)).all()
+    items = [
+        AutopartTurnoverReportItem(
+            autopart_id=summary.autopart_id,
+            oem_number=autopart.oem_number,
+            brand_name=brand_name,
+            name=autopart.name,
+            sold_qty_30d=summary.sold_qty_30d,
+            sold_qty_90d=summary.sold_qty_90d,
+            daily_velocity_30d=summary.daily_velocity_30d,
+            daily_velocity_90d=summary.daily_velocity_90d,
+            order_count_30d=summary.order_count_30d,
+            active_weeks_90d=summary.active_weeks_90d,
+            supplier_count=summary.supplier_count,
+            min_purchase_price=(
+                float(summary.min_purchase_price)
+                if summary.min_purchase_price is not None
+                else None
+            ),
+            avg_purchase_price=(
+                float(summary.avg_purchase_price)
+                if summary.avg_purchase_price is not None
+                else None
+            ),
+            median_purchase_price=(
+                float(summary.median_purchase_price)
+                if summary.median_purchase_price is not None
+                else None
+            ),
+            min_price_provider_name=summary.min_price_provider_name,
+            min_price_pricelist_date=summary.min_price_pricelist_date,
+            price_vs_90d_pct=summary.price_vs_90d_pct,
+            supplier_qty_trend_30d=summary.supplier_qty_trend_30d,
+            trend_supplier_count=summary.trend_supplier_count,
+            declining_supplier_count=summary.declining_supplier_count,
+            current_stock_qty=summary.current_stock_qty,
+            reserved_qty=summary.reserved_qty,
+            free_stock_qty=summary.free_stock_qty,
+            in_transit_qty=summary.in_transit_qty,
+            open_backlog_qty=summary.open_backlog_qty,
+            multiplicity=summary.multiplicity,
+            lead_time_days=summary.lead_time_days,
+            target_stock_qty=summary.target_stock_qty,
+            recommended_order_qty=summary.recommended_order_qty,
+            category_id=summary.category_id,
+            category_name=summary.category_name,
+            demand_score=summary.demand_score,
+            market_score=summary.market_score,
+            price_score=summary.price_score,
+            recommendation_score=summary.recommendation_score,
+            is_market_opportunity=summary.is_market_opportunity,
+            turnover_percentile=summary.turnover_percentile,
+            is_top=summary.is_top,
+        )
+        for summary, autopart, brand_name in rows
+    ]
+    updated_at = (
+        await session.execute(select(func.max(AutoPartTurnoverSummary.updated_at)))
+    ).scalar_one_or_none()
+    return AutopartTurnoverReportResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        updated_at=updated_at,
+    )
+
+
+@router.post(
+    "/autoparts/turnover-report/refresh/",
+    tags=["autopart", "catalog"],
+    summary="Пересчитать аналитику оборачиваемости вручную",
+)
+async def refresh_turnover_report(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.analytics.turnover import refresh_turnover_summary
+
+    affected = await refresh_turnover_summary(session)
+    return {"updated_rows": affected}
 
 
 @router.get(
@@ -2444,9 +2552,7 @@ async def get_autopart_detail(
         weight=ap.weight,
         purchase_price=float(ap.purchase_price) if ap.purchase_price else None,
         retail_price=float(ap.retail_price) if ap.retail_price else None,
-        wholesale_price=(
-            float(ap.wholesale_price) if ap.wholesale_price else None
-        ),
+        wholesale_price=(float(ap.wholesale_price) if ap.wholesale_price else None),
         multiplicity=ap.multiplicity,
         minimum_balance=ap.minimum_balance,
         min_balance_auto=ap.min_balance_auto,
@@ -2472,12 +2578,10 @@ async def get_autopart_detail(
         storage_locations=ap.storage_locations,
         crosses=crosses,
         honest_sign_categories=[
-            HonestSignCategoryOut.model_validate(h)
-            for h in (ap.honest_sign_categories or [])
+            HonestSignCategoryOut.model_validate(h) for h in (ap.honest_sign_categories or [])
         ],
         applicability_nodes=[
-            ApplicabilityNodeFlatOut.model_validate(n)
-            for n in (ap.applicability_nodes or [])
+            ApplicabilityNodeFlatOut.model_validate(n) for n in (ap.applicability_nodes or [])
         ],
     )
 
@@ -2614,9 +2718,7 @@ async def update_autopart_catalog(
     payload: AutoPartUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    ap = await crud_autopart.get_autopart_by_id(
-        session=session, autopart_id=autopart_id
-    )
+    ap = await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart_id)
     if not ap:
         raise HTTPException(status_code=404, detail="Запчасть не найдена")
     data = payload.model_dump(exclude_unset=True)
@@ -2703,9 +2805,7 @@ async def add_autopart_cross(
         cross_oem_number=payload.cross_oem_number,
     )
     if existing_cross is not None:
-        raise HTTPException(
-            status_code=409, detail="Такой кросс-номер уже существует"
-        )
+        raise HTTPException(status_code=409, detail="Такой кросс-номер уже существует")
     try:
         cross, _created = await save_cross_relation(
             session,
@@ -2722,9 +2822,7 @@ async def add_autopart_cross(
         await session.refresh(cross)
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(
-            status_code=409, detail="Такой кросс-номер уже существует"
-        )
+        raise HTTPException(status_code=409, detail="Такой кросс-номер уже существует")
     brand_result = await session.get(Brand, cross.cross_brand_id)
     return CrossOut(
         id=cross.id,
@@ -2755,12 +2853,8 @@ async def delete_autopart_cross(
     await delete_cross_relation(
         session,
         cross=cross,
-        source_brand_id=(
-            source_autopart.brand_id if source_autopart is not None else 0
-        ),
-        source_oem_number=(
-            source_autopart.oem_number if source_autopart is not None else ""
-        ),
+        source_brand_id=(source_autopart.brand_id if source_autopart is not None else 0),
+        source_oem_number=(source_autopart.oem_number if source_autopart is not None else ""),
     )
     await session.commit()
 
@@ -2774,13 +2868,8 @@ async def delete_autopart_cross(
 async def list_storage_locations(
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(
-        select(StorageLocation).order_by(StorageLocation.name)
-    )
-    return [
-        StorageLocationOut(id=s.id, name=s.name)
-        for s in result.scalars().all()
-    ]
+    result = await session.execute(select(StorageLocation).order_by(StorageLocation.name))
+    return [StorageLocationOut(id=s.id, name=s.name) for s in result.scalars().all()]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2797,9 +2886,7 @@ async def list_storage_locations(
 async def list_honest_sign_categories(
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(
-        select(HonestSignCategory).order_by(HonestSignCategory.name)
-    )
+    result = await session.execute(select(HonestSignCategory).order_by(HonestSignCategory.name))
     return result.scalars().all()
 
 
@@ -2816,9 +2903,7 @@ async def create_honest_sign_category(
 ):
     existing = (
         await session.execute(
-            select(HonestSignCategory).where(
-                HonestSignCategory.name == payload.name
-            )
+            select(HonestSignCategory).where(HonestSignCategory.name == payload.name)
         )
     ).scalar_one_or_none()
     if existing:
@@ -2856,9 +2941,7 @@ async def assign_honest_sign_categories(
     cats = list(
         (
             await session.execute(
-                select(HonestSignCategory).where(
-                    HonestSignCategory.id.in_(category_ids)
-                )
+                select(HonestSignCategory).where(HonestSignCategory.id.in_(category_ids))
             )
         )
         .scalars()
@@ -2888,9 +2971,7 @@ async def assign_honest_sign_categories(
     response_model=list[ApplicabilityNodeOut],
 )
 async def list_applicability_nodes(
-    parent_id: Optional[int] = Query(
-        None, description="ID родительского узла (None = корень)"
-    ),
+    parent_id: Optional[int] = Query(None, description="ID родительского узла (None = корень)"),
     session: AsyncSession = Depends(get_session),
 ):
     stmt = (
@@ -2923,10 +3004,7 @@ async def list_all_applicability_nodes(
             ApplicabilityNode.name,
         )
     )
-    return [
-        ApplicabilityNodeFlatOut.model_validate(n)
-        for n in result.scalars().all()
-    ]
+    return [ApplicabilityNodeFlatOut.model_validate(n) for n in result.scalars().all()]
 
 
 @router.post(
@@ -2962,9 +3040,7 @@ async def create_applicability_node(
 )
 async def assign_applicability_nodes(
     autopart_id: int,
-    node_ids: List[int] = Body(
-        ..., description="Список ID узлов применимости"
-    ),
+    node_ids: List[int] = Body(..., description="Список ID узлов применимости"),
     session: AsyncSession = Depends(get_session),
 ):
     # Load ap with the applicability_nodes relationship already populated
@@ -2977,13 +3053,7 @@ async def assign_applicability_nodes(
     if not ap:
         raise HTTPException(status_code=404, detail="Запчасть не найдена")
     nodes = list(
-        (
-            await session.execute(
-                select(ApplicabilityNode).where(
-                    ApplicabilityNode.id.in_(node_ids)
-                )
-            )
-        )
+        (await session.execute(select(ApplicabilityNode).where(ApplicabilityNode.id.in_(node_ids))))
         .scalars()
         .all()
     )

@@ -163,9 +163,12 @@ PARTSSOFT_ORDER_SYNC_MINUTES = max(
     1,
     int(os.getenv("PARTSSOFT_ORDER_SYNC_MINUTES", "10")),
 )
-PARTSSOFT_ORDER_SYNC_ENABLED = os.getenv(
-    "PARTSSOFT_ORDER_SYNC_ENABLED", "1"
-).strip().lower() in {"1", "true", "yes", "on"}
+PARTSSOFT_ORDER_SYNC_ENABLED = os.getenv("PARTSSOFT_ORDER_SYNC_ENABLED", "1").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 PARTSSOFT_PRODUCT_SYNC_HOURS = max(
     1,
     int(os.getenv("PARTSSOFT_PRODUCT_SYNC_HOURS", "6")),
@@ -530,9 +533,7 @@ async def sync_partssoft_products_task(app: FastAPI):
                     supplier_result = {"error": str(exc)}
                     logger.exception("Parts-Soft supplier sync failed")
                 product_result = await sync_partssoft_products(session)
-                trace.details.update(
-                    {"suppliers": supplier_result, "products": product_result}
-                )
+                trace.details.update({"suppliers": supplier_result, "products": product_result})
                 logger.info("Parts-Soft product sync completed: %s", product_result)
 
 
@@ -575,9 +576,7 @@ async def sync_partssoft_documents_task(app: FastAPI):
         job_name="Import Parts-Soft invoices",
     ) as trace:
         async with new_session_from_app(app) as session:
-            existing = await session.scalar(
-                select(func.count(PartsSoftDocumentSnapshot.id))
-            )
+            existing = await session.scalar(select(func.count(PartsSoftDocumentSnapshot.id)))
             result = await sync_partssoft_documents(
                 session,
                 days=30 if not existing else 2,
@@ -1155,6 +1154,20 @@ def start_scheduler(app: FastAPI):
         hour=4,
         minute=10,
         replace_existing=True,
+    )
+
+    # 04:20 — сводка спроса по заказам и движения остатков у
+    # поставщиков) для тултипа в поиске и страницы отчёта.
+    scheduler.add_job(
+        func=refresh_turnover_summary_task,
+        trigger="cron",
+        args=[app],
+        id="refresh_turnover_summary",
+        name="Refresh autopart turnover summary",
+        hour=4,
+        minute=20,
+        replace_existing=True,
+        max_instances=1,
     )
 
     # 23:00 — авто-отказ неподтверждённых позиций поставщиков
@@ -2264,9 +2277,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                                 .where(
                                     CustomerPriceList.customer_config_id.in_(config_ids),
                                     CustomerPriceList.generated_at.is_not(None),
-                                    CustomerPriceList.generation_status.in_(
-                                        ("queued", "sent")
-                                    ),
+                                    CustomerPriceList.generation_status.in_(("queued", "sent")),
                                 )
                                 .group_by(CustomerPriceList.customer_config_id)
                             )
@@ -2342,17 +2353,16 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                     )
                 excluded_sources = [
                     row
-                    for row in (
-                        getattr(generated_pricelist, "generation_summary", {}) or {}
-                    ).get("source_freshness", [])
+                    for row in (getattr(generated_pricelist, "generation_summary", {}) or {}).get(
+                        "source_freshness", []
+                    )
                     if row.get("excluded_from_delivery")
                 ]
                 if excluded_sources:
                     stale_excluded_count += 1
                     details = describe_stale_customer_pricelist_sources(excluded_sources)
                     logger.warning(
-                        "Customer pricelist sent without stale sources: "
-                        "config_id=%s details=%s",
+                        "Customer pricelist sent without stale sources: " "config_id=%s details=%s",
                         config_id,
                         details,
                     )
@@ -2437,8 +2447,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                                 )
                     except Exception as notify_exc:
                         logger.error(
-                            "Failed to record stale customer pricelist block "
-                            "for config %s: %s",
+                            "Failed to record stale customer pricelist block " "for config %s: %s",
                             config_id,
                             notify_exc,
                             exc_info=True,
@@ -2617,9 +2626,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     # запусков. Без этого молчащую конфигурацию невозможно отличить от
     # той, которой просто не пришло письмо.
     download_diagnostics: dict = {}
-    downloaded = await get_emails(
-        session=session, diagnostics=download_diagnostics
-    )
+    downloaded = await get_emails(session=session, diagnostics=download_diagnostics)
 
     email_time = time.perf_counter()
     logger.info(f"get_emails() выполнена за {email_time - start_time:.2f} секунд")
@@ -2655,7 +2662,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
             len(downloaded),
             PRICE_PROVIDER_PROCESS_PARALLELISM,
         ):
-            batch = downloaded[start: start + PRICE_PROVIDER_PROCESS_PARALLELISM]
+            batch = downloaded[start : start + PRICE_PROVIDER_PROCESS_PARALLELISM]
             tasks = [asyncio.create_task(_process_one(item, app, sem)) for item in batch]
             batch_results = await asyncio.gather(
                 *tasks,
@@ -2814,9 +2821,7 @@ async def download_price_provider_task(app: FastAPI):
                 if not email_summary:
                     # Сводки нет только если обработку прервали. Это не
                     # ошибка регламента, и уведомлять о ней не нужно.
-                    logger.info(
-                        "Обработка писем провайдеров прервана без сводки"
-                    )
+                    logger.info("Обработка писем провайдеров прервана без сводки")
                     trace.details["interrupted_without_summary"] = True
                     return
                 trace.details["email_processing_summary"] = email_summary
@@ -2975,22 +2980,22 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
         try:
             now = now_moscow()
             pending_reviews = (
-                await session.execute(
-                    select(ProviderPricelistReview)
-                    .options(
-                        selectinload(ProviderPricelistReview.provider),
-                        selectinload(ProviderPricelistReview.provider_config),
+                (
+                    await session.execute(
+                        select(ProviderPricelistReview)
+                        .options(
+                            selectinload(ProviderPricelistReview.provider),
+                            selectinload(ProviderPricelistReview.provider_config),
+                        )
+                        .where(ProviderPricelistReview.status == "pending")
+                        .order_by(ProviderPricelistReview.created_at.asc())
                     )
-                    .where(
-                        ProviderPricelistReview.status == "pending"
-                    )
-                    .order_by(ProviderPricelistReview.created_at.asc())
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             for review in pending_reviews:
-                review_link = (
-                    f"/providers/{review.provider_id}/edit?pricelist_review={review.id}"
-                )
+                review_link = f"/providers/{review.provider_id}/edit?pricelist_review={review.id}"
                 has_open_notification = bool(
                     (
                         await session.execute(
@@ -3010,9 +3015,7 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
                     or f"Поставщик #{review.provider_id}"
                 )
                 config_name = (
-                    str(
-                        getattr(review.provider_config, "name_price", "") or ""
-                    ).strip()
+                    str(getattr(review.provider_config, "name_price", "") or "").strip()
                     or f"#{review.provider_config_id}"
                 )
                 await create_admin_notifications(
@@ -3054,10 +3057,7 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
                 )
                 if threshold <= 0:
                     continue
-                if (
-                    config.stale_override_until is not None
-                    and config.stale_override_until > now
-                ):
+                if config.stale_override_until is not None and config.stale_override_until > now:
                     continue
                 last_price_stmt = (
                     select(PriceList.date)
@@ -3178,10 +3178,7 @@ async def notify_pricelist_stale_task(app: FastAPI):
                 unique_rows.append((alert, config, provider))
 
             for alert, config, provider in unique_rows:
-                if (
-                    config.stale_override_until is not None
-                    and config.stale_override_until > now
-                ):
+                if config.stale_override_until is not None and config.stale_override_until > now:
                     continue
                 config_label = config.name_price or f"#{config.id}"
                 await create_admin_notifications(
@@ -3433,6 +3430,44 @@ METRIC_SNAPSHOT_RETENTION_DAYS = int(os.getenv("METRIC_SNAPSHOT_RETENTION_DAYS",
 PRICE_CHECK_LOG_RETENTION_DAYS = int(os.getenv("PRICE_CHECK_LOG_RETENTION_DAYS", "30"))
 SUPPLIER_MSG_RETENTION_DAYS = int(os.getenv("SUPPLIER_MSG_RETENTION_DAYS", "7"))
 EXECUTION_TRACE_RETENTION_DAYS = int(os.getenv("EXECUTION_TRACE_RETENTION_DAYS", "3"))
+
+
+async def refresh_turnover_summary_task(app: FastAPI):
+    """Пересчитывает autopartturnoversummary (наши заказы + рынок).
+
+    Тултип в поиске и страница отчёта читают только эту готовую таблицу —
+    без неё сигнал оборота просто не появится в интерфейсе.
+    """
+    from dz_fastapi.analytics.turnover import refresh_turnover_summary
+
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="refresh_turnover_summary",
+        job_name="Refresh autopart turnover summary",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                logger.info("Starting refresh_turnover_summary_task")
+                affected = await asyncio.wait_for(
+                    refresh_turnover_summary(session),
+                    timeout=900,
+                )
+                trace.details["updated_rows"] = int(affected)
+                logger.info("refresh_turnover_summary_task finished: rows=%s", affected)
+            except Exception as e:
+                logger.error("Error in refresh_turnover_summary_task: %s", e, exc_info=True)
+                await session.rollback()
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка пересчёта сводки оборота",
+                    text=(
+                        "Ошибка при ночном пересчёте autopartturnoversummary.\n"
+                        f"Текст ошибки: {e}"
+                    ),
+                )
+                raise
 
 
 async def cleanup_price_history_task(app: FastAPI):

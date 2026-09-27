@@ -149,6 +149,41 @@ class _FallbackBrandDZSiteClient(_FakeDZSiteClient):
 
 
 @pytest.mark.asyncio
+async def test_send_api_rejects_quantity_not_matching_multiplicity(
+    async_client, test_session, created_customers
+):
+    current_user = await _create_user(
+        test_session,
+        "orders-multiplicity@example.com",
+        UserRole.ADMIN,
+    )
+
+    async def override_current_user():
+        return current_user
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    response = await async_client.post(
+        f"/order/send_api?customer_id={created_customers[0].id}",
+        json=[
+            {
+                "oem_number": "TEST-LOT-2",
+                "brand_name": "SITE",
+                "supplier_id": 100,
+                "supplier_name": "Supplier",
+                "quantity": 3,
+                "multiplicity": 2,
+                "confirmed_price": 100.0,
+                "status": "Send",
+                "hash_key": "hash-lot-2",
+            }
+        ],
+    )
+
+    assert response.status_code == 400, response.text
+    assert "должно быть кратно 2" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_send_api_resolves_supplier_by_name_when_id_external(
     async_client, test_session, created_customers, monkeypatch
 ):

@@ -645,6 +645,15 @@ async def send_api(
         )
     prepared_request: list[tuple[OrderPositionOut, str]] = []
     for item in request:
+        if item.quantity % item.multiplicity != 0:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Количество {item.quantity} для {item.brand_name} "
+                    f"{item.oem_number} должно быть кратно "
+                    f"{item.multiplicity}."
+                ),
+            )
         request_tracking_uuid = (item.tracking_uuid or "").strip()
         normalized_tracking_uuid = _normalize_tracking_uuid(
             request_tracking_uuid
