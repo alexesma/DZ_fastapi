@@ -708,6 +708,32 @@ def _apply_source_filters(
     return _sanitize_positive_price_quantity(df, context="source_filters_after_limits")
 
 
+def _normalize_brand_name_set(values) -> set[str]:
+    return {
+        " ".join(str(value or "").split()).casefold()
+        for value in values or []
+        if str(value or "").strip()
+    }
+
+
+def _apply_provider_mailing_brand_whitelist(
+    df: pd.DataFrame,
+    provider_config: ProviderPriceListConfig | None,
+) -> pd.DataFrame:
+    """Limit customer exports without changing the imported supplier price."""
+    included_brands = _normalize_brand_name_set(
+        getattr(provider_config, "mailing_included_brands", None)
+    )
+    if df.empty or not included_brands:
+        return df
+    if "brand" not in df.columns:
+        return df.iloc[0:0].copy()
+    normalized_brands = df["brand"].map(
+        lambda value: " ".join(str(value or "").split()).casefold()
+    )
+    return df[normalized_brands.isin(included_brands)].copy()
+
+
 def _normalize_source_brand_markup_key(value: object) -> str:
     normalized = normalize_mixed_cyrillic(str(value or "")).strip()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -2238,11 +2264,7 @@ def _normalize_exclude_positions(exclude_positions):
 
 
 def _normalize_excluded_brands(excluded_brands):
-    return {
-        " ".join(str(brand or "").split()).casefold()
-        for brand in excluded_brands or []
-        if str(brand or "").strip()
-    }
+    return _normalize_brand_name_set(excluded_brands)
 
 
 def _apply_provider_filters(items, provider_list_conf):
@@ -3320,6 +3342,24 @@ async def _process_customer_pricelist_unlocked(
                 continue
             logger.debug(_dataframe_summary(df, "customer_pricelist_source_df"))
 
+            provider_config = None
+            if "provider_config_id" in df.columns:
+                provider_config_ids = (
+                    pd.to_numeric(df["provider_config_id"], errors="coerce")
+                    .dropna()
+                    .astype(int)
+                    .unique()
+                    .tolist()
+                )
+                if len(provider_config_ids) == 1:
+                    provider_config = await session.get(
+                        ProviderPriceListConfig,
+                        provider_config_ids[0],
+                    )
+            df = _apply_provider_mailing_brand_whitelist(df, provider_config)
+            if df.empty:
+                continue
+
             if catalog_filter_rules_enabled:
                 df = await _attach_catalog_filter_dimensions(
                     df, session, catalog_filter_cache
@@ -3363,6 +3403,18 @@ async def _process_customer_pricelist_unlocked(
                         filtered_df, session, catalog_filter_cache
                     )
                 source_rows_before = len(filtered_df)
+                provider_mailing_brands = list(
+                    getattr(
+                        source.provider_config,
+                        "mailing_included_brands",
+                        None,
+                    )
+                    or []
+                )
+                filtered_df = _apply_provider_mailing_brand_whitelist(
+                    filtered_df,
+                    source.provider_config,
+                )
                 source_settings = source.additional_filters or {}
                 dragonzap_mode = str(
                     source_settings.get("DRAGONZAP_MODE") or ""
@@ -3391,6 +3443,7 @@ async def _process_customer_pricelist_unlocked(
                             .sum()
                         ),
                         "dragonzap_mode": dragonzap_mode or "normal",
+                        "provider_mailing_brands": provider_mailing_brands,
                     }
                 )
             participates = filtered_df is None or not filtered_df.empty

@@ -732,6 +732,7 @@ class ProviderPriceListConfigBase(BaseModel):
     max_quantity: Optional[int] = None
     exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
     excluded_brands: List[str] = Field(default_factory=list)
+    mailing_included_brands: List[str] = Field(default_factory=list)
     max_days_without_update: Optional[int] = Field(default=3, ge=0)
     min_delivery_day: Optional[int] = Field(default=1, ge=0)
     max_delivery_day: Optional[int] = Field(default=3, ge=0)
@@ -769,6 +770,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
     max_quantity: Optional[int] = None
     exclude_positions: Optional[List[Dict[str, str]]] = None
     excluded_brands: Optional[List[str]] = None
+    mailing_included_brands: Optional[List[str]] = None
     max_days_without_update: Optional[int] = Field(default=None, ge=0)
     min_delivery_day: Optional[int] = Field(default=None, ge=0)
     max_delivery_day: Optional[int] = Field(default=None, ge=0)
@@ -1725,6 +1727,7 @@ class ProviderPriceListConfigOut(BaseModel):
     max_quantity: int | None = None
     exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
     excluded_brands: List[str] = Field(default_factory=list)
+    mailing_included_brands: List[str] = Field(default_factory=list)
     max_days_without_update: int | None = 3
     stale_override_until: datetime | None = None
     min_delivery_day: int | None = 1

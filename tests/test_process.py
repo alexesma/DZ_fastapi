@@ -127,3 +127,21 @@ def test_provider_filter_excludes_multiple_brands_and_exact_position():
     ]
 
     assert _apply_provider_filters(items, config) == [items[2]]
+
+
+def test_provider_mailing_whitelist_does_not_filter_imported_price():
+    config = SimpleNamespace(
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        excluded_brands=[],
+        mailing_included_brands=["GEELY"],
+        exclude_positions=[],
+    )
+    items = [
+        {"brand": "GEELY", "oem_number": "G-1", "price": 100, "quantity": 1},
+        {"brand": "CHERY", "oem_number": "C-1", "price": 200, "quantity": 2},
+    ]
+
+    assert _apply_provider_filters(items, config) == items

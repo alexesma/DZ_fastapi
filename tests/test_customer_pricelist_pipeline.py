@@ -34,6 +34,7 @@ from dz_fastapi.services.process import (
     _apply_customer_publication_rules,
     _apply_final_output_filters,
     _apply_product_labels,
+    _apply_provider_mailing_brand_whitelist,
     _apply_source_filters,
     _attach_catalog_filter_dimensions,
     _collapse_output_records,
@@ -75,6 +76,37 @@ def test_expand_dz_brands_ignores_dataframe_without_excel_schema():
 
     assert result.empty
     assert result.columns.tolist() == []
+
+
+def test_provider_mailing_brand_whitelist_only_filters_customer_export():
+    source_df = pd.DataFrame(
+        [
+            {"autopart_id": 1, "brand": "GEELY", "quantity": 3, "price": 100},
+            {"autopart_id": 2, "brand": " chery ", "quantity": 2, "price": 200},
+            {"autopart_id": 3, "brand": "HAVAL", "quantity": 1, "price": 300},
+        ]
+    )
+    provider_config = SimpleNamespace(
+        mailing_included_brands=["geely", "CHERY"],
+    )
+
+    result = _apply_provider_mailing_brand_whitelist(source_df, provider_config)
+
+    assert result["autopart_id"].tolist() == [1, 2]
+    assert source_df["autopart_id"].tolist() == [1, 2, 3]
+
+
+def test_empty_provider_mailing_brand_whitelist_keeps_all_rows():
+    source_df = pd.DataFrame(
+        [{"autopart_id": 1, "brand": "GEELY", "quantity": 3, "price": 100}]
+    )
+
+    result = _apply_provider_mailing_brand_whitelist(
+        source_df,
+        SimpleNamespace(mailing_included_brands=[]),
+    )
+
+    assert result is source_df
 
 
 def test_transform_only_restores_dragonzap_removed_by_brand_filter():

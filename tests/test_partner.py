@@ -913,6 +913,7 @@ async def test_update_provider_pricelist_config(
         "honest_sign_col": 8,
         "eac_cert_col": 9,
         "eac_cert_url_col": 10,
+        "mailing_included_brands": ["GEELY", "CHERY"],
     }
 
     response = await async_client.patch(
@@ -930,6 +931,7 @@ async def test_update_provider_pricelist_config(
     assert data["honest_sign_col"] == 8
     assert data["eac_cert_col"] == 9
     assert data["eac_cert_url_col"] == 10
+    assert data["mailing_included_brands"] == ["GEELY", "CHERY"]
 
     full_response = await async_client.get(f"/providers/{provider.id}/full")
     assert full_response.status_code == 200, full_response.text
@@ -941,6 +943,7 @@ async def test_update_provider_pricelist_config(
     assert full_config["honest_sign_col"] == 8
     assert full_config["eac_cert_col"] == 9
     assert full_config["eac_cert_url_col"] == 10
+    assert full_config["mailing_included_brands"] == ["GEELY", "CHERY"]
 
 
 @pytest.mark.asyncio
