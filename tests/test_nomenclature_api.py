@@ -2,12 +2,17 @@ from io import BytesIO
 
 import pytest
 from PIL import Image
+from sqlalchemy.exc import IntegrityError
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, Photo
 from dz_fastapi.models.cross import AutoPartCross
-from dz_fastapi.models.nomenclature import ApplicabilityNode, autopart_applicability_association
+from dz_fastapi.models.nomenclature import (
+    ApplicabilityNode,
+    HonestSignCategory,
+    autopart_applicability_association,
+)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 
 
@@ -48,6 +53,75 @@ async def test_nomenclature_catalog_search_routes_are_not_shadowed(
     )
     assert response.status_code == 200, response.text
     assert response.json()["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_honest_sign_category_management_protects_used_category(
+    async_client,
+    test_session,
+    created_autopart,
+):
+    autopart_id = created_autopart.id
+    create_response = await async_client.post(
+        "/honest-sign-categories/",
+        json={
+            "name": "Автомобильные масла",
+            "code": "autofluids",
+            "description": "Тестовая категория",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    category_id = create_response.json()["id"]
+
+    assign_response = await async_client.post(
+        f"/autoparts/{autopart_id}/honest-sign-categories/",
+        json=[category_id],
+    )
+    assert assign_response.status_code == 200, assign_response.text
+
+    list_response = await async_client.get("/honest-sign-categories/")
+    assert list_response.status_code == 200, list_response.text
+    category = next(row for row in list_response.json() if row["id"] == category_id)
+    assert category["autopart_count"] == 1
+
+    catalog_response = await async_client.get(
+        "/autoparts/catalog/",
+        params={"honest_sign_category_id": category_id},
+    )
+    assert catalog_response.status_code == 200, catalog_response.text
+    assert catalog_response.json()["total"] == 1
+    assert catalog_response.json()["items"][0]["id"] == autopart_id
+
+    update_response = await async_client.patch(
+        f"/honest-sign-categories/{category_id}/",
+        json={"name": "Масла автомобильные", "description": "Обновлено"},
+    )
+    assert update_response.status_code == 200, update_response.text
+    assert update_response.json()["autopart_count"] == 1
+    await test_session.refresh(created_autopart)
+    assert created_autopart.honest_sign_category == "Масла автомобильные"
+
+    blocked_response = await async_client.delete(
+        f"/honest-sign-categories/{category_id}/"
+    )
+    assert blocked_response.status_code == 409, blocked_response.text
+    assert "позиций — 1" in blocked_response.json()["detail"]
+
+    category_object = await test_session.get(HonestSignCategory, category_id)
+    await test_session.delete(category_object)
+    with pytest.raises(IntegrityError):
+        await test_session.commit()
+    await test_session.rollback()
+
+    clear_response = await async_client.post(
+        f"/autoparts/{autopart_id}/honest-sign-categories/",
+        json=[],
+    )
+    assert clear_response.status_code == 200, clear_response.text
+    delete_response = await async_client.delete(
+        f"/honest-sign-categories/{category_id}/"
+    )
+    assert delete_response.status_code == 204, delete_response.text
 
 
 @pytest.mark.asyncio

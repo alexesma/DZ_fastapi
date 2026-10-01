@@ -26,7 +26,7 @@ autopart_honest_sign_association = Table(
     Column(
         "honest_sign_category_id",
         Integer,
-        ForeignKey("honestsigncategory.id", ondelete="CASCADE"),
+        ForeignKey("honestsigncategory.id", ondelete="RESTRICT"),
         primary_key=True,
     ),
 )

@@ -33,6 +33,7 @@ from dz_fastapi.models.autopart import (
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.inventory import StockByLocation, Warehouse
+from dz_fastapi.models.nomenclature import autopart_honest_sign_association
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
@@ -399,6 +400,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         content: Optional[str] = None,
         links: Optional[str] = None,
         turnover: Optional[str] = None,
+        honest_sign_category_id: Optional[int] = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[AutoPart], int]:
@@ -420,6 +422,16 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             where_clauses.append(AutoPart.partssoft_product_id.is_not(None))
         elif partssoft is False:
             where_clauses.append(AutoPart.partssoft_product_id.is_(None))
+        if honest_sign_category_id is not None:
+            where_clauses.append(
+                exists(
+                    select(autopart_honest_sign_association.c.autopart_id).where(
+                        autopart_honest_sign_association.c.autopart_id == AutoPart.id,
+                        autopart_honest_sign_association.c.honest_sign_category_id
+                        == honest_sign_category_id,
+                    )
+                )
+            )
         has_description = func.length(func.trim(func.coalesce(AutoPart.description, ""))) > 0
         has_photo = AutoPart.photos.any()
         if content == "with_photo":

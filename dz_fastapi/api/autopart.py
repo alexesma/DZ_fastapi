@@ -41,7 +41,7 @@ from dz_fastapi.analytics.restock_logic import (
     get_autoparts_below_min_balance,
     process_restock_pipeline,
 )
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import get_session
@@ -62,6 +62,7 @@ from dz_fastapi.models.nomenclature import (
     ApplicabilityNode,
     HonestSignCategory,
     autopart_applicability_association,
+    autopart_honest_sign_association,
 )
 from dz_fastapi.models.partner import (
     PriceList,
@@ -99,6 +100,7 @@ from dz_fastapi.schemas.autopart import (
     CrossOut,
     HonestSignCategoryCreate,
     HonestSignCategoryOut,
+    HonestSignCategoryUpdate,
     OwnStockByOemsRequest,
     OwnStockByOemsResponse,
     StorageLocationCreate,
@@ -1887,6 +1889,11 @@ async def get_autoparts_catalog(
         pattern="^(top|market|needs_order)$",
         description="Фильтр по сигналу оборачиваемости",
     ),
+    honest_sign_category_id: Optional[int] = Query(
+        None,
+        ge=1,
+        description="Фильтр по категории Честного знака",
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
@@ -1900,6 +1907,7 @@ async def get_autoparts_catalog(
         content=content,
         links=links,
         turnover=turnover,
+        honest_sign_category_id=honest_sign_category_id,
         offset=offset,
         limit=limit,
     )
@@ -2877,6 +2885,66 @@ async def list_storage_locations(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _normalize_honest_sign_category_values(
+    *,
+    name: str | None = None,
+    code: str | None = None,
+    description: str | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    normalized_name = " ".join(str(name or "").split()) or None
+    normalized_code = " ".join(str(code or "").split()) or None
+    normalized_description = str(description or "").strip() or None
+    return normalized_name, normalized_code, normalized_description
+
+
+async def _honest_sign_category_usage_count(
+    session: AsyncSession,
+    category_id: int,
+) -> int:
+    return int(
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(autopart_honest_sign_association)
+                .where(
+                    autopart_honest_sign_association.c.honest_sign_category_id
+                    == category_id
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
+
+
+async def _sync_autopart_honest_sign_cache(
+    session: AsyncSession,
+    autopart_ids: list[int],
+) -> None:
+    if not autopart_ids:
+        return
+    parts = list(
+        (
+            await session.execute(
+                select(AutoPart)
+                .where(AutoPart.id.in_(autopart_ids))
+                .options(selectinload(AutoPart.honest_sign_categories))
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    for part in parts:
+        joined = ", ".join(
+            sorted(
+                category.name
+                for category in (part.honest_sign_categories or [])
+                if category.name
+            )
+        )
+        part.honest_sign_category = joined[:100] or None
+
+
 @router.get(
     "/honest-sign-categories/",
     tags=["nomenclature"],
@@ -2886,8 +2954,29 @@ async def list_storage_locations(
 async def list_honest_sign_categories(
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(select(HonestSignCategory).order_by(HonestSignCategory.name))
-    return result.scalars().all()
+    rows = (
+        await session.execute(
+            select(
+                HonestSignCategory,
+                func.count(autopart_honest_sign_association.c.autopart_id).label(
+                    "autopart_count"
+                ),
+            )
+            .outerjoin(
+                autopart_honest_sign_association,
+                autopart_honest_sign_association.c.honest_sign_category_id
+                == HonestSignCategory.id,
+            )
+            .group_by(HonestSignCategory.id)
+            .order_by(HonestSignCategory.name)
+        )
+    ).all()
+    return [
+        HonestSignCategoryOut.model_validate(category).model_copy(
+            update={"autopart_count": int(autopart_count or 0)}
+        )
+        for category, autopart_count in rows
+    ]
 
 
 @router.post(
@@ -2901,21 +2990,156 @@ async def create_honest_sign_category(
     payload: HonestSignCategoryCreate,
     session: AsyncSession = Depends(get_session),
 ):
+    name, code, description = _normalize_honest_sign_category_values(
+        name=payload.name,
+        code=payload.code,
+        description=payload.description,
+    )
+    if not name:
+        raise HTTPException(status_code=422, detail="Введите название категории")
     existing = (
         await session.execute(
-            select(HonestSignCategory).where(HonestSignCategory.name == payload.name)
+            select(HonestSignCategory).where(func.lower(HonestSignCategory.name) == name.lower())
         )
     ).scalar_one_or_none()
     if existing:
         raise HTTPException(
             status_code=409,
-            detail=f"Категория «{payload.name}» уже существует",
+            detail=f"Категория «{name}» уже существует",
         )
-    obj = HonestSignCategory(**payload.model_dump())
+    if code:
+        existing_code = (
+            await session.execute(
+                select(HonestSignCategory).where(
+                    func.lower(HonestSignCategory.code) == code.lower()
+                )
+            )
+        ).scalar_one_or_none()
+        if existing_code:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Код «{code}» уже используется категорией «{existing_code.name}»",
+            )
+    obj = HonestSignCategory(name=name, code=code, description=description)
     session.add(obj)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as error:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Категория с таким названием или кодом уже существует",
+        ) from error
     await session.refresh(obj)
     return obj
+
+
+@router.patch(
+    "/honest-sign-categories/{category_id:int}/",
+    tags=["nomenclature"],
+    summary="Изменить категорию Честного знака",
+    response_model=HonestSignCategoryOut,
+    dependencies=[Depends(require_admin)],
+)
+async def update_honest_sign_category(
+    category_id: int,
+    payload: HonestSignCategoryUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    category = await session.get(HonestSignCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Категория Честного знака не найдена")
+
+    changes = payload.model_dump(exclude_unset=True)
+    name, code, description = _normalize_honest_sign_category_values(
+        name=changes.get("name", category.name),
+        code=changes.get("code", category.code),
+        description=changes.get("description", category.description),
+    )
+    if not name:
+        raise HTTPException(status_code=422, detail="Название категории не может быть пустым")
+
+    duplicate_name = (
+        await session.execute(
+            select(HonestSignCategory).where(
+                HonestSignCategory.id != category_id,
+                func.lower(HonestSignCategory.name) == name.lower(),
+            )
+        )
+    ).scalar_one_or_none()
+    if duplicate_name:
+        raise HTTPException(status_code=409, detail=f"Категория «{name}» уже существует")
+    if code:
+        duplicate_code = (
+            await session.execute(
+                select(HonestSignCategory).where(
+                    HonestSignCategory.id != category_id,
+                    func.lower(HonestSignCategory.code) == code.lower(),
+                )
+            )
+        ).scalar_one_or_none()
+        if duplicate_code:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Код «{code}» уже используется категорией «{duplicate_code.name}»",
+            )
+
+    autopart_ids = list(
+        (
+            await session.execute(
+                select(autopart_honest_sign_association.c.autopart_id).where(
+                    autopart_honest_sign_association.c.honest_sign_category_id
+                    == category_id
+                )
+            )
+        ).scalars()
+    )
+    category.name = name
+    category.code = code
+    category.description = description
+    try:
+        await session.flush()
+        await _sync_autopart_honest_sign_cache(session, autopart_ids)
+        await session.commit()
+    except IntegrityError as error:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Категория с таким названием или кодом уже существует",
+        ) from error
+    await session.refresh(category)
+    return HonestSignCategoryOut.model_validate(category).model_copy(
+        update={"autopart_count": len(autopart_ids)}
+    )
+
+
+@router.delete(
+    "/honest-sign-categories/{category_id:int}/",
+    tags=["nomenclature"],
+    summary="Удалить пустую категорию Честного знака",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin)],
+)
+async def delete_honest_sign_category(
+    category_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    category = await session.get(HonestSignCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Категория Честного знака не найдена")
+    usage_count = await _honest_sign_category_usage_count(session, category_id)
+    if usage_count:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Нельзя удалить категорию «{category.name}»: к ней привязано "
+                f"позиций — {usage_count}. Сначала перенесите или снимите категорию "
+                "в карточках номенклатуры."
+            ),
+        )
+    await session.delete(category)
+    await session.commit()
+    return None
 
 
 @router.post(

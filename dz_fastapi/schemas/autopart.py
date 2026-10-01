@@ -273,8 +273,14 @@ class AutopartOffersResponse(BaseModel):
 
 
 class HonestSignCategoryCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     code: Optional[str] = None
+    description: Optional[str] = None
+
+
+class HonestSignCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    code: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = None
 
 
@@ -283,6 +289,7 @@ class HonestSignCategoryOut(BaseModel):
     name: str
     code: Optional[str] = None
     description: Optional[str] = None
+    autopart_count: int = 0
     model_config = ConfigDict(from_attributes=True)
 
 
