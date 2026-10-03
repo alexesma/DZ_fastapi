@@ -498,3 +498,17 @@ async def test_empty_brand_can_be_deleted(async_client, test_session):
     response = await async_client.delete(f"/brand/{empty.id}")
     assert response.status_code == 200, response.text
     assert response.json()["name"] == "EMPTY BRAND"
+
+
+@pytest.mark.asyncio
+async def test_brand_lookup_puts_prefix_matches_first(async_client, test_session):
+    test_session.add_all(
+        [
+            Brand(name="ABC TOYO", country_of_origin="China"),
+            Brand(name="TOYOTA", country_of_origin="Japan"),
+            Brand(name="HONDA", country_of_origin="Japan"),
+        ]
+    )
+    await test_session.commit()
+    response = await async_client.get("/brand/lookup/", params={"q": "toyo"})
+    assert [b["name"] for b in response.json()] == ["TOYOTA", "ABC TOYO"]

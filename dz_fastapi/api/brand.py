@@ -6,7 +6,7 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from PIL import Image
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -128,7 +128,12 @@ async def lookup_brands(
         stmt = stmt.where(Brand.id.in_(brand_ids))
         stmt = stmt.limit(max(1, len(brand_ids)))
     elif normalized:
-        stmt = stmt.where(Brand.name.ilike(f"%{normalized}%"))
+        # Сначала бренды, которые начинаются с запроса, потом содержащие его.
+        stmt = stmt.where(Brand.name.ilike(f"%{normalized}%")).order_by(None)
+        stmt = stmt.order_by(
+            case((Brand.name.ilike(f"{normalized}%"), 0), else_=1),
+            Brand.name.asc(),
+        )
         stmt = stmt.limit(max(1, min(limit, 200)))
     else:
         stmt = stmt.limit(max(1, min(limit, 200)))
