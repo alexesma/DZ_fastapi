@@ -79,6 +79,7 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
         "max_delivery_day": 2,
         "hash_key": "hash-1",
         "system_hash": None,
+        "photo_url": None,
     }
 
 
