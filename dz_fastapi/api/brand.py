@@ -1,5 +1,6 @@
 import io
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiofiles
@@ -35,6 +36,26 @@ from dz_fastapi.schemas.brand import (
 logger = logging.getLogger("dz_fastapi")
 
 router = APIRouter(prefix="/brand")
+
+
+@asynccontextmanager
+async def _transaction(session: AsyncSession):
+    """Транзакция на запрос.
+
+    Сессию делят с зависимостью авторизации (она уже читала пользователя),
+    поэтому транзакция к этому моменту начата и ``session.begin()`` падает
+    с «A transaction is already begun on this Session».
+    """
+    if not session.in_transaction():
+        async with session.begin():
+            yield
+        return
+    try:
+        yield
+        await session.commit()
+    except BaseException:
+        await session.rollback()
+        raise
 UPLOAD_DIR = Path(UPLOAD_DIR)
 
 
@@ -410,7 +431,7 @@ async def update_brand(
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        async with session.begin():
+        async with _transaction(session):
             brand_db = await brand_exists(brand_id, session)
             logger.debug(f"Existing brand: {brand_db}")
             if brand.name:
@@ -453,7 +474,7 @@ async def add_synonyms(
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        async with session.begin():
+        async with _transaction(session):
             change_synonyms = [
                 await change_string(synonym) for synonym in synonyms.names
             ]
@@ -500,7 +521,7 @@ async def delete_synonyms(
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        async with session.begin():
+        async with _transaction(session):
             change_synonyms = [
                 await change_string(synonym) for synonym in synonyms.names
             ]

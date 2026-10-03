@@ -415,3 +415,36 @@ async def test_delete_synonyms(test_session, created_brand: Brand):
     assert data["name"] == created_brand.name
     assert "id" in data
     assert data.get("synonyms") == [], "Synonyms list should be empty after deletion"
+
+
+@pytest.mark.asyncio
+async def test_add_synonyms_when_session_already_in_transaction(test_session, created_brand: Brand):
+    """Авторизация читает пользователя той же сессией, и транзакция уже начата.
+
+    Раньше из-за этого синоним не добавлялся: «A transaction is already begun».
+    """
+    from sqlalchemy import text
+
+    from dz_fastapi.core.db import get_session
+
+    original = app.dependency_overrides[get_session]
+
+    async def session_with_open_transaction():
+        async for session in original():
+            await session.execute(text("select 1"))
+            assert session.in_transaction()
+            yield session
+
+    app.dependency_overrides[get_session] = session_with_open_transaction
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            created = await ac.post("/brand/", json={"name": "TEST BRAND 3", "country_of_origin": "China"})
+            assert created.status_code == 201, created.text
+            response = await ac.post(
+                f"/brand/{created_brand.id}/synonyms/", json={"names": ["TEST BRAND 3"]}
+            )
+        assert response.status_code == 200, response.text
+        assert response.json()["synonyms"]
+    finally:
+        app.dependency_overrides[get_session] = original
