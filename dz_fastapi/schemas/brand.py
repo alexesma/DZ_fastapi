@@ -131,3 +131,38 @@ class Engine(BaseModel):
     name: str
     power: int
     fuel_type: str
+
+
+class BrandUsage(BaseModel):
+    autoparts: int = 0
+    crosses: int = 0
+    substitutions: int = 0
+    invalid_crosses: int = 0
+    can_delete: bool = True
+
+
+class BrandAutopartItem(BaseModel):
+    id: int
+    oem_number: str
+    name: Optional[str] = None
+
+
+class BrandAutopartsPage(BaseModel):
+    total: int
+    items: List[BrandAutopartItem] = Field(default_factory=list)
+
+
+class BrandAutopartsMoveRequest(BaseModel):
+    autopart_ids: List[int] = Field(min_length=1, max_length=500)
+    target_brand_id: int
+
+
+class BrandAutopartsMoveSkipped(BaseModel):
+    id: int
+    oem_number: str
+    reason: str
+
+
+class BrandAutopartsMoveResult(BaseModel):
+    moved: int
+    skipped: List[BrandAutopartsMoveSkipped] = Field(default_factory=list)

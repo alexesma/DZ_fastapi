@@ -439,7 +439,8 @@ async def test_add_synonyms_when_session_already_in_transaction(test_session, cr
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            created = await ac.post("/brand/", json={"name": "TEST BRAND 3", "country_of_origin": "China"})
+            payload = {"name": "TEST BRAND 3", "country_of_origin": "China"}
+            created = await ac.post("/brand/", json=payload)
             assert created.status_code == 201, created.text
             response = await ac.post(
                 f"/brand/{created_brand.id}/synonyms/", json={"names": ["TEST BRAND 3"]}
@@ -448,3 +449,52 @@ async def test_add_synonyms_when_session_already_in_transaction(test_session, cr
         assert response.json()["synonyms"]
     finally:
         app.dependency_overrides[get_session] = original
+
+
+@pytest.mark.asyncio
+async def test_brand_delete_blocked_while_it_has_autoparts_and_move_unblocks(
+    async_client, test_session, created_brand: Brand
+):
+    from dz_fastapi.models.autopart import AutoPart
+
+    target = Brand(name="TARGET BRAND", country_of_origin="China")
+    test_session.add(target)
+    await test_session.flush()
+    movable = AutoPart(brand_id=created_brand.id, oem_number="MV1", name="Переносимая")
+    conflict = AutoPart(brand_id=created_brand.id, oem_number="CF1", name="Конфликт")
+    already = AutoPart(brand_id=target.id, oem_number="CF1", name="Уже есть")
+    test_session.add_all([movable, conflict, already])
+    await test_session.commit()
+
+    usage = await async_client.get(f"/brand/{created_brand.id}/usage/")
+    assert usage.json()["autoparts"] == 2
+    assert usage.json()["can_delete"] is False
+
+    url = f"/brand/{created_brand.id}/autoparts/"
+    listing = await async_client.get(url, params={"q": "mv"})
+    assert listing.json()["total"] == 1
+
+    blocked = await async_client.delete(f"/brand/{created_brand.id}")
+    assert blocked.status_code == 409
+    assert "позиций номенклатуры: 2" in blocked.json()["detail"]
+
+    moved = await async_client.post(
+        f"/brand/{created_brand.id}/autoparts/move",
+        json={"autopart_ids": [movable.id, conflict.id], "target_brand_id": target.id},
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["moved"] == 1
+    assert [s["oem_number"] for s in moved.json()["skipped"]] == ["CF1"]
+
+    still_blocked = await async_client.delete(f"/brand/{created_brand.id}")
+    assert still_blocked.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_empty_brand_can_be_deleted(async_client, test_session):
+    empty = Brand(name="EMPTY BRAND", country_of_origin="China")
+    test_session.add(empty)
+    await test_session.commit()
+    response = await async_client.delete(f"/brand/{empty.id}")
+    assert response.status_code == 200, response.text
+    assert response.json()["name"] == "EMPTY BRAND"

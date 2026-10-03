@@ -15,7 +15,9 @@ from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.constants import UPLOAD_DIR, get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.brand import brand_crud, brand_exists, duplicate_brand_name
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand, brand_synonyms
+from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross, AutoPartSubstitution
 from dz_fastapi.models.partner import (
     PriceList,
     PriceListMissingBrand,
@@ -23,11 +25,17 @@ from dz_fastapi.models.partner import (
     ProviderPriceListConfig,
 )
 from dz_fastapi.schemas.brand import (
+    BrandAutopartItem,
+    BrandAutopartsMoveRequest,
+    BrandAutopartsMoveResult,
+    BrandAutopartsMoveSkipped,
+    BrandAutopartsPage,
     BrandCreate,
     BrandCreateInDB,
     BrandLookupItem,
     BrandResponse,
     BrandUpdate,
+    BrandUsage,
     MissingBrandByPricelist,
     MissingBrandResolveRequest,
     SynonymCreate,
@@ -397,6 +405,143 @@ async def create_brand(
     return await brand_crud.create(brand=brand, session=session)
 
 
+async def _brand_usage(brand_id: int, session: AsyncSession) -> BrandUsage:
+    async def count(model, column):
+        return (
+            await session.execute(
+                select(func.count()).select_from(model).where(column == brand_id)
+            )
+        ).scalar_one()
+
+    autoparts = await count(AutoPart, AutoPart.brand_id)
+    crosses = await count(AutoPartCross, AutoPartCross.cross_brand_id)
+    substitutions = await count(
+        AutoPartSubstitution, AutoPartSubstitution.substitution_brand_id
+    )
+    invalid = await count(
+        AutoPartInvalidCross, AutoPartInvalidCross.invalid_brand_id
+    )
+    return BrandUsage(
+        autoparts=autoparts,
+        crosses=crosses,
+        substitutions=substitutions,
+        invalid_crosses=invalid,
+        can_delete=not (autoparts or crosses or substitutions or invalid),
+    )
+
+
+@router.get(
+    "/{brand_id}/usage/",
+    tags=["brand"],
+    summary="Где используется бренд (можно ли удалить)",
+    response_model=BrandUsage,
+)
+async def get_brand_usage(
+    brand_id: int, session: AsyncSession = Depends(get_session)
+):
+    await brand_exists(brand_id, session)
+    return await _brand_usage(brand_id, session)
+
+
+@router.get(
+    "/{brand_id}/autoparts/",
+    tags=["brand"],
+    summary="Позиции номенклатуры бренда",
+    response_model=BrandAutopartsPage,
+)
+async def get_brand_autoparts(
+    brand_id: int,
+    q: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+):
+    await brand_exists(brand_id, session)
+    limit = max(1, min(limit, 200))
+    stmt = select(AutoPart.id, AutoPart.oem_number, AutoPart.name).where(
+        AutoPart.brand_id == brand_id
+    )
+    needle = (q or "").strip()
+    if needle:
+        pattern = f"%{needle}%"
+        stmt = stmt.where(
+            AutoPart.oem_number.ilike(pattern) | AutoPart.name.ilike(pattern)
+        )
+    total = (
+        await session.execute(select(func.count()).select_from(stmt.subquery()))
+    ).scalar_one()
+    rows = (
+        await session.execute(
+            stmt.order_by(AutoPart.oem_number).limit(limit).offset(max(offset, 0))
+        )
+    ).all()
+    return BrandAutopartsPage(
+        total=total,
+        items=[
+            BrandAutopartItem(id=i, oem_number=o, name=n) for i, o, n in rows
+        ],
+    )
+
+
+@router.post(
+    "/{brand_id}/autoparts/move",
+    tags=["brand"],
+    summary="Перенести позиции в другой бренд",
+    response_model=BrandAutopartsMoveResult,
+)
+async def move_brand_autoparts(
+    brand_id: int,
+    payload: BrandAutopartsMoveRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    await brand_exists(brand_id, session)
+    await brand_exists(payload.target_brand_id, session)
+    if payload.target_brand_id == brand_id:
+        raise HTTPException(
+            status_code=400, detail="Выберите другой бренд для переноса"
+        )
+    parts = (
+        (
+            await session.execute(
+                select(AutoPart).where(
+                    AutoPart.brand_id == brand_id,
+                    AutoPart.id.in_(payload.autopart_ids),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    existing = set(
+        (
+            await session.execute(
+                select(AutoPart.oem_number).where(
+                    AutoPart.brand_id == payload.target_brand_id,
+                    AutoPart.oem_number.in_([p.oem_number for p in parts]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    moved = 0
+    skipped = []
+    for part in parts:
+        if part.oem_number in existing:
+            skipped.append(
+                BrandAutopartsMoveSkipped(
+                    id=part.id,
+                    oem_number=part.oem_number,
+                    reason="В целевом бренде уже есть такой артикул",
+                )
+            )
+            continue
+        part.brand_id = payload.target_brand_id
+        moved += 1
+    await session.commit()
+    return BrandAutopartsMoveResult(moved=moved, skipped=skipped)
+
+
 @router.delete(
     "/{brand_id}",
     tags=["brand"],
@@ -408,14 +553,34 @@ async def remove_brand(
     brand_id: int, session: AsyncSession = Depends(get_session)
 ):
     brand = await brand_exists(brand_id, session)
-
+    usage = await _brand_usage(brand_id, session)
+    if not usage.can_delete:
+        parts = []
+        if usage.autoparts:
+            parts.append(f"позиций номенклатуры: {usage.autoparts}")
+        if usage.crosses:
+            parts.append(f"кроссов: {usage.crosses}")
+        if usage.substitutions:
+            parts.append(f"замен: {usage.substitutions}")
+        if usage.invalid_crosses:
+            parts.append(f"неверных кроссов: {usage.invalid_crosses}")
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Бренд нельзя удалить, он используется ("
+                + ", ".join(parts)
+                + "). Перенесите позиции в другой бренд."
+            ),
+        )
+    response = await _serialize_brand_for_response(brand, session)
     await session.execute(
         delete(brand_synonyms).where(
             (brand_synonyms.c.brand_id == brand.id)
             | (brand_synonyms.c.synonym_id == brand.id)
         )
     )
-    return await brand_crud.remove(brand, session, commit=True)
+    await brand_crud.remove(brand, session, commit=True)
+    return response
 
 
 @router.patch(
