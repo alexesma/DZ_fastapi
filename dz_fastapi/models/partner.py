@@ -902,6 +902,10 @@ class ProviderPriceListConfig(Base):
     name_price = Column(String, nullable=True)
     name_mail = Column(String, nullable=True)
     file_url = Column(String, nullable=True)
+    # Заказ по этому прайсу уходит с этой темой и на этот адрес (если заданы):
+    # у части поставщиков заказ разбирает робот и требует код склада в теме.
+    order_email_subject = Column(String(255), nullable=True)
+    order_email_to = Column(String(500), nullable=True)
     min_price = Column(Float, nullable=True)
     max_price = Column(Float, nullable=True)
     min_quantity = Column(Integer, nullable=True)

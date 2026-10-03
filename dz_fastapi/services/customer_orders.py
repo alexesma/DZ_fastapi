@@ -5509,9 +5509,12 @@ async def send_supplier_orders(
         provider = order.provider
         is_manual_search_order = order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
         override_email = None if is_manual_search_order else automatic_order_override_email
-        original_recipient = _build_supplier_order_recipient(
-            provider,
-            use_override=False,
+        original_recipient = (
+            str(getattr(order.provider_config, "order_email_to", "") or "").strip()
+            or _build_supplier_order_recipient(
+                provider,
+                use_override=False,
+            )
         )
         to_email = override_email or original_recipient
         if not to_email:
@@ -5540,6 +5543,13 @@ async def send_supplier_orders(
             ).strip()
             if provider_config_name:
                 subject = f"{subject} / {provider_config_name}"
+            # Робот поставщика разбирает заказ по коду в теме — тема из
+            # настроек прайса заменяет стандартную целиком.
+            custom_subject = str(
+                getattr(order.provider_config, "order_email_subject", "") or ""
+            ).strip()
+            if custom_subject:
+                subject = custom_subject
             if override_email:
                 original_recipient_label = original_recipient or "не указан"
                 subject = f"[STUB] {subject}"

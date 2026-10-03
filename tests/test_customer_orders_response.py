@@ -23,6 +23,7 @@ from dz_fastapi.models.partner import (
     TYPE_STATUS_ORDER,
     Order,
     OrderItem,
+    ProviderPriceListConfig,
     SupplierOrder,
     SupplierOrderAttachment,
     SupplierOrderItem,
@@ -608,6 +609,77 @@ async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     assert f"Заказ поставщику № {order.id}" in sent["body"]
     assert f"<b>Заказ поставщику № {order.id}</b>" in sent["body"]
     assert "<table" in sent["body"]
+
+
+@pytest.mark.asyncio
+async def test_send_supplier_orders_uses_subject_and_recipient_from_pricelist_config(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = "manager@example.com"
+    config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=3,
+        price_col=4,
+        name_price="Ixora APR",
+        order_email_subject="UAI8184172/APR",
+        order_email_to="robot@example.com",
+    )
+    test_session.add(config)
+    await test_session.flush()
+    order = SupplierOrder(
+        provider_id=provider.id,
+        provider_config_id=config.id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=order.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+            price=50.0,
+        )
+    )
+    test_session.add(
+        CustomerOrderInboxSettings(
+            lookback_days=1,
+            mark_seen=False,
+            error_file_retention_days=5,
+            supplier_response_lookback_days=14,
+            supplier_order_stub_enabled=False,
+            supplier_order_stub_email="info@dragonzap.ru",
+        )
+    )
+    await test_session.commit()
+
+    sent_calls = []
+
+    async def fake_send(to_email, subject, body, attachment, filename, use_tls, **kwargs):
+        sent_calls.append({"to_email": to_email, "subject": subject})
+
+    async def fake_get_out_account(session, purpose):
+        return None
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        fake_send,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._get_out_account",
+        fake_get_out_account,
+    )
+
+    result = await send_supplier_orders(test_session, [order.id])
+
+    assert result == {"sent": 1, "failed": 0}
+    assert sent_calls == [{"to_email": "robot@example.com", "subject": "UAI8184172/APR"}]
 
 
 @pytest.mark.asyncio

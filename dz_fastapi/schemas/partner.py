@@ -726,6 +726,8 @@ class ProviderPriceListConfigBase(BaseModel):
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
+    order_email_subject: Optional[str] = Field(default=None, max_length=255)
+    order_email_to: Optional[str] = Field(default=None, max_length=500)
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     min_quantity: Optional[int] = None
@@ -764,6 +766,8 @@ class ProviderPriceListConfigUpdate(BaseModel):
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
+    order_email_subject: Optional[str] = Field(default=None, max_length=255)
+    order_email_to: Optional[str] = Field(default=None, max_length=500)
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     min_quantity: Optional[int] = None
@@ -1709,6 +1713,8 @@ class ProviderPriceListConfigOut(BaseModel):
     name_price: str | None = None
     name_mail: str | None = None
     file_url: str | None = None
+    order_email_subject: str | None = None
+    order_email_to: str | None = None
     start_row: int
     oem_col: int
     name_col: int | None = None
