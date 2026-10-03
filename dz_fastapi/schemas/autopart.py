@@ -278,6 +278,20 @@ class PartPhotoLookupResponse(BaseModel):
     rows: List[PartPhotoLookupRow] = Field(default_factory=list)
 
 
+class TurnoverFlagsRequest(BaseModel):
+    ids: List[int] = Field(default_factory=list, max_length=500)
+
+
+class TurnoverFlagOut(BaseModel):
+    autopart_id: int
+    is_top: bool = False
+    is_market_opportunity: bool = False
+
+
+class TurnoverFlagsResponse(BaseModel):
+    flags: List[TurnoverFlagOut] = Field(default_factory=list)
+
+
 class AutopartOffersResponse(BaseModel):
     oem_number: str
     offers: List[AutopartOfferRow] = Field(default_factory=list)

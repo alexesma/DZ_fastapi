@@ -128,3 +128,28 @@ async def test_catalog_can_filter_and_mark_turnover_top(
     assert row["is_turnover_top"] is True
     assert row["turnover_score"] == 88
     assert row["recommended_order_qty"] == 4
+
+
+@pytest.mark.asyncio
+async def test_turnover_flags_return_only_flagged_parts(async_client, test_session, created_brand):
+    from dz_fastapi.models.autopart import AutoPart
+
+    top_part = AutoPart(brand_id=created_brand.id, oem_number="FLG1", name="Топ")
+    plain_part = AutoPart(brand_id=created_brand.id, oem_number="FLG2", name="Обычная")
+    test_session.add_all([top_part, plain_part])
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPartTurnoverSummary(autopart_id=top_part.id, is_top=True),
+            AutoPartTurnoverSummary(autopart_id=plain_part.id, is_top=False),
+        ]
+    )
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/autoparts/turnover-flags/", json={"ids": [top_part.id, plain_part.id]}
+    )
+    assert response.status_code == 200
+    flags = response.json()["flags"]
+    assert [f["autopart_id"] for f in flags] == [top_part.id]
+    assert flags[0]["is_top"] is True

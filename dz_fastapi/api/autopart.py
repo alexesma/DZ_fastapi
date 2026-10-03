@@ -110,6 +110,9 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationOut,
     StorageLocationResponse,
     StorageLocationUpdate,
+    TurnoverFlagOut,
+    TurnoverFlagsRequest,
+    TurnoverFlagsResponse,
 )
 from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseOut, WarehouseUpdate
 from dz_fastapi.services.crosses import (
@@ -593,6 +596,45 @@ async def get_autopart_offers(
         nomenclature_autopart_id=nomenclature_autopart_id,
         nomenclature_brand_name=nomenclature_brand_name,
         nomenclature_name=nomenclature_name,
+    )
+
+
+@router.post(
+    "/autoparts/turnover-flags/",
+    tags=["autopart", "catalog"],
+    summary="Флаги «топ» и «рыночная возможность» по списку позиций",
+    response_model=TurnoverFlagsResponse,
+)
+async def get_turnover_flags(
+    payload: TurnoverFlagsRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Чтобы значок в таблицах был виден сразу, а не после наведения."""
+    ids = sorted({i for i in payload.ids if i})
+    if not ids:
+        return TurnoverFlagsResponse(flags=[])
+    rows = await session.execute(
+        select(
+            AutoPartTurnoverSummary.autopart_id,
+            AutoPartTurnoverSummary.is_top,
+            AutoPartTurnoverSummary.is_market_opportunity,
+        ).where(
+            AutoPartTurnoverSummary.autopart_id.in_(ids),
+            or_(
+                AutoPartTurnoverSummary.is_top.is_(True),
+                AutoPartTurnoverSummary.is_market_opportunity.is_(True),
+            ),
+        )
+    )
+    return TurnoverFlagsResponse(
+        flags=[
+            TurnoverFlagOut(
+                autopart_id=aid,
+                is_top=bool(top),
+                is_market_opportunity=bool(market),
+            )
+            for aid, top, market in rows.all()
+        ]
     )
 
 
