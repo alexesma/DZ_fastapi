@@ -959,3 +959,46 @@ async def test_get_autoparts_by_ids_no_results(test_session):
         session=test_session, autopart_ids=[invalid_id]
     )
     assert autoparts == []
+
+
+@pytest.mark.asyncio
+async def test_delete_autopart_removes_own_data_and_blocks_on_documents(
+    async_client, test_session, created_brand, created_customers
+):
+    from sqlalchemy import select
+
+    from dz_fastapi.models.autopart import AutoPart, Photo
+    from dz_fastapi.models.partner import CustomerOrder, CustomerOrderItem
+
+    free = AutoPart(brand_id=created_brand.id, oem_number="DEL1", name="Свободная")
+    busy = AutoPart(brand_id=created_brand.id, oem_number="DEL2", name="В заказе")
+    test_session.add_all([free, busy])
+    await test_session.flush()
+    test_session.add(Photo(autopart_id=free.id, url="/uploads/autoparts/x.jpg"))
+    order = CustomerOrder(customer_id=created_customers[0].id)
+    test_session.add(order)
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id, autopart_id=busy.id, oem="DEL2", brand="B", requested_qty=1
+    )
+    test_session.add(item)
+    await test_session.commit()
+    free_id, busy_id = free.id, busy.id
+
+    check = await async_client.get(f"/autoparts/{free_id}/delete-check/")
+    assert check.json()["can_delete"] is True
+    assert check.json()["will_remove"] == [{"label": "Фото", "count": 1}]
+
+    blocked = await async_client.get(f"/autoparts/{busy_id}/delete-check/")
+    assert blocked.json()["can_delete"] is False
+    refused = await async_client.delete(f"/autoparts/{busy_id}/")
+    assert refused.status_code == 409
+    assert "Позиции заказов клиентов" in refused.json()["detail"]
+
+    deleted = await async_client.delete(f"/autoparts/{free_id}/")
+    assert deleted.status_code == 200, deleted.text
+    test_session.expire_all()
+    part_left = await test_session.execute(select(AutoPart).where(AutoPart.id == free_id))
+    photo_left = await test_session.execute(select(Photo).where(Photo.autopart_id == free_id))
+    assert part_left.first() is None
+    assert photo_left.first() is None

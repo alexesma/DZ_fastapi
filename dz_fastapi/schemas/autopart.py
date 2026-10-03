@@ -881,3 +881,14 @@ class ConfirmedOffer(BaseModel):
     price: float = Field(..., gt=0, description="Цена за единицу товара")
     total_cost: float = Field(..., gt=0, description="Общая стоимость позиции")
     historical_min_price: int = Field(..., gt=0, description="Исторически минимальная цена")
+
+
+class AutopartUsageRow(BaseModel):
+    label: str
+    count: int
+
+
+class AutopartDeleteCheck(BaseModel):
+    can_delete: bool
+    blockers: List[AutopartUsageRow] = Field(default_factory=list)
+    will_remove: List[AutopartUsageRow] = Field(default_factory=list)

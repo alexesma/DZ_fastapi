@@ -80,6 +80,7 @@ from dz_fastapi.schemas.autopart import (
     AutoPartCatalogItem,
     AutoPartCatalogResponse,
     AutoPartCreate,
+    AutopartDeleteCheck,
     AutoPartDetailResponse,
     AutoPartLookupItem,
     AutopartOfferRow,
@@ -92,6 +93,7 @@ from dz_fastapi.schemas.autopart import (
     AutopartTurnoverReportResponse,
     AutopartTurnoverSummaryOut,
     AutoPartUpdate,
+    AutopartUsageRow,
     BulkUpdateResponse,
     CategoryCreate,
     CategoryResponse,
@@ -115,6 +117,11 @@ from dz_fastapi.schemas.autopart import (
     TurnoverFlagsResponse,
 )
 from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseOut, WarehouseUpdate
+from dz_fastapi.services.autopart_delete import (
+    autopart_delete_check,
+    delete_autopart,
+    describe_blockers,
+)
 from dz_fastapi.services.crosses import (
     delete_cross_relation,
     get_cross_row,
@@ -2785,6 +2792,65 @@ async def replace_autopart_photo(
     _delete_local_photo_file(old_url, upload_dir)
     await session.refresh(photo)
     return photo
+
+
+@router.get(
+    "/autoparts/{autopart_id:int}/delete-check/",
+    tags=["autopart", "catalog"],
+    summary="Можно ли удалить позицию и что удалится вместе с ней",
+    response_model=AutopartDeleteCheck,
+)
+async def check_autopart_delete(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    if await session.get(AutoPart, autopart_id) is None:
+        raise HTTPException(status_code=404, detail="Запчасть не найдена")
+    blockers, owned = await autopart_delete_check(session, autopart_id)
+    return AutopartDeleteCheck(
+        can_delete=not blockers,
+        blockers=[AutopartUsageRow(label=r.label, count=r.count) for r in blockers],
+        will_remove=[AutopartUsageRow(label=r.label, count=r.count) for r in owned],
+    )
+
+
+@router.delete(
+    "/autoparts/{autopart_id:int}/",
+    tags=["autopart", "catalog"],
+    summary="Удалить позицию номенклатуры (если на неё нет документов и остатков)",
+    dependencies=[Depends(require_admin)],
+)
+async def delete_autopart_endpoint(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+    upload_dir: str = Depends(get_upload_dir),
+):
+    autopart = await session.get(AutoPart, autopart_id)
+    if autopart is None:
+        raise HTTPException(status_code=404, detail="Запчасть не найдена")
+    blockers, _owned = await autopart_delete_check(session, autopart_id)
+    if blockers:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Позицию нельзя удалить, на неё есть ссылки ("
+                + describe_blockers(blockers)
+                + ")."
+            ),
+        )
+    try:
+        photo_urls = await delete_autopart(session, autopart)
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        logger.exception("Не удалось удалить позицию %s", autopart_id)
+        raise HTTPException(
+            status_code=409,
+            detail="Позицию нельзя удалить: на неё остались связанные данные.",
+        )
+    for url in photo_urls:
+        _delete_local_photo_file(url, upload_dir)
+    return {"deleted": True}
 
 
 @router.delete("/autoparts/{autopart_id:int}/photos/{photo_id:int}")
