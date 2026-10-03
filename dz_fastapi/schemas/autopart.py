@@ -257,6 +257,27 @@ class OwnStockByOemsResponse(BaseModel):
     rows: List[AutopartOwnStockRow] = Field(default_factory=list)
 
 
+class PartPhotoLookupKey(BaseModel):
+    brand: Optional[str] = None
+    oem: str
+
+
+class PartPhotoLookupRequest(BaseModel):
+    items: List[PartPhotoLookupKey] = Field(default_factory=list, max_length=200)
+
+
+class PartPhotoLookupRow(BaseModel):
+    brand: Optional[str] = None
+    oem: str
+    autopart_id: int
+    name: Optional[str] = None
+    photos: List[str] = Field(default_factory=list)
+
+
+class PartPhotoLookupResponse(BaseModel):
+    rows: List[PartPhotoLookupRow] = Field(default_factory=list)
+
+
 class AutopartOffersResponse(BaseModel):
     oem_number: str
     offers: List[AutopartOfferRow] = Field(default_factory=list)

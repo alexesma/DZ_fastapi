@@ -46,6 +46,15 @@ def _pick_first(offer: dict, keys: tuple[str, ...]):
     return None
 
 
+def extract_site_photo_url(offer: dict) -> str | None:
+    """Реальное фото с сайта: только thumbnails; labels/*.svg — заглушка."""
+    sys_info = offer.get("sys_info")
+    url = sys_info.get("goods_img_url") if isinstance(sys_info, dict) else None
+    if isinstance(url, str) and "/thumbnails/" in url:
+        return url
+    return None
+
+
 def _to_float(value):
     try:
         if value is None:
@@ -127,6 +136,7 @@ def _normalize_offer(offer: dict) -> dict | None:
         "max_delivery_day": max_delivery,
         "hash_key": offer.get("hash_key"),
         "system_hash": offer.get("system_hash"),
+        "photo_url": extract_site_photo_url(offer),
     }
 
 

@@ -103,6 +103,9 @@ from dz_fastapi.schemas.autopart import (
     HonestSignCategoryUpdate,
     OwnStockByOemsRequest,
     OwnStockByOemsResponse,
+    PartPhotoLookupRequest,
+    PartPhotoLookupResponse,
+    PartPhotoLookupRow,
     StorageLocationCreate,
     StorageLocationOut,
     StorageLocationResponse,
@@ -591,6 +594,52 @@ async def get_autopart_offers(
         nomenclature_brand_name=nomenclature_brand_name,
         nomenclature_name=nomenclature_name,
     )
+
+
+@router.post(
+    "/autoparts/photos/lookup/",
+    tags=["autopart"],
+    summary="Фото и названия номенклатуры по списку (бренд, артикул)",
+    response_model=PartPhotoLookupResponse,
+)
+async def lookup_autopart_photos(
+    payload: PartPhotoLookupRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Для ярлычков «фото детали»: по парам бренд+артикул отдаёт название
+    и фотографии из каталога. Бренд необязателен — без него берём
+    совпадения по артикулу, где есть фото."""
+    keys: dict[str, set[str]] = {}
+    for item in payload.items:
+        oem = preprocess_oem_number(item.oem or "")
+        if oem:
+            keys.setdefault(oem, set()).add((item.brand or "").strip().lower())
+    if not keys:
+        return PartPhotoLookupResponse(rows=[])
+    stmt = (
+        select(AutoPart)
+        .options(selectinload(AutoPart.photos))
+        .options(selectinload(AutoPart.brand))
+        .where(AutoPart.oem_number.in_(list(keys)))
+    )
+    found = (await session.execute(stmt)).scalars().all()
+    rows = []
+    for ap in found:
+        brand_name = ap.brand.name if ap.brand else None
+        wanted = keys.get(ap.oem_number, set())
+        brand_key = (brand_name or "").strip().lower()
+        if "" not in wanted and brand_key not in wanted:
+            continue
+        rows.append(
+            PartPhotoLookupRow(
+                brand=brand_name,
+                oem=ap.oem_number,
+                autopart_id=ap.id,
+                name=ap.name,
+                photos=[p.url for p in (ap.photos or []) if p.url],
+            )
+        )
+    return PartPhotoLookupResponse(rows=rows)
 
 
 @router.post(
