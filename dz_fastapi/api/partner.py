@@ -4292,6 +4292,45 @@ async def explorer_rows(
 
 
 @router.get(
+    "/providers/{provider_id}/pricelist-explorer/price-history/",
+    tags=["providers", "analytic"],
+    summary="История цены позиции у поставщика (для графика при наведении)",
+)
+async def explorer_price_history(
+    provider_id: int,
+    autopart_id: int,
+    config_id: Optional[int] = None,
+    limit: int = Query(40, ge=2, le=200),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.autopart import AutoPartPriceHistory
+
+    stmt = select(
+        AutoPartPriceHistory.pricelist_id,
+        AutoPartPriceHistory.created_at,
+        AutoPartPriceHistory.price,
+    ).where(
+        AutoPartPriceHistory.provider_id == provider_id,
+        AutoPartPriceHistory.autopart_id == autopart_id,
+    )
+    if config_id:
+        stmt = stmt.where(AutoPartPriceHistory.provider_config_id == config_id)
+    rows = (
+        await session.execute(stmt.order_by(AutoPartPriceHistory.created_at.desc()).limit(limit))
+    ).all()
+    # Одна точка на прайс; по возрастанию даты — так рисуется график
+    seen: set[int] = set()
+    points = []
+    for pricelist_id, created_at, price in rows:
+        if pricelist_id in seen:
+            continue
+        seen.add(pricelist_id)
+        points.append({"date": created_at.date().isoformat(), "price": float(price)})
+    points.reverse()
+    return {"points": points}
+
+
+@router.get(
     "/providers/{provider_id}/pricelist-explorer/export/",
     tags=["providers", "analytic"],
     summary="Выгрузка отфильтрованных позиций прайса в Excel",

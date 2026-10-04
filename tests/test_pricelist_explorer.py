@@ -112,3 +112,36 @@ async def test_explorer_compares_with_previous_and_filters(
     )
     assert export.status_code == 200
     assert export.content[:2] == b"PK"
+
+
+@pytest.mark.asyncio
+async def test_explorer_price_history_points(
+    async_client, test_session, created_brand, created_providers, created_pricelist_config
+):
+    from datetime import datetime, timezone
+
+    from dz_fastapi.models.autopart import AutoPartPriceHistory
+
+    provider = created_providers[0]
+    part = AutoPart(brand_id=created_brand.id, oem_number="HIST1", name="История")
+    test_session.add(part)
+    await test_session.flush()
+    for day, pricelist_id, price in ((1, 11, "100"), (10, 12, "120"), (20, 13, "90")):
+        test_session.add(
+            AutoPartPriceHistory(
+                autopart_id=part.id,
+                provider_id=provider.id,
+                provider_config_id=created_pricelist_config.id,
+                pricelist_id=pricelist_id,
+                created_at=datetime(2026, 9, day, 12, tzinfo=timezone.utc),
+                price=Decimal(price),
+                quantity=1,
+            )
+        )
+    await test_session.commit()
+    response = await async_client.get(
+        f"/providers/{provider.id}/pricelist-explorer/price-history/",
+        params={"autopart_id": part.id, "config_id": created_pricelist_config.id},
+    )
+    assert [p["price"] for p in response.json()["points"]] == [100.0, 120.0, 90.0]
+    assert response.json()["points"][0]["date"] == "2026-09-01"
