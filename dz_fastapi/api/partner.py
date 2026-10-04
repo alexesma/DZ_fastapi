@@ -138,6 +138,13 @@ from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.monitoring import provider_config_intake_problems
 from dz_fastapi.services.order_timing import get_today_order_windows_status
+from dz_fastapi.services.pricelist_explorer import (
+    ExplorerFilters,
+    explore_pricelist,
+    list_provider_pricelists,
+    pricelist_brand_facets,
+    resolve_pricelists,
+)
 from dz_fastapi.services.pricelist_review_queue import (
     mark_pricelist_review_notifications_read as _mark_pricelist_review_notifications_read,
 )
@@ -4159,6 +4166,204 @@ async def get_provider_pricelist_analytics(
 
     analyses.sort(key=lambda item: (item.config_name is None, item.config_name or ""))
     return analyses
+
+
+def _explorer_filters(
+    brand_ids: List[int] = Query(default_factory=list),
+    q: Optional[str] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
+    qty_min: Optional[int] = None,
+    qty_max: Optional[int] = None,
+    in_stock: Optional[bool] = None,
+    price_change: Optional[str] = Query(None, pattern="^(up|down|any|new|unchanged)$"),
+    price_change_min_pct: Optional[float] = None,
+    quantity_change: Optional[str] = Query(None, pattern="^(up|down|appeared|disappeared)$"),
+    sold_30d_min: Optional[int] = None,
+    score_min: Optional[float] = None,
+    top_only: bool = False,
+    market_only: bool = False,
+    demand: Optional[str] = Query(None, pattern="^(with|without)$"),
+    vs_market_min_pct: Optional[float] = None,
+    vs_market_max_pct: Optional[float] = None,
+) -> ExplorerFilters:
+    return ExplorerFilters(
+        brand_ids=brand_ids,
+        q=q,
+        price_min=price_min,
+        price_max=price_max,
+        qty_min=qty_min,
+        qty_max=qty_max,
+        in_stock=in_stock,
+        price_change=price_change,
+        price_change_min_pct=price_change_min_pct,
+        quantity_change=quantity_change,
+        sold_30d_min=sold_30d_min,
+        score_min=score_min,
+        top_only=top_only,
+        market_only=market_only,
+        demand=demand,
+        vs_market_min_pct=vs_market_min_pct,
+        vs_market_max_pct=vs_market_max_pct,
+    )
+
+
+def _pricelist_meta(pricelist) -> Optional[dict]:
+    if pricelist is None:
+        return None
+    return {
+        "id": pricelist.id,
+        "date": pricelist.date.isoformat() if pricelist.date else None,
+        "config_id": pricelist.provider_config_id,
+    }
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-explorer/pricelists/",
+    tags=["providers", "analytic"],
+    summary="Загруженные прайсы поставщика (для выбора в анализе)",
+)
+async def explorer_pricelists(provider_id: int, session: AsyncSession = Depends(get_session)):
+    return await list_provider_pricelists(session, provider_id)
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-explorer/brands/",
+    tags=["providers", "analytic"],
+    summary="Бренды выбранного прайса с числом позиций",
+)
+async def explorer_brands(
+    provider_id: int,
+    config_id: Optional[int] = None,
+    pricelist_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    current, _ = await resolve_pricelists(
+        session, provider_id, config_id=config_id, pricelist_id=pricelist_id, compare_to=None
+    )
+    if current is None:
+        return []
+    return await pricelist_brand_facets(session, current.id)
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-explorer/",
+    tags=["providers", "analytic"],
+    summary="Позиции загруженного прайса с фильтрами и аналитикой",
+)
+async def explorer_rows(
+    provider_id: int,
+    config_id: Optional[int] = None,
+    pricelist_id: Optional[int] = None,
+    compare_to: Optional[int] = None,
+    filters: ExplorerFilters = Depends(_explorer_filters),
+    sort_by: str = "stock_value",
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    if await crud_provider.get_by_id(provider_id=provider_id, session=session) is None:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    current, previous = await resolve_pricelists(
+        session,
+        provider_id,
+        config_id=config_id,
+        pricelist_id=pricelist_id,
+        compare_to=compare_to,
+    )
+    if current is None:
+        return {"pricelist": None, "compared_with": None, "total": 0, "rows": [], "summary": None}
+    result = await explore_pricelist(
+        session,
+        current=current,
+        previous=previous,
+        filters=filters,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "pricelist": _pricelist_meta(current),
+        "compared_with": _pricelist_meta(previous),
+        **result,
+    }
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-explorer/export/",
+    tags=["providers", "analytic"],
+    summary="Выгрузка отфильтрованных позиций прайса в Excel",
+)
+async def explorer_export(
+    provider_id: int,
+    config_id: Optional[int] = None,
+    pricelist_id: Optional[int] = None,
+    compare_to: Optional[int] = None,
+    filters: ExplorerFilters = Depends(_explorer_filters),
+    sort_by: str = "stock_value",
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
+    session: AsyncSession = Depends(get_session),
+):
+    import io
+
+    import pandas as pd
+    from fastapi.responses import StreamingResponse
+
+    current, previous = await resolve_pricelists(
+        session,
+        provider_id,
+        config_id=config_id,
+        pricelist_id=pricelist_id,
+        compare_to=compare_to,
+    )
+    if current is None:
+        raise HTTPException(status_code=404, detail="Прайс не найден")
+    result = await explore_pricelist(
+        session,
+        current=current,
+        previous=previous,
+        filters=filters,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        limit=50000,
+        offset=0,
+    )
+    columns = {
+        "oem_number": "Артикул",
+        "brand_name": "Бренд",
+        "name": "Наименование",
+        "price": "Цена",
+        "prev_price": "Цена в прошлом прайсе",
+        "price_change_pct": "Изменение цены, %",
+        "quantity": "Остаток",
+        "prev_quantity": "Остаток в прошлом прайсе",
+        "multiplicity": "Кратность",
+        "stock_value": "Сумма остатка",
+        "sold_qty_30d": "Продано за 30 дн.",
+        "sold_qty_90d": "Продано за 90 дн.",
+        "recommendation_score": "Оценка рекомендации",
+        "market_min_price": "Мин. цена рынка",
+        "vs_market_pct": "К мин. цене рынка, %",
+        "supplier_count": "Поставщиков",
+    }
+    frame = pd.DataFrame(result["rows"]).reindex(columns=list(columns)).rename(columns=columns)
+    for col in frame.select_dtypes(include=["object"]).columns:
+        frame[col] = frame[col].map(lambda v: float(v) if hasattr(v, "as_tuple") else v)
+    buffer = io.BytesIO()
+    frame.to_excel(buffer, index=False, sheet_name="Прайс")
+    buffer.seek(0)
+    date_part = current.date.isoformat() if current.date else str(current.id)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="pricelist_{provider_id}_{date_part}.xlsx"'
+            )
+        },
+    )
 
 
 @router.get(
