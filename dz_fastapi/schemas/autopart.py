@@ -264,12 +264,14 @@ class PartPhotoLookupKey(BaseModel):
 
 class PartPhotoLookupRequest(BaseModel):
     items: List[PartPhotoLookupKey] = Field(default_factory=list, max_length=200)
+    # Для позиций без фото в каталоге спросить фото у сайта (Parts-Soft)
+    site: bool = False
 
 
 class PartPhotoLookupRow(BaseModel):
     brand: Optional[str] = None
     oem: str
-    autopart_id: int
+    autopart_id: Optional[int] = None
     name: Optional[str] = None
     photos: List[str] = Field(default_factory=list)
 

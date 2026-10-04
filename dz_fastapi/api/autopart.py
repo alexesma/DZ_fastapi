@@ -134,6 +134,7 @@ from dz_fastapi.services.process import (
     check_start_and_finish_date,
     write_error_for_bulk,
 )
+from dz_fastapi.services.site_photos import fetch_site_photos
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -688,7 +689,40 @@ async def lookup_autopart_photos(
                 photos=[p.url for p in (ap.photos or []) if p.url],
             )
         )
+    if payload.site:
+        rows = await _add_site_photos(payload, rows)
     return PartPhotoLookupResponse(rows=rows)
+
+
+SITE_PHOTO_LOOKUPS_PER_REQUEST = 30
+
+
+async def _add_site_photos(
+    payload: PartPhotoLookupRequest, rows: list[PartPhotoLookupRow]
+) -> list[PartPhotoLookupRow]:
+    """Дополняет позиции без фото миниатюрой с платформы Parts-Soft."""
+    with_photos = {
+        (row.brand or "").strip().lower() + "|" + row.oem for row in rows if row.photos
+    }
+    wanted: list[tuple[str, str]] = []
+    for item in payload.items:
+        brand = (item.brand or "").strip()
+        oem = preprocess_oem_number(item.oem or "")
+        if brand and oem and f"{brand.lower()}|{oem}" not in with_photos:
+            if (brand, oem) not in wanted:
+                wanted.append((brand, oem))
+    found = await fetch_site_photos(wanted[:SITE_PHOTO_LOOKUPS_PER_REQUEST])
+    by_key = {(r.brand or "").strip().lower() + "|" + r.oem: r for r in rows}
+    for brand, oem in wanted:
+        url = found.get((brand.lower(), oem))
+        if not url:
+            continue
+        row = by_key.get(f"{brand.lower()}|{oem}")
+        if row is None:
+            row = PartPhotoLookupRow(brand=brand, oem=oem)
+            rows.append(row)
+        row.photos = [*row.photos, url]
+    return rows
 
 
 @router.post(

@@ -46,3 +46,47 @@ def test_extract_site_photo_url_skips_svg_labels():
     label = "https://x/labels/a.svg"
     assert extract_site_photo_url({"sys_info": {"goods_img_url": label}}) is None
     assert extract_site_photo_url({}) is None
+
+
+@pytest.mark.asyncio
+async def test_lookup_adds_site_photo_for_parts_without_catalog_photo(
+    async_client, test_session, created_brand, monkeypatch
+):
+    async def fake_fetch(pairs):
+        return {(brand.lower(), oem): "https://img/thumbnails/images/9" for brand, oem in pairs}
+
+    monkeypatch.setattr("dz_fastapi.api.autopart.fetch_site_photos", fake_fetch)
+    test_session.add(AutoPart(brand_id=created_brand.id, oem_number="SITE1", name="Без фото"))
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/autoparts/photos/lookup/",
+        json={
+            "items": [
+                {"brand": created_brand.name, "oem": "SITE1"},
+                {"brand": "CHERY", "oem": "A111601113"},
+            ],
+            "site": True,
+        },
+    )
+    rows = {r["oem"]: r for r in response.json()["rows"]}
+    assert rows["SITE1"]["photos"] == ["https://img/thumbnails/images/9"]
+    assert rows["A111601113"]["photos"] == ["https://img/thumbnails/images/9"]
+    assert rows["A111601113"]["autopart_id"] is None
+
+    plain = await async_client.post(
+        "/autoparts/photos/lookup/",
+        json={"items": [{"brand": "CHERY", "oem": "A111601113"}]},
+    )
+    assert plain.json()["rows"] == []
+
+
+def test_pick_thumbnail_ignores_labels():
+    from dz_fastapi.services.site_photos import pick_thumbnail
+
+    offers = [
+        {"sys_info": {"goods_img_url": "https://x/labels/a.svg"}},
+        {"sys_info": {"goods_img_url": "https://x/thumbnails/images/1"}},
+    ]
+    assert pick_thumbnail(offers) == "https://x/thumbnails/images/1"
+    assert pick_thumbnail([]) is None
