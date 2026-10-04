@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
-from dz_fastapi.services.one_c_exchange import build_commerceml_sale_xml
+from dz_fastapi.services.one_c_exchange import _counterparty_export_row, build_commerceml_sale_xml
 
 
 def _shipment_stub():
@@ -73,13 +73,8 @@ def test_commerceml_xml_structure():
         counterparty.findtext("ЮридическийАдрес/Представление")
         == "г. Москва, ул. Юридическая, д. 1"
     )
-    assert (
-        counterparty.findtext("Адрес/Представление")
-        == "г. Москва, ул. Почтовая, д. 2"
-    )
-    assert counterparty.findtext("Комментарий") == (
-        "Оптовый покупатель\nОсновной клиент"
-    )
+    assert counterparty.findtext("Адрес/Представление") == "г. Москва, ул. Почтовая, д. 2"
+    assert counterparty.findtext("Комментарий") == ("Оптовый покупатель\nОсновной клиент")
     contacts = counterparty.findall("Контакты/Контакт")
     assert [(row.findtext("Тип"), row.findtext("Значение")) for row in contacts] == [
         ("Почта", "orders@example.org"),
@@ -97,16 +92,11 @@ def test_commerceml_xml_structure():
 
     good = document.find("Товары/Товар")
     assert good.findtext("Артикул") == "A11-1012010"
-    assert (
-        good.findtext("Наименование")
-        == "CHERY A11-1012010 Фильтр масляный"
-    )
+    assert good.findtext("Наименование") == "CHERY A11-1012010 Фильтр масляный"
     assert good.findtext("ЦенаЗаЕдиницу") == "150.50"
     assert good.findtext("Количество") == "10"
     assert good.findtext("Сумма") == "1505.00"
-    assert (
-        good.findtext("СтавкиНалогов/СтавкаНалога/Ставка") == "22"
-    )
+    assert good.findtext("СтавкиНалогов/СтавкаНалога/Ставка") == "22"
 
 
 def test_commerceml_xml_uses_item_vat_rate():
@@ -125,9 +115,7 @@ def test_commerceml_xml_without_customer():
     payload = build_commerceml_sale_xml([shipment])
     root = ET.fromstring(payload)
     counterparty = root.find("Документ/Контрагенты/Контрагент")
-    assert (
-        counterparty.findtext("Наименование") == "Розничный покупатель"
-    )
+    assert counterparty.findtext("Наименование") == "Розничный покупатель"
     assert counterparty.find("ИНН") is None
 
 
@@ -143,10 +131,7 @@ def test_commerceml_xml_uses_customer_article_with_physical_stock_id():
 
     assert good.findtext("Ид") == "dz-autopart-77"
     assert good.findtext("Артикул") == "DZ-CROSS-001"
-    assert (
-        good.findtext("Наименование")
-        == "DRAGONZAP DZ-CROSS-001 Клиентское наименование"
-    )
+    assert good.findtext("Наименование") == "DRAGONZAP DZ-CROSS-001 Клиентское наименование"
 
 
 def test_commerceml_xml_empty_list():
@@ -154,3 +139,64 @@ def test_commerceml_xml_empty_list():
     root = ET.fromstring(payload)
     assert root.tag == "КоммерческаяИнформация"
     assert root.find("Документ") is None
+
+
+def test_counterparty_export_row_contains_full_customer_card():
+    customer = SimpleNamespace(
+        id=17,
+        name="Ромашка",
+        legal_name='ООО "Ромашка"',
+        company_type="Юридическое лицо",
+        inn="7701234567",
+        kpp="770101001",
+        phone="+7 495 000-00-00",
+        additional_phone="+7 916 000-00-00",
+        email_contact="orders@example.org",
+        email_outgoing_price="prices@example.org",
+        legal_address="Москва, Юридическая, 1",
+        postal_address="Москва, Почтовая, 2",
+        vat_rate=Decimal("22.000"),
+        type_prices=SimpleNamespace(value="Wholesale"),
+        credit_limit=Decimal("500000.00"),
+        payment_terms_days=14,
+        bank_bik="044525225",
+        bank_name="Тестовый банк",
+        bank_city="Москва",
+        bank_account="40702810000000000001",
+        correspondent_account="30101810000000000225",
+        description="Оптовый покупатель",
+        comment="Основной клиент",
+        registration_source="Parts-Soft",
+    )
+
+    row = _counterparty_export_row(customer, role="Покупатель")
+
+    assert row["Идентификатор Dragonzap"] == "dz-customer-17"
+    assert row["Наименование"] == 'ООО "Ромашка"'
+    assert row["Рабочее наименование"] == "Ромашка"
+    assert row["ИНН"] == "7701234567"
+    assert row["Телефон"] == "+7 495 000-00-00"
+    assert row["Email для прайс-листов"] == "prices@example.org"
+    assert row["Ставка НДС"] == 22.0
+    assert row["Тип цены"] == "Wholesale"
+    assert row["Кредитный лимит"] == 500000.0
+    assert row["Отсрочка платежа, дней"] == 14
+    assert row["БИК"] == "044525225"
+    assert row["Расчетный счет"] == "40702810000000000001"
+    assert row["Источник регистрации"] == "Parts-Soft"
+
+
+def test_counterparty_export_row_supports_provider_specific_email():
+    provider = SimpleNamespace(
+        id=31,
+        name="Поставщик",
+        email_contact="manager@supplier.example",
+        email_incoming_price="prices@supplier.example",
+    )
+
+    row = _counterparty_export_row(provider, role="Поставщик")
+
+    assert row["Идентификатор Dragonzap"] == "dz-provider-31"
+    assert row["Тип"] == "Поставщик"
+    assert row["Email для прайс-листов"] == "prices@supplier.example"
+    assert row["Отсрочка платежа, дней"] == 0

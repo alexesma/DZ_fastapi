@@ -155,16 +155,12 @@ def build_commerceml_sale_xml(
         counterparty = ET.SubElement(counterparties, "Контрагент")
         customer_id = getattr(customer, "id", None) or 0
         name = str(
-            getattr(customer, "legal_name", None)
-            or getattr(customer, "name", "")
-            or ""
+            getattr(customer, "legal_name", None) or getattr(customer, "name", "") or ""
         ).strip()
         ET.SubElement(counterparty, "Ид").text = f"dz-customer-{customer_id}"
         ET.SubElement(counterparty, "Наименование").text = name or "Розничный покупатель"
         ET.SubElement(counterparty, "ПолноеНаименование").text = name or "Розничный покупатель"
-        ET.SubElement(counterparty, "ОфициальноеНаименование").text = (
-            name or "Розничный покупатель"
-        )
+        ET.SubElement(counterparty, "ОфициальноеНаименование").text = name or "Розничный покупатель"
         _append_address(
             counterparty,
             "ЮридическийАдрес",
@@ -510,30 +506,65 @@ async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
     )
     rows: list[dict[str, Any]] = []
     for customer in customers:
-        rows.append(
-            {
-                "Тип": "Покупатель",
-                "Наименование": customer.document_name,
-                "ИНН": customer.inn or "",
-                "КПП": customer.kpp or "",
-                "Email": customer.email_contact or "",
-                "Юр. адрес": getattr(customer, "legal_address", "") or "",
-                "Почтовый адрес": (getattr(customer, "postal_address", "") or ""),
-            }
-        )
+        rows.append(_counterparty_export_row(customer, role="Покупатель"))
     for provider in providers:
-        rows.append(
-            {
-                "Тип": "Поставщик",
-                "Наименование": provider.name,
-                "ИНН": provider.inn or "",
-                "КПП": provider.kpp or "",
-                "Email": provider.email_contact or "",
-                "Юр. адрес": "",
-                "Почтовый адрес": "",
-            }
-        )
+        rows.append(_counterparty_export_row(provider, role="Поставщик"))
     return await asyncio.to_thread(_rows_to_xlsx_bytes, rows, "Контрагенты")
+
+
+def _counterparty_export_row(counterparty: Any, *, role: str) -> dict[str, Any]:
+    """Return a stable, import-friendly row for initial migration to 1C.
+
+    ``Идентификатор Dragonzap`` must be preserved in 1C as an additional
+    requisite.  Unlike a name, it never changes and can therefore be used by
+    an import processing to update an existing card instead of creating a
+    duplicate.  INN/KPP remain the primary business matching keys.
+    """
+
+    entity_prefix = "customer" if role == "Покупатель" else "provider"
+    legal_name = str(getattr(counterparty, "legal_name", None) or "").strip()
+    working_name = str(getattr(counterparty, "name", None) or "").strip()
+    display_name = legal_name or working_name
+    type_prices = getattr(counterparty, "type_prices", None)
+    if hasattr(type_prices, "value"):
+        type_prices = type_prices.value
+
+    def text_value(name: str) -> str:
+        return str(getattr(counterparty, name, None) or "").strip()
+
+    def number_value(name: str) -> Any:
+        value = getattr(counterparty, name, None)
+        return float(value) if value is not None else ""
+
+    return {
+        "Идентификатор Dragonzap": f"dz-{entity_prefix}-{counterparty.id}",
+        "Тип": role,
+        "Наименование": display_name,
+        "Рабочее наименование": working_name,
+        "Полное наименование": legal_name,
+        "Вид организации": text_value("company_type"),
+        "ИНН": text_value("inn"),
+        "КПП": text_value("kpp"),
+        "Телефон": text_value("phone"),
+        "Дополнительный телефон": text_value("additional_phone"),
+        "Email": text_value("email_contact"),
+        "Email для прайс-листов": text_value("email_outgoing_price")
+        or text_value("email_incoming_price"),
+        "Юр. адрес": text_value("legal_address"),
+        "Почтовый адрес": text_value("postal_address"),
+        "Ставка НДС": number_value("vat_rate"),
+        "Тип цены": str(type_prices or ""),
+        "Кредитный лимит": number_value("credit_limit"),
+        "Отсрочка платежа, дней": getattr(counterparty, "payment_terms_days", None) or 0,
+        "БИК": text_value("bank_bik"),
+        "Банк": text_value("bank_name"),
+        "Город банка": text_value("bank_city"),
+        "Расчетный счет": text_value("bank_account"),
+        "Корреспондентский счет": text_value("correspondent_account"),
+        "Описание": text_value("description"),
+        "Комментарий": text_value("comment"),
+        "Источник регистрации": text_value("registration_source"),
+    }
 
 
 async def build_nomenclature_xlsx(session: AsyncSession) -> bytes:
