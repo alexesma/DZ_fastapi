@@ -1,6 +1,7 @@
 import io
 import logging
 import zipfile
+from functools import lru_cache
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional
@@ -22,7 +23,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageOps
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 from pydantic import conint
@@ -44,7 +45,7 @@ from dz_fastapi.analytics.restock_logic import (
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.constants import (
-    get_autopart_photo_watermark_text,
+    get_autopart_photo_watermark_path,
     get_max_file_size,
     get_upload_dir,
 )
@@ -2736,7 +2737,7 @@ async def _save_autopart_photo_file(
     *,
     max_file_size: int,
     upload_dir: str,
-    watermark_text: str,
+    watermark_path: str,
 ) -> str:
     if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=400, detail="Разрешены изображения JPEG, PNG и WebP")
@@ -2750,11 +2751,6 @@ async def _save_autopart_photo_file(
         with Image.open(io.BytesIO(contents)) as source:
             image_format = (source.format or "").lower()
             source.verify()
-        with Image.open(io.BytesIO(contents)) as source:
-            image = ImageOps.exif_transpose(source)
-            image.load()
-            processed = _apply_autopart_photo_watermark(image, watermark_text)
-            encoded = _encode_autopart_photo(processed, image_format)
     except (OSError, SyntaxError, ValueError) as exc:
         raise HTTPException(
             status_code=400,
@@ -2763,6 +2759,19 @@ async def _save_autopart_photo_file(
     extension = {"jpeg": ".jpg", "png": ".png", "webp": ".webp"}.get(image_format)
     if extension is None:
         raise HTTPException(status_code=400, detail="Формат изображения не поддерживается")
+    try:
+        logo = _load_watermark_logo(watermark_path)
+        with Image.open(io.BytesIO(contents)) as source:
+            image = ImageOps.exif_transpose(source)
+            image.load()
+            processed = _apply_autopart_photo_watermark(image, logo)
+            encoded = _encode_autopart_photo(processed, image_format)
+    except (OSError, ValueError) as exc:
+        logger.exception("Не удалось применить логотип к фотографии номенклатуры")
+        raise HTTPException(
+            status_code=500,
+            detail="Не удалось добавить логотип к фотографии",
+        ) from exc
     relative_dir = Path("autoparts") / str(autopart_id)
     destination_dir = Path(upload_dir) / relative_dir
     destination_dir.mkdir(parents=True, exist_ok=True)
@@ -2772,28 +2781,18 @@ async def _save_autopart_photo_file(
     return f"/uploads/{relative_dir.as_posix()}/{filename}"
 
 
-def _load_watermark_font(size: int) -> ImageFont.ImageFont:
-    candidates = (
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    )
-    for path in candidates:
-        try:
-            return ImageFont.truetype(path, size=size)
-        except OSError:
-            continue
-    try:
-        return ImageFont.load_default(size=size)
-    except TypeError:
-        return ImageFont.load_default()
+@lru_cache(maxsize=4)
+def _load_watermark_logo(path: str) -> Image.Image:
+    with Image.open(path) as logo:
+        logo.load()
+        return logo.convert("RGBA")
 
 
 def _apply_autopart_photo_watermark(
     image: Image.Image,
-    text: str,
+    logo: Image.Image,
 ) -> Image.Image:
-    """Add a readable but unobtrusive Dragonzap mark to a product image."""
+    """Add the Dragonzap logo in a readable corner without covering the product."""
 
     base = image.convert("RGBA")
     width, height = base.size
@@ -2802,32 +2801,30 @@ def _apply_autopart_photo_watermark(
 
     overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    font_size = max(10, min(72, round(min(width, height) * 0.075)))
-    font = _load_watermark_font(font_size)
-    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
-    text_width = right - left
-    text_height = bottom - top
-    padding = max(3, round(min(width, height) * 0.025))
-    x = max(padding, width - text_width - padding * 2)
-    y = max(padding, height - text_height - padding * 2)
+    margin = max(4, round(min(width, height) * 0.02))
+    box_padding = max(3, round(min(width, height) * 0.012))
+    available_width = max(1, width - 2 * (margin + box_padding))
+    target_width = min(320, max(70, round(width * 0.22)), available_width)
+    target_height = max(1, round(logo.height * target_width / logo.width))
+    max_height = max(1, round(height * 0.14))
+    if target_height > max_height:
+        target_height = max_height
+        target_width = max(1, round(logo.width * target_height / logo.height))
+    resized_logo = logo.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+    x = max(margin + box_padding, width - target_width - margin - box_padding)
+    y = max(margin + box_padding, height - target_height - margin - box_padding)
     draw.rounded_rectangle(
         (
-            max(0, x - padding),
-            max(0, y - padding),
-            min(width, x + text_width + padding),
-            min(height, y + text_height + padding),
+            max(0, x - box_padding),
+            max(0, y - box_padding),
+            min(width, x + target_width + box_padding),
+            min(height, y + target_height + box_padding),
         ),
-        radius=max(2, padding // 2),
-        fill=(0, 0, 0, 105),
+        radius=max(2, box_padding),
+        fill=(255, 255, 255, 205),
     )
-    draw.text(
-        (x, y - top),
-        text,
-        font=font,
-        fill=(255, 255, 255, 190),
-        stroke_width=max(0, font_size // 24),
-        stroke_fill=(0, 0, 0, 110),
-    )
+    overlay.alpha_composite(resized_logo, (x, y))
     return Image.alpha_composite(base, overlay)
 
 
@@ -2872,7 +2869,7 @@ async def upload_autopart_photo(
     session: AsyncSession = Depends(get_session),
     max_file_size: int = Depends(get_max_file_size),
     upload_dir: str = Depends(get_upload_dir),
-    watermark_text: str = Depends(get_autopart_photo_watermark_text),
+    watermark_path: str = Depends(get_autopart_photo_watermark_path),
 ):
     autopart = await session.get(AutoPart, autopart_id)
     if autopart is None:
@@ -2882,7 +2879,7 @@ async def upload_autopart_photo(
         file,
         max_file_size=max_file_size,
         upload_dir=upload_dir,
-        watermark_text=watermark_text,
+        watermark_path=watermark_path,
     )
     photo = Photo(autopart_id=autopart_id, url=url)
     session.add(photo)
@@ -2899,7 +2896,7 @@ async def replace_autopart_photo(
     session: AsyncSession = Depends(get_session),
     max_file_size: int = Depends(get_max_file_size),
     upload_dir: str = Depends(get_upload_dir),
-    watermark_text: str = Depends(get_autopart_photo_watermark_text),
+    watermark_path: str = Depends(get_autopart_photo_watermark_path),
 ):
     autopart = await session.get(AutoPart, autopart_id)
     photo = await session.get(Photo, photo_id)
@@ -2911,7 +2908,7 @@ async def replace_autopart_photo(
         file,
         max_file_size=max_file_size,
         upload_dir=upload_dir,
-        watermark_text=watermark_text,
+        watermark_path=watermark_path,
     )
     _suppress_partssoft_photo(autopart, old_url)
     await session.commit()

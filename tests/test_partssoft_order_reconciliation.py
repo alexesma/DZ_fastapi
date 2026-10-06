@@ -917,7 +917,7 @@ async def test_partssoft_product_sync_merges_card_and_photos(
     }
 
     async def fake_fetch_products(updated_since=None):
-        return [remote_product]
+        yield [remote_product]
 
     monkeypatch.setattr(service, "_fetch_products", fake_fetch_products)
     monkeypatch.setenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3")
@@ -937,7 +937,10 @@ async def test_partssoft_product_sync_merges_card_and_photos(
     assert first["counts"]["photos_added"] == 2
     assert second["counts"]["updated"] == 1
     assert second["counts"]["photos_existing"] == 2
-    await test_session.refresh(autopart)
+    # Сервис выпускает объекты из сессии постранично, поэтому читаем заново
+    autopart = await test_session.scalar(
+        select(AutoPart).where(AutoPart.partssoft_product_id == 741717)
+    )
     photos = list(
         (await test_session.scalars(select(Photo).where(Photo.autopart_id == autopart.id))).all()
     )

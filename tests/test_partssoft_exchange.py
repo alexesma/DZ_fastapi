@@ -314,7 +314,7 @@ async def test_full_product_sync_queues_remote_deletion_for_recreation(
 
     async def fake_fetch_products(*, updated_since):
         assert updated_since is None
-        return []
+        yield []
 
     monkeypatch.setattr(reconciliation, "_fetch_products", fake_fetch_products)
     result = await reconciliation.sync_partssoft_products(test_session, full=True)
@@ -328,3 +328,41 @@ async def test_full_product_sync_queues_remote_deletion_for_recreation(
     assert queued.operation == "upsert"
     assert queued.status == "pending"
     assert queued.external_product_id == 99001
+
+
+@pytest.mark.asyncio
+async def test_full_product_sync_handles_more_than_asyncpg_parameter_limit(
+    test_session,
+    created_brand,
+    monkeypatch,
+):
+    """Каталог больше 32767 карточек: ``NOT IN (...)`` падал на пределе asyncpg."""
+    from sqlalchemy import insert
+
+    from dz_fastapi.models.autopart import AutoPart
+
+    total = 33000
+    await test_session.execute(
+        insert(AutoPart),
+        [
+            {
+                "brand_id": created_brand.id,
+                "oem_number": f"BULK{index}",
+                "name": "Массовая",
+                "barcode": f"BULK-BARCODE-{index}",
+                "partssoft_product_id": 500000 + index,
+            }
+            for index in range(total)
+        ],
+    )
+    await test_session.commit()
+
+    async def fake_fetch_products(*, updated_since):
+        yield []
+
+    monkeypatch.setattr(reconciliation, "_fetch_products", fake_fetch_products)
+    result = await reconciliation.sync_partssoft_products(test_session, full=True)
+
+    assert result["counts"]["remote_missing_queued"] == total
+    queued = await test_session.scalar(select(func.count(PartsSoftProductOutbox.id)))
+    assert queued == total

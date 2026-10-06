@@ -192,7 +192,7 @@ async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
 
     created = await async_client.post(
         f"/autoparts/{created_autopart.id}/photos/",
-        files={"file": ("first.png", image_bytes("red"), "image/png")},
+        files={"file": ("first.png", image_bytes((30, 90, 170)), "image/png")},
     )
     assert created.status_code == 200, created.text
     photo = created.json()
@@ -200,9 +200,12 @@ async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
     first_path = stored_path(photo["url"])
     assert first_path.is_file()
     with Image.open(first_path) as saved:
-        colors = saved.convert("RGB").getcolors(maxcolors=saved.width * saved.height)
-        assert colors is not None
-        assert len(colors) > 1  # the source was solid red; the watermark adds pixels
+        saved_rgb = saved.convert("RGB")
+        assert saved_rgb.getpixel((saved.width // 2, saved.height // 2)) == (30, 90, 170)
+        assert any(
+            red > 180 and green < 80 and blue < 80
+            for red, green, blue in saved_rgb.getdata()
+        )
 
     replaced = await async_client.put(
         f"/autoparts/{created_autopart.id}/photos/{photo['id']}",

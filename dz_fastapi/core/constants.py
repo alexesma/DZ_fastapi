@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dz_fastapi.models.partner import TYPE_STATUS_ORDER
 
@@ -500,8 +501,8 @@ def get_upload_dir():
     return upload_dir
 
 
-def get_autopart_photo_watermark_text():
-    return os.getenv("AUTOPART_PHOTO_WATERMARK_TEXT", "DRAGONZAP.RU").strip() or "DRAGONZAP.RU"
+def get_autopart_photo_watermark_path():
+    return str(Path(__file__).resolve().parents[1] / "assets" / "dragonzap_watermark.png")
 
 
 BRANDS = [

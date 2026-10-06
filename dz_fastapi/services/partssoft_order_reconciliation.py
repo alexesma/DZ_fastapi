@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -709,10 +709,14 @@ async def _load_order_snapshots(
 
 async def _fetch_products(
     updated_since: datetime | None = None,
-) -> list[dict[str, Any]]:
-    """Read all product cards owned by this Parts-Soft installation."""
+):
+    """Читает карточки Parts-Soft, отдавая их постранично.
+
+    В каталоге порядка двухсот тысяч карточек с длинными описаниями: сбор
+    всех в один список занимал сотни мегабайт, а обработка держала их до
+    самого конца. Страница за страницей память остаётся постоянной.
+    """
     base_url, username, password = _partssoft_api_settings()
-    rows: list[dict[str, Any]] = []
     auth = aiohttp.BasicAuth(username, password)
     timeout = aiohttp.ClientTimeout(total=90)
     async with aiohttp.ClientSession(auth=auth, timeout=timeout) as client:
@@ -731,11 +735,10 @@ async def _fetch_products(
             page_rows = payload.get("products") if isinstance(payload, dict) else None
             if not isinstance(page_rows, list):
                 raise RuntimeError("Unexpected Parts-Soft products response")
-            rows.extend(row for row in page_rows if isinstance(row, dict))
+            yield [row for row in page_rows if isinstance(row, dict)]
             if len(page_rows) < PAGE_SIZE:
                 break
             page += 1
-    return rows
 
 
 def _positive_float(value: Any) -> float | None:
@@ -761,31 +764,62 @@ def _product_photo_urls(product: dict[str, Any]) -> list[str]:
     return result
 
 
-async def sync_partssoft_products(
+async def _merge_product_page(
     session: AsyncSession,
-    *,
-    full: bool = False,
-) -> dict[str, Any]:
-    """Merge Parts-Soft product cards into local nomenclature without duplicates."""
-    updated_since = None
-    if not full:
-        updated_since = await session.scalar(
-            select(func.max(AutoPart.partssoft_product_updated_at))
-        )
-    remote_products = await _fetch_products(updated_since=updated_since)
-    counts: Counter[str] = Counter()
-    synced_ids: list[int] = []
-    conflicts: list[dict[str, Any]] = []
+    page: list[dict[str, Any]],
+    brand_ids: dict[str, int],
+    counts: Counter[str],
+    conflicts: list[dict[str, Any]],
+    remote_ids: set[int] | None,
+) -> int:
+    """Сливает одну страницу карточек; запросы к базе — по странице, не по карточке."""
+    parsed: list[tuple[int, str, str, dict[str, Any]]] = []
+    for product in page:
+        external_id = _integer(product.get("id"))
+        oem = preprocess_oem_number(_text(product.get("oem")))
+        brand_name = normalize_brand_name(_text(product.get("make_name")))
+        if external_id is None or not oem or not brand_name:
+            counts["invalid"] += 1
+            continue
+        if remote_ids is not None:
+            remote_ids.add(external_id)
+        parsed.append((external_id, oem, brand_name, product))
+    if not parsed:
+        return 0
 
-    brands = list((await session.scalars(select(Brand))).all())
-    brands_by_name = {
-        normalize_brand_name(brand.name): brand
-        for brand in brands
-        if normalize_brand_name(brand.name)
+    for _external_id, _oem, brand_name, _product in parsed:
+        if brand_name not in brand_ids:
+            brand = Brand(name=brand_name)
+            session.add(brand)
+            await session.flush()
+            brand_ids[brand_name] = int(brand.id)
+            counts["brands_created"] += 1
+
+    by_external = {
+        row.partssoft_product_id: row
+        for row in (
+            await session.scalars(
+                select(AutoPart).where(
+                    AutoPart.partssoft_product_id.in_([item[0] for item in parsed])
+                )
+            )
+        ).all()
     }
-    incoming_photo_urls = {
-        url for product in remote_products for url in _product_photo_urls(product)
+    pairs = {
+        (brand_ids[brand_name], oem)
+        for external_id, oem, brand_name, _ in parsed
+        if external_id not in by_external
     }
+    by_pair: dict[tuple[int, str], AutoPart] = {}
+    if pairs:
+        for row in (
+            await session.scalars(
+                select(AutoPart).where(tuple_(AutoPart.brand_id, AutoPart.oem_number).in_(pairs))
+            )
+        ).all():
+            by_pair[(row.brand_id, row.oem_number)] = row
+
+    incoming_photo_urls = {url for *_, product in parsed for url in _product_photo_urls(product)}
     photos_by_url = (
         {
             photo.url: photo
@@ -797,32 +831,10 @@ async def sync_partssoft_products(
         else {}
     )
 
-    for product in remote_products:
-        external_id = _integer(product.get("id"))
-        oem = preprocess_oem_number(_text(product.get("oem")))
-        brand_name = normalize_brand_name(_text(product.get("make_name")))
-        if external_id is None or not oem or not brand_name:
-            counts["invalid"] += 1
-            continue
-
-        autopart = await session.scalar(
-            select(AutoPart).where(AutoPart.partssoft_product_id == external_id)
-        )
-        brand = brands_by_name.get(brand_name)
-        if brand is None:
-            brand = Brand(name=brand_name)
-            session.add(brand)
-            await session.flush()
-            brands_by_name[brand_name] = brand
-            counts["brands_created"] += 1
-
-        if autopart is None:
-            autopart = await session.scalar(
-                select(AutoPart).where(
-                    AutoPart.brand_id == brand.id,
-                    AutoPart.oem_number == oem,
-                )
-            )
+    synced = 0
+    for external_id, oem, brand_name, product in parsed:
+        brand_id = brand_ids[brand_name]
+        autopart = by_external.get(external_id) or by_pair.get((brand_id, oem))
         if autopart is not None and autopart.partssoft_product_id not in (None, external_id):
             counts["external_id_conflicts"] += 1
             conflicts.append(
@@ -844,7 +856,7 @@ async def sync_partssoft_products(
         )
         if created:
             autopart = AutoPart(
-                brand_id=brand.id,
+                brand_id=brand_id,
                 oem_number=oem,
                 name=name,
                 description=description or None,
@@ -855,6 +867,7 @@ async def sync_partssoft_products(
             )
             session.add(autopart)
             await session.flush()
+            by_pair[(brand_id, oem)] = autopart
             counts["created"] += 1
         else:
             if not _text(autopart.description) and description:
@@ -868,6 +881,7 @@ async def sync_partssoft_products(
             counts["updated"] += 1
 
         autopart.partssoft_product_id = external_id
+        by_external[external_id] = autopart
         autopart.partssoft_product_updated_at = _parse_datetime(product.get("updated_at"))
         autopart.partssoft_synced_at = now_moscow()
         previous_payload = dict(autopart.partssoft_payload or {})
@@ -894,60 +908,111 @@ async def sync_partssoft_products(
                 counts["photos_added"] += 1
             elif photo.autopart_id == autopart.id:
                 counts["photos_existing"] += 1
-        synced_ids.append(int(autopart.id))
+        synced += 1
+    return synced
 
-    if updated_since is None:
-        remote_product_ids = {
-            external_id
-            for product in remote_products
-            if (external_id := _integer(product.get("id"))) is not None
-        }
-        missing_locally_authoritative = list(
-            (
+
+async def _queue_missing_remote_products(
+    session: AsyncSession,
+    remote_product_ids: set[int],
+    counts: Counter[str],
+) -> None:
+    """Локальные карточки, которых нет в Parts-Soft, ставим в очередь на пересоздание.
+
+    Сравниваем в Python по парам (id, внешний id): ``NOT IN`` со списком из
+    двухсот тысяч значений упирался в предел asyncpg в 32767 параметров.
+    """
+    linked = (
+        await session.execute(
+            select(AutoPart.id, AutoPart.partssoft_product_id).where(
+                AutoPart.partssoft_product_id.is_not(None)
+            )
+        )
+    ).all()
+    missing = [
+        (autopart_id, external_id)
+        for autopart_id, external_id in linked
+        if external_id not in remote_product_ids
+    ]
+    now = now_moscow()
+    for start in range(0, len(missing), 5000):
+        end = start + 5000
+        chunk = missing[start:end]
+        queued_by_autopart = {
+            row.autopart_id: row
+            for row in (
                 await session.scalars(
-                    select(AutoPart).where(
-                        AutoPart.partssoft_product_id.is_not(None),
-                        AutoPart.partssoft_product_id.not_in(remote_product_ids),
+                    select(PartsSoftProductOutbox).where(
+                        PartsSoftProductOutbox.autopart_id.in_([item[0] for item in chunk])
                     )
                 )
             ).all()
+        }
+        for autopart_id, external_id in chunk:
+            queued = queued_by_autopart.get(autopart_id)
+            if queued is None:
+                queued = PartsSoftProductOutbox(autopart_id=autopart_id)
+                session.add(queued)
+            queued.external_product_id = external_id
+            queued.operation = "upsert"
+            queued.status = "pending"
+            queued.attempts = 0
+            queued.last_error = None
+            queued.available_at = now
+            queued.locked_at = None
+            queued.sent_at = None
+        await session.flush()
+        session.expunge_all()
+    counts["remote_missing_queued"] += len(missing)
+
+
+async def sync_partssoft_products(
+    session: AsyncSession,
+    *,
+    full: bool = False,
+) -> dict[str, Any]:
+    """Merge Parts-Soft product cards into local nomenclature without duplicates."""
+    updated_since = None
+    if not full:
+        updated_since = await session.scalar(
+            select(func.max(AutoPart.partssoft_product_updated_at))
         )
-        if missing_locally_authoritative:
-            missing_ids = [row.id for row in missing_locally_authoritative]
-            queued_by_autopart = {
-                row.autopart_id: row
-                for row in (
-                    await session.scalars(
-                        select(PartsSoftProductOutbox).where(
-                            PartsSoftProductOutbox.autopart_id.in_(missing_ids)
-                        )
-                    )
-                ).all()
-            }
-            now = now_moscow()
-            for autopart in missing_locally_authoritative:
-                queued = queued_by_autopart.get(autopart.id)
-                if queued is None:
-                    queued = PartsSoftProductOutbox(autopart_id=autopart.id)
-                    session.add(queued)
-                queued.external_product_id = autopart.partssoft_product_id
-                queued.operation = "upsert"
-                queued.status = "pending"
-                queued.attempts = 0
-                queued.last_error = None
-                queued.available_at = now
-                queued.locked_at = None
-                queued.sent_at = None
-            counts["remote_missing_queued"] += len(missing_locally_authoritative)
+    counts: Counter[str] = Counter()
+    conflicts: list[dict[str, Any]] = []
+
+    brand_ids: dict[str, int] = {}
+    for brand_id, brand_name in (await session.execute(select(Brand.id, Brand.name))).all():
+        key = normalize_brand_name(brand_name)
+        if key:
+            brand_ids.setdefault(key, int(brand_id))
+
+    remote_product_ids: set[int] | None = set() if updated_since is None else None
+    remote_total = 0
+    synced_total = 0
+    async for page in _fetch_products(updated_since=updated_since):
+        remote_total += len(page)
+        synced_total += await _merge_product_page(
+            session, page, brand_ids, counts, conflicts, remote_product_ids
+        )
+        # Фиксируем страницу и выпускаем объекты из сессии: иначе за полный
+        # проход в памяти копились все карточки вместе с их описаниями.
+        await session.commit()
+        session.expunge_all()
+
+    if remote_product_ids is not None:
+        await _queue_missing_remote_products(session, remote_product_ids, counts)
 
     await session.commit()
     return {
         "mode": "full" if updated_since is None else "incremental",
         "updated_since": updated_since.isoformat() if updated_since else None,
-        "remote_products_total": len(remote_products),
+        "remote_products_total": remote_total,
         "counts": dict(sorted(counts.items())),
-        "synced_autoparts": len(synced_ids),
-        "conflicts": conflicts,
+        "synced_autoparts": synced_total,
+        # В журнал запусков кладём только начало списка: при полной сверке
+        # конфликтов бывают тысячи, и раздувать запись нет смысла.
+        "conflicts": conflicts[:200],
+        "conflicts_total": len(conflicts),
         "synced_at": now_moscow().isoformat(),
     }
 
