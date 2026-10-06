@@ -43,14 +43,22 @@ def normalize_site_photo_url(value: object) -> str | None:
     return absolute_url
 
 
-def _photo_quality(url: str) -> int:
-    """Оригинал выше обычной картинки, миниатюра используется последней."""
+def photo_quality(url: str) -> int:
+    """Наше фото выше оригинала Parts-Soft, миниатюра используется последней."""
     path = urlparse(url).path.lower()
+    if path.startswith("/uploads/autoparts/"):
+        return 4
     if "_original" in path or "/system/product_photo/" in path:
         return 3
     if "/thumbnails/" in path:
         return 1
     return 2
+
+
+def sort_photo_urls(urls: list[str]) -> list[str]:
+    """Удаляет повторы и ставит фотографии лучшего качества первыми."""
+    unique_urls = list(dict.fromkeys(url for url in urls if url))
+    return sorted(unique_urls, key=photo_quality, reverse=True)
 
 
 def pick_site_photo(offers: list[dict] | None) -> str | None:
@@ -61,7 +69,7 @@ def pick_site_photo(offers: list[dict] | None) -> str | None:
         normalized_url = normalize_site_photo_url(url)
         if normalized_url:
             candidates.append(normalized_url)
-    return max(candidates, key=_photo_quality, default=None)
+    return max(candidates, key=photo_quality, default=None)
 
 
 def pick_thumbnail(offers: list[dict] | None) -> str | None:

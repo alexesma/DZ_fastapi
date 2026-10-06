@@ -139,7 +139,7 @@ from dz_fastapi.services.process import (
     check_start_and_finish_date,
     write_error_for_bulk,
 )
-from dz_fastapi.services.site_photos import fetch_site_photos
+from dz_fastapi.services.site_photos import fetch_site_photos, photo_quality, sort_photo_urls
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -691,7 +691,7 @@ async def lookup_autopart_photos(
                 oem=ap.oem_number,
                 autopart_id=ap.id,
                 name=ap.name,
-                photos=[p.url for p in (ap.photos or []) if p.url],
+                photos=sort_photo_urls([p.url for p in (ap.photos or []) if p.url]),
             )
         )
     if payload.site:
@@ -705,15 +705,17 @@ SITE_PHOTO_LOOKUPS_PER_REQUEST = 30
 async def _add_site_photos(
     payload: PartPhotoLookupRequest, rows: list[PartPhotoLookupRow]
 ) -> list[PartPhotoLookupRow]:
-    """Дополняет позиции без фото миниатюрой с платформы Parts-Soft."""
-    with_photos = {
-        (row.brand or "").strip().lower() + "|" + row.oem for row in rows if row.photos
+    """Дополняет отсутствующие и старые миниатюры лучшим фото Parts-Soft."""
+    with_good_photos = {
+        (row.brand or "").strip().lower() + "|" + row.oem
+        for row in rows
+        if any(photo_quality(url) > 1 for url in row.photos)
     }
     wanted: list[tuple[str, str]] = []
     for item in payload.items:
         brand = (item.brand or "").strip()
         oem = preprocess_oem_number(item.oem or "")
-        if brand and oem and f"{brand.lower()}|{oem}" not in with_photos:
+        if brand and oem and f"{brand.lower()}|{oem}" not in with_good_photos:
             if (brand, oem) not in wanted:
                 wanted.append((brand, oem))
     found = await fetch_site_photos(wanted[:SITE_PHOTO_LOOKUPS_PER_REQUEST])
@@ -726,7 +728,7 @@ async def _add_site_photos(
         if row is None:
             row = PartPhotoLookupRow(brand=brand, oem=oem)
             rows.append(row)
-        row.photos = [*row.photos, url]
+        row.photos = sort_photo_urls([*row.photos, url])
     return rows
 
 
@@ -2175,7 +2177,11 @@ async def get_autoparts_catalog(
                 partssoft_product_id=ap.partssoft_product_id,
                 has_description=bool((ap.description or "").strip()),
                 photo_count=len(ap.photos or []),
-                primary_photo_url=(ap.photos[0].url if ap.photos else None),
+                primary_photo_url=(
+                    sort_photo_urls([photo.url for photo in (ap.photos or [])])[0]
+                    if ap.photos
+                    else None
+                ),
                 applicability_count=applicability_counts.get(ap.id, 0),
                 applicability_names=applicability_names.get(ap.id, []),
                 cross_count=cross_counts.get(ap.id, 0),
@@ -2717,8 +2723,12 @@ async def get_autopart_detail(
         partssoft_product_updated_at=ap.partssoft_product_updated_at,
         partssoft_synced_at=ap.partssoft_synced_at,
         partssoft_payload=ap.partssoft_payload or {},
-        photo_urls=[photo.url for photo in (ap.photos or [])],
-        photos=[AutoPartPhotoOut.model_validate(photo) for photo in (ap.photos or [])],
+        photo_urls=sort_photo_urls([photo.url for photo in (ap.photos or [])]),
+        photos=sorted(
+            [AutoPartPhotoOut.model_validate(photo) for photo in (ap.photos or [])],
+            key=lambda photo: photo_quality(photo.url),
+            reverse=True,
+        ),
         categories=ap.categories,
         storage_locations=ap.storage_locations,
         crosses=crosses,

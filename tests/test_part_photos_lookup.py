@@ -99,3 +99,41 @@ def test_pick_site_photo_keeps_thumbnail_as_fallback():
 
     thumb = "https://x/thumbnails/images/1"
     assert pick_site_photo([{"sys_info": {"goods_img_url": thumb}}]) == thumb
+
+
+@pytest.mark.asyncio
+async def test_lookup_upgrades_existing_thumbnail_with_site_original(
+    async_client, test_session, created_brand, monkeypatch
+):
+    thumb = "https://dragonzap.ru/thumbnails/images/9"
+    original = "https://dragonzap.ru/system/product_photo/741122/image_original.png"
+
+    async def fake_fetch(pairs):
+        return {(brand.lower(), oem): original for brand, oem in pairs}
+
+    monkeypatch.setattr("dz_fastapi.api.autopart.fetch_site_photos", fake_fetch)
+    autopart = AutoPart(brand_id=created_brand.id, oem_number="QUALITY1", name="Деталь")
+    test_session.add(autopart)
+    await test_session.flush()
+    test_session.add(Photo(autopart_id=autopart.id, url=thumb))
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/autoparts/photos/lookup/",
+        json={
+            "items": [{"brand": created_brand.name, "oem": "QUALITY1"}],
+            "site": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rows"][0]["photos"] == [original, thumb]
+
+
+def test_sort_photo_urls_prefers_local_then_original_then_thumbnail():
+    from dz_fastapi.services.site_photos import sort_photo_urls
+
+    thumb = "https://dragonzap.ru/thumbnails/images/9"
+    original = "https://dragonzap.ru/system/product_photo/741122/image_original.png"
+    local = "/uploads/autoparts/741122/local.webp"
+    assert sort_photo_urls([thumb, original, local, original]) == [local, original, thumb]
