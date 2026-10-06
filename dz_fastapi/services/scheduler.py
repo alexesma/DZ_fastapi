@@ -176,9 +176,16 @@ PARTSSOFT_PRODUCT_SYNC_HOURS = max(
     1,
     int(os.getenv("PARTSSOFT_PRODUCT_SYNC_HOURS", "6")),
 )
-PARTSSOFT_PRODUCT_FULL_SYNC_HOURS = max(
-    6,
-    int(os.getenv("PARTSSOFT_PRODUCT_FULL_SYNC_HOURS", "24")),
+# Полная сверка нужна только чтобы найти карточки, удалённые в Parts-Soft:
+# инкрементальная их не видит. Удаляют их редко, а проход по ~200 тыс.
+# карточек тяжёлый, поэтому по умолчанию — первая суббота месяца в 03:00
+# (день недели + число 1–7 дают именно первую субботу).
+PARTSSOFT_PRODUCT_FULL_SYNC_DAY_OF_WEEK = os.getenv(
+    "PARTSSOFT_PRODUCT_FULL_SYNC_DAY_OF_WEEK", "sat"
+)
+PARTSSOFT_PRODUCT_FULL_SYNC_DAY = os.getenv("PARTSSOFT_PRODUCT_FULL_SYNC_DAY", "1-7")
+PARTSSOFT_PRODUCT_FULL_SYNC_HOUR = min(
+    23, max(0, int(os.getenv("PARTSSOFT_PRODUCT_FULL_SYNC_HOUR", "3")))
 )
 PARTSSOFT_PRODUCT_SYNC_ENABLED = os.getenv(
     "PARTSSOFT_PRODUCT_SYNC_ENABLED", "1"
@@ -668,14 +675,20 @@ def start_scheduler(app: FastAPI):
         )
         scheduler.add_job(
             func=sync_partssoft_products_full_task,
-            trigger="interval",
+            trigger="cron",
             args=[app],
             id="partssoft_product_full_sync",
             name="Full Parts-Soft product reconciliation",
-            hours=PARTSSOFT_PRODUCT_FULL_SYNC_HOURS,
+            day_of_week=PARTSSOFT_PRODUCT_FULL_SYNC_DAY_OF_WEEK,
+            day=PARTSSOFT_PRODUCT_FULL_SYNC_DAY,
+            hour=PARTSSOFT_PRODUCT_FULL_SYNC_HOUR,
+            minute=0,
+            second=0,
             replace_existing=True,
             max_instances=1,
             coalesce=True,
+            # Перезапуск сервера в ночь сверки не должен отменять её на месяц
+            misfire_grace_time=6 * 3600,
         )
     if PARTSSOFT_DOCUMENT_SYNC_ENABLED:
         scheduler.add_job(
