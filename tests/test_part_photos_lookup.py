@@ -7,18 +7,12 @@ from dz_fastapi.services.watchlist_site import extract_site_photo_url
 
 
 @pytest.mark.asyncio
-async def test_lookup_returns_name_and_photos(
-    async_client, test_session, created_brand
-):
-    деталь = AutoPart(
-        brand_id=created_brand.id, oem_number="PH123", name="Колодки"
-    )
+async def test_lookup_returns_name_and_photos(async_client, test_session, created_brand):
+    деталь = AutoPart(brand_id=created_brand.id, oem_number="PH123", name="Колодки")
     test_session.add(деталь)
     await test_session.flush()
     test_session.add(Photo(autopart_id=деталь.id, url="/uploads/a.jpg"))
-    пустая = AutoPart(
-        brand_id=created_brand.id, oem_number="NOPH1", name="Без фото"
-    )
+    пустая = AutoPart(brand_id=created_brand.id, oem_number="NOPH1", name="Без фото")
     test_session.add(пустая)
     await test_session.commit()
 
@@ -43,6 +37,11 @@ async def test_lookup_returns_name_and_photos(
 def test_extract_site_photo_url_skips_svg_labels():
     thumb = "https://x/thumbnails/images/5"
     assert extract_site_photo_url({"sys_info": {"goods_img_url": thumb}}) == thumb
+    original = "/system/product_photo/741122/image_original.png?1699869059"
+    assert (
+        extract_site_photo_url({"sys_info": {"goods_img_url": original}})
+        == f"https://dragonzap.ru{original}"
+    )
     label = "https://x/labels/a.svg"
     assert extract_site_photo_url({"sys_info": {"goods_img_url": label}}) is None
     assert extract_site_photo_url({}) is None
@@ -81,12 +80,22 @@ async def test_lookup_adds_site_photo_for_parts_without_catalog_photo(
     assert plain.json()["rows"] == []
 
 
-def test_pick_thumbnail_ignores_labels():
-    from dz_fastapi.services.site_photos import pick_thumbnail
+def test_pick_site_photo_prefers_original_and_ignores_labels():
+    from dz_fastapi.services.site_photos import pick_site_photo
 
     offers = [
         {"sys_info": {"goods_img_url": "https://x/labels/a.svg"}},
         {"sys_info": {"goods_img_url": "https://x/thumbnails/images/1"}},
+        {"sys_info": {"goods_img_url": "/system/product_photo/741122/image_original.png"}},
     ]
-    assert pick_thumbnail(offers) == "https://x/thumbnails/images/1"
-    assert pick_thumbnail([]) is None
+    assert pick_site_photo(offers) == (
+        "https://dragonzap.ru/system/product_photo/741122/image_original.png"
+    )
+    assert pick_site_photo([]) is None
+
+
+def test_pick_site_photo_keeps_thumbnail_as_fallback():
+    from dz_fastapi.services.site_photos import pick_site_photo
+
+    thumb = "https://x/thumbnails/images/1"
+    assert pick_site_photo([{"sys_info": {"goods_img_url": thumb}}]) == thumb

@@ -17,6 +17,7 @@ from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import notify_admin_all
+from dz_fastapi.services.site_photos import normalize_site_photo_url
 
 logger = logging.getLogger("dz_fastapi")
 SITE_PROVIDER_NAME = "Сайт Dragonzap"
@@ -47,12 +48,10 @@ def _pick_first(offer: dict, keys: tuple[str, ...]):
 
 
 def extract_site_photo_url(offer: dict) -> str | None:
-    """Реальное фото с сайта: только thumbnails; labels/*.svg — заглушка."""
+    """Полноразмерное фото или миниатюра с сайта; labels/*.svg — заглушка."""
     sys_info = offer.get("sys_info")
     url = sys_info.get("goods_img_url") if isinstance(sys_info, dict) else None
-    if isinstance(url, str) and "/thumbnails/" in url:
-        return url
-    return None
+    return normalize_site_photo_url(url)
 
 
 def _to_float(value):
