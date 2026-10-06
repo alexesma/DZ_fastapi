@@ -1884,6 +1884,19 @@ async def get_emails(
             )
             probe["emails_seen"] += 1
             if not _message_matches_provider_config(msg, provider_conf):
+                # Что именно пришло и не подошло: без этого непонятно, менять
+                # шаблон имени файла или письмо вообще не прайс.
+                samples = probe.setdefault("unmatched_samples", [])
+                if len(samples) < 3:
+                    samples.append(
+                        {
+                            "subject": str(getattr(msg, "subject", "") or "")[:120],
+                            "attachments": [
+                                str(getattr(att, "filename", "") or "")[:120]
+                                for att in (getattr(msg, "attachments", None) or [])
+                            ][:5],
+                        }
+                    )
                 continue
             probe["emails_matched"] += 1
             folder_name = getattr(msg, "folder_name", None)

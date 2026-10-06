@@ -638,3 +638,89 @@ async def test_intake_problems_endpoint(
 async def test_intake_problems_endpoint_404_for_unknown_provider(async_client):
     ответ = await async_client.get('/providers/999999/pricelist-intake-problems/')
     assert ответ.status_code == 404
+
+
+async def _запуск_с_проблемой(test_session, провайдер_id, config_id, проблема):
+    from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.models.settings import ExecutionTrace
+
+    test_session.add(
+        ExecutionTrace(
+            trace_type='scheduler_job',
+            job_key='download_price_provider',
+            job_name='Download price provider',
+            status='success',
+            started_at=now_moscow(),
+            details={
+                'email_processing_summary': {
+                    'download_diagnostics': {
+                        'problems': [
+                            {
+                                'config_id': config_id,
+                                'provider_id': провайдер_id,
+                                'config': 'Honda',
+                                'emails_seen': 1,
+                                'emails_matched': 0,
+                                'skipped_old_uid': 0,
+                                **проблема,
+                            }
+                        ]
+                    }
+                }
+            },
+        )
+    )
+    await test_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_no_matching_email_message_shows_what_arrived(
+    test_session, created_providers, created_pricelist_config
+):
+    """В сообщении видно, какое письмо пришло и почему не подошло."""
+    from dz_fastapi.services.monitoring import provider_config_intake_problems
+
+    провайдер = created_providers[0]
+    await _запуск_с_проблемой(
+        test_session,
+        провайдер.id,
+        created_pricelist_config.id,
+        {
+            'outcome': 'no_matching_email',
+            'unmatched_samples': [{'subject': 'Re: вопрос', 'attachments': ['scan.pdf']}],
+        },
+    )
+
+    строки = await provider_config_intake_problems(test_session, провайдер.id)
+
+    assert len(строки) == 1
+    assert 'Re: вопрос' in строки[0]['message']
+    assert 'scan.pdf' in строки[0]['message']
+
+
+@pytest.mark.asyncio
+async def test_no_matching_email_hidden_while_pricelist_is_fresh(
+    test_session, created_providers, created_pricelist_config
+):
+    """Прайс уже загружен сегодня, а днём пришло другое письмо — не тревожим."""
+    from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.models.partner import PriceList
+    from dz_fastapi.services.monitoring import provider_config_intake_problems
+
+    провайдер = created_providers[0]
+    test_session.add(
+        PriceList(
+            provider_id=провайдер.id,
+            provider_config_id=created_pricelist_config.id,
+            date=now_moscow().date(),
+            is_active=True,
+        )
+    )
+    await _запуск_с_проблемой(
+        test_session,
+        провайдер.id,
+        created_pricelist_config.id,
+        {'outcome': 'no_matching_email'},
+    )
+
+    assert await provider_config_intake_problems(test_session, провайдер.id) == []

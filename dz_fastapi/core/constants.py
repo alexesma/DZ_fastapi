@@ -500,6 +500,10 @@ def get_upload_dir():
     return upload_dir
 
 
+def get_autopart_photo_watermark_text():
+    return os.getenv("AUTOPART_PHOTO_WATERMARK_TEXT", "DRAGONZAP.RU").strip() or "DRAGONZAP.RU"
+
+
 BRANDS = [
     "555",
     "ACQ",

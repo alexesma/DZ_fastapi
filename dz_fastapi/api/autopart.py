@@ -22,7 +22,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 from pydantic import conint
@@ -43,7 +43,11 @@ from dz_fastapi.analytics.restock_logic import (
 )
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.api.validators import change_storage_name
-from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
+from dz_fastapi.core.constants import (
+    get_autopart_photo_watermark_text,
+    get_max_file_size,
+    get_upload_dir,
+)
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage, crud_warehouse
 from dz_fastapi.crud.brand import brand_crud, brand_exists
@@ -2732,6 +2736,7 @@ async def _save_autopart_photo_file(
     *,
     max_file_size: int,
     upload_dir: str,
+    watermark_text: str,
 ) -> str:
     if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=400, detail="Разрешены изображения JPEG, PNG и WebP")
@@ -2742,10 +2747,15 @@ async def _save_autopart_photo_file(
             detail="Файл пустой или превышает допустимый размер",
         )
     try:
-        with Image.open(io.BytesIO(contents)) as image:
-            image.verify()
-            image_format = (image.format or "").lower()
-    except (OSError, SyntaxError) as exc:
+        with Image.open(io.BytesIO(contents)) as source:
+            image_format = (source.format or "").lower()
+            source.verify()
+        with Image.open(io.BytesIO(contents)) as source:
+            image = ImageOps.exif_transpose(source)
+            image.load()
+            processed = _apply_autopart_photo_watermark(image, watermark_text)
+            encoded = _encode_autopart_photo(processed, image_format)
+    except (OSError, SyntaxError, ValueError) as exc:
         raise HTTPException(
             status_code=400,
             detail="Файл не является корректным изображением",
@@ -2758,8 +2768,80 @@ async def _save_autopart_photo_file(
     destination_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid4().hex}{extension}"
     async with aiofiles.open(destination_dir / filename, "wb") as target:
-        await target.write(contents)
+        await target.write(encoded)
     return f"/uploads/{relative_dir.as_posix()}/{filename}"
+
+
+def _load_watermark_font(size: int) -> ImageFont.ImageFont:
+    candidates = (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    )
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size=size)
+        except OSError:
+            continue
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def _apply_autopart_photo_watermark(
+    image: Image.Image,
+    text: str,
+) -> Image.Image:
+    """Add a readable but unobtrusive Dragonzap mark to a product image."""
+
+    base = image.convert("RGBA")
+    width, height = base.size
+    if width <= 0 or height <= 0:
+        raise ValueError("Изображение имеет некорректный размер")
+
+    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    font_size = max(10, min(72, round(min(width, height) * 0.075)))
+    font = _load_watermark_font(font_size)
+    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+    text_width = right - left
+    text_height = bottom - top
+    padding = max(3, round(min(width, height) * 0.025))
+    x = max(padding, width - text_width - padding * 2)
+    y = max(padding, height - text_height - padding * 2)
+    draw.rounded_rectangle(
+        (
+            max(0, x - padding),
+            max(0, y - padding),
+            min(width, x + text_width + padding),
+            min(height, y + text_height + padding),
+        ),
+        radius=max(2, padding // 2),
+        fill=(0, 0, 0, 105),
+    )
+    draw.text(
+        (x, y - top),
+        text,
+        font=font,
+        fill=(255, 255, 255, 190),
+        stroke_width=max(0, font_size // 24),
+        stroke_fill=(0, 0, 0, 110),
+    )
+    return Image.alpha_composite(base, overlay)
+
+
+def _encode_autopart_photo(image: Image.Image, image_format: str) -> bytes:
+    output = io.BytesIO()
+    if image_format == "jpeg":
+        image.convert("RGB").save(output, format="JPEG", quality=92, optimize=True)
+    elif image_format == "png":
+        image.save(output, format="PNG", optimize=True)
+    elif image_format == "webp":
+        image.save(output, format="WEBP", quality=92, method=4)
+    else:
+        raise ValueError("Формат изображения не поддерживается")
+    return output.getvalue()
 
 
 def _suppress_partssoft_photo(autopart: AutoPart, url: str) -> None:
@@ -2790,12 +2872,17 @@ async def upload_autopart_photo(
     session: AsyncSession = Depends(get_session),
     max_file_size: int = Depends(get_max_file_size),
     upload_dir: str = Depends(get_upload_dir),
+    watermark_text: str = Depends(get_autopart_photo_watermark_text),
 ):
     autopart = await session.get(AutoPart, autopart_id)
     if autopart is None:
         raise HTTPException(status_code=404, detail="Запчасть не найдена")
     url = await _save_autopart_photo_file(
-        autopart_id, file, max_file_size=max_file_size, upload_dir=upload_dir
+        autopart_id,
+        file,
+        max_file_size=max_file_size,
+        upload_dir=upload_dir,
+        watermark_text=watermark_text,
     )
     photo = Photo(autopart_id=autopart_id, url=url)
     session.add(photo)
@@ -2812,6 +2899,7 @@ async def replace_autopart_photo(
     session: AsyncSession = Depends(get_session),
     max_file_size: int = Depends(get_max_file_size),
     upload_dir: str = Depends(get_upload_dir),
+    watermark_text: str = Depends(get_autopart_photo_watermark_text),
 ):
     autopart = await session.get(AutoPart, autopart_id)
     photo = await session.get(Photo, photo_id)
@@ -2819,7 +2907,11 @@ async def replace_autopart_photo(
         raise HTTPException(status_code=404, detail="Фотография не найдена")
     old_url = photo.url
     photo.url = await _save_autopart_photo_file(
-        autopart_id, file, max_file_size=max_file_size, upload_dir=upload_dir
+        autopart_id,
+        file,
+        max_file_size=max_file_size,
+        upload_dir=upload_dir,
+        watermark_text=watermark_text,
     )
     _suppress_partssoft_photo(autopart, old_url)
     await session.commit()

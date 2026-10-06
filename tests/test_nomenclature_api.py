@@ -1,10 +1,12 @@
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from PIL import Image
 from sqlalchemy.exc import IntegrityError
 
 from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.core.constants import get_upload_dir
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, Photo
 from dz_fastapi.models.cross import AutoPartCross
@@ -179,8 +181,14 @@ async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
 ):
     def image_bytes(color):
         buffer = BytesIO()
-        Image.new("RGB", (12, 8), color=color).save(buffer, format="PNG")
+        Image.new("RGB", (320, 200), color=color).save(buffer, format="PNG")
         return buffer.getvalue()
+
+    upload_dir_override = app.dependency_overrides[get_upload_dir]
+    upload_dir = Path(await upload_dir_override())
+
+    def stored_path(url):
+        return upload_dir / url.removeprefix("/uploads/")
 
     created = await async_client.post(
         f"/autoparts/{created_autopart.id}/photos/",
@@ -189,6 +197,12 @@ async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
     assert created.status_code == 200, created.text
     photo = created.json()
     assert photo["url"].startswith(f"/uploads/autoparts/{created_autopart.id}/")
+    first_path = stored_path(photo["url"])
+    assert first_path.is_file()
+    with Image.open(first_path) as saved:
+        colors = saved.convert("RGB").getcolors(maxcolors=saved.width * saved.height)
+        assert colors is not None
+        assert len(colors) > 1  # the source was solid red; the watermark adds pixels
 
     replaced = await async_client.put(
         f"/autoparts/{created_autopart.id}/photos/{photo['id']}",
@@ -196,6 +210,8 @@ async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
     )
     assert replaced.status_code == 200, replaced.text
     assert replaced.json()["url"] != photo["url"]
+    assert not first_path.exists()
+    assert stored_path(replaced.json()["url"]).is_file()
 
     detail = await async_client.get(f"/autoparts/{created_autopart.id}/detail/")
     assert detail.status_code == 200, detail.text

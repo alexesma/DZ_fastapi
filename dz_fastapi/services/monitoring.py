@@ -373,11 +373,22 @@ async def provider_config_intake_problems(
             if not config_id or config_id in problems:
                 continue
             outcome = str(row.get("outcome") or "")
+            message_text = INTAKE_OUTCOME_TEXT.get(outcome, outcome)
+            samples = row.get("unmatched_samples") or []
+            if outcome == "no_matching_email" and samples:
+                described = "; ".join(
+                    "«{subject}» — вложения: {files}".format(
+                        subject=sample.get("subject") or "без темы",
+                        files=", ".join(sample.get("attachments") or []) or "нет",
+                    )
+                    for sample in samples
+                )
+                message_text = f"{message_text} Пришло: {described}."
             problems[config_id] = {
                 "provider_config_id": config_id,
                 "config_name": row.get("config"),
                 "outcome": outcome,
-                "message": INTAKE_OUTCOME_TEXT.get(outcome, outcome),
+                "message": message_text,
                 "detected_at": getattr(run, "started_at", None),
                 "emails_seen": int(row.get("emails_seen") or 0),
                 "emails_matched": int(row.get("emails_matched") or 0),
@@ -426,10 +437,14 @@ async def provider_config_intake_problems(
     # допустимого для конфигурации срока. Иначе свежий COSMOPART после каждого
     # почтового прохода ошибочно показывал все свои конфигурации как требующие
     # внимания.
+    # То же для «нет подходящего письма»: поставщик шлёт прайс раз в сутки,
+    # а днём в ящике может лежать любое другое его письмо. Пока свежий прайс
+    # уже загружен, это не проблема настройки; если файл действительно
+    # перестал приходить, сработает оповещение о просрочке прайса.
     already_loaded_ids = [
         config_id
         for config_id, row in problems.items()
-        if row.get("outcome") == "only_already_loaded_emails"
+        if row.get("outcome") in ("only_already_loaded_emails", "no_matching_email")
         and not row.get("rounding_warning")
     ]
     if already_loaded_ids:
