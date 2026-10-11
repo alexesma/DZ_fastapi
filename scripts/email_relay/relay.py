@@ -337,6 +337,20 @@ def recipient_addresses(value: str) -> list[str]:
     return recipients
 
 
+def smtp_reachable(host: str, port: int, timeout: float = 10.0) -> bool:
+    """Быстрая проверка, что до SMTP-сервера вообще можно достучаться.
+
+    Если сеть режет SMTP, каждое письмо ждало 60 секунд таймаута, захват
+    писем успевал истечь, а каждая неудача расходовала попытки отправки.
+    Одна короткая проверка на пачку избавляет от обоих эффектов.
+    """
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def send_via_smtp(
     smtp_cfg: dict,
     from_email: str,
@@ -415,6 +429,7 @@ def process_once(client: ApiClient, config: RelayConfig,
         return 0
     logger.info("Получено писем к отправке: %d", len(items))
     sent = 0
+    reachability: dict[tuple[str, int], bool] = {}
     for item in items:
         outbox_id = item["id"]
         attachment_errors = item.get("attachment_errors") or []
@@ -445,6 +460,24 @@ def process_once(client: ApiClient, config: RelayConfig,
             )
             continue
 
+        endpoint = (
+            str(smtp_cfg.get("host", "smtp.yandex.ru")),
+            int(smtp_cfg.get("port", 465)),
+        )
+        if endpoint not in reachability:
+            reachability[endpoint] = smtp_reachable(*endpoint)
+            if not reachability[endpoint]:
+                logger.warning(
+                    "SMTP %s:%s недоступен с этой машины — письма не "
+                    "отправляются и остаются в очереди (повтор после "
+                    "истечения захвата). Проверьте сеть/VPN/провайдера.",
+                    *endpoint,
+                )
+        if not reachability[endpoint]:
+            # Не отмечаем ошибку: недоступная сеть не вина письма и не
+            # должна расходовать его попытки отправки.
+            continue
+
         try:
             client.renew(outbox_id)
             message = build_message(item, from_email or smtp_cfg.get("username"))
@@ -472,6 +505,21 @@ def process_once(client: ApiClient, config: RelayConfig,
             logger.info(
                 "Отправлено #%s → %s", outbox_id, item.get("to_email")
             )
+        except requests.HTTPError as exc:
+            status_code = getattr(exc.response, "status_code", None)
+            if status_code in (404, 409):
+                # Захват истёк и письмо взял другой релей (или оно уже
+                # обработано): отмечать нечего, просто идём дальше.
+                logger.warning(
+                    "Письмо #%s больше не закреплено за этим релеем (HTTP %s)",
+                    outbox_id, status_code,
+                )
+                continue
+            logger.exception("Ошибка отправки #%s", outbox_id)
+            try:
+                client.mark_error(outbox_id, str(exc), retry=True)
+            except Exception:  # noqa: BLE001
+                logger.exception("Не удалось отметить ошибку #%s", outbox_id)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Ошибка отправки #%s", outbox_id)
             try:
