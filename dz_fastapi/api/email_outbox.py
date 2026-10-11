@@ -138,6 +138,19 @@ async def outbox_mark_error(
             worker=worker,
         )
     except ValueError as exc:
+        if "другому relay" in str(exc):
+            # Захват истёк и письмо взял другой релей: отмечать нечего.
+            # Отвечаем 200 с текущим состоянием, а не 404, чтобы релей не
+            # сыпал трассировками по каждому письму пачки.
+            row = await session.get(EmailOutbox, outbox_id)
+            if row is not None:
+                logger.warning(
+                    "mark-error для письма %s от релея %s проигнорирован: "
+                    "захват принадлежит другому",
+                    outbox_id,
+                    worker,
+                )
+                return row
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 

@@ -30,6 +30,28 @@ from dz_fastapi.services.reclamation_audit import record_reclamation_event
 logger = logging.getLogger("dz_fastapi")
 
 MAX_SEND_ATTEMPTS = 5
+# Признаки того, что до почтового сервера не достучаться (сеть, VPN,
+# блокировка провайдера). Это не вина письма: такие неудачи не расходуют
+# попытки отправки, иначе за время недоступности сети письма выгорают в
+# статус «ошибка» и после починки их приходится возвращать вручную.
+NETWORK_UNREACHABLE_MARKERS = (
+    "timed out",
+    "timeouterror",
+    "network is unreachable",
+    "no route to host",
+    "connection refused",
+    "connection reset",
+    "name or service not known",
+    "temporary failure in name resolution",
+    "nodename nor servname",
+)
+
+
+def is_network_unreachable_error(error: str | None) -> bool:
+    text = str(error or "").casefold()
+    return any(marker in text for marker in NETWORK_UNREACHABLE_MARKERS)
+
+
 # Аренда захвата: если воркер «умер», не отметив письмо, через это время
 # письмо снова доступно для захвата другим воркером.
 DEFAULT_CLAIM_LEASE_SECONDS = 300
@@ -394,13 +416,15 @@ async def mark_outbox_error(
         return row
     if worker and row.claimed_by != worker:
         raise ValueError("Захват письма принадлежит другому relay")
-    row.attempts = int(row.attempts or 0) + 1
+    network_failure = retry and is_network_unreachable_error(error)
+    if not network_failure:
+        row.attempts = int(row.attempts or 0) + 1
     row.last_error = (error or "")[:2000]
     # Снимаем захват: письмо снова свободно для повторного взятия релеем
     row.claimed_by = None
     row.claimed_at = None
     # Пока не исчерпаны попытки и разрешён ретрай — оставляем pending
-    if retry and row.attempts < MAX_SEND_ATTEMPTS:
+    if retry and (network_failure or row.attempts < MAX_SEND_ATTEMPTS):
         row.status = EMAIL_OUTBOX_STATUS.PENDING
     else:
         row.status = EMAIL_OUTBOX_STATUS.ERROR
