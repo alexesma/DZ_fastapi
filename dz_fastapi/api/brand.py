@@ -89,6 +89,22 @@ async def _serialize_brand_for_response(
     )
 
 
+def _canonical_brands(brands: list[Brand]) -> list[Brand]:
+    """Return one selectable brand for every synonym component.
+
+    A standalone brand is its own canonical brand even when the legacy
+    ``main_brand`` flag is false.  Inside a synonym component the explicitly
+    selected main brand wins; the CRUD fallback keeps malformed legacy groups
+    (without a main brand) usable instead of hiding the whole group.
+    """
+    canonical_by_id: dict[int, Brand] = {}
+    for component in brand_crud.get_connected_brand_components(brands):
+        canonical = brand_crud._pick_canonical_brand(component)
+        if canonical is not None:
+            canonical_by_id[canonical.id] = canonical
+    return sorted(canonical_by_id.values(), key=lambda item: item.name)
+
+
 @router.get(
     "/",
     response_model=list[BrandCreateInDB],
@@ -96,13 +112,16 @@ async def _serialize_brand_for_response(
     summary="Список брендов",
     response_model_exclude_none=True,
 )
-async def get_brands(session: AsyncSession = Depends(get_session)):
+async def get_brands(
+    canonical_only: bool = False,
+    session: AsyncSession = Depends(get_session),
+):
     brands = await brand_crud.get_multi_with_synonyms(session)
-    for brand in brands:
-        brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(
-            brand, session
-        )
-    return brands
+    selected = _canonical_brands(brands) if canonical_only else brands
+    return [
+        await _serialize_brand_for_response(brand, session)
+        for brand in selected
+    ]
 
 
 @router.get(
@@ -115,19 +134,54 @@ async def lookup_brands(
     q: str = "",
     limit: int = 50,
     ids: str | None = None,
+    canonical_only: bool = False,
     session: AsyncSession = Depends(get_session),
 ):
     normalized = await change_brand_name(q) if q else ""
-    stmt = select(Brand.id, Brand.name).order_by(Brand.name.asc())
     brand_ids: list[int] = []
     if ids:
         brand_ids = [
             int(part) for part in ids.split(",") if part.strip().isdigit()
         ]
     if brand_ids:
-        stmt = stmt.where(Brand.id.in_(brand_ids))
-        stmt = stmt.limit(max(1, len(brand_ids)))
-    elif normalized:
+        stmt = (
+            select(Brand.id, Brand.name)
+            .where(Brand.id.in_(brand_ids))
+            .order_by(Brand.name.asc())
+            .limit(max(1, len(brand_ids)))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [BrandLookupItem(id=row.id, name=row.name) for row in rows]
+
+    if canonical_only:
+        brands = await brand_crud.get_multi_with_synonyms(session)
+        candidates: list[tuple[int, str, int]] = []
+        for component in brand_crud.get_connected_brand_components(brands):
+            canonical = brand_crud._pick_canonical_brand(component)
+            if canonical is None:
+                continue
+            normalized_names = [
+                await change_brand_name(item.name) for item in component
+            ]
+            if normalized and not any(
+                normalized in name for name in normalized_names
+            ):
+                continue
+            rank = (
+                0
+                if normalized
+                and any(name.startswith(normalized) for name in normalized_names)
+                else 1
+            )
+            candidates.append((canonical.id, canonical.name, rank))
+        candidates.sort(key=lambda item: (item[2], item[1]))
+        return [
+            BrandLookupItem(id=brand_id, name=name)
+            for brand_id, name, _rank in candidates[: max(1, min(limit, 200))]
+        ]
+
+    stmt = select(Brand.id, Brand.name).order_by(Brand.name.asc())
+    if normalized:
         # Сначала бренды, которые начинаются с запроса, потом содержащие его.
         stmt = stmt.where(Brand.name.ilike(f"%{normalized}%")).order_by(None)
         stmt = stmt.order_by(
@@ -611,6 +665,13 @@ async def update_brand(
                     await duplicate_brand_name(
                         brand_name=brand.name, session=session
                     )
+            if brand.main_brand is True:
+                related_brands = await brand_crud._get_related_brands_recursive(
+                    brand_db.id, session
+                )
+                for related_brand in related_brands:
+                    if related_brand.id != brand_db.id:
+                        related_brand.main_brand = False
             updated_brand = await brand_crud.update(
                 brand_db, brand, session, commit=False
             )

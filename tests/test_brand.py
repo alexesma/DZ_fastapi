@@ -221,6 +221,62 @@ async def test_lookup_brands_by_ids(test_session, created_brand: Brand):
     }
 
 
+@pytest.mark.asyncio
+async def test_canonical_brand_lists_keep_standalone_and_resolve_synonym_search(
+    test_session,
+    created_brand: Brand,
+):
+    main_brand = Brand(name="BUENQ", main_brand=True)
+    synonym = Brand(name="BUEN-Q", main_brand=False)
+    # Legacy rows may contain only one direction.  Canonical selection must
+    # still treat the relation as an undirected synonym family.
+    synonym.synonyms.append(main_brand)
+    test_session.add_all([main_brand, synonym])
+    await test_session.commit()
+    await test_session.refresh(main_brand)
+    await test_session.refresh(synonym)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        list_response = await ac.get(
+            "/brand/", params={"canonical_only": "true"}
+        )
+        search_response = await ac.get(
+            "/brand/lookup/",
+            params={"q": "BUEN-Q", "canonical_only": "true"},
+        )
+
+    assert list_response.status_code == 200, list_response.text
+    listed = {(item["id"], item["name"]) for item in list_response.json()}
+    assert (created_brand.id, created_brand.name) in listed
+    assert (main_brand.id, main_brand.name) in listed
+    assert (synonym.id, synonym.name) not in listed
+
+    assert search_response.status_code == 200, search_response.text
+    assert search_response.json() == [
+        {"id": main_brand.id, "name": main_brand.name}
+    ]
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        update_response = await ac.patch(
+            f"/brand/{synonym.id}", json={"main_brand": True}
+        )
+        refreshed_response = await ac.get(
+            "/brand/", params={"canonical_only": "true"}
+        )
+
+    assert update_response.status_code == 200, update_response.text
+    assert update_response.json()["main_brand"] is True
+    refreshed = {
+        (item["id"], item["name"]) for item in refreshed_response.json()
+    }
+    assert (synonym.id, synonym.name) in refreshed
+    assert (main_brand.id, main_brand.name) not in refreshed
+
+    await test_session.refresh(main_brand)
+    assert main_brand.main_brand is False
+
+
 async def test_get_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
 

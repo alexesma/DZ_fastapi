@@ -71,6 +71,18 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         self, brands: List[Brand]
     ) -> List[List[Brand]]:
         by_id = {brand.id: brand for brand in brands}
+        adjacency: Dict[int, set[int]] = {
+            brand_id: set() for brand_id in by_id
+        }
+        for brand in brands:
+            for synonym in brand.synonyms or []:
+                if synonym.id not in by_id:
+                    continue
+                # Old data can contain only one direction in the association
+                # table.  A synonym family is conceptually undirected, so the
+                # canonical view must not depend on insertion direction.
+                adjacency[brand.id].add(synonym.id)
+                adjacency[synonym.id].add(brand.id)
         visited: set[int] = set()
         components: List[List[Brand]] = []
 
@@ -89,9 +101,9 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                 if current is None:
                     continue
                 component.append(current)
-                for synonym in current.synonyms or []:
-                    if synonym.id in by_id and synonym.id not in visited:
-                        stack.append(synonym.id)
+                for synonym_id in adjacency[current_id]:
+                    if synonym_id not in visited:
+                        stack.append(synonym_id)
 
             if component:
                 components.append(component)
@@ -296,25 +308,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
     async def get_all_synonyms_bi_directional(
         self, brand: Brand, session: AsyncSession
     ) -> List[Brand]:
-        checked = set()
-        to_check = [brand]
-        all_synonyms = set()
-
-        while to_check:
-            current = to_check.pop()
-            if current.id in checked:
-                continue
-            checked.add(current.id)
-            all_synonyms.add(current)
-            brand_with_synonyms = await self.get_with_synonyms(
-                current.id, session
-            )
-            for synonym in brand_with_synonyms.synonyms:
-                if synonym.id not in checked:
-                    to_check.append(synonym)
-                    all_synonyms.add(synonym)
-
-        return list(all_synonyms)
+        return await self._get_related_brands_recursive(brand.id, session)
 
     async def get_brands_by_names(
         self, brand_names: List[str], session: AsyncSession
