@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 from datetime import date, datetime, timedelta
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import partial
 from io import BytesIO
 from pathlib import Path
@@ -473,6 +474,42 @@ CUSTOMER_PRICELIST_WRAPPED_COLUMNS = frozenset(
         "Ссылка ФГИС",
     }
 )
+
+CUSTOMER_PRICE_CALCULATION_PRECISION = Decimal("0.000001")
+
+
+def round_customer_price_up(value: object) -> int:
+    """Round a calculated customer price up to a whole ruble."""
+    try:
+        # Remove binary float noise without hiding meaningful fractions.
+        price = Decimal(str(value)).quantize(
+            CUSTOMER_PRICE_CALCULATION_PRECISION,
+            rounding=ROUND_HALF_UP,
+        )
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f"Некорректная цена клиентского прайса: {value}") from exc
+    if not price.is_finite() or price <= 0:
+        raise ValueError(f"Цена клиентского прайса должна быть положительной: {value}")
+    return int(price.to_integral_value(rounding=ROUND_CEILING))
+
+
+def _round_customer_record_prices_up(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rounded_records: list[dict[str, Any]] = []
+    for record in records:
+        rounded = dict(record)
+        rounded["price"] = round_customer_price_up(record.get("price"))
+        rounded_records.append(rounded)
+    return rounded_records
+
+
+def _round_customer_excel_prices_up(df_excel: pd.DataFrame) -> pd.DataFrame:
+    if df_excel.empty or "Цена" not in df_excel.columns:
+        return df_excel
+    rounded = df_excel.copy()
+    rounded["Цена"] = rounded["Цена"].map(round_customer_price_up)
+    return rounded
 
 
 def _build_customer_pricelist_attachment_bytes(
@@ -3930,6 +3967,13 @@ async def _process_customer_pricelist_unlocked(
     else:
         raise HTTPException(status_code=400, detail="No autoparts to include in the pricelist")
 
+    # Источники и правила работают с точной закупочной ценой. Клиенту
+    # публикуем только целые рубли, всегда округляя итоговую цену вверх.
+    customer_autoparts_data = _round_customer_record_prices_up(customer_autoparts_data)
+    direct_output_records = _round_customer_record_prices_up(direct_output_records)
+    dragonzap_source_records = _round_customer_record_prices_up(dragonzap_source_records)
+    dragonzap_alias_records = _round_customer_record_prices_up(dragonzap_alias_records)
+
     customer_pricelist = CustomerPriceList(
         customer_id=customer.id,
         customer_config_id=config.id,
@@ -4093,6 +4137,9 @@ async def _process_customer_pricelist_unlocked(
 
     if not pipeline_v2:
         _sync_dragonzap_alias_prices(dragonzap_alias_records, df_excel)
+        dragonzap_alias_records = _round_customer_record_prices_up(
+            dragonzap_alias_records
+        )
     if not pipeline_v2 and dz_expand_enabled and dragonzap_source_records:
         source_excel = await asyncio.to_thread(
             prepare_excel_data_from_records,
@@ -4132,6 +4179,9 @@ async def _process_customer_pricelist_unlocked(
     if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
         df_excel = await asyncio.to_thread(_collapse_duplicate_excel_rows, df_excel)
 
+    # Последняя защита после ZZap-порогов, разворачивания брендов и алиасов.
+    df_excel = _round_customer_excel_prices_up(df_excel)
+
     if {"Производитель", "Наименование"}.issubset(df_excel.columns):
         df_excel = await asyncio.to_thread(
             lambda df: df.sort_values(
@@ -4148,6 +4198,7 @@ async def _process_customer_pricelist_unlocked(
             "zzap_mode": bool(_customer_pricelist_setting(config, "ZZAP", False)),
             "dz_expand_brands": bool(dz_expand_enabled),
             "source_freshness": source_freshness_summary,
+            "price_rounding": "ceil_to_whole_ruble",
             **v2_summary,
         }
     )

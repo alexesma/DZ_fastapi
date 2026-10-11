@@ -1,6 +1,6 @@
 import io
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -9,6 +9,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api import partner as partner_api
 from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist, crud_provider
@@ -1693,6 +1694,191 @@ async def test_get_customer_pricelist_configs(
     for i, config in enumerate(configs):
         assert config["name"] == f"Config {i}"
         assert config["general_markup"] == 10.0 + i
+
+
+@pytest.mark.asyncio
+async def test_copy_customer_pricelist_config_clones_all_editable_settings(
+    created_customers: list[Customer],
+    created_pricelist_config: ProviderPriceListConfig,
+    created_autopart: AutoPart,
+    created_brand: Brand,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    source_customer, target_customer = created_customers
+    test_session.add(
+        User(
+            id=1,
+            name="Config copy admin",
+            email="config-copy-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    publication_target = AutoPart(
+        brand_id=created_brand.id,
+        oem_number="CONFIG-COPY-TARGET",
+        name="Publication target",
+    )
+    test_session.add(publication_target)
+    await test_session.flush()
+    source_config = CustomerPriceListConfig(
+        customer_id=source_customer.id,
+        name="FULL CONFIG COPY SOURCE",
+        general_markup=1.23,
+        own_price_list_markup=1.11,
+        third_party_markup=1.34,
+        individual_markups={str(created_pricelist_config.provider_id): 1.45},
+        brand_filters=[created_brand.id],
+        category_filter=[17],
+        price_intervals=[{"min_price": 10, "max_price": 100, "coefficient": 1.2}],
+        position_filters=[created_autopart.id],
+        supplier_quantity_filters=[
+            {
+                "provider_id": created_pricelist_config.provider_id,
+                "min_quantity": 2,
+                "max_quantity": 50,
+            }
+        ],
+        additional_filters={"legacy": True},
+        default_filters={"rules": [{"type": "brand", "mode": "only", "values": [1]}]},
+        own_filters={"rules": [{"type": "position", "mode": "exclude", "values": [2]}]},
+        other_filters={"rules": [{"type": "applicability", "mode": "only", "values": [3]}]},
+        supplier_filters={
+            str(created_pricelist_config.provider_id): {
+                "rules": [{"type": "brand", "mode": "exclude", "values": [4]}]
+            }
+        },
+        schedule_days=["mon", "wed"],
+        schedule_times=["09:00", "17:30"],
+        max_source_age_business_days=2,
+        block_stale_sources=False,
+        emails=["copied-recipient@example.com"],
+        export_file_name="customer-price",
+        export_file_format="csv",
+        export_file_extension="txt",
+        collapse_duplicates_by_min_price=False,
+        is_active=True,
+        last_sent_at=datetime(2026, 10, 10, tzinfo=timezone.utc),
+        last_attempt_at=datetime(2026, 10, 10, tzinfo=timezone.utc),
+        generation_lock_token="source-lock",
+        generation_locked_at=datetime(2026, 10, 10, tzinfo=timezone.utc),
+    )
+    source_config.sources = [
+        CustomerPriceListSource(
+            provider_config_id=created_pricelist_config.id,
+            enabled=False,
+            markup=1.37,
+            mask_price_quantity=True,
+            brand_markups={"GEELY": 1.18},
+            brand_filters={"mode": "only", "values": [created_brand.id]},
+            position_filters={"mode": "exclude", "values": [created_autopart.id]},
+            min_price=Decimal("100.50"),
+            max_price=Decimal("5000.75"),
+            min_quantity=3,
+            max_quantity=70,
+            additional_filters={"warehouse": "Moscow"},
+        )
+    ]
+    source_config.publication_rules = [
+        CustomerPriceListPublicationRule(
+            source_autopart_id=created_autopart.id,
+            target_autopart_id=publication_target.id,
+            fixed_price=Decimal("777.50"),
+            mode="only_cross",
+            is_active=True,
+            created_by_user_id=1,
+            updated_by_user_id=1,
+            targets=[
+                CustomerPriceListPublicationRuleTarget(
+                    target_autopart_id=publication_target.id
+                )
+            ],
+        )
+    ]
+    test_session.add(source_config)
+    await test_session.commit()
+
+    response = await async_client.post(
+        f"/customers/{source_customer.id}/pricelist-configs/{source_config.id}/copy",
+        json={
+            "target_customer_id": target_customer.id,
+            "name": "FULL CONFIG COPY RESULT",
+            "is_active": False,
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    result = response.json()
+    copied = result["config"]
+    assert copied["customer_id"] == target_customer.id
+    assert copied["name"] == "FULL CONFIG COPY RESULT"
+    assert copied["is_active"] is False
+    assert copied["general_markup"] == 1.23
+    assert copied["default_filters"] == source_config.default_filters
+    assert copied["supplier_filters"] == source_config.supplier_filters
+    assert copied["schedule_days"] == ["mon", "wed"]
+    assert copied["schedule_times"] == ["09:00", "17:30"]
+    assert copied["emails"] == ["copied-recipient@example.com"]
+    assert result["copied_sources"] == 1
+    assert result["copied_publication_rules"] == 1
+    assert result["copied_publication_targets"] == 1
+
+    copied_config = (
+        await test_session.execute(
+            select(CustomerPriceListConfig)
+            .options(
+                selectinload(CustomerPriceListConfig.sources),
+                selectinload(CustomerPriceListConfig.publication_rules).selectinload(
+                    CustomerPriceListPublicationRule.targets
+                ),
+            )
+            .where(CustomerPriceListConfig.id == copied["id"])
+        )
+    ).scalar_one()
+    assert copied_config.last_sent_at is None
+    assert copied_config.last_attempt_at is None
+    assert copied_config.generation_lock_token is None
+    assert copied_config.generation_locked_at is None
+    assert len(copied_config.sources) == 1
+    copied_source = copied_config.sources[0]
+    assert copied_source.id != source_config.sources[0].id
+    assert copied_source.provider_config_id == created_pricelist_config.id
+    assert copied_source.enabled is False
+    assert copied_source.markup == 1.37
+    assert copied_source.mask_price_quantity is True
+    assert copied_source.brand_markups == {"GEELY": 1.18}
+    assert copied_source.additional_filters == {"warehouse": "Moscow"}
+    assert len(copied_config.publication_rules) == 1
+    copied_rule = copied_config.publication_rules[0]
+    assert copied_rule.id != source_config.publication_rules[0].id
+    assert copied_rule.source_autopart_id == created_autopart.id
+    assert copied_rule.fixed_price == Decimal("777.50")
+    assert [target.target_autopart_id for target in copied_rule.targets] == [
+        publication_target.id
+    ]
+
+    same_customer_response = await async_client.post(
+        f"/customers/{source_customer.id}/pricelist-configs/{source_config.id}/copy",
+        json={
+            "target_customer_id": source_customer.id,
+            "name": "FULL CONFIG COPY SAME CUSTOMER",
+        },
+    )
+    assert same_customer_response.status_code == 201, same_customer_response.text
+    assert same_customer_response.json()["config"]["customer_id"] == source_customer.id
+    assert same_customer_response.json()["config"]["is_active"] is False
+
+    duplicate_name_response = await async_client.post(
+        f"/customers/{source_customer.id}/pricelist-configs/{source_config.id}/copy",
+        json={
+            "target_customer_id": target_customer.id,
+            "name": "  full config copy result  ",
+        },
+    )
+    assert duplicate_name_response.status_code == 409
+    assert "уже существует" in duplicate_name_response.json()["detail"]
 
 
 @pytest.mark.asyncio

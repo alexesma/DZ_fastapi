@@ -1339,6 +1339,17 @@ class CustomerPriceListConfigUpdate(BaseModel):
         return normalized
 
 
+class CustomerPriceListConfigCopyRequest(BaseModel):
+    target_customer_id: int = Field(gt=0)
+    name: str = Field(min_length=1, max_length=255)
+    is_active: bool = False
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value):
+        return str(value or "").strip()
+
+
 class CustomerPriceListSourceBase(BaseModel):
     provider_config_id: int
     enabled: bool = True
@@ -1476,6 +1487,13 @@ class CustomerPriceListConfigResponse(CustomerPriceListConfigBase):
     last_sent_at: Optional[datetime] = None
     sources: List[CustomerPriceListSourceResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerPriceListConfigCopyResponse(BaseModel):
+    config: CustomerPriceListConfigResponse
+    copied_sources: int = 0
+    copied_publication_rules: int = 0
+    copied_publication_targets: int = 0
 
 
 class CustomerPriceListConfigSummary(BaseModel):

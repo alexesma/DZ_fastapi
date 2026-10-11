@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from copy import deepcopy
 from datetime import date
 from math import ceil
 from pathlib import Path
@@ -77,6 +78,8 @@ from dz_fastapi.schemas.partner import (
     CustomerListSummary,
     CustomerMergeRequest,
     CustomerMergeResponse,
+    CustomerPriceListConfigCopyRequest,
+    CustomerPriceListConfigCopyResponse,
     CustomerPriceListConfigCreate,
     CustomerPriceListConfigResponse,
     CustomerPriceListConfigSummary,
@@ -2453,6 +2456,192 @@ async def create_customer_pricelist_config(
 
     base = CustomerPriceListConfigResponse.model_validate(new_config)
     return base.model_copy(update={"sources": []})
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/copy",
+    tags=["customers"],
+    status_code=status.HTTP_201_CREATED,
+    summary="Copy a customer pricelist configuration",
+    response_model=CustomerPriceListConfigCopyResponse,
+)
+async def copy_customer_pricelist_config(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPriceListConfigCopyRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Create an independent deep copy of a customer pricelist config.
+
+    Delivery history, generated pricelists and runtime locks deliberately stay
+    with the source config. All editable settings, supplier sources and manual
+    publication rules are copied in one transaction.
+    """
+
+    source_config = (
+        await session.execute(
+            select(CustomerPriceListConfig)
+            .options(
+                selectinload(CustomerPriceListConfig.sources),
+                selectinload(CustomerPriceListConfig.publication_rules).selectinload(
+                    CustomerPriceListPublicationRule.targets
+                ),
+            )
+            .where(
+                CustomerPriceListConfig.id == config_id,
+                CustomerPriceListConfig.customer_id == customer_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if source_config is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Исходная конфигурация прайс-листа не найдена",
+        )
+
+    target_customer = await session.get(Customer, payload.target_customer_id)
+    if target_customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Клиент для новой конфигурации не найден",
+        )
+
+    name_conflict = await session.scalar(
+        select(CustomerPriceListConfig.id).where(
+            func.lower(func.trim(CustomerPriceListConfig.name))
+            == payload.name.casefold()
+        )
+    )
+    if name_conflict is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Конфигурация с названием «{payload.name}» уже существует. "
+                "Укажите другое название для копии."
+            ),
+        )
+
+    config_fields = (
+        "general_markup",
+        "own_price_list_markup",
+        "third_party_markup",
+        "individual_markups",
+        "brand_filters",
+        "category_filter",
+        "price_intervals",
+        "position_filters",
+        "supplier_quantity_filters",
+        "additional_filters",
+        "default_filters",
+        "own_filters",
+        "other_filters",
+        "supplier_filters",
+        "schedule_days",
+        "schedule_times",
+        "max_source_age_business_days",
+        "block_stale_sources",
+        "emails",
+        "export_file_name",
+        "export_file_format",
+        "export_file_extension",
+        "collapse_duplicates_by_min_price",
+        "outgoing_email_account_id",
+    )
+    source_fields = (
+        "provider_config_id",
+        "enabled",
+        "markup",
+        "mask_price_quantity",
+        "brand_markups",
+        "brand_filters",
+        "position_filters",
+        "min_price",
+        "max_price",
+        "min_quantity",
+        "max_quantity",
+        "additional_filters",
+    )
+    publication_rule_count = len(source_config.publication_rules)
+
+    copied_config = CustomerPriceListConfig(
+        customer_id=target_customer.id,
+        name=payload.name,
+        is_active=payload.is_active,
+        **{
+            field: deepcopy(getattr(source_config, field))
+            for field in config_fields
+        },
+    )
+    session.add(copied_config)
+
+    try:
+        await session.flush()
+        for source in source_config.sources:
+            session.add(
+                CustomerPriceListSource(
+                    customer_config_id=copied_config.id,
+                    **{
+                        field: deepcopy(getattr(source, field))
+                        for field in source_fields
+                    },
+                )
+            )
+
+        publication_target_count = 0
+        for rule in source_config.publication_rules:
+            copied_rule = CustomerPriceListPublicationRule(
+                config_id=copied_config.id,
+                source_autopart_id=rule.source_autopart_id,
+                target_autopart_id=rule.target_autopart_id,
+                fixed_price=rule.fixed_price,
+                mode=rule.mode,
+                is_active=rule.is_active,
+                created_by_user_id=current_user.id,
+                updated_by_user_id=current_user.id,
+                targets=[
+                    CustomerPriceListPublicationRuleTarget(
+                        target_autopart_id=target.target_autopart_id
+                    )
+                    for target in rule.targets
+                ],
+            )
+            publication_target_count += len(copied_rule.targets)
+            session.add(copied_rule)
+
+        await session.commit()
+    except IntegrityError as error:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Не удалось создать копию: её название уже используется "
+                "или настройки конфликтуют с существующей конфигурацией."
+            ),
+        ) from error
+    except Exception:
+        await session.rollback()
+        raise
+
+    await session.refresh(copied_config)
+    copied_sources = await crud_customer_pricelist_source.get_by_config_id(
+        config_id=copied_config.id,
+        session=session,
+    )
+    response = CustomerPriceListConfigResponse.model_validate(copied_config).model_copy(
+        update={
+            "sources": [
+                build_customer_source_response(source)
+                for source in copied_sources
+            ]
+        }
+    )
+    return CustomerPriceListConfigCopyResponse(
+        config=response,
+        copied_sources=len(copied_sources),
+        copied_publication_rules=publication_rule_count,
+        copied_publication_targets=publication_target_count,
+    )
 
 
 @router.patch(

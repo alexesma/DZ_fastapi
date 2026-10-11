@@ -15,6 +15,7 @@ from dz_fastapi.models.nomenclature import ApplicabilityNode, HonestSignCategory
 from dz_fastapi.models.partner import (
     Customer,
     CustomerPriceList,
+    CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
@@ -38,9 +39,12 @@ from dz_fastapi.services.process import (
     _apply_source_filters,
     _attach_catalog_filter_dimensions,
     _collapse_output_records,
+    _round_customer_excel_prices_up,
+    _round_customer_record_prices_up,
     _transform_dragonzap_records,
     customer_pricelist_pipeline,
     expand_dz_brands,
+    round_customer_price_up,
     source_pricelist_business_age,
 )
 from dz_fastapi.services.utils import REGULATORY_COLUMNS, prepare_excel_data_from_records
@@ -69,6 +73,23 @@ def test_empty_excel_records_keep_export_columns_for_later_aliases():
         *REGULATORY_COLUMNS,
     ]
     assert expand_dz_brands(result).columns.tolist() == result.columns.tolist()
+
+
+def test_customer_prices_are_always_rounded_up_to_whole_ruble():
+    assert round_customer_price_up("25.785") == 26
+    assert round_customer_price_up(25) == 25
+    assert round_customer_price_up(25.000000000000004) == 25
+    assert round_customer_price_up("0.01") == 1
+
+    records = _round_customer_record_prices_up(
+        [{"autopart_id": 1, "price": 25.785, "quantity": 2}]
+    )
+    assert records[0]["price"] == 26
+
+    excel = _round_customer_excel_prices_up(
+        pd.DataFrame([{"Артикул": "A1", "Цена": 25.785}])
+    )
+    assert excel.iloc[0]["Цена"] == 26
 
 
 def test_expand_dz_brands_ignores_dataframe_without_excel_schema():
@@ -663,7 +684,7 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
             pricelist_id=pricelist.id,
             autopart_id=physical.id,
             quantity=4,
-            price=450,
+            price=450.25,
         )
     )
     config = CustomerPriceListConfig(
@@ -737,7 +758,14 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     ]
     assert {row.source_autopart_id for row in rows} == {physical.id}
     assert {row.multiplicity for row in rows} == {6}
+    assert {float(row.price) for row in rows} == {451.0}
     assert all(row.advertised_name.startswith(">>Неоригинал<<") for row in rows)
+    association_price = await test_session.scalar(
+        select(CustomerPriceListAutoPartAssociation.price).where(
+            CustomerPriceListAutoPartAssociation.customerpricelist_id == response.id
+        )
+    )
+    assert float(association_price) == 451.0
     assert response.generation_status == "draft"
     generated = await test_session.get(CustomerPriceList, response.id)
     assert generated.generation_summary["quality_control"]["status"] == "passed"
