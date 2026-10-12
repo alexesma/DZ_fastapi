@@ -1174,6 +1174,28 @@ class SupplierQuantityFilter(BaseModel):
     max_quantity: int
 
 
+def _normalize_outgoing_email_account_ids(value: Any) -> List[int]:
+    if value in (None, ""):
+        return []
+    if not isinstance(value, (list, tuple, set)):
+        value = [value]
+    normalized: List[int] = []
+    seen: set[int] = set()
+    for raw_value in value:
+        try:
+            account_id = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("outgoing_email_account_ids must contain positive ids") from exc
+        if account_id <= 0:
+            raise ValueError("outgoing_email_account_ids must contain positive ids")
+        if account_id not in seen:
+            seen.add(account_id)
+            normalized.append(account_id)
+    if len(normalized) > 10:
+        raise ValueError("Можно выбрать не более 10 почтовых ящиков")
+    return normalized
+
+
 class CustomerPriceListConfigBase(BaseModel):
     name: str = Field(..., description="Name or identifier for the configuration")
     general_markup: float = Field(0.0, description="General markup percentage")
@@ -1245,7 +1267,20 @@ class CustomerPriceListConfigBase(BaseModel):
     )
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
+    outgoing_email_account_ids: List[int] = Field(default_factory=list)
     is_active: Optional[bool] = True
+
+    @field_validator("outgoing_email_account_ids", mode="before")
+    def normalize_outgoing_email_account_ids(cls, value):
+        return _normalize_outgoing_email_account_ids(value)
+
+    @model_validator(mode="after")
+    def sync_outgoing_email_accounts(self):
+        if self.outgoing_email_account_ids:
+            self.outgoing_email_account_id = self.outgoing_email_account_ids[0]
+        elif self.outgoing_email_account_id:
+            self.outgoing_email_account_ids = [self.outgoing_email_account_id]
+        return self
 
     @field_validator("export_file_name", mode="before")
     def normalize_export_file_name(cls, value):
@@ -1308,7 +1343,12 @@ class CustomerPriceListConfigUpdate(BaseModel):
     block_stale_sources: Optional[bool] = None
     emails: Optional[List[EmailStr]] = None
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
+    outgoing_email_account_ids: Optional[List[int]] = None
     is_active: Optional[bool] = None
+
+    @field_validator("outgoing_email_account_ids", mode="before")
+    def normalize_outgoing_email_account_ids(cls, value):
+        return _normalize_outgoing_email_account_ids(value)
 
     @field_validator("export_file_name", mode="before")
     def normalize_export_file_name(cls, value):

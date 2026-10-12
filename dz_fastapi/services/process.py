@@ -420,6 +420,82 @@ async def _get_preferred_pricelist_out_account(
     return account
 
 
+def _configured_pricelist_out_account_ids(
+    config: CustomerPriceListConfig,
+) -> list[int]:
+    raw_ids = getattr(config, "outgoing_email_account_ids", None) or []
+    if not raw_ids and getattr(config, "outgoing_email_account_id", None):
+        raw_ids = [config.outgoing_email_account_id]
+    result: list[int] = []
+    seen: set[int] = set()
+    for raw_id in raw_ids:
+        try:
+            account_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if account_id > 0 and account_id not in seen:
+            seen.add(account_id)
+            result.append(account_id)
+    return result
+
+
+async def _get_pricelist_out_accounts(
+    session: AsyncSession,
+    config: CustomerPriceListConfig,
+) -> list[Any]:
+    configured_ids = _configured_pricelist_out_account_ids(config)
+    selected_accounts: list[Any] = []
+    seen_emails: set[str] = set()
+    for account_id in configured_ids:
+        selected = await crud_email_account.get(session, account_id)
+        if not selected:
+            logger.warning("Configured outgoing mailbox not found: id=%s", account_id)
+            continue
+        if not _is_pricelist_out_account_eligible(selected):
+            logger.warning(
+                "Configured outgoing mailbox is inactive or missing "
+                "prices_out/orders_out/orders_in purpose: id=%s",
+                account_id,
+            )
+            continue
+        email_key = str(selected.email or "").strip().casefold()
+        if email_key and email_key in seen_emails:
+            continue
+        if email_key:
+            seen_emails.add(email_key)
+        selected_accounts.append(selected)
+        logger.info(
+            "Using config outgoing email account for pricelist send: "
+            "config=%s account_id=%s email=%s",
+            config.id,
+            selected.id,
+            selected.email,
+        )
+
+    if selected_accounts:
+        return selected_accounts
+
+    account = await _get_preferred_pricelist_out_account(session)
+    if account:
+        logger.info(
+            "Using preferred outgoing email account for pricelist send: "
+            "config=%s account_id=%s email=%s",
+            config.id,
+            account.id,
+            account.email,
+        )
+        return [account]
+
+    for purpose in ("prices_out", "orders_out", "orders_in"):
+        accounts = await crud_email_account.get_active_by_purpose(
+            session=session,
+            purpose=purpose,
+        )
+        if accounts:
+            return [accounts[0]]
+    return []
+
+
 def _resolve_customer_pricelist_export_format(
     config: CustomerPriceListConfig,
 ) -> str:
@@ -3038,104 +3114,94 @@ async def send_pricelist(
         config
     )
 
-    # Send the email asynchronously
+    # Resolve all explicitly selected senders. The generated attachment is
+    # shared; only the delivery operation is repeated per mailbox.
     logger.debug("Send the email asynchronously")
     loop = asyncio.get_running_loop()
-    account = None
-    if config.outgoing_email_account_id:
-        selected = await crud_email_account.get(session, config.outgoing_email_account_id)
-        if not selected:
-            logger.warning(
-                "Configured outgoing mailbox not found: id=%s",
-                config.outgoing_email_account_id,
-            )
-        elif _is_pricelist_out_account_eligible(selected):
-            account = selected
-            logger.info(
-                "Using config outgoing email account for pricelist send: "
-                "config=%s account_id=%s email=%s",
-                config.id,
-                account.id,
-                account.email,
-            )
-        else:
-            logger.warning(
-                "Configured outgoing mailbox is inactive or "
-                "missing prices_out/orders_out/orders_in purpose: id=%s",
-                config.outgoing_email_account_id,
-            )
-    if account is None:
-        account = await _get_preferred_pricelist_out_account(session)
-        if account:
-            logger.info(
-                "Using preferred outgoing email account for pricelist send: "
-                "config=%s account_id=%s email=%s",
-                config.id,
-                account.id,
-                account.email,
-            )
-    if account is None:
-        accounts = await crud_email_account.get_active_by_purpose(
-            session=session,
-            purpose="prices_out",
-        )
-        if not accounts:
-            accounts = await crud_email_account.get_active_by_purpose(
-                session=session,
-                purpose="orders_out",
-            )
-        if not accounts:
-            accounts = await crud_email_account.get_active_by_purpose(
-                session=session,
-                purpose="orders_in",
-            )
-        if accounts:
-            account = accounts[0]
-
-    kwargs = {}
-    if account:
-        logger.info(
-            "Using configured outgoing email account for pricelist send: "
-            "config=%s account_id=%s email=%s %s",
-            config.id,
-            account.id,
-            account.email,
-            describe_email_delivery(account),
-        )
-        kwargs = build_email_delivery_kwargs(account)
-    else:
-        logger.info(
-            "Using ENV email settings for pricelist send: config=%s "
-            "transport=%s host=%s port=%s user=%s",
-            config.id,
-            EMAIL_TRANSPORT,
-            SMTP_SERVER,
-            SMTP_PORT,
-            EMAIL_NAME,
-        )
-
-    account_transport = str(getattr(account, "transport", "") or "").strip().lower()
+    accounts = await _get_pricelist_out_accounts(session, config)
+    delivery_accounts: list[Any | None] = accounts or [None]
     smtp_via_relay = bool(
         _customer_pricelist_setting(config, "SMTP_VIA_RELAY", True)
     )
-    if account_transport == "smtp" and smtp_via_relay:
+    relay_accounts = [
+        account
+        for account in delivery_accounts
+        if account is not None
+        and str(getattr(account, "transport", "") or "").strip().lower() == "smtp"
+        and smtp_via_relay
+    ]
+    relay_account_ids = {id(account) for account in relay_accounts}
+    direct_accounts = [
+        account for account in delivery_accounts if id(account) not in relay_account_ids
+    ]
+
+    relay_recipients: list[str] = []
+    seen_recipients: set[str] = set()
+    for value in to_emails or [to_email]:
+        for raw_recipient in re.split(r"[;,]", str(value or "")):
+            recipient = raw_recipient.strip()
+            recipient_key = recipient.casefold()
+            if recipient and recipient_key not in seen_recipients:
+                seen_recipients.add(recipient_key)
+                relay_recipients.append(recipient)
+    if not relay_recipients:
+        raise RuntimeError("Для отправки прайс-листа не заданы получатели")
+
+    # Direct transports run first. If one fails, relay messages have not yet
+    # been queued, which avoids a misleading partly queued state.
+    for account in direct_accounts:
+        kwargs = {}
+        if account:
+            logger.info(
+                "Using configured outgoing email account for pricelist send: "
+                "config=%s account_id=%s email=%s %s",
+                config.id,
+                account.id,
+                account.email,
+                describe_email_delivery(account),
+            )
+            kwargs = build_email_delivery_kwargs(account)
+        else:
+            logger.info(
+                "Using ENV email settings for pricelist send: config=%s "
+                "transport=%s host=%s port=%s user=%s",
+                config.id,
+                EMAIL_TRANSPORT,
+                SMTP_SERVER,
+                SMTP_PORT,
+                EMAIL_NAME,
+            )
+        sender_key = str(getattr(account, "id", None) or "env")
+        sent = await loop.run_in_executor(
+            None,
+            partial(
+                send_email_with_attachment,
+                to_email=to_email,
+                subject=subject,
+                body=body,
+                attachment_bytes=attachment_bytes,
+                attachment_filename=attachment_filename,
+                resend_idempotency_key=(
+                    f"customer-pricelist/{customer_pricelist_id}/sender/{sender_key}"
+                    if customer_pricelist_id is not None
+                    else None
+                ),
+                **kwargs,
+            ),
+        )
+        if not sent:
+            sender = account.email if account else EMAIL_NAME
+            raise RuntimeError(
+                "Почтовый транспорт не подтвердил отправку прайс-листа "
+                f"с адреса {sender or 'не указан'}"
+            )
+
+    if relay_accounts:
         if not attachment_local_path or customer_pricelist_id is None:
             raise RuntimeError(
                 "Для отправки прайс-листа через внешний релей "
                 "не сохранён файл или идентификатор прайса"
             )
-        relay_recipients: list[str] = []
-        seen_recipients: set[str] = set()
-        for value in to_emails or [to_email]:
-            for raw_recipient in re.split(r"[;,]", str(value or "")):
-                recipient = raw_recipient.strip()
-                recipient_key = recipient.casefold()
-                if recipient and recipient_key not in seen_recipients:
-                    seen_recipients.add(recipient_key)
-                    relay_recipients.append(recipient)
-        if not relay_recipients:
-            raise RuntimeError("Для отправки прайс-листа не заданы получатели")
-
         cancelled_count = await cancel_superseded_customer_pricelist_outbox(
             session,
             customer_config_id=int(config.id),
@@ -3150,58 +3216,35 @@ async def send_pricelist(
                 cancelled_count,
             )
 
-        for recipient in relay_recipients:
-            await enqueue_email(
-                session,
-                to_email=recipient,
-                from_email=account.email,
-                subject=subject,
-                body_text=body,
-                attachments=[
-                    {
-                        "filename": attachment_filename,
-                        "local_file_path": attachment_local_path,
-                        "content_type": attachment_content_type,
-                    }
-                ],
-                source_type="customer_pricelist",
-                source_id=customer_pricelist_id,
-                commit=False,
+        for account in relay_accounts:
+            for recipient in relay_recipients:
+                await enqueue_email(
+                    session,
+                    to_email=recipient,
+                    from_email=account.email,
+                    subject=subject,
+                    body_text=body,
+                    attachments=[
+                        {
+                            "filename": attachment_filename,
+                            "local_file_path": attachment_local_path,
+                            "content_type": attachment_content_type,
+                        }
+                    ],
+                    source_type="customer_pricelist",
+                    source_id=customer_pricelist_id,
+                    commit=False,
+                )
+            logger.info(
+                "Customer pricelist queued for external email relay: "
+                "pricelist_id=%s config=%s from=%s recipients=%s outbox_count=%s",
+                customer_pricelist_id,
+                config.id,
+                account.email,
+                ",".join(relay_recipients),
+                len(relay_recipients),
             )
-        logger.info(
-            "Customer pricelist queued for external email relay: "
-            "pricelist_id=%s config=%s from=%s recipients=%s outbox_count=%s",
-            customer_pricelist_id,
-            config.id,
-            account.email,
-            ",".join(relay_recipients),
-            len(relay_recipients),
-        )
         return "queued"
-
-    sent = await loop.run_in_executor(
-        None,
-        partial(
-            send_email_with_attachment,
-            to_email=to_email,
-            subject=subject,
-            body=body,
-            attachment_bytes=attachment_bytes,
-            attachment_filename=attachment_filename,
-            resend_idempotency_key=(
-                f"customer-pricelist/{customer_pricelist_id}"
-                if customer_pricelist_id is not None
-                else None
-            ),
-            **kwargs,
-        ),
-    )
-    if not sent:
-        sender = account.email if account else EMAIL_NAME
-        raise RuntimeError(
-            "Почтовый транспорт не подтвердил отправку прайс-листа "
-            f"с адреса {sender or 'не указан'}"
-        )
     logger.debug("Final send email")
     return "sent"
 

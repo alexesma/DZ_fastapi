@@ -1661,12 +1661,58 @@ async def test_update_customer_pricelist_config_persists_delivery_mailbox(
     )
     assert response.status_code == 200, response.text
     assert response.json()["outgoing_email_account_id"] == mailbox.id
+    assert response.json()["outgoing_email_account_ids"] == [mailbox.id]
     assert response.json()["emails"] == ["price-recipient@example.com"]
 
     persisted = await test_session.get(CustomerPriceListConfig, config_id)
     await test_session.refresh(persisted)
     assert persisted.outgoing_email_account_id == mailbox.id
+    assert persisted.outgoing_email_account_ids == [mailbox.id]
     assert persisted.emails == ["price-recipient@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_update_customer_pricelist_config_persists_multiple_delivery_mailboxes(
+    created_customers: Customer,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    customer = created_customers[0]
+    mailboxes = [
+        EmailAccount(
+            name=f"Customer pricelist sender {index}",
+            email=f"customer-prices-{index}@example.com",
+            password="secret",
+            transport="smtp",
+            purposes=["prices_out"],
+            is_active=True,
+        )
+        for index in (1, 2)
+    ]
+    test_session.add_all(mailboxes)
+    await test_session.commit()
+    for mailbox in mailboxes:
+        await test_session.refresh(mailbox)
+
+    response = await async_client.post(
+        f"/customers/{customer.id}/pricelist-configs/",
+        json={
+            "name": "Multiple delivery mailboxes config",
+            "outgoing_email_account_ids": [mailboxes[0].id, mailboxes[1].id],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["outgoing_email_account_id"] == mailboxes[0].id
+    assert payload["outgoing_email_account_ids"] == [
+        mailboxes[0].id,
+        mailboxes[1].id,
+    ]
+
+    persisted = await test_session.get(CustomerPriceListConfig, payload["id"])
+    assert persisted.outgoing_email_account_id == mailboxes[0].id
+    assert persisted.outgoing_email_account_ids == [mailboxes[0].id, mailboxes[1].id]
 
 
 @pytest.mark.asyncio
@@ -3327,6 +3373,106 @@ async def test_smtp_customer_pricelist_uses_external_relay(
     assert config.last_sent_at is None
 
     await mark_outbox_sent(test_session, outbox_id=outbox_rows[1].id)
+    await test_session.refresh(customer_pricelist)
+    await test_session.refresh(config)
+    assert customer_pricelist.generation_status == "sent"
+    assert customer_pricelist.sent_at is not None
+    assert config.last_sent_at == customer_pricelist.sent_at
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_queues_every_recipient_from_every_selected_mailbox(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    customer = created_customers[0]
+    accounts = [
+        EmailAccount(
+            name=f"Customer price relay {index}",
+            email=f"price-relay-{index}@example.com",
+            password="secret",
+            transport="smtp",
+            smtp_host="smtp.example.com",
+            smtp_port=465,
+            smtp_use_ssl=True,
+            purposes=["prices_out"],
+            is_active=True,
+        )
+        for index in (1, 2)
+    ]
+    test_session.add_all(accounts)
+    await test_session.flush()
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="MULTIPLE RELAY DELIVERY CONFIG",
+        outgoing_email_account_id=accounts[0].id,
+        outgoing_email_account_ids=[accounts[0].id, accounts[1].id],
+    )
+    test_session.add(config)
+    await test_session.flush()
+    customer_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        customer_config_id=config.id,
+        date=date.today(),
+        generation_status="generated",
+    )
+    test_session.add(customer_pricelist)
+    await test_session.commit()
+    artifact_path = tmp_path / "multi-sender.xlsx"
+    artifact_path.write_bytes(b"test-price")
+
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: pytest.fail("SMTP must be handled by the relay"),
+    )
+    result = await process_service.send_pricelist(
+        session=test_session,
+        df_excel=None,
+        customer=customer,
+        config=config,
+        to_emails=["first@example.com", "second@example.com"],
+        subject="Прайс лист",
+        body="Тело письма",
+        attachment_bytes=b"test-price",
+        attachment_filename="multi-sender.xlsx",
+        attachment_local_path=str(artifact_path),
+        attachment_content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        customer_pricelist_id=customer_pricelist.id,
+    )
+
+    outbox_rows = list(
+        (
+            await test_session.scalars(
+                select(EmailOutbox)
+                .where(
+                    EmailOutbox.source_type == "customer_pricelist",
+                    EmailOutbox.source_id == customer_pricelist.id,
+                )
+                .order_by(EmailOutbox.id.asc())
+            )
+        ).all()
+    )
+    assert result == "queued"
+    assert [(row.from_email, row.to_email) for row in outbox_rows] == [
+        (accounts[0].email, "first@example.com"),
+        (accounts[0].email, "second@example.com"),
+        (accounts[1].email, "first@example.com"),
+        (accounts[1].email, "second@example.com"),
+    ]
+
+    for row in outbox_rows[:-1]:
+        await mark_outbox_sent(test_session, outbox_id=row.id)
+    await test_session.refresh(customer_pricelist)
+    await test_session.refresh(config)
+    assert customer_pricelist.generation_status == "queued"
+    assert config.last_sent_at is None
+
+    await mark_outbox_sent(test_session, outbox_id=outbox_rows[-1].id)
     await test_session.refresh(customer_pricelist)
     await test_session.refresh(config)
     assert customer_pricelist.generation_status == "sent"

@@ -1131,6 +1131,10 @@ class CustomerPriceListConfig(Base):
         default=True,
     )
     outgoing_email_account_id = Column(Integer, ForeignKey("emailaccount.id"), nullable=True)
+    # Keep the legacy scalar above as the primary/fallback sender for older
+    # clients. New clients use this ordered list and send the same price list
+    # from every selected mailbox.
+    outgoing_email_account_ids = Column(JSON, nullable=False, default=list)
     is_active = Column(Boolean, default=True)
     last_sent_at = Column(DateTime(timezone=True), nullable=True)
     last_attempt_at = Column(DateTime(timezone=True), nullable=True)

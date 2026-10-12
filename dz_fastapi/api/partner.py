@@ -514,6 +514,14 @@ async def _validate_outgoing_price_mailbox(session: AsyncSession, mailbox_id: in
         )
 
 
+async def _validate_outgoing_price_mailboxes(
+    session: AsyncSession,
+    mailbox_ids: list[int] | None,
+) -> None:
+    for mailbox_id in mailbox_ids or []:
+        await _validate_outgoing_price_mailbox(session, mailbox_id)
+
+
 async def _validate_supplier_response_mailbox(session: AsyncSession, mailbox_id: int | None):
     if mailbox_id is None:
         return
@@ -2444,7 +2452,10 @@ async def create_customer_pricelist_config(
     customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    await _validate_outgoing_price_mailbox(session, config_in.outgoing_email_account_id)
+    await _validate_outgoing_price_mailboxes(
+        session,
+        config_in.outgoing_email_account_ids,
+    )
 
     try:
         # Вызываем метод из CRUD-класса для создания конфигурации
@@ -2547,6 +2558,7 @@ async def copy_customer_pricelist_config(
         "export_file_extension",
         "collapse_duplicates_by_min_price",
         "outgoing_email_account_id",
+        "outgoing_email_account_ids",
     )
     source_fields = (
         "provider_config_id",
@@ -2673,13 +2685,16 @@ async def update_customer_pricelist_config(
     config = config_result.scalar_one_or_none()
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found for this customer")
-    if (
-        "outgoing_email_account_id" in config_in.model_fields_set
-        and config_in.outgoing_email_account_id is not None
-    ):
-        await _validate_outgoing_price_mailbox(session, config_in.outgoing_email_account_id)
-
     update_data = config_in.model_dump(exclude_unset=True)
+    if "outgoing_email_account_ids" in config_in.model_fields_set:
+        account_ids = list(config_in.outgoing_email_account_ids or [])
+        await _validate_outgoing_price_mailboxes(session, account_ids)
+        update_data["outgoing_email_account_ids"] = account_ids
+        update_data["outgoing_email_account_id"] = account_ids[0] if account_ids else None
+    elif "outgoing_email_account_id" in config_in.model_fields_set:
+        account_id = config_in.outgoing_email_account_id
+        await _validate_outgoing_price_mailbox(session, account_id)
+        update_data["outgoing_email_account_ids"] = [account_id] if account_id else []
 
     # Handle nested data if necessary
     for field, value in update_data.items():
