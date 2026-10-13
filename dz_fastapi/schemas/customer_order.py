@@ -281,6 +281,10 @@ class CustomerOrderUpdate(BaseModel):
     order_date: Optional[date] = None
 
 
+class CustomerOrderRoutingChoice(BaseModel):
+    order_config_id: int = Field(gt=0)
+
+
 class SupplierOrderManualItemCreate(BaseModel):
     autopart_id: Optional[int] = None
     oem: str
@@ -302,6 +306,7 @@ class CustomerOrderResponse(BaseModel):
     id: int
     customer_id: int
     order_config_id: Optional[int] = None
+    pricelist_routing: Optional[dict] = None
     status: CUSTOMER_ORDER_STATUS
     received_at: datetime
     processed_at: Optional[datetime]

@@ -74,6 +74,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListExportRow,
     CustomerPriceListPublishedAlias,
     CustomerPriceListSource,
     PriceList,
@@ -91,6 +92,7 @@ from dz_fastapi.services.customer_order_identity import (
     lock_customer_order_identity,
     match_customer_order,
 )
+from dz_fastapi.services.customer_order_routing import compare_order_pricelists
 from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
@@ -227,6 +229,15 @@ class OfferRow:
     actual_oem: Optional[str] = None
     actual_brand: Optional[str] = None
     actual_name: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class OrderRowPlan:
+    customer_price: Optional[float]
+    price_diff_pct: float
+    reject_reason: Optional[str]
+    ship_qty: int
+    reject_qty: int
 
 
 def _optional_int(value) -> Optional[int]:
@@ -1400,6 +1411,7 @@ async def _load_latest_customer_pricelist(
     customer_id: int,
     customer_config_id: Optional[int] = None,
     normalized_oems: Optional[set[str]] = None,
+    snapshot_id: Optional[int] = None,
 ) -> Optional[CustomerPriceList]:
     association_relation = CustomerPriceList.autopart_associations
     alias_relation = CustomerPriceList.published_aliases
@@ -1427,6 +1439,9 @@ async def _load_latest_customer_pricelist(
     )
     if customer_config_id is not None:
         base_stmt = base_stmt.where(CustomerPriceList.customer_config_id == customer_config_id)
+    if snapshot_id is not None:
+        result = await session.execute(base_stmt.where(CustomerPriceList.id == snapshot_id))
+        return result.unique().scalars().first()
     ordering = (CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
     # Действующим считаем и отправленный прайс, и собранный без рассылки:
     # клиент может заказывать через сайт, и тогда письма нет, а цены и
@@ -1804,6 +1819,26 @@ def _compute_price_diff_pct(customer_price: float, offered_price: float) -> floa
     if customer_price >= offered_price:
         return 0.0
     return ((offered_price - customer_price) / offered_price) * 100
+
+
+def _plan_customer_order_row(config, row, offer, expected_price, allocated):
+    """Shared dry-run/processing decision; only mutates the in-memory allocation."""
+    price = _resolve_customer_target_price(expected_price, row.requested_price, offer)
+    diff = _compute_price_diff_pct(price, offer.price) if price and offer else 0.0
+    reason = None
+    if not offer:
+        reason = "NO_OFFER"
+    elif not price or price <= 0:
+        reason = "NO_TARGET_PRICE"
+    elif not offer.is_own_price and diff > (config.price_warning_pct or 5.0):
+        reason = "PRICE_TOO_HIGH"
+    if reason:
+        return OrderRowPlan(price, diff, reason, 0, row.requested_qty)
+    key = int(offer.autopart_id)
+    used = allocated.get(key, 0)
+    ship_qty = min(row.requested_qty, max(int(offer.quantity or 0) - used, 0))
+    allocated[key] = used + ship_qty
+    return OrderRowPlan(price, diff, None, ship_qty, max(row.requested_qty - ship_qty, 0))
 
 
 def _compute_order_requested_total(
@@ -3140,6 +3175,7 @@ async def _prepare_customer_order_context(
     session: AsyncSession,
     config: CustomerOrderConfig,
     parsed_rows: List[ParsedOrderRow],
+    snapshot_id: Optional[int] = None,
 ):
     brand_aliases = await _load_brand_alias_map(session)
     confirmed_cross_aliases = await _load_confirmed_own_cross_aliases(
@@ -3150,15 +3186,30 @@ async def _prepare_customer_order_context(
     requested_oems = {
         _normalize_oem_key(row.oem) for row in parsed_rows if _normalize_oem_key(row.oem)
     }
+    snapshot_options = {"snapshot_id": snapshot_id} if snapshot_id is not None else {}
     last_pricelist = await _load_latest_customer_pricelist(
         session,
         config.customer_id,
         config.pricelist_config_id,
         normalized_oems=requested_oems,
+        **snapshot_options,
     )
     expected_prices = (
         _build_expected_price_map(last_pricelist, brand_aliases) if last_pricelist else {}
     )
+    if snapshot_id is not None:
+        if last_pricelist is None:
+            raise ValueError("Сохранённая версия прайса заказа недоступна; проверьте его вручную")
+        exported = (await session.scalars(
+            select(CustomerPriceListExportRow).where(
+                CustomerPriceListExportRow.customer_pricelist_id == snapshot_id,
+                CustomerPriceListExportRow.normalized_oem.in_(requested_oems),
+            )
+        )).all()
+        for row in exported:
+            expected_prices[_normalize_key(
+                row.advertised_oem, row.advertised_brand, brand_aliases,
+            )] = float(row.price)
     pricelist_config = await _resolve_pricelist_config(session, config)
     source_oems = (
         {
@@ -3193,6 +3244,34 @@ async def _prepare_customer_order_context(
     return expected_prices, offers, brand_aliases, pricelist_config
 
 
+async def _estimate_customer_order_rejections(session, config, rows, snapshot_id):
+    expected, offers, aliases, price_config = await _prepare_customer_order_context(
+        session, config, rows, snapshot_id=snapshot_id,
+    )
+    if price_config is None:
+        raise ValueError("Конфигурация прайса недоступна")
+    if not rows or any(row.requested_qty <= 0 for row in rows):
+        raise ValueError("Не распознано положительное количество заказа")
+    by_amount = all(row.requested_price is not None and row.requested_price > 0 for row in rows)
+    total, rejected = Decimal(0), Decimal(0)
+    requested_qty = rejected_qty = 0
+    allocated = {}
+    for row in rows:
+        key = _normalize_key(row.oem, row.brand, aliases)
+        plan = _plan_customer_order_row(config, row, offers.get(key), expected.get(key), allocated)
+        weight = Decimal(str(row.requested_price)) if by_amount else Decimal(1)
+        total += weight * row.requested_qty
+        rejected += weight * plan.reject_qty
+        requested_qty += row.requested_qty
+        rejected_qty += plan.reject_qty
+    return {
+        "rejection_metric": "amount" if by_amount else "quantity",
+        "requested_value": str(total), "rejected_value": str(rejected),
+        "requested_qty": requested_qty, "rejected_qty": rejected_qty,
+        "rejected_pct": float(rejected / total * 100),
+    }
+
+
 async def _process_manual_rows(
     session: AsyncSession,
     config: CustomerOrderConfig,
@@ -3211,7 +3290,10 @@ async def _process_manual_rows(
         offers,
         brand_aliases,
         pricelist_config,
-    ) = await _prepare_customer_order_context(session, config, parsed_rows)
+    ) = await _prepare_customer_order_context(
+        session, config, parsed_rows,
+        snapshot_id=(order.external_payload or {}).get("pricelist_routing", {}).get("pricelist_id"),
+    )
 
     order_items: List[CustomerOrderItem] = []
     supplier_items: Dict[Tuple[int, Optional[int]], List[CustomerOrderItem]] = {}
@@ -3239,7 +3321,10 @@ async def _process_manual_rows(
         expected_price = expected_prices.get(key)
         offer = offers.get(key)
         requested_price = row.requested_price
-        customer_price = _resolve_customer_target_price(expected_price, requested_price, offer)
+        plan = _plan_customer_order_row(
+            config, row, offer, expected_price, allocated_qty_by_autopart,
+        )
+        customer_price = plan.customer_price
 
         item = CustomerOrderItem(
             order_id=order.id,
@@ -3255,7 +3340,7 @@ async def _process_manual_rows(
             actual_brand=offer.actual_brand if offer else None,
             actual_name=offer.actual_name if offer else None,
         )
-        if not offer:
+        if plan.reject_reason == "NO_OFFER":
             item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
             item.ship_qty = 0
             item.reject_qty = row.requested_qty
@@ -3266,7 +3351,7 @@ async def _process_manual_rows(
                 brand_aliases,
             )
             _set_reject_reason(item, reason_code, reason_text)
-        elif not customer_price or customer_price <= 0:
+        elif plan.reject_reason == "NO_TARGET_PRICE":
             item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
             item.ship_qty = 0
             item.reject_qty = row.requested_qty
@@ -3278,7 +3363,7 @@ async def _process_manual_rows(
             )
         else:
             offered_price = offer.price
-            diff_pct = _compute_price_diff_pct(customer_price, offered_price)
+            diff_pct = plan.price_diff_pct
             item.price_diff_pct = diff_pct
             item.matched_price = offer.supplier_price
 
@@ -3334,16 +3419,11 @@ async def _process_manual_rows(
                 )
 
             if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                already_allocated = allocated_qty_by_autopart.get(int(offer.autopart_id), 0)
-                available_qty = int(offer.quantity or 0) - already_allocated
-                if available_qty < 0:
-                    available_qty = 0
-                ship_qty = min(row.requested_qty, available_qty)
-                reject_qty = max(row.requested_qty - ship_qty, 0)
+                ship_qty = plan.ship_qty
+                reject_qty = plan.reject_qty
                 item.ship_qty = ship_qty
                 item.reject_qty = reject_qty
                 item.autopart_id = offer.autopart_id
-                allocated_qty_by_autopart[int(offer.autopart_id)] = already_allocated + ship_qty
                 if offer.is_own_price:
                     item.supplier_id = None
                     item.provider_config_id = None
@@ -4382,6 +4462,51 @@ async def _process_partssoft_customer_order(
     return order
 
 
+async def select_customer_order_pricelist(
+    session: AsyncSession, order_id: int, config_id: int, user_id: int,
+) -> None:
+    order = await session.scalar(
+        select(CustomerOrder).where(
+            CustomerOrder.id == order_id, CustomerOrder.deleted_at.is_(None),
+        ).with_for_update()
+    )
+    if order is None:
+        raise LookupError("Заказ не найден")
+    routing = (order.external_payload or {}).get("pricelist_routing") or {}
+    if routing.get("basis") != "review_required" or order.status != CUSTOMER_ORDER_STATUS.ERROR:
+        raise ValueError("Заказ не ожидает выбора конфигурации")
+    if await session.scalar(select(CustomerOrderItem.id).where(
+        CustomerOrderItem.order_id == order.id,
+    ).limit(1)):
+        raise ValueError("В заказе уже есть обработанные позиции; смена конфигурации запрещена")
+    candidate = next((row for row in routing.get("candidates", [])
+                      if row["order_config_id"] == config_id), None)
+    config = await session.get(CustomerOrderConfig, config_id)
+    if (candidate is None or config is None or not config.is_active
+            or config.customer_id != order.customer_id
+            or config.pricelist_config_id != candidate["pricelist_config_id"]):
+        raise ValueError("Выбранная конфигурация недоступна для этого заказа")
+    # Each parser may have selected a different attachment. Only the saved file
+    # may be retried; never apply a choice that refers to another attachment.
+    if candidate.get("filename") and candidate["filename"] != order.source_filename:
+        raise ValueError("Конфигурация относится к другому вложению; загрузите его отдельно")
+    source_bytes = await _load_order_source_file(order)
+    if not source_bytes:
+        raise ValueError("Исходный файл недоступен. Загрузите заказ заново")
+    parsed = _parse_order_attachment(source_bytes, order.source_filename or "order.xlsx", config)
+    if not parsed[0]:
+        raise ValueError("В файле не распознаны позиции. Проверьте настройки разбора")
+    routing = {
+        **routing, "basis": "manual", "selected_order_config_id": config.id,
+        "pricelist_id": candidate.get("pricelist_id"),
+        "selected_by_user_id": user_id, "selected_at": now_moscow().isoformat(),
+    }
+    order.order_config_id = config.id
+    order.external_payload = {**(order.external_payload or {}), "pricelist_routing": routing}
+    order.error_details = "Конфигурация выбрана. Нажмите «Повторить обработку»."
+    await session.commit()
+
+
 async def retry_customer_order(
     session: AsyncSession,
     order_id: int,
@@ -4389,6 +4514,11 @@ async def retry_customer_order(
     order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
     if not order:
         raise LookupError("Order not found")
+    if (
+        (order.external_payload or {}).get("pricelist_routing", {}).get("basis")
+        == "review_required"
+    ):
+        raise ValueError("Сначала выберите конфигурацию прайса в карточке заказа")
     interrupted_import = await _is_resumable_import_stub(session, order)
     if order.status != CUSTOMER_ORDER_STATUS.ERROR and not interrupted_import:
         raise ValueError("Only errored or interrupted imports can be retried")
@@ -4711,7 +4841,10 @@ async def process_customer_orders(
     if customer_id is not None:
         config_stmt = config_stmt.where(CustomerOrderConfig.customer_id == customer_id)
     if config_id is not None:
-        config_stmt = config_stmt.where(CustomerOrderConfig.id == config_id)
+        config_stmt = config_stmt.where(
+            CustomerOrderConfig.customer_id == select(CustomerOrderConfig.customer_id)
+            .where(CustomerOrderConfig.id == config_id).scalar_subquery()
+        )
     configs = await session.execute(config_stmt)
     configs = configs.scalars().all()
     if not configs:
@@ -5089,6 +5222,7 @@ async def process_customer_orders(
         requested_total = None
         parsed_rows: List[ParsedOrderRow] | None = None
         order_number_hint = None
+        routing = None
         try:
             configs_for_sender = config_by_email.get(sender) or []
             account_id = inbox_account.id if inbox_account else None
@@ -5116,6 +5250,8 @@ async def process_customer_orders(
                     [cfg.id for cfg in configs_for_sender],
                     account_id,
                 )
+            matched_candidates = []
+            has_pending_candidate = False
             for candidate in candidate_configs:
                 if not candidate.pricelist_config_id:
                     logger.warning(
@@ -5133,11 +5269,12 @@ async def process_customer_orders(
                     msg_uid_int is not None
                     and msg_uid_int in recovery_uids_by_config.get(candidate.id, set())
                 )
-                if (
+                already_seen = (
                     msg_uid_int is not None
                     and msg_uid_int <= folder_last_uid
                     and not is_recovery_uid
-                ):
+                )
+                if already_seen:
                     logger.debug(
                         "Skip order config %s for sender=%s: "
                         "msg_uid=%s <= last_uid=%s folder=%s",
@@ -5147,7 +5284,6 @@ async def process_customer_orders(
                         folder_last_uid,
                         getattr(msg, "folder_name", None),
                     )
-                    continue
                 if not _match_pattern(candidate.order_subject_pattern, msg.subject):
                     logger.debug(
                         "Skip order config %s for sender=%s: "
@@ -5172,9 +5308,46 @@ async def process_customer_orders(
                         [getattr(item, "filename", None) for item in (msg.attachments or [])],
                     )
                     continue
-                config = candidate
-                attachment = candidate_attachment
-                break
+                matched_candidates.append((candidate, candidate_attachment))
+                has_pending_candidate = has_pending_candidate or not already_seen
+
+            if not has_pending_candidate:
+                matched_candidates = []
+            if matched_candidates:
+                config, attachment = matched_candidates[0]
+            if len(matched_candidates) > 1:
+                brand_aliases = await _load_brand_alias_map(session)
+                comparisons = []
+                for candidate, candidate_attachment in matched_candidates:
+                    comparison = {
+                        "config": candidate, "filename": candidate_attachment.filename,
+                    }
+                    try:
+                        parsed = _parse_order_attachment(
+                            candidate_attachment.payload or b"",
+                            candidate_attachment.filename or "order.xlsx", candidate,
+                        )
+                        comparison["rows"] = parsed[0]
+                        if not parsed[0]:
+                            comparison["parse_error"] = "Не распознаны строки заказа"
+                    except Exception as exc:
+                        comparison["parse_error"] = str(exc)[:300]
+                    comparisons.append(comparison)
+                received_at = getattr(msg, "received_at", None) or getattr(msg, "date", None)
+                if not isinstance(received_at, datetime):
+                    received_at = now_moscow()
+                if received_at.tzinfo is None:
+                    received_at = received_at.replace(tzinfo=now_moscow().tzinfo)
+                routing = await compare_order_pricelists(
+                    session, comparisons, received_at,
+                    lambda oem, brand: _normalize_key(oem, brand, brand_aliases),
+                    _estimate_customer_order_rejections,
+                )
+                if routing["selected_order_config_id"] is not None:
+                    config, attachment = next(
+                        pair for pair in matched_candidates
+                        if pair[0].id == routing["selected_order_config_id"]
+                    )
 
             if not config or not attachment:
                 if not msg.attachments:
@@ -5254,6 +5427,12 @@ async def process_customer_orders(
                 order_id = order.id
             await _save_order_source_file(order, file_bytes)
 
+            if routing is not None:
+                order.external_payload = {
+                    **(order.external_payload or {}), "pricelist_routing": routing,
+                }
+                order.order_config_id = config.id
+
             try:
                 (
                     parsed_rows,
@@ -5280,6 +5459,10 @@ async def process_customer_orders(
                     order_number=order_number_hint,
                 )
                 order_id = order.id
+                if routing is not None:
+                    order.external_payload = {
+                        **(order.external_payload or {}), "pricelist_routing": routing,
+                    }
                 await _store_import_error(
                     session,
                     config,
@@ -5383,6 +5566,18 @@ async def process_customer_orders(
                 )
                 continue
 
+            if routing and routing["basis"] == "review_required":
+                await _store_import_error(
+                    session, config, order, msg, inbox_account, file_bytes,
+                    configs_for_uid_update,
+                    reason=(
+                        "Не удалось выбрать прайс с наименьшим процентом отказа. "
+                        "Выберите конфигурацию в карточке заказа. "
+                        "Заказы поставщикам и ответ с отказами не сформированы."
+                    ),
+                )
+                continue
+
             try:
                 await _complete_imported_order_processing(
                     session,
@@ -5421,6 +5616,10 @@ async def process_customer_orders(
                     order_date=order_date,
                 )
                 order_id = order.id
+                if routing is not None:
+                    order.external_payload = {
+                        **(order.external_payload or {}), "pricelist_routing": routing,
+                    }
                 await _store_import_error(
                     session,
                     config,
@@ -5448,6 +5647,10 @@ async def process_customer_orders(
                         order_number=order_number_hint,
                     )
                     order_id = order.id
+                    if routing is not None:
+                        order.external_payload = {
+                            **(order.external_payload or {}), "pricelist_routing": routing,
+                        }
                     await _store_import_error(
                         session,
                         config,

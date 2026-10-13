@@ -32,6 +32,7 @@ from dz_fastapi.schemas.customer_order import (
     CustomerOrderItemUpdate,
     CustomerOrderManualCreate,
     CustomerOrderResponse,
+    CustomerOrderRoutingChoice,
     CustomerOrderStatsMonthlyBucket,
     CustomerOrderStatsRecentRow,
     CustomerOrderStatsSummary,
@@ -77,6 +78,7 @@ from dz_fastapi.services.customer_orders import (
     process_manual_customer_order,
     retry_customer_order,
     retry_customer_order_errors_for_config,
+    select_customer_order_pricelist,
     send_scheduled_supplier_orders,
     send_supplier_orders,
     soft_delete_customer_order,
@@ -210,6 +212,9 @@ def _serialize_customer_order_for_user(
     return model.model_copy(
         update={
             "items": items,
+            "pricelist_routing": (getattr(order, "external_payload", None) or {}).get(
+                "pricelist_routing"
+            ),
             "processing_owner": _customer_order_processing_owner(order),
         }
     )
@@ -1048,6 +1053,25 @@ async def retry_order(
         level=AppNotificationLevel.SUCCESS,
         link=f"/customer-orders/{order.id}",
     )
+    return _serialize_customer_order_for_user(order, current_user)
+
+
+@router.post("/{order_id}/pricelist-routing", response_model=CustomerOrderResponse)
+async def choose_order_pricelist(
+    order_id: int,
+    payload: CustomerOrderRoutingChoice,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await select_customer_order_pricelist(
+            session, order_id, payload.order_config_id, current_user.id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
     return _serialize_customer_order_for_user(order, current_user)
 
 
