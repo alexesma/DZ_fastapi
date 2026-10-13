@@ -80,7 +80,7 @@ from dz_fastapi.crud.partner import (
 )
 from dz_fastapi.crud.price_control import crud_customer_pricelist_override
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
-from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.nomenclature import (
     ApplicabilityNode,
@@ -775,12 +775,66 @@ def _sanitize_positive_price_quantity(df: pd.DataFrame, context: str = "") -> pd
     return df
 
 
+async def _load_brand_filter_aliases(
+    session: AsyncSession,
+) -> dict[int, frozenset[int]]:
+    """Return every brand id mapped to its complete synonym component.
+
+    Brand selectors intentionally expose one canonical brand per synonym family.
+    Older catalogue rows can still reference another id from that family, so an
+    id-only filter must expand the selected canonical id before comparing rows.
+    """
+
+    rows = (
+        await session.execute(
+            select(brand_synonyms.c.brand_id, brand_synonyms.c.synonym_id)
+        )
+    ).all()
+    adjacency: dict[int, set[int]] = {}
+    for brand_id, synonym_id in rows:
+        left = int(brand_id)
+        right = int(synonym_id)
+        adjacency.setdefault(left, set()).add(right)
+        adjacency.setdefault(right, set()).add(left)
+
+    aliases: dict[int, frozenset[int]] = {}
+    visited: set[int] = set()
+    for brand_id in adjacency:
+        if brand_id in visited:
+            continue
+        component: set[int] = set()
+        pending = [brand_id]
+        while pending:
+            current = pending.pop()
+            if current in component:
+                continue
+            component.add(current)
+            pending.extend(adjacency.get(current, ()))
+        visited.update(component)
+        frozen_component = frozenset(component)
+        for component_id in component:
+            aliases[component_id] = frozen_component
+    return aliases
+
+
+def _expand_brand_filter_ids(
+    values: list[int],
+    brand_filter_aliases: dict[int, frozenset[int]] | None,
+) -> list[int]:
+    expanded: set[int] = set()
+    for value in values:
+        brand_id = int(value)
+        expanded.update((brand_filter_aliases or {}).get(brand_id, (brand_id,)))
+    return sorted(expanded)
+
+
 def _apply_source_filters(
     df: pd.DataFrame,
     source,
     *,
     ignore_price_quantity_filters: bool = False,
     dragonzap_mode: str = "normal",
+    brand_filter_aliases: dict[int, frozenset[int]] | None = None,
 ) -> pd.DataFrame:
     df = _sanitize_positive_price_quantity(df, context="source_filters")
     dragonzap_mode = str(dragonzap_mode or "normal").strip().lower()
@@ -802,7 +856,10 @@ def _apply_source_filters(
     if source.brand_filters:
         normalized = dict(source.brand_filters)
         if "brands" in normalized:
-            normalized["brands"] = _to_int_list(normalized.get("brands"))
+            normalized["brands"] = _expand_brand_filter_ids(
+                _to_int_list(normalized.get("brands")),
+                brand_filter_aliases,
+            )
         df = brand_filters(brand_filters=normalized, df=df)
     if dragonzap_mode == "exclude":
         df = df[~df["brand"].map(_is_dragonzap_brand)].copy()
@@ -1081,34 +1138,48 @@ def _collapse_duplicate_rows(
     )
     collapsed["__dedup_oem"] = oem_series.map(_normalize_dedup_oem_key)
     collapsed["__dedup_brand"] = brand_series.map(_normalize_dedup_brand_key)
+    quantity_series = (
+        collapsed["quantity"]
+        if "quantity" in collapsed.columns
+        else pd.Series(0, index=collapsed.index)
+    )
+    collapsed["__dedup_quantity"] = pd.to_numeric(
+        quantity_series,
+        errors="coerce",
+    ).fillna(0)
+    if "is_own_price" in collapsed.columns:
+        collapsed["__own_rank"] = (
+            collapsed["is_own_price"].fillna(False).astype(bool).astype(int)
+        )
+    else:
+        collapsed["__own_rank"] = 0
 
     if prefer_min_price:
-        if "is_own_price" in collapsed.columns:
-            collapsed["__dz_own_rank"] = (
-                collapsed["__dedup_brand"].eq("DRAGONZAP")
-                & collapsed["is_own_price"].fillna(False).astype(bool)
-            ).astype(int)
-        else:
-            collapsed["__dz_own_rank"] = 0
         collapsed = collapsed.sort_values(
             by=[
                 "__dedup_oem",
                 "__dedup_brand",
-                "__dz_own_rank",
+                "__own_rank",
                 "price",
+                "__dedup_quantity",
             ],
-            ascending=[True, True, False, True],
+            ascending=[True, True, False, True, False],
         )
     elif "is_own_price" in collapsed.columns:
-        collapsed["__own_rank"] = collapsed["is_own_price"].astype(bool).astype(int)
         collapsed = collapsed.sort_values(
-            by=["__dedup_oem", "__dedup_brand", "__own_rank", "price"],
-            ascending=[True, True, False, True],
+            by=[
+                "__dedup_oem",
+                "__dedup_brand",
+                "__own_rank",
+                "price",
+                "__dedup_quantity",
+            ],
+            ascending=[True, True, False, True, False],
         )
     else:
         collapsed = collapsed.sort_values(
-            by=["__dedup_oem", "__dedup_brand", "price"],
-            ascending=[True, True, True],
+            by=["__dedup_oem", "__dedup_brand", "price", "__dedup_quantity"],
+            ascending=[True, True, True, False],
         )
 
     collapsed = collapsed.drop_duplicates(
@@ -1119,6 +1190,7 @@ def _collapse_duplicate_rows(
         columns=[
             "__dedup_oem",
             "__dedup_brand",
+            "__dedup_quantity",
             "__own_rank",
             "__dz_own_rank",
         ],
@@ -1245,7 +1317,7 @@ def _apply_product_labels(
 
 
 def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Prefer manual fixed prices, then cheapest Brand+OEM and biggest stock."""
+    """Prefer own stock, then manual prices, price and available quantity."""
 
     origin_rank = {
         "original_source": 0,
@@ -1260,6 +1332,7 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
             _normalize_dedup_oem_key(row.get("oem_number")),
         )
         candidate_rank = (
+            0 if bool(row.get("is_own_price")) else 1,
             0 if row.get("__publication_rule_fixed_price") else 1,
             float(row.get("price") or float("inf")),
             -int(float(row.get("quantity") or 0)),
@@ -1271,6 +1344,7 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
             selected[key] = row
             continue
         current_rank = (
+            0 if bool(current.get("is_own_price")) else 1,
             0 if current.get("__publication_rule_fixed_price") else 1,
             float(current.get("price") or float("inf")),
             -int(float(current.get("quantity") or 0)),
@@ -3457,6 +3531,7 @@ async def _process_customer_pricelist_unlocked(
     )
     catalog_filter_rules_enabled = _uses_catalog_filter_rules(config)
     catalog_filter_cache: dict[str, Any] = {}
+    brand_filter_aliases = await _load_brand_filter_aliases(session)
     source_pricelist_ids: list[int] = []
     source_filter_summary: list[dict[str, Any]] = []
     source_freshness_summary: list[dict[str, Any]] = []
@@ -3502,7 +3577,12 @@ async def _process_customer_pricelist_unlocked(
                     df, session, catalog_filter_cache
                 )
 
-            df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=True)
+            df = crud_customer_pricelist.apply_coefficient(
+                df,
+                config,
+                apply_general_markup=True,
+                brand_filter_aliases=brand_filter_aliases,
+            )
             combined_data.append(df)
     else:
         sources = configured_sources
@@ -3561,6 +3641,7 @@ async def _process_customer_pricelist_unlocked(
                     filtered_df,
                     source.provider_config,
                 )
+                rows_after_provider_whitelist = len(filtered_df)
                 source_settings = source.additional_filters or {}
                 dragonzap_mode = str(
                     source_settings.get("DRAGONZAP_MODE") or ""
@@ -3571,13 +3652,24 @@ async def _process_customer_pricelist_unlocked(
                     filtered_df,
                     source,
                     dragonzap_mode=dragonzap_mode or "normal",
+                    brand_filter_aliases=brand_filter_aliases,
                 )
                 source_filter_summary.append(
                     {
                         "source_id": int(source.id),
                         "provider_config_id": int(source.provider_config_id),
+                        "provider_id": int(source.provider_config.provider_id),
+                        "provider_name": str(
+                            getattr(source.provider_config.provider, "name", "") or ""
+                        ),
+                        "source_name": str(
+                            getattr(source.provider_config, "name_price", "") or ""
+                        ),
                         "pricelist_id": int(latest_pl.id),
                         "rows_before": source_rows_before,
+                        "rows_after_provider_whitelist": (
+                            rows_after_provider_whitelist
+                        ),
                         "rows_after": len(filtered_df),
                         "excluded": max(source_rows_before - len(filtered_df), 0),
                         "transform_only": int(
@@ -3706,7 +3798,12 @@ async def _process_customer_pricelist_unlocked(
                 dz_expand_enabled = True
             source_pricelist_ids.append(int(latest_pl.id))
 
-            df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=False)
+            df = crud_customer_pricelist.apply_coefficient(
+                df,
+                config,
+                apply_general_markup=False,
+                brand_filter_aliases=brand_filter_aliases,
+            )
             df = _apply_source_markups(df, config, source)
             combined_data.append(df)
 
@@ -4049,7 +4146,7 @@ async def _process_customer_pricelist_unlocked(
                 "benchmark_positions": len(benchmark_prices),
                 "price_changes": price_changes,
                 "transform_enabled": transform_enabled,
-                "duplicate_policy": "cheapest_then_stock_then_original",
+                "duplicate_policy": "own_first_then_cheapest",
             }
             dragonzap_source_records = []
         else:
@@ -4325,6 +4422,13 @@ async def _process_customer_pricelist_unlocked(
             "zzap_mode": bool(_customer_pricelist_setting(config, "ZZAP", False)),
             "dz_expand_brands": bool(dz_expand_enabled),
             "source_freshness": source_freshness_summary,
+            "source_pricelist_ids": source_pricelist_ids,
+            "source_filters": source_filter_summary,
+            "duplicate_policy": (
+                "cheapest_then_stock_then_original"
+                if bool(getattr(config, "collapse_duplicates_by_min_price", True))
+                else "own_first_then_cheapest"
+            ),
             "price_rounding": "ceil_to_whole_ruble",
             **v2_summary,
         }
@@ -4495,6 +4599,17 @@ async def _process_customer_pricelist_unlocked(
             config.id,
             customer_pricelist.positions_count,
         )
+        if delivery_mode == "send":
+            # Человек нажал «Отправить» — молчаливый «успех» вводит в
+            # заблуждение: письмо никуда не ушло. Прайс при этом собран и
+            # действует, поэтому сохраняем и только потом сообщаем.
+            session.add(customer_pricelist)
+            await session.commit()
+            raise ValueError(
+                "Прайс собран и опубликован, но письмо не отправлено: не указаны "
+                "получатели. Заполните получателей в конфигурации прайса или "
+                "email для исходящего прайса в карточке клиента."
+            )
     if should_send:
         logger.debug("Calling send_pricelist")
         try:
