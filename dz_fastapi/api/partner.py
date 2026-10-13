@@ -2985,6 +2985,19 @@ async def build_customer_pricelist_file(
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.exception(
+            "Failed to build customer pricelist file: customer_id=%s config_id=%s",
+            customer_id,
+            config_id,
+        )
+        error_text = str(error).strip()
+        detail = "Не удалось сформировать файл прайса из-за внутренней ошибки"
+        if error_text:
+            detail += f": {error_text[:500]}"
+        raise HTTPException(status_code=500, detail=detail) from error
 
     pricelist = await _load_customer_pricelist_draft(session, response.id)
     if pricelist is None or not pricelist.artifact_path:

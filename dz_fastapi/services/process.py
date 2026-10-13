@@ -163,6 +163,54 @@ def describe_stale_customer_pricelist_sources(
     )
 
 
+def describe_empty_customer_pricelist_sources(
+    source_freshness: list[dict[str, Any]],
+    *,
+    enabled_sources_count: int,
+) -> str:
+    """Explain why configured sources produced no rows for an export."""
+    if enabled_sources_count == 0:
+        return "Файл прайса не сформирован: все подключённые источники отключены."
+
+    excluded_stale = [
+        row for row in source_freshness if row.get("excluded_from_delivery")
+    ]
+    filtered_empty = [
+        row
+        for row in source_freshness
+        if row.get("pricelist_id") is not None
+        and row.get("rows_after_source_filters") == 0
+        and not row.get("excluded_from_delivery")
+    ]
+    unavailable = [
+        row
+        for row in source_freshness
+        if row.get("pricelist_id") is None
+        and row not in excluded_stale
+    ]
+
+    reasons: list[str] = []
+    if excluded_stale:
+        reasons.append(
+            "исключены неактуальные источники — "
+            + describe_stale_customer_pricelist_sources(excluded_stale)
+        )
+    if filtered_empty:
+        reasons.append(
+            "фильтры исключили все позиции в источниках — "
+            + ", ".join(str(row["source_name"]) for row in filtered_empty)
+        )
+    if unavailable:
+        reasons.append(
+            "прайс ещё не загружен для источников — "
+            + ", ".join(str(row["source_name"]) for row in unavailable)
+        )
+
+    if not reasons:
+        reasons.append("подключённые источники не содержат доступных позиций")
+    return "Файл прайса не сформирован: " + "; ".join(reasons) + "."
+
+
 class StaleCustomerPricelistSourcesError(HTTPException):
     """Compatibility error for callers that still explicitly block stale sources."""
 
@@ -3412,8 +3460,17 @@ async def _process_customer_pricelist_unlocked(
     source_pricelist_ids: list[int] = []
     source_filter_summary: list[dict[str, Any]] = []
     source_freshness_summary: list[dict[str, Any]] = []
+    configured_sources = await crud_customer_pricelist_source.get_by_config_id(
+        config_id=config.id,
+        session=session,
+    )
 
-    if request.items:
+    # Старые клиенты API могли передавать произвольные ID прайсов в ``items``.
+    # Если у конфигурации уже заведены источники, именно они являются единственным
+    # источником истины. Иначе ручной запрос мог незаметно подмешать, например,
+    # розничный прайс вместо подключённого оптового прайса того же поставщика.
+    # ``items`` оставляем только для старых конфигураций без списка источников.
+    if request.items and not configured_sources:
         for pricelist_id in request.items:
             df = await crud_pricelist.fetch_pricelist_dataframe(
                 pricelist_id, session
@@ -3448,13 +3505,22 @@ async def _process_customer_pricelist_unlocked(
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=True)
             combined_data.append(df)
     else:
-        sources = await crud_customer_pricelist_source.get_by_config_id(
-            config_id=config.id, session=session
-        )
+        sources = configured_sources
+        if request.items and sources:
+            logger.warning(
+                "Ignoring explicit pricelist ids for configured customer sources: "
+                "customer_id=%s config_id=%s requested_pricelist_ids=%s",
+                customer.id,
+                config.id,
+                request.items,
+            )
         if not sources:
             raise HTTPException(
                 status_code=400,
-                detail="No autoparts to include in the pricelist",
+                detail=(
+                    "Файл прайса не сформирован: в конфигурации не подключён "
+                    "ни один источник."
+                ),
             )
         enabled_sources = [source for source in sources if source.enabled]
         resolved_sources = []
@@ -3622,6 +3688,15 @@ async def _process_customer_pricelist_unlocked(
                 [source["provider_config_id"] for source in excluded_stale_sources],
             )
 
+        if not combined_data and not enabled_sources:
+            raise HTTPException(
+                status_code=400,
+                detail=describe_empty_customer_pricelist_sources(
+                    source_freshness_summary,
+                    enabled_sources_count=0,
+                ),
+            )
+
         for source, latest_pl, df, freshness in resolved_sources:
             if freshness["excluded_from_delivery"]:
                 continue
@@ -3634,6 +3709,15 @@ async def _process_customer_pricelist_unlocked(
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=False)
             df = _apply_source_markups(df, config, source)
             combined_data.append(df)
+
+        if not combined_data:
+            raise HTTPException(
+                status_code=400,
+                detail=describe_empty_customer_pricelist_sources(
+                    source_freshness_summary,
+                    enabled_sources_count=len(enabled_sources),
+                ),
+            )
 
     if combined_data:
         final_df = pd.concat(combined_data, ignore_index=True)

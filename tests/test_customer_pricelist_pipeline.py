@@ -43,6 +43,7 @@ from dz_fastapi.services.process import (
     _round_customer_record_prices_up,
     _transform_dragonzap_records,
     customer_pricelist_pipeline,
+    describe_empty_customer_pricelist_sources,
     expand_dz_brands,
     round_customer_price_up,
     source_pricelist_business_age,
@@ -54,6 +55,37 @@ def test_source_pricelist_age_counts_business_days():
     assert source_pricelist_business_age(date(2026, 9, 9), date(2026, 9, 10)) == 1
     assert source_pricelist_business_age(date(2026, 9, 8), date(2026, 9, 10)) == 2
     assert source_pricelist_business_age(date(2026, 9, 4), date(2026, 9, 7)) == 1
+
+
+def test_empty_customer_pricelist_error_describes_stale_and_filtered_sources():
+    detail = describe_empty_customer_pricelist_sources(
+        [
+            {
+                "source_name": "AVTEK",
+                "pricelist_id": 10,
+                "pricelist_date": "2026-10-10",
+                "age_business_days": 2,
+                "excluded_from_delivery": True,
+                "rows_after_source_filters": 100,
+            },
+            {
+                "source_name": "COSMO",
+                "pricelist_id": 11,
+                "excluded_from_delivery": False,
+                "rows_after_source_filters": 0,
+            },
+        ],
+        enabled_sources_count=2,
+    )
+
+    assert "AVTEK: прайс от 2026-10-10 (2 раб. дн.)" in detail
+    assert "фильтры исключили все позиции в источниках — COSMO" in detail
+
+
+def test_empty_customer_pricelist_error_describes_disabled_sources():
+    assert describe_empty_customer_pricelist_sources(
+        [], enabled_sources_count=0
+    ) == "Файл прайса не сформирован: все подключённые источники отключены."
 
 
 def test_empty_excel_records_keep_export_columns_for_later_aliases():

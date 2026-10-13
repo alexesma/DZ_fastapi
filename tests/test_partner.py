@@ -2101,7 +2101,9 @@ async def test_create_customer_pricelist_no_items(
     assert response.status_code == 400, f"Unexpected status code: {response.status_code}"
 
     response_data = response.json()
-    assert response_data["detail"] == ("No autoparts to include in the pricelist")
+    assert response_data["detail"] == (
+        "Файл прайса не сформирован: в конфигурации не подключён ни один источник."
+    )
 
 
 @pytest.mark.asyncio
@@ -2181,10 +2183,20 @@ async def test_customer_pricelist_prioritizes_own_price(
         name_price="OTHER_CFG",
         name_mail="OTHER_MAIL",
     )
-    test_session.add_all([own_cfg, other_cfg])
+    disconnected_retail_cfg = ProviderPriceListConfig(
+        provider_id=provider_own.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price="DISCONNECTED_RETAIL_CFG",
+        name_mail="DISCONNECTED_RETAIL_MAIL",
+    )
+    test_session.add_all([own_cfg, other_cfg, disconnected_retail_cfg])
     await test_session.commit()
     await test_session.refresh(own_cfg)
     await test_session.refresh(other_cfg)
+    await test_session.refresh(disconnected_retail_cfg)
 
     autopart = AutoPartPricelist(
         oem_number="OEM-OWN-001",
@@ -2201,6 +2213,11 @@ async def test_customer_pricelist_prioritizes_own_price(
         quantity=7,
         price=100.0,
     )
+    disconnected_retail_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart,
+        quantity=9,
+        price=80.0,
+    )
     await crud_pricelist.create(
         obj_in=PriceListCreate(
             provider_id=provider_own.id,
@@ -2214,6 +2231,14 @@ async def test_customer_pricelist_prioritizes_own_price(
             provider_id=provider_other.id,
             provider_config_id=other_cfg.id,
             autoparts=[other_assoc],
+        ),
+        session=test_session,
+    )
+    disconnected_retail_pricelist = await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider_own.id,
+            provider_config_id=disconnected_retail_cfg.id,
+            autoparts=[disconnected_retail_assoc],
         ),
         session=test_session,
     )
@@ -2259,7 +2284,9 @@ async def test_customer_pricelist_prioritizes_own_price(
         "date": str(date.today()),
         "customer_id": customer.id,
         "config_id": config.id,
-        "items": [],
+        # Старый экран мог прислать ID неподключённого розничного прайса.
+        # Настроенные источники конфигурации должны иметь приоритет.
+        "items": [disconnected_retail_pricelist.id],
         "excluded_own_positions": [],
         "excluded_supplier_positions": [],
     }
