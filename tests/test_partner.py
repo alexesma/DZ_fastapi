@@ -1716,6 +1716,77 @@ async def test_update_customer_pricelist_config_persists_multiple_delivery_mailb
 
 
 @pytest.mark.asyncio
+async def test_mailbox_only_patch_preserves_every_pricelist_filter(
+    created_customers: list[Customer],
+    created_pricelist_config: ProviderPriceListConfig,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    customer = created_customers[0]
+    mailbox = EmailAccount(
+        name="Filter-safe sender",
+        email="filter-safe@example.com",
+        password="secret",
+        transport="smtp",
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    filter_values = {
+        "default_filters": {
+            "rules": [{"field": "brand", "mode": "exclude", "values": [10, 20]}]
+        },
+        "own_filters": {"min_quantity": 2, "rules": []},
+        "other_filters": {"max_price": 5000, "rules": []},
+        "supplier_filters": {
+            "901": {
+                "rules": [{"field": "position", "mode": "only", "values": [123]}]
+            }
+        },
+        "additional_filters": {
+            "FINAL_FILTER_ENABLED": True,
+            "FINAL_FILTER_RULES": [{"field": "brand", "action": "exclude"}],
+        },
+    }
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="FILTER SAFE CONFIG",
+        **filter_values,
+    )
+    test_session.add_all([mailbox, config])
+    await test_session.flush()
+    source = CustomerPriceListSource(
+        customer_config_id=config.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_filters={"type": "exclude", "brands": [30]},
+        min_quantity=3,
+    )
+    test_session.add(source)
+    await test_session.commit()
+
+    response = await async_client.patch(
+        f"/customers/{customer.id}/pricelist-configs/{config.id}",
+        json={"outgoing_email_account_ids": [mailbox.id]},
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    for field, expected in filter_values.items():
+        assert payload[field] == expected
+    assert payload["sources"][0]["brand_filters"] == {
+        "type": "exclude",
+        "brands": [30],
+    }
+    assert payload["sources"][0]["min_quantity"] == 3
+
+    await test_session.refresh(config)
+    await test_session.refresh(source)
+    for field, expected in filter_values.items():
+        assert getattr(config, field) == expected
+    assert source.brand_filters == {"type": "exclude", "brands": [30]}
+    assert source.min_quantity == 3
+
+
+@pytest.mark.asyncio
 async def test_get_customer_pricelist_configs(
     created_customers: Customer,
     async_client: AsyncClient,
