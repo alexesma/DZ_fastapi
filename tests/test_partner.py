@@ -2299,7 +2299,7 @@ async def test_customer_pricelist_prioritizes_own_price(
 
 
 @pytest.mark.asyncio
-async def test_customer_pricelist_collapses_duplicates_by_min_price(
+async def test_customer_pricelist_keeps_own_offer_when_min_price_collapse_enabled(
     test_session: AsyncSession,
     async_client: AsyncClient,
     created_customers: list[Customer],
@@ -2435,8 +2435,8 @@ async def test_customer_pricelist_collapses_duplicates_by_min_price(
     assert response.status_code == 201, response.text
     payload = response.json()
     assert len(payload["autoparts"]) == 1
-    assert abs(float(payload["autoparts"][0]["price"]) - 100.0) < 0.01
-    assert int(payload["autoparts"][0]["quantity"]) == 7
+    assert abs(float(payload["autoparts"][0]["price"]) - 120.0) < 0.01
+    assert payload["autoparts"][0]["quantity"] == 5
 
 
 def test_collapse_duplicate_excel_rows_removes_identical_rows():
@@ -2473,7 +2473,34 @@ def test_collapse_duplicate_excel_rows_removes_identical_rows():
     assert int(key_mask.sum()) == 1
 
 
-def test_collapse_duplicate_rows_prefers_own_dragonzap_stock():
+def test_final_excel_dedup_preserves_preselected_priority_over_lower_price():
+    df_excel = pd.DataFrame(
+        [
+            {
+                "Производитель": "CHERY",
+                "Наименование": "Наше предложение",
+                "Артикул": "A-1",
+                "Количество": 3,
+                "Цена": 700,
+            },
+            {
+                "Производитель": "CHERY",
+                "Наименование": "Стороннее предложение",
+                "Артикул": "A1",
+                "Количество": 20,
+                "Цена": 500,
+            },
+        ]
+    )
+
+    collapsed = process_service._collapse_duplicate_excel_rows(df_excel)
+
+    assert len(collapsed) == 1
+    assert collapsed.iloc[0]["Наименование"] == "Наше предложение"
+    assert collapsed.iloc[0]["Цена"] == 700
+
+
+def test_collapse_duplicate_rows_prefers_own_stock_for_every_brand():
     rows = pd.DataFrame(
         [
             {
@@ -2519,7 +2546,7 @@ def test_collapse_duplicate_rows_prefers_own_dragonzap_stock():
     by_brand = collapsed.set_index("brand")
     assert int(by_brand.loc["DRAGONZAP", "autopart_id"]) == 101
     assert int(by_brand.loc["DRAGONZAP", "quantity"]) == 46
-    assert int(by_brand.loc["TOYOTA", "autopart_id"]) == 404
+    assert int(by_brand.loc["TOYOTA", "autopart_id"]) == 303
 
 
 @pytest.mark.asyncio

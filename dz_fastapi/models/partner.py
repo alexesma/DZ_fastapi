@@ -1176,6 +1176,12 @@ class CustomerOrderConfig(Base):
     )
 
     pricelist_config_id = Column(Integer, ForeignKey("customerpricelistconfig.id"), nullable=True)
+    reference_pricelist_config_id = Column(
+        Integer,
+        ForeignKey("customerpricelistconfig.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     order_start_row = Column(Integer, default=1)
     order_number_column = Column(Integer, nullable=True)

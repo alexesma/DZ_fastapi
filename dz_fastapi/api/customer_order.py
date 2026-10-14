@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user
@@ -18,7 +19,7 @@ from dz_fastapi.crud.customer_order import (
 )
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
+from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS, Client, CustomerPriceListConfig
 from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (
     CrossDockingDocumentStatusUpdate,
@@ -126,6 +127,82 @@ from dz_fastapi.services.supplier_workflow import (
 logger = logging.getLogger("dz_fastapi")
 
 router = APIRouter(prefix="/customer-orders", tags=["customer-orders"])
+
+
+async def _validate_order_pricelist_configs(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    pricelist_config_id: int | None,
+    reference_pricelist_config_id: int | None,
+) -> None:
+    if pricelist_config_id is not None:
+        local_config = await crud_customer_pricelist_config.get_by_id(
+            customer_id=customer_id,
+            config_id=pricelist_config_id,
+            session=session,
+        )
+        if local_config is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Основная конфигурация прайса не принадлежит этому клиенту",
+            )
+    if reference_pricelist_config_id is not None:
+        reference = await crud_customer_pricelist_config.get_any_by_id(
+            config_id=reference_pricelist_config_id,
+            session=session,
+        )
+        if reference is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Выбранный прайс-эталон не найден",
+            )
+
+
+async def _serialize_order_config(
+    session: AsyncSession,
+    config,
+) -> CustomerOrderConfigResponse:
+    model = CustomerOrderConfigResponse.model_validate(config)
+    config_ids = {
+        value
+        for value in (
+            config.pricelist_config_id,
+            config.reference_pricelist_config_id,
+        )
+        if value is not None
+    }
+    if not config_ids:
+        return model
+    rows = (
+        await session.execute(
+            select(
+                CustomerPriceListConfig.id,
+                CustomerPriceListConfig.name,
+                CustomerPriceListConfig.customer_id,
+                Client.name.label("customer_name"),
+            )
+            .join(Client, Client.id == CustomerPriceListConfig.customer_id)
+            .where(CustomerPriceListConfig.id.in_(config_ids))
+        )
+    ).all()
+    by_id = {row.id: row for row in rows}
+    local = by_id.get(config.pricelist_config_id)
+    reference = by_id.get(config.reference_pricelist_config_id)
+    return model.model_copy(
+        update={
+            "pricelist_config_name": local.name if local else None,
+            "reference_pricelist_config_name": (
+                reference.name if reference else None
+            ),
+            "reference_pricelist_customer_id": (
+                reference.customer_id if reference else None
+            ),
+            "reference_pricelist_customer_name": (
+                reference.customer_name if reference else None
+            ),
+        }
+    )
 
 
 async def _notify_current_user(
@@ -357,12 +434,18 @@ async def create_order_config(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    await _validate_order_pricelist_configs(
+        session,
+        customer_id=payload.customer_id,
+        pricelist_config_id=payload.pricelist_config_id,
+        reference_pricelist_config_id=payload.reference_pricelist_config_id,
+    )
     config = await crud_customer_order_config.upsert(
         session=session,
         customer_id=payload.customer_id,
         data=payload.model_dump(exclude={"customer_id"}),
     )
-    return CustomerOrderConfigResponse.model_validate(config)
+    return await _serialize_order_config(session, config)
 
 
 @router.get(
@@ -380,7 +463,7 @@ async def get_order_config(
     )
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
-    return CustomerOrderConfigResponse.model_validate(config)
+    return await _serialize_order_config(session, config)
 
 
 @router.get(
@@ -396,20 +479,7 @@ async def list_order_configs(
     configs = await crud_customer_order_config.list_by_customer_id(
         session=session, customer_id=customer_id
     )
-    pricelist_configs = await crud_customer_pricelist_config.get_by_customer_id(
-        session=session,
-        customer_id=customer_id,
-    )
-    pricelist_map = {cfg.id: cfg.name for cfg in pricelist_configs}
-    response = []
-    for config in configs:
-        model = CustomerOrderConfigResponse.model_validate(config)
-        response.append(
-            model.model_copy(
-                update={"pricelist_config_name": pricelist_map.get(config.pricelist_config_id)}
-            )
-        )
-    return response
+    return [await _serialize_order_config(session, config) for config in configs]
 
 
 @router.get(
@@ -425,8 +495,7 @@ async def get_order_config_by_id(
     config = await crud_customer_order_config.get_by_id(session=session, config_id=config_id)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
-    model = CustomerOrderConfigResponse.model_validate(config)
-    return model
+    return await _serialize_order_config(session, config)
 
 
 @router.post(
@@ -444,6 +513,12 @@ async def create_order_config_v2(
             status_code=400,
             detail="pricelist_config_id is required",
         )
+    await _validate_order_pricelist_configs(
+        session,
+        customer_id=payload.customer_id,
+        pricelist_config_id=payload.pricelist_config_id,
+        reference_pricelist_config_id=payload.reference_pricelist_config_id,
+    )
     existing = await crud_customer_order_config.get_by_customer_and_pricelist(
         session=session,
         customer_id=payload.customer_id,
@@ -459,7 +534,7 @@ async def create_order_config_v2(
         customer_id=payload.customer_id,
         data=payload.model_dump(exclude={"customer_id"}),
     )
-    return CustomerOrderConfigResponse.model_validate(config)
+    return await _serialize_order_config(session, config)
 
 
 @router.put(
@@ -478,12 +553,24 @@ async def update_order_config(
     )
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    await _validate_order_pricelist_configs(
+        session,
+        customer_id=config.customer_id,
+        pricelist_config_id=update_data.get(
+            "pricelist_config_id", config.pricelist_config_id
+        ),
+        reference_pricelist_config_id=update_data.get(
+            "reference_pricelist_config_id",
+            config.reference_pricelist_config_id,
+        ),
+    )
     config = await crud_customer_order_config.update(
         session=session,
         config=config,
-        data=payload.model_dump(exclude_unset=True),
+        data=update_data,
     )
-    return CustomerOrderConfigResponse.model_validate(config)
+    return await _serialize_order_config(session, config)
 
 
 @router.patch(
@@ -500,6 +587,7 @@ async def update_order_config_by_id(
     config = await crud_customer_order_config.get_by_id(session=session, config_id=config_id)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
+    update_data = payload.model_dump(exclude_unset=True)
     if payload.pricelist_config_id is not None:
         existing = await crud_customer_order_config.get_by_customer_and_pricelist(
             session=session,
@@ -511,12 +599,23 @@ async def update_order_config_by_id(
                 status_code=409,
                 detail="Order config already exists for this pricelist",
             )
+    await _validate_order_pricelist_configs(
+        session,
+        customer_id=config.customer_id,
+        pricelist_config_id=update_data.get(
+            "pricelist_config_id", config.pricelist_config_id
+        ),
+        reference_pricelist_config_id=update_data.get(
+            "reference_pricelist_config_id",
+            config.reference_pricelist_config_id,
+        ),
+    )
     config = await crud_customer_order_config.update(
         session=session,
         config=config,
-        data=payload.model_dump(exclude_unset=True),
+        data=update_data,
     )
-    return CustomerOrderConfigResponse.model_validate(config)
+    return await _serialize_order_config(session, config)
 
 
 @router.delete(

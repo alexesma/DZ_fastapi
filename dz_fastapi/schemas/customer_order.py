@@ -87,6 +87,7 @@ class CustomerOrderConfigBase(BaseModel):
     forward_customer_order_email: Optional[EmailStr] = None
     forward_customer_order_email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
+    reference_pricelist_config_id: Optional[int] = None
 
     order_start_row: int = 1
     order_number_column: Optional[int] = None
@@ -155,6 +156,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     forward_customer_order_email: Optional[EmailStr] = None
     forward_customer_order_email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
+    reference_pricelist_config_id: Optional[int] = None
 
     order_start_row: Optional[int] = None
     order_number_column: Optional[int] = None
@@ -216,6 +218,9 @@ class CustomerOrderConfigResponse(CustomerOrderConfigBase):
     customer_id: int
     last_uid: int = 0
     pricelist_config_name: Optional[str] = None
+    reference_pricelist_config_name: Optional[str] = None
+    reference_pricelist_customer_id: Optional[int] = None
+    reference_pricelist_customer_name: Optional[str] = None
 
     @field_serializer(*ORDER_CONFIG_COLUMN_FIELDS)
     def columns_to_one_based(self, value):

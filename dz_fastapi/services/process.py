@@ -860,7 +860,11 @@ def _apply_source_filters(
                 _to_int_list(normalized.get("brands")),
                 brand_filter_aliases,
             )
-        df = brand_filters(brand_filters=normalized, df=df)
+        # An unfinished include rule must not silently remove the whole source.
+        # Empty selections have the same meaning at source and config level:
+        # no filter.
+        if normalized.get("brands"):
+            df = brand_filters(brand_filters=normalized, df=df)
     if dragonzap_mode == "exclude":
         df = df[~df["brand"].map(_is_dragonzap_brand)].copy()
     elif dragonzap_mode == "transform_only":
@@ -882,7 +886,8 @@ def _apply_source_filters(
         normalized = dict(source.position_filters)
         if "autoparts" in normalized:
             normalized["autoparts"] = _to_int_list(normalized.get("autoparts"))
-        df = position_filters(position_filters=normalized, df=df)
+        if normalized.get("autoparts"):
+            df = position_filters(position_filters=normalized, df=df)
 
     if not ignore_price_quantity_filters:
         if source.min_price is not None:
@@ -1208,28 +1213,21 @@ def _collapse_duplicate_excel_rows(df_excel: pd.DataFrame) -> pd.DataFrame:
     collapsed["__dedup_oem"] = collapsed["Артикул"].map(_normalize_dedup_oem_key)
     collapsed["__dedup_brand"] = collapsed["Производитель"].map(_normalize_dedup_brand_key)
 
-    if "Цена" in collapsed.columns:
-        collapsed["__dedup_price"] = pd.to_numeric(collapsed["Цена"], errors="coerce").fillna(
-            float("inf")
-        )
-        collapsed = collapsed.sort_values(
-            by=["__dedup_oem", "__dedup_brand", "__dedup_price"],
-            ascending=[True, True, True],
-            kind="stable",
-        )
-    else:
-        collapsed = collapsed.sort_values(
-            by=["__dedup_oem", "__dedup_brand"],
-            ascending=[True, True],
-            kind="stable",
-        )
+    # The record-level policy has already selected own stock and manual fixed
+    # prices. This final guard must preserve that order instead of selecting a
+    # cheaper row and silently undoing the configured priority.
+    collapsed = collapsed.sort_values(
+        by=["__dedup_oem", "__dedup_brand"],
+        ascending=[True, True],
+        kind="stable",
+    )
 
     collapsed = collapsed.drop_duplicates(
         subset=["__dedup_oem", "__dedup_brand"],
         keep="first",
     )
     return collapsed.drop(
-        columns=["__dedup_oem", "__dedup_brand", "__dedup_price"],
+        columns=["__dedup_oem", "__dedup_brand"],
         errors="ignore",
     )
 
@@ -1957,7 +1955,7 @@ async def _apply_customer_publication_rules(
     customer_id: int,
     source_df: pd.DataFrame,
     automatic_aliases: list[dict[str, Any]],
-    only_configured_when_rules_exist: bool = True,
+    only_configured_when_rules_exist: bool = False,
 ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
     """Apply explicit per-client publication rules after price selection."""
 
@@ -3654,6 +3652,16 @@ async def _process_customer_pricelist_unlocked(
                     dragonzap_mode=dragonzap_mode or "normal",
                     brand_filter_aliases=brand_filter_aliases,
                 )
+                if (
+                    not pipeline_v2
+                    and "__transform_only" in filtered_df.columns
+                ):
+                    # The legacy pipeline cannot produce transformed rows.
+                    # Keep transform-only physical rows out instead of
+                    # publishing them unchanged under the DRAGONZAP brand.
+                    filtered_df = filtered_df[
+                        ~filtered_df["__transform_only"].fillna(False).astype(bool)
+                    ].copy()
                 source_filter_summary.append(
                     {
                         "source_id": int(source.id),
@@ -3702,6 +3710,15 @@ async def _process_customer_pricelist_unlocked(
                     .limit(1)
                 )
             ).scalar_one_or_none()
+            if (
+                pending_review is not None
+                and latest_pl is not None
+                and pending_review.previous_pricelist_id is not None
+                and int(pending_review.previous_pricelist_id) != int(latest_pl.id)
+            ):
+                # A forgotten review for an older generation must not block a
+                # newer price list that has already become the active source.
+                pending_review = None
             source_name = (
                 str(getattr(source.provider_config, "name_price", "") or "").strip()
                 or f"источник #{source.provider_config_id}"
@@ -3876,7 +3893,7 @@ async def _process_customer_pricelist_unlocked(
                     _customer_pricelist_setting(
                         config,
                         "PUBLICATION_RULES_ONLY_CONFIGURED",
-                        True,
+                        False,
                     )
                 ),
                 "publication_rule_warnings": [],
@@ -4040,7 +4057,7 @@ async def _process_customer_pricelist_unlocked(
                                 _customer_pricelist_setting(
                                     config,
                                     "PUBLICATION_RULES_ONLY_CONFIGURED",
-                                    True,
+                                    False,
                                 )
                             ),
                         )
@@ -4169,7 +4186,7 @@ async def _process_customer_pricelist_unlocked(
                         _customer_pricelist_setting(
                             config,
                             "PUBLICATION_RULES_ONLY_CONFIGURED",
-                            True,
+                            False,
                         )
                     ),
                 )
@@ -4223,6 +4240,22 @@ async def _process_customer_pricelist_unlocked(
     main_records = (
         direct_output_records if pipeline_v2 else customer_autoparts_data
     )
+    if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
+        ranked_output = _collapse_output_records(
+            [
+                *({**row, "__output_group": "direct"} for row in main_records),
+                *(
+                    {**row, "__output_group": "alias"}
+                    for row in dragonzap_alias_records
+                ),
+            ]
+        )
+        main_records = [
+            row for row in ranked_output if row.get("__output_group") == "direct"
+        ]
+        dragonzap_alias_records = [
+            row for row in ranked_output if row.get("__output_group") == "alias"
+        ]
     # Обязательные реквизиты подтягиваем одним запросом на всю выгрузку,
     # включая позиции-источники и алиасы Dragonzap.
     regulatory_attrs = await _load_regulatory_attrs(

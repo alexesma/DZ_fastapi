@@ -1517,6 +1517,7 @@ class CustomerPriceListSourceResponse(CustomerPriceListSourceBase):
     provider_id: Optional[int] = None
     provider_name: Optional[str] = None
     provider_config_name: Optional[str] = None
+    provider_mailing_included_brands: List[str] = Field(default_factory=list)
     is_own_price: bool = False
     model_config = ConfigDict(from_attributes=True)
 

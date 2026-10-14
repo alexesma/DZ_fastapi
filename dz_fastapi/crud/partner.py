@@ -2655,12 +2655,21 @@ class CRUDCustomerPriceList(
         provider_id: int | None = None,
         is_own_price: bool | None = None,
         ignore_price_quantity_filters: bool = False,
+        brand_filter_aliases: dict[int, frozenset[int]] | None = None,
     ) -> pd.DataFrame:
         logger.debug(f"Into apply_coefficient data df:{df}, cofig: {config.__dict__}")
         data_individual_markups = config.individual_markups
 
+        def _has_effective_filters(filters: dict | None) -> bool:
+            if not isinstance(filters, dict):
+                return False
+            return any(
+                value not in (None, "", [], {})
+                for value in filters.values()
+            )
+
         def _base_filters() -> dict:
-            if config.default_filters:
+            if _has_effective_filters(config.default_filters):
                 return dict(config.default_filters)
             return {
                 "brand_filters": config.brand_filters,
@@ -2689,17 +2698,26 @@ class CRUDCustomerPriceList(
             base = _base_filters()
             if own_flag:
                 return _merge_filters(base, config.own_filters)
+            other = _merge_filters(base, config.other_filters)
             supplier_filters = config.supplier_filters or {}
             if pid is not None:
                 override = supplier_filters.get(pid)
                 if override is None:
                     override = supplier_filters.get(str(pid))
                 if override:
-                    return _merge_filters(base, override)
-            return _merge_filters(base, config.other_filters)
+                    return _merge_filters(other, override)
+            return other
 
         def _normalize_list(values):
             return [int(v) for v in (values or []) if str(v).isdigit()]
+
+        def _normalize_brand_list(values):
+            expanded: set[int] = set()
+            for brand_id in _normalize_list(values):
+                expanded.update(
+                    (brand_filter_aliases or {}).get(brand_id, (brand_id,))
+                )
+            return sorted(expanded)
 
         def _apply_filter_block(block_df: pd.DataFrame, filters_cfg: dict):
             block_df = block_df.copy()
@@ -2708,10 +2726,10 @@ class CRUDCustomerPriceList(
 
             brand_cfg = filters_cfg.get("brand_filters")
             if isinstance(brand_cfg, list):
-                brands = _normalize_list(brand_cfg)
+                brands = _normalize_brand_list(brand_cfg)
                 brand_cfg = {"type": "include", "brands": brands} if brands else None
             elif isinstance(brand_cfg, dict):
-                brands = _normalize_list(brand_cfg.get("brands"))
+                brands = _normalize_brand_list(brand_cfg.get("brands"))
                 if not brands:
                     brand_cfg = None
                 else:
@@ -2743,7 +2761,11 @@ class CRUDCustomerPriceList(
                     continue
                 field = str(rule.get("field") or "").strip().lower()
                 mode = str(rule.get("mode") or "").strip().lower()
-                selected = set(_normalize_list(rule.get("values")))
+                selected = set(
+                    _normalize_brand_list(rule.get("values"))
+                    if field == "brand"
+                    else _normalize_list(rule.get("values"))
+                )
                 column = rule_columns.get(field)
                 if not column or column not in block_df.columns or not selected:
                     continue
@@ -2761,7 +2783,11 @@ class CRUDCustomerPriceList(
             if not ignore_price_quantity_filters:
                 intervals_cfg = filters_cfg.get("price_intervals")
                 if intervals_cfg:
-                    block_df = price_intervals(price_intervals=intervals_cfg, df=block_df)
+                    block_df = price_intervals(
+                        price_intervals=intervals_cfg,
+                        df=block_df,
+                        basis_column="__filter_price",
+                    )
 
                 supplier_qty_cfg = filters_cfg.get("supplier_quantity_filters")
                 if supplier_qty_cfg:
@@ -2775,9 +2801,13 @@ class CRUDCustomerPriceList(
                 min_qty = filters_cfg.get("min_quantity")
                 max_qty = filters_cfg.get("max_quantity")
                 if min_price is not None:
-                    block_df = block_df[block_df["price"] >= float(min_price)]
+                    block_df = block_df[
+                        block_df["__filter_price"] >= float(min_price)
+                    ]
                 if max_price is not None:
-                    block_df = block_df[block_df["price"] <= float(max_price)]
+                    block_df = block_df[
+                        block_df["__filter_price"] <= float(max_price)
+                    ]
                 if min_qty is not None:
                     block_df = block_df[block_df["quantity"] >= int(min_qty)]
                 if max_qty is not None:
@@ -2787,6 +2817,9 @@ class CRUDCustomerPriceList(
 
         # Ensure 'price' column is numeric
         df["price"] = pd.to_numeric(df["price"], errors="coerce")
+        # All price thresholds and interval selection use the untouched
+        # supplier price. Markups change the customer price, not filter scope.
+        df["__filter_price"] = df["price"]
 
         # Apply individual markups per supplier
         if data_individual_markups:
@@ -2808,7 +2841,7 @@ class CRUDCustomerPriceList(
         if apply_general_markup:
             df["price"] *= normalize_markup(config.general_markup)
 
-        return df
+        return df.drop(columns=["__filter_price"], errors="ignore")
 
     async def get_all_pricelist(
         self,
@@ -3191,6 +3224,18 @@ class CRUDCustomerPriceListConfig(
                     CustomerPriceListConfig.id == config_id,
                     CustomerPriceListConfig.customer_id == customer_id,
                 )
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_any_by_id(
+        self,
+        config_id: int,
+        session: AsyncSession,
+    ) -> Optional[CustomerPriceListConfig]:
+        result = await session.execute(
+            select(CustomerPriceListConfig).where(
+                CustomerPriceListConfig.id == config_id,
             )
         )
         return result.scalar_one_or_none()

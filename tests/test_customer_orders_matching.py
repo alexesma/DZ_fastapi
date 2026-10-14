@@ -321,6 +321,142 @@ def test_apply_coefficient_can_ignore_price_and_quantity_thresholds():
     assert float(ignored.iloc[0]["price"]) == 70.0
 
 
+def test_customer_price_thresholds_use_supplier_price_before_markups():
+    config = SimpleNamespace(
+        individual_markups={915: 2},
+        default_filters={"max_price": 1000, "rules": []},
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "price": 900,
+                "quantity": 1,
+                "provider_id": 915,
+                "is_own_price": False,
+            }
+        ]
+    )
+
+    result = crud_customer_pricelist.apply_coefficient(
+        df,
+        config,
+        apply_general_markup=False,
+        provider_id=915,
+        is_own_price=False,
+    )
+
+    assert len(result) == 1
+    assert float(result.iloc[0]["price"]) == 1800.0
+
+
+def test_empty_structured_default_filters_fall_back_to_legacy_fields():
+    config = SimpleNamespace(
+        individual_markups={},
+        default_filters={"rules": []},
+        brand_filters={"type": "exclude", "brands": [10]},
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1,
+    )
+    df = pd.DataFrame(
+        [
+            {"autopart_id": 1, "brand_id": 10, "price": 100, "quantity": 1},
+            {"autopart_id": 2, "brand_id": 20, "price": 100, "quantity": 1},
+        ]
+    )
+
+    result = crud_customer_pricelist.apply_coefficient(
+        df,
+        config,
+        apply_general_markup=False,
+        provider_id=1,
+        is_own_price=False,
+    )
+
+    assert result["autopart_id"].tolist() == [2]
+
+
+def test_supplier_filter_override_keeps_common_rules():
+    config = SimpleNamespace(
+        individual_markups={},
+        default_filters={
+            "rules": [{"field": "brand", "mode": "exclude", "values": [10]}],
+        },
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={"min_quantity": 5},
+        supplier_filters={"915": {"max_quantity": 10}},
+        general_markup=1,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 10,
+                "price": 100,
+                "quantity": 7,
+                "provider_id": 915,
+                "is_own_price": False,
+            },
+            {
+                "autopart_id": 2,
+                "brand_id": 20,
+                "price": 100,
+                "quantity": 4,
+                "provider_id": 915,
+                "is_own_price": False,
+            },
+            {
+                "autopart_id": 3,
+                "brand_id": 20,
+                "price": 100,
+                "quantity": 11,
+                "provider_id": 915,
+                "is_own_price": False,
+            },
+            {
+                "autopart_id": 4,
+                "brand_id": 20,
+                "price": 100,
+                "quantity": 7,
+                "provider_id": 915,
+                "is_own_price": False,
+            },
+        ]
+    )
+
+    result = crud_customer_pricelist.apply_coefficient(
+        df,
+        config,
+        apply_general_markup=False,
+        provider_id=915,
+        is_own_price=False,
+    )
+
+    assert result["autopart_id"].tolist() == [4]
+
+
 def test_pricelist_rules_combine_applicability_and_honest_sign_filters():
     config = SimpleNamespace(
         individual_markups={},
@@ -376,6 +512,61 @@ def test_pricelist_rules_combine_applicability_and_honest_sign_filters():
         apply_general_markup=False,
         provider_id=1,
         is_own_price=False,
+    )
+
+    assert result["autopart_id"].tolist() == [3]
+
+
+def test_customer_brand_rule_applies_to_entire_synonym_family():
+    config = SimpleNamespace(
+        individual_markups={},
+        default_filters={
+            "rules": [
+                {"field": "brand", "mode": "exclude", "values": [10]},
+            ]
+        },
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 10,
+                "price": 100,
+                "quantity": 1,
+            },
+            {
+                "autopart_id": 2,
+                "brand_id": 11,
+                "price": 100,
+                "quantity": 1,
+            },
+            {
+                "autopart_id": 3,
+                "brand_id": 12,
+                "price": 100,
+                "quantity": 1,
+            },
+        ]
+    )
+
+    result = crud_customer_pricelist.apply_coefficient(
+        df,
+        config,
+        apply_general_markup=False,
+        brand_filter_aliases={
+            10: frozenset({10, 11}),
+            11: frozenset({10, 11}),
+        },
     )
 
     assert result["autopart_id"].tolist() == [3]
@@ -501,6 +692,103 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
     offer = next(iter(offers.values()))
     assert offer.supplier_price == pytest.approx(100.0)
     assert offer.price == pytest.approx(300.0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source_overrides,mailing_brands",
+    [
+        ({"min_price": 150}, []),
+        ({}, ["TOYOTA"]),
+    ],
+)
+async def test_build_current_offers_respects_export_source_limits(
+    monkeypatch,
+    source_overrides,
+    mailing_brands,
+):
+    source_fields = {
+        "enabled": True,
+        "provider_config_id": 101,
+        "provider_config": SimpleNamespace(
+            mailing_included_brands=mailing_brands,
+        ),
+        "markup": 1,
+        "brand_markups": {},
+        "brand_filters": {},
+        "position_filters": {},
+        "min_price": None,
+        "max_price": None,
+        "min_quantity": None,
+        "max_quantity": None,
+        "additional_filters": {},
+    }
+    source_fields.update(source_overrides)
+    source = SimpleNamespace(**source_fields)
+    config = SimpleNamespace(
+        id=77,
+        individual_markups={},
+        default_filters={},
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1,
+        own_price_list_markup=1,
+        third_party_markup=1,
+    )
+
+    async def _fake_sources(*args, **kwargs):
+        return [source]
+
+    async def _fake_latest_pricelist(*args, **kwargs):
+        return SimpleNamespace(id=501)
+
+    async def _fake_fetch_dataframe(*args, **kwargs):
+        return pd.DataFrame(
+            [
+                {
+                    "autopart_id": 10,
+                    "provider_id": 937,
+                    "provider_config_id": 101,
+                    "oem_number": "SMD359158",
+                    "brand": "HAVAL",
+                    "quantity": 5,
+                    "price": 100.0,
+                    "is_own_price": False,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders."
+        "crud_customer_pricelist_source.get_by_config_id",
+        _fake_sources,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders."
+        "crud_pricelist.get_latest_pricelist_by_config",
+        _fake_latest_pricelist,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders."
+        "crud_pricelist.fetch_pricelist_dataframe",
+        _fake_fetch_dataframe,
+    )
+
+    offers = await _build_current_offers(
+        session=None,
+        config=config,
+        brand_aliases=None,
+        required_oems={"SMD359158"},
+    )
+
+    assert offers == {}
 
 
 @pytest.mark.asyncio

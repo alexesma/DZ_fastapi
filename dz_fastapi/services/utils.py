@@ -64,19 +64,37 @@ def individual_markups(
     return df
 
 
-def price_intervals(price_intervals: dict, df: pd.DataFrame) -> pd.DataFrame:
+def price_intervals(
+    price_intervals: dict,
+    df: pd.DataFrame,
+    *,
+    basis_column: str = "price",
+) -> pd.DataFrame:
+    """Apply the first matching interval to each row exactly once.
+
+    Intervals are evaluated in their configured order. Bounds are inclusive,
+    but a row already matched by an earlier interval cannot be multiplied
+    again. Empty bounds mean an open interval.
+    """
+
+    unmatched = pd.Series(True, index=df.index)
+    basis = pd.to_numeric(df.get(basis_column, df["price"]), errors="coerce")
     for interval in price_intervals or []:
         if isinstance(interval, dict):
-            min_price = float(interval.get("min_price", 0))
-            max_price = float(interval.get("max_price", 0))
+            min_price = interval.get("min_price")
+            max_price = interval.get("max_price")
             coefficient = normalize_markup(interval.get("coefficient"))
         else:
-            min_price = float(interval.min_price)
-            max_price = float(interval.max_price)
+            min_price = interval.min_price
+            max_price = interval.max_price
             coefficient = normalize_markup(interval.coefficient)
-        df.loc[
-            (df["price"] >= min_price) & (df["price"] <= max_price), "price"
-        ] *= coefficient
+        mask = unmatched & basis.notna()
+        if min_price not in (None, ""):
+            mask &= basis >= float(min_price)
+        if max_price not in (None, ""):
+            mask &= basis <= float(max_price)
+        df.loc[mask, "price"] *= coefficient
+        unmatched &= ~mask
     return df
 
 
@@ -101,7 +119,7 @@ def supplier_quantity_filters(
 ) -> pd.DataFrame:
     if not supplier_quantity_filters:
         return df
-    combined_mask = pd.Series(False, index=df.index)
+    rules_by_provider: dict[int, list[tuple[object, object]]] = {}
     for supplier_filter in supplier_quantity_filters or []:
         if isinstance(supplier_filter, dict):
             provider_id = supplier_filter.get("provider_id")
@@ -111,15 +129,33 @@ def supplier_quantity_filters(
             provider_id = supplier_filter.provider_id
             min_qty = supplier_filter.min_quantity
             max_qty = supplier_filter.max_quantity
-        if provider_id is None or min_qty is None or max_qty is None:
+        if provider_id is None:
             continue
-        mask = (
-            (df["provider_id"] == provider_id)
-            & (df["quantity"] >= min_qty)
-            & (df["quantity"] <= max_qty)
+        try:
+            normalized_provider_id = int(provider_id)
+        except (TypeError, ValueError):
+            continue
+        rules_by_provider.setdefault(normalized_provider_id, []).append(
+            (min_qty, max_qty)
         )
-        combined_mask |= mask
-    return df[combined_mask]
+    if not rules_by_provider:
+        return df
+
+    provider_ids = pd.to_numeric(df["provider_id"], errors="coerce")
+    quantities = pd.to_numeric(df["quantity"], errors="coerce")
+    keep_mask = ~provider_ids.isin(rules_by_provider)
+    for provider_id, ranges in rules_by_provider.items():
+        provider_mask = provider_ids == provider_id
+        allowed = pd.Series(False, index=df.index)
+        for min_qty, max_qty in ranges:
+            range_mask = provider_mask & quantities.notna()
+            if min_qty not in (None, ""):
+                range_mask &= quantities >= float(min_qty)
+            if max_qty not in (None, ""):
+                range_mask &= quantities <= float(max_qty)
+            allowed |= range_mask
+        keep_mask |= allowed
+    return df[keep_mask]
 
 
 def position_exclude(

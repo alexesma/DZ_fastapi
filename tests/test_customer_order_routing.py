@@ -191,6 +191,167 @@ async def test_only_latest_publication_is_used_without_seven_day_limit(
 
 
 @pytest.mark.asyncio
+async def test_exact_export_snapshot_does_not_restore_an_excluded_position(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    configs, snapshots = await setup_routes(test_session, created_customers[0])
+    excluded_row = order_row(oem="EXCLUDED")
+    current_offer = service.OfferRow(
+        autopart_id=1,
+        provider_id=1,
+        provider_config_id=None,
+        quantity=20,
+        price=100,
+        supplier_price=80,
+        is_own_price=False,
+    )
+    monkeypatch.setattr(
+        service,
+        "_build_current_offers",
+        AsyncMock(return_value={("EXCLUDED", "HAVAL"): current_offer}),
+    )
+    monkeypatch.setattr(
+        service,
+        "_load_confirmed_own_cross_aliases",
+        AsyncMock(return_value=[]),
+    )
+
+    expected_prices, offers, _, _ = await service._prepare_customer_order_context(
+        test_session,
+        configs[0],
+        [excluded_row],
+        snapshot_id=snapshots[0].id,
+    )
+
+    assert expected_prices == {}
+    assert offers == {}
+
+
+@pytest.mark.asyncio
+async def test_imported_order_requires_a_published_pricelist(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    price_config = CustomerPriceListConfig(
+        customer_id=created_customers[0].id,
+        name="Never published",
+    )
+    test_session.add(price_config)
+    await test_session.flush()
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        pricelist_config_id=price_config.id,
+        order_email="buyer@example.com",
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        price_col=3,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    monkeypatch.setattr(
+        service,
+        "_load_confirmed_own_cross_aliases",
+        AsyncMock(return_value=[]),
+    )
+
+    with pytest.raises(ValueError, match="нет опубликованного прайса"):
+        await service._prepare_customer_order_context(
+            test_session,
+            config,
+            [order_row()],
+            require_published_pricelist=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_order_can_use_another_customers_published_pricelist(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    owner = created_customers[0]
+    legal_entity = created_customers[1]
+    reference_config = CustomerPriceListConfig(
+        customer_id=owner.id,
+        name="Motor shared price",
+    )
+    local_config = CustomerPriceListConfig(
+        customer_id=legal_entity.id,
+        name="Legal entity orders",
+    )
+    test_session.add_all([reference_config, local_config])
+    await test_session.flush()
+    publication = CustomerPriceList(
+        customer_id=owner.id,
+        customer_config_id=reference_config.id,
+        published_at=now_moscow(),
+    )
+    test_session.add(publication)
+    await test_session.flush()
+    test_session.add(
+        CustomerPriceListExportRow(
+            customer_pricelist_id=publication.id,
+            advertised_oem="ABC1",
+            normalized_oem="ABC1",
+            advertised_brand="HAVAL",
+            normalized_brand="HAVAL",
+            price=123,
+            quantity=50,
+        )
+    )
+    order_config = CustomerOrderConfig(
+        customer_id=legal_entity.id,
+        pricelist_config_id=local_config.id,
+        reference_pricelist_config_id=reference_config.id,
+        order_email="entity@example.com",
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        price_col=3,
+    )
+    test_session.add(order_config)
+    await test_session.flush()
+    current_offer = service.OfferRow(
+        autopart_id=1,
+        provider_id=1,
+        provider_config_id=None,
+        quantity=20,
+        price=100,
+        supplier_price=80,
+        is_own_price=False,
+    )
+    monkeypatch.setattr(
+        service,
+        "_build_current_offers",
+        AsyncMock(return_value={("ABC1", "HAVAL"): current_offer}),
+    )
+    monkeypatch.setattr(
+        service,
+        "_load_confirmed_own_cross_aliases",
+        AsyncMock(return_value=[]),
+    )
+
+    expected_prices, offers, _, resolved_config = (
+        await service._prepare_customer_order_context(
+            test_session,
+            order_config,
+            [order_row(price=123)],
+            require_published_pricelist=True,
+        )
+    )
+
+    assert resolved_config.id == reference_config.id
+    assert expected_prices == {("ABC1", "HAVAL"): 123.0}
+    assert offers == {("ABC1", "HAVAL"): current_offer}
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("problem", ["parser", "missing_snapshot", "different_rows"])
 async def test_uncomparable_candidates_never_win_by_omitting_rows(
     test_session,

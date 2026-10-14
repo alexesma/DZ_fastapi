@@ -22,7 +22,9 @@ from dz_fastapi.models.partner import (
     TYPE_ORDER_ITEM_STATUS,
     TYPE_STATUS_ORDER,
     CustomerOrder,
+    CustomerOrderConfig,
     CustomerOrderItem,
+    CustomerPriceListConfig,
     Order,
     OrderItem,
     StockOrder,
@@ -89,6 +91,52 @@ async def test_customer_order_config_crud(async_client, test_session, created_cu
     )
     assert response.status_code == 200
     assert response.json()["order_subject_pattern"] == "test"
+
+
+@pytest.mark.asyncio
+async def test_customer_order_config_accepts_shared_pricelist_reference(
+    async_client,
+    test_session,
+    created_customers,
+):
+    await _create_user(test_session, "shared-price@example.com", UserRole.MANAGER)
+    await _login(async_client, "shared-price@example.com")
+    legal_entity = created_customers[0]
+    price_owner = created_customers[1]
+    local_config = CustomerPriceListConfig(
+        customer_id=legal_entity.id,
+        name="Local parser",
+    )
+    shared_config = CustomerPriceListConfig(
+        customer_id=price_owner.id,
+        name="Motor shared price",
+    )
+    test_session.add_all([local_config, shared_config])
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/customer-orders/configs",
+        json={
+            "customer_id": legal_entity.id,
+            "pricelist_config_id": local_config.id,
+            "reference_pricelist_config_id": shared_config.id,
+            "order_email": "entity@example.com",
+            "oem_col": 1,
+            "brand_col": 2,
+            "qty_col": 3,
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["reference_pricelist_config_id"] == shared_config.id
+    assert payload["reference_pricelist_config_name"] == "Motor shared price"
+    assert payload["reference_pricelist_customer_id"] == price_owner.id
+    assert payload["reference_pricelist_customer_name"] == price_owner.name
+    stored = await test_session.scalar(
+        select(CustomerOrderConfig).where(CustomerOrderConfig.id == payload["id"])
+    )
+    assert stored.customer_id == legal_entity.id
 
 
 def _shift_to_previous_month(value: datetime) -> datetime:

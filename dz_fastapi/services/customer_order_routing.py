@@ -24,6 +24,10 @@ async def compare_order_pricelists(
     fingerprints = []
     for candidate in candidates:
         config = candidate["config"]
+        pricelist_config_id = (
+            config.reference_pricelist_config_id
+            or config.pricelist_config_id
+        )
         rows = candidate.get("rows") or []
         # Different parsers must describe the same order. Dropping difficult
         # rows or changing quantities must never improve a candidate's score.
@@ -43,8 +47,8 @@ async def compare_order_pricelists(
         )
         entry = {
             "order_config_id": config.id,
-            "pricelist_config_id": config.pricelist_config_id,
-            "name": f"Конфигурация #{config.pricelist_config_id}",
+            "pricelist_config_id": pricelist_config_id,
+            "name": f"Конфигурация #{pricelist_config_id}",
             "total": len(rows),
             "positions": 0,
             "prices": 0,
@@ -56,24 +60,31 @@ async def compare_order_pricelists(
             "evaluation_error": None,
             "rejected_pct": None,
         }
-        name = await session.scalar(
-            select(CustomerPriceListConfig.name).where(
-                CustomerPriceListConfig.id == config.pricelist_config_id,
-                CustomerPriceListConfig.customer_id == config.customer_id,
+        pricelist_config = (
+            await session.execute(
+                select(
+                    CustomerPriceListConfig.name,
+                    CustomerPriceListConfig.customer_id,
+                ).where(
+                    CustomerPriceListConfig.id == pricelist_config_id,
+                )
             )
-        )
-        if name:
-            entry["name"] = name
+        ).first()
+        if pricelist_config:
+            entry["name"] = pricelist_config.name
         results.append(entry)
         if not rows or candidate.get("parse_error"):
+            continue
+        if pricelist_config is None:
+            entry["evaluation_error"] = "Конфигурация прайса недоступна"
             continue
         publication_at = func.coalesce(CustomerPriceList.published_at, CustomerPriceList.sent_at)
         snapshot = (
             await session.execute(
                 select(CustomerPriceList.id, publication_at.label("publication_at"))
                 .where(
-                    CustomerPriceList.customer_id == config.customer_id,
-                    CustomerPriceList.customer_config_id == config.pricelist_config_id,
+                    CustomerPriceList.customer_id == pricelist_config.customer_id,
+                    CustomerPriceList.customer_config_id == pricelist_config_id,
                     publication_at.is_not(None),
                 )
                 .order_by(publication_at.desc(), CustomerPriceList.id.desc())

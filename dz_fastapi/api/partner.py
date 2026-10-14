@@ -1522,6 +1522,9 @@ def build_customer_source_response(
         provider_id=getattr(provider, "id", None),
         provider_name=getattr(provider, "name", None),
         provider_config_name=getattr(provider_config, "name_price", None),
+        provider_mailing_included_brands=(
+            getattr(provider_config, "mailing_included_brands", None) or []
+        ),
         is_own_price=bool(getattr(provider, "is_own_price", False)),
         enabled=bool(source.enabled),
         markup=source.markup,

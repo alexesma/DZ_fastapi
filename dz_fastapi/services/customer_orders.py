@@ -96,7 +96,12 @@ from dz_fastapi.services.customer_order_routing import compare_order_pricelists
 from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
-from dz_fastapi.services.process import _apply_source_filters, _apply_source_markups
+from dz_fastapi.services.process import (
+    _apply_provider_mailing_brand_whitelist,
+    _apply_source_filters,
+    _apply_source_markups,
+    _load_brand_filter_aliases,
+)
 from dz_fastapi.services.resend_api import fetch_received_emails_for_address
 
 logger = logging.getLogger("dz_fastapi")
@@ -1705,6 +1710,9 @@ async def _build_current_offers(
     required_oems: Optional[set[str]] = None,
 ) -> Dict[Tuple[str, str], OfferRow]:
     sources = await _get_order_offer_sources(session, config)
+    brand_filter_aliases = (
+        await _load_brand_filter_aliases(session) if session is not None else {}
+    )
     combined_data = []
     for source in sources:
         if not source.enabled:
@@ -1721,10 +1729,18 @@ async def _build_current_offers(
         )
         if df.empty:
             continue
-        # For order matching we ignore price/quantity thresholds from the
-        # outbound pricelist. A valid offer should still match even if it
-        # would be hidden from the mailed pricelist by stock/price limits.
-        df = _apply_source_filters(df, source, ignore_price_quantity_filters=True)
+        # Order allocation must see the same source rows that were eligible
+        # for the customer export. Otherwise a hidden brand, position or
+        # price/quantity range can leak back into an incoming order.
+        df = _apply_provider_mailing_brand_whitelist(
+            df,
+            getattr(source, "provider_config", None),
+        )
+        df = _apply_source_filters(
+            df,
+            source,
+            brand_filter_aliases=brand_filter_aliases,
+        )
         if df.empty:
             continue
         # Keep the original supplier price from the provider price list.
@@ -1737,7 +1753,7 @@ async def _build_current_offers(
             df,
             config,
             apply_general_markup=False,
-            ignore_price_quantity_filters=True,
+            brand_filter_aliases=brand_filter_aliases,
         )
         df = _apply_source_markups(df, config, source)
         combined_data.append(df)
@@ -2134,6 +2150,7 @@ async def _diagnose_missing_offer_reason(
         )
 
     key = _normalize_key(row.oem, row.brand, brand_aliases)
+    brand_filter_aliases = await _load_brand_filter_aliases(session)
     diagnostics: List[str] = []
     filtered_out = False
     nonpositive_offer = False
@@ -2172,7 +2189,15 @@ async def _diagnose_missing_offer_reason(
             nonpositive_offer = True
             continue
 
-        filtered_df = _apply_source_filters(raw_df, source, ignore_price_quantity_filters=True)
+        filtered_df = _apply_provider_mailing_brand_whitelist(
+            raw_df,
+            getattr(source, "provider_config", None),
+        )
+        filtered_df = _apply_source_filters(
+            filtered_df,
+            source,
+            brand_filter_aliases=brand_filter_aliases,
+        )
         filtered_df = _normalize_offer_dataframe_keys(filtered_df, brand_aliases)
         filtered_match = filtered_df[
             (filtered_df["__normalized_oem"] == key[0])
@@ -2198,7 +2223,7 @@ async def _diagnose_missing_offer_reason(
             apply_general_markup=False,
             provider_id=provider_id,
             is_own_price=own_flag,
-            ignore_price_quantity_filters=True,
+            brand_filter_aliases=brand_filter_aliases,
         )
         config_filtered_df = _normalize_offer_dataframe_keys(config_filtered_df, brand_aliases)
         config_match = config_filtered_df[
@@ -3162,11 +3187,14 @@ async def _resolve_pricelist_config(
     session: AsyncSession,
     config: CustomerOrderConfig,
 ) -> CustomerPriceListConfig | None:
-    if not config.pricelist_config_id:
+    config_id = (
+        config.reference_pricelist_config_id
+        or config.pricelist_config_id
+    )
+    if not config_id:
         return None
-    return await crud_customer_pricelist_config.get_by_id(
-        customer_id=config.customer_id,
-        config_id=config.pricelist_config_id,
+    return await crud_customer_pricelist_config.get_any_by_id(
+        config_id=config_id,
         session=session,
     )
 
@@ -3176,6 +3204,8 @@ async def _prepare_customer_order_context(
     config: CustomerOrderConfig,
     parsed_rows: List[ParsedOrderRow],
     snapshot_id: Optional[int] = None,
+    *,
+    require_published_pricelist: bool = False,
 ):
     brand_aliases = await _load_brand_alias_map(session)
     confirmed_cross_aliases = await _load_confirmed_own_cross_aliases(
@@ -3186,31 +3216,55 @@ async def _prepare_customer_order_context(
     requested_oems = {
         _normalize_oem_key(row.oem) for row in parsed_rows if _normalize_oem_key(row.oem)
     }
+    pricelist_config = await _resolve_pricelist_config(session, config)
     snapshot_options = {"snapshot_id": snapshot_id} if snapshot_id is not None else {}
-    last_pricelist = await _load_latest_customer_pricelist(
-        session,
-        config.customer_id,
-        config.pricelist_config_id,
-        normalized_oems=requested_oems,
-        **snapshot_options,
+    last_pricelist = (
+        await _load_latest_customer_pricelist(
+            session,
+            getattr(pricelist_config, "customer_id", config.customer_id),
+            pricelist_config.id,
+            normalized_oems=requested_oems,
+            **snapshot_options,
+        )
+        if pricelist_config is not None
+        else None
     )
+    if require_published_pricelist and last_pricelist is None:
+        raise ValueError(
+            "Для конфигурации обработки заказов нет опубликованного прайса. "
+            "Сначала сформируйте или отправьте клиентский прайс либо выберите "
+            "конфигурацию, по которой клиент действительно сделал заказ."
+        )
     expected_prices = (
         _build_expected_price_map(last_pricelist, brand_aliases) if last_pricelist else {}
     )
-    if snapshot_id is not None:
-        if last_pricelist is None:
-            raise ValueError("Сохранённая версия прайса заказа недоступна; проверьте его вручную")
-        exported = (await session.scalars(
+    if snapshot_id is not None and last_pricelist is None:
+        raise ValueError("Сохранённая версия прайса заказа недоступна; проверьте его вручную")
+    exact_export_rows = []
+    has_exact_export_snapshot = False
+    if last_pricelist is not None and session is not None:
+        has_exact_export_snapshot = bool(
+            await session.scalar(
+                select(CustomerPriceListExportRow.id)
+                .where(
+                    CustomerPriceListExportRow.customer_pricelist_id
+                    == last_pricelist.id
+                )
+                .limit(1)
+            )
+        )
+        exact_export_rows = (await session.scalars(
             select(CustomerPriceListExportRow).where(
-                CustomerPriceListExportRow.customer_pricelist_id == snapshot_id,
+                CustomerPriceListExportRow.customer_pricelist_id == last_pricelist.id,
                 CustomerPriceListExportRow.normalized_oem.in_(requested_oems),
             )
         )).all()
-        for row in exported:
+        if has_exact_export_snapshot:
+            expected_prices = {}
+        for row in exact_export_rows:
             expected_prices[_normalize_key(
                 row.advertised_oem, row.advertised_brand, brand_aliases,
             )] = float(row.price)
-    pricelist_config = await _resolve_pricelist_config(session, config)
     source_oems = (
         {
             _normalize_oem_key(alias.source_autopart.oem_number)
@@ -3241,6 +3295,12 @@ async def _prepare_customer_order_context(
         offers,
         brand_aliases,
     )
+    if has_exact_export_snapshot:
+        # The exported rows are the exact contract with the customer. Current
+        # supplier data may fulfil an advertised position, but it must not
+        # introduce a position that was absent from the selected snapshot.
+        published_keys = set(expected_prices)
+        offers = {key: offer for key, offer in offers.items() if key in published_keys}
     return expected_prices, offers, brand_aliases, pricelist_config
 
 
@@ -3279,6 +3339,7 @@ async def _process_manual_rows(
     parsed_rows: List[ParsedOrderRow],
     *,
     commit: bool = True,
+    require_published_pricelist: bool = False,
 ):
     await assert_customer_credit_available(
         session,
@@ -3293,6 +3354,7 @@ async def _process_manual_rows(
     ) = await _prepare_customer_order_context(
         session, config, parsed_rows,
         snapshot_id=(order.external_payload or {}).get("pricelist_routing", {}).get("pricelist_id"),
+        require_published_pricelist=require_published_pricelist,
     )
 
     order_items: List[CustomerOrderItem] = []
@@ -3793,7 +3855,13 @@ async def _complete_imported_order_processing(
     filename: str,
     total_amount: Optional[float],
 ) -> CustomerOrder:
-    order_items, rejected_items = await _process_manual_rows(session, config, order, parsed_rows)
+    order_items, rejected_items = await _process_manual_rows(
+        session,
+        config,
+        order,
+        parsed_rows,
+        require_published_pricelist=True,
+    )
     response_buffer = _build_order_response_buffer(file_ext, file_buffer, config, order_items)
     await _write_order_response_file(order, filename, file_ext, response_buffer)
     order.status = CUSTOMER_ORDER_STATUS.PROCESSED

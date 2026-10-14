@@ -38,6 +38,7 @@ from dz_fastapi.services.process import (
     _apply_provider_mailing_brand_whitelist,
     _apply_source_filters,
     _attach_catalog_filter_dimensions,
+    _collapse_duplicate_rows,
     _collapse_output_records,
     _round_customer_excel_prices_up,
     _round_customer_record_prices_up,
@@ -48,7 +49,12 @@ from dz_fastapi.services.process import (
     round_customer_price_up,
     source_pricelist_business_age,
 )
-from dz_fastapi.services.utils import REGULATORY_COLUMNS, prepare_excel_data_from_records
+from dz_fastapi.services.utils import (
+    REGULATORY_COLUMNS,
+    prepare_excel_data_from_records,
+    price_intervals,
+    supplier_quantity_filters,
+)
 
 
 def test_source_pricelist_age_counts_business_days():
@@ -122,6 +128,75 @@ def test_customer_prices_are_always_rounded_up_to_whole_ruble():
         pd.DataFrame([{"Артикул": "A1", "Цена": 25.785}])
     )
     assert excel.iloc[0]["Цена"] == 26
+
+
+def test_price_intervals_apply_only_first_matching_markup():
+    source = pd.DataFrame(
+        [
+            {"price": 900.0, "base_price": 900.0},
+            {"price": 1000.0, "base_price": 1000.0},
+            {"price": 1500.0, "base_price": 1500.0},
+        ]
+    )
+
+    result = price_intervals(
+        [
+            {"min_price": 0, "max_price": 1000, "coefficient": 1.3},
+            {"min_price": 1000, "max_price": 2000, "coefficient": 1.2},
+        ],
+        source,
+        basis_column="base_price",
+    )
+
+    assert result["price"].tolist() == [1170.0, 1300.0, 1800.0]
+
+
+def test_supplier_quantity_filter_keeps_unconfigured_providers_and_open_bounds():
+    source = pd.DataFrame(
+        [
+            {"provider_id": 10, "quantity": 4},
+            {"provider_id": 10, "quantity": 8},
+            {"provider_id": 20, "quantity": 1},
+        ]
+    )
+
+    result = supplier_quantity_filters(
+        [{"provider_id": 10, "min_quantity": 5, "max_quantity": None}],
+        source,
+    )
+
+    assert result.to_dict("records") == [
+        {"provider_id": 10, "quantity": 8},
+        {"provider_id": 20, "quantity": 1},
+    ]
+
+
+def test_empty_source_include_filter_does_not_remove_source_rows():
+    source = SimpleNamespace(
+        brand_filters={"type": "include", "brands": []},
+        position_filters={"type": "include", "autoparts": []},
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        additional_filters={},
+    )
+    source_df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 54,
+                "brand": "GEELY",
+                "oem_number": "A1",
+                "price": 100,
+                "quantity": 2,
+            }
+        ]
+    )
+
+    result = _apply_source_filters(source_df, source)
+
+    assert result["autopart_id"].tolist() == [1]
 
 
 def test_expand_dz_brands_ignores_dataframe_without_excel_schema():
@@ -271,6 +346,97 @@ def test_duplicate_policy_uses_price_then_stock_then_real_original():
     assert tied[0]["autopart_id"] == 2
 
 
+def test_physical_duplicate_policy_uses_stock_when_prices_are_equal():
+    result = _collapse_duplicate_rows(
+        pd.DataFrame(
+            [
+                {
+                    "autopart_id": 1,
+                    "brand": "GEELY",
+                    "oem_number": "1064001701",
+                    "price": 500,
+                    "quantity": 2,
+                    "is_own_price": False,
+                },
+                {
+                    "autopart_id": 2,
+                    "brand": "GEELY",
+                    "oem_number": "1064001701",
+                    "price": 500,
+                    "quantity": 8,
+                    "is_own_price": False,
+                },
+            ]
+        ),
+        prefer_min_price=True,
+    )
+
+    assert result["autopart_id"].tolist() == [2]
+
+
+@pytest.mark.parametrize("prefer_min_price", [True, False])
+def test_physical_duplicate_policy_always_prefers_own_offer(prefer_min_price):
+    result = _collapse_duplicate_rows(
+        pd.DataFrame(
+            [
+                {
+                    "autopart_id": 1,
+                    "brand": "GEELY",
+                    "oem_number": "1064001701",
+                    "price": 700,
+                    "quantity": 3,
+                    "multiplicity": 2,
+                    "is_own_price": True,
+                },
+                {
+                    "autopart_id": 1,
+                    "brand": "GEELY",
+                    "oem_number": "1064001701",
+                    "price": 500,
+                    "quantity": 20,
+                    "multiplicity": 1,
+                    "is_own_price": False,
+                },
+            ]
+        ),
+        prefer_min_price=prefer_min_price,
+    )
+
+    assert result.iloc[0]["price"] == 700
+    assert result.iloc[0]["quantity"] == 3
+    assert result.iloc[0]["multiplicity"] == 2
+    assert bool(result.iloc[0]["is_own_price"]) is True
+
+
+def test_output_duplicate_policy_always_prefers_own_offer():
+    result = _collapse_output_records(
+        [
+            {
+                "autopart_id": 1,
+                "brand": "GEELY",
+                "oem_number": "1064001701",
+                "price": 700,
+                "quantity": 3,
+                "is_own_price": True,
+            },
+            {
+                "autopart_id": 1,
+                "brand": "GEELY",
+                "oem_number": "1064001701",
+                "price": 500,
+                "quantity": 20,
+                "is_own_price": False,
+                "__publication_rule_fixed_price": True,
+            },
+        ]
+    )
+
+    assert len(result) == 1
+    assert result[0]["price"] == 700
+    assert result[0]["quantity"] == 3
+    assert result[0]["is_own_price"] is True
+
+
 def test_duplicate_policy_preserves_manual_fixed_publication_price():
     result = _collapse_output_records(
         [
@@ -356,6 +522,57 @@ def test_source_position_filter_can_include_or_exclude_exact_items():
     source.position_filters = {"type": "include", "autoparts": [2]}
     included = _apply_source_filters(source_df, source)
     assert included["autopart_id"].tolist() == [2]
+
+
+def test_source_brand_filter_applies_to_entire_synonym_family():
+    source = SimpleNamespace(
+        brand_filters={"type": "exclude", "brands": [10]},
+        position_filters={},
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        additional_filters={},
+    )
+    source_df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 10,
+                "brand": "BILSTEIN",
+                "oem_number": "ONE",
+                "price": 100,
+                "quantity": 1,
+            },
+            {
+                "autopart_id": 2,
+                "brand_id": 11,
+                "brand": "Bilstein",
+                "oem_number": "TWO",
+                "price": 100,
+                "quantity": 1,
+            },
+            {
+                "autopart_id": 3,
+                "brand_id": 12,
+                "brand": "OTHER",
+                "oem_number": "THREE",
+                "price": 100,
+                "quantity": 1,
+            },
+        ]
+    )
+
+    result = _apply_source_filters(
+        source_df,
+        source,
+        brand_filter_aliases={
+            10: frozenset({10, 11}),
+            11: frozenset({10, 11}),
+        },
+    )
+
+    assert result["autopart_id"].tolist() == [3]
 
 
 @pytest.mark.asyncio
@@ -607,6 +824,7 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
             ]
         ),
         automatic_aliases=[],
+        only_configured_when_rules_exist=True,
     )
 
     assert direct.empty
@@ -617,7 +835,7 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
     assert summary["manual_aliases"] == 2
     assert summary["unconfigured_positions"] == 1
 
-    direct_with_legacy_scope, _, legacy_summary = (
+    direct_with_default_scope, _, default_summary = (
         await _apply_customer_publication_rules(
             test_session,
             config_id=config.id,
@@ -643,11 +861,10 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
                 ]
             ),
             automatic_aliases=[],
-            only_configured_when_rules_exist=False,
         )
     )
-    assert direct_with_legacy_scope["autopart_id"].tolist() == [unconfigured.id]
-    assert legacy_summary["unconfigured_positions"] == 0
+    assert direct_with_default_scope["autopart_id"].tolist() == [unconfigured.id]
+    assert default_summary["unconfigured_positions"] == 0
 
 
 @pytest.mark.asyncio
@@ -951,6 +1168,45 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     assert review_source["excluded_from_delivery"] is True
     assert review_source["pending_review_id"] == review.id
     assert review_source["pending_review_filename"] == "new-price.xlsx"
+
+    newer_pricelist = PriceList(
+        date=date.today(),
+        provider_id=provider.id,
+        provider_config_id=provider_config.id,
+        is_active=True,
+    )
+    test_session.add(newer_pricelist)
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=newer_pricelist.id,
+            autopart_id=physical.id,
+            quantity=9,
+            price=510,
+        )
+    )
+    await test_session.commit()
+
+    newer_response = await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(
+            customer_id=customer.id,
+            config_id=config.id,
+            items=[],
+        ),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="draft",
+    )
+    newer_draft = await test_session.get(CustomerPriceList, newer_response.id)
+    newer_source = next(
+        row
+        for row in newer_draft.generation_summary["source_freshness"]
+        if row["provider_config_id"] == provider_config.id
+    )
+    assert newer_source["pricelist_id"] == newer_pricelist.id
+    assert newer_source["pending_review_id"] is None
+    assert newer_source["excluded_from_delivery"] is False
 
     source = (
         await test_session.execute(
