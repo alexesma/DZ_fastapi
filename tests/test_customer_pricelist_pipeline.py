@@ -346,6 +346,28 @@ def test_duplicate_policy_uses_price_then_stock_then_real_original():
     assert tied[0]["autopart_id"] == 2
 
 
+def test_duplicate_policy_keeps_original_record_without_copying():
+    expensive = {
+        "autopart_id": 1,
+        "brand": "GEELY",
+        "oem_number": "1064001701",
+        "price": 700,
+        "quantity": 3,
+    }
+    selected = {
+        "autopart_id": 2,
+        "brand": "GEELY",
+        "oem_number": "1064001701",
+        "price": 500,
+        "quantity": 2,
+    }
+
+    result = _collapse_output_records(iter((expensive, selected)))
+
+    assert result == [selected]
+    assert result[0] is selected
+
+
 def test_physical_duplicate_policy_uses_stock_when_prices_are_equal():
     result = _collapse_duplicate_rows(
         pd.DataFrame(

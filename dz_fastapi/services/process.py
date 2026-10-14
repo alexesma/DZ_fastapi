@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import hashlib
+import itertools
 import logging
 import os
 import re
@@ -10,7 +11,7 @@ from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import partial
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -1314,8 +1315,17 @@ def _apply_product_labels(
     return result
 
 
-def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Prefer own stock, then manual prices, price and available quantity."""
+def _collapse_output_records(
+    records: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Prefer own stock, then manual prices, price and available quantity.
+
+    Rows are only inspected and never mutated, so keep references to the
+    original dictionaries. Copying every row here is very expensive for a
+    client price with hundreds of thousands of offers: callers already own
+    these records, and the extra copies could push the API worker over its
+    memory limit while a file was built manually.
+    """
 
     origin_rank = {
         "original_source": 0,
@@ -1323,8 +1333,7 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
         "dragonzap_source": 2,
     }
     selected: dict[tuple[str, str], dict[str, Any]] = {}
-    for source in records:
-        row = dict(source)
+    for row in records:
         key = (
             _normalize_dedup_brand_key(row.get("brand")),
             _normalize_dedup_oem_key(row.get("oem_number")),
@@ -4241,20 +4250,15 @@ async def _process_customer_pricelist_unlocked(
         direct_output_records if pipeline_v2 else customer_autoparts_data
     )
     if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
+        direct_record_ids = {id(row) for row in main_records}
         ranked_output = _collapse_output_records(
-            [
-                *({**row, "__output_group": "direct"} for row in main_records),
-                *(
-                    {**row, "__output_group": "alias"}
-                    for row in dragonzap_alias_records
-                ),
-            ]
+            itertools.chain(main_records, dragonzap_alias_records)
         )
         main_records = [
-            row for row in ranked_output if row.get("__output_group") == "direct"
+            row for row in ranked_output if id(row) in direct_record_ids
         ]
         dragonzap_alias_records = [
-            row for row in ranked_output if row.get("__output_group") == "alias"
+            row for row in ranked_output if id(row) not in direct_record_ids
         ]
     # Обязательные реквизиты подтягиваем одним запросом на всю выгрузку,
     # включая позиции-источники и алиасы Dragonzap.
