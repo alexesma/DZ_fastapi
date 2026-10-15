@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import case, delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload, lazyload, selectinload
+from sqlalchemy.orm import joinedload, lazyload, raiseload, selectinload
 from sqlalchemy.sql import and_
 
 from dz_fastapi.api.validators import change_brand_name
@@ -1351,14 +1351,20 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
         result = await session.execute(select(Customer).where(Customer.name == customer))
         return result.scalar_one_or_none()
 
-    async def get_by_id(self, customer_id: int, session: AsyncSession) -> Optional[Customer]:
-        result = await session.execute(
-            select(Customer)
-            .options(
+    async def get_by_id(
+        self, customer_id: int, session: AsyncSession, *, load_relations: bool = True
+    ) -> Optional[Customer]:
+        # Generation needs only customer scalars, never all historical price rows.
+        options = (
+            [
                 selectinload(Customer.customer_price_lists),
                 selectinload(Customer.external_references),
-            )
-            .where(Customer.id == customer_id)
+            ]
+            if load_relations
+            else [raiseload("*")]
+        )
+        result = await session.execute(
+            select(Customer).options(*options).where(Customer.id == customer_id)
         )
         return result.scalar_one_or_none()
 
@@ -2367,10 +2373,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         return sorted(pricelist_ids)
 
     async def get_latest_pricelist_by_config(
-        self, session: AsyncSession, provider_config_id: int
+        self, session: AsyncSession, provider_config_id: int, *, load_relations: bool = True
     ) -> Optional[PriceList]:
         stmt = (
             select(PriceList)
+            .options(*([] if load_relations else [raiseload("*")]))
             .where(PriceList.provider_config_id == provider_config_id)
             .order_by(PriceList.date.desc().nullslast(), PriceList.id.desc())
             .limit(1)
@@ -3217,9 +3224,13 @@ class CRUDCustomerPriceListConfig(
         customer_id: int,
         config_id: int,
         session: AsyncSession,
+        *,
+        load_relations: bool = True,
     ) -> Optional[CustomerPriceListConfig]:
         result = await session.execute(
-            select(CustomerPriceListConfig).where(
+            select(CustomerPriceListConfig)
+            .options(*([] if load_relations else [raiseload("*")]))
+            .where(
                 and_(
                     CustomerPriceListConfig.id == config_id,
                     CustomerPriceListConfig.customer_id == customer_id,
@@ -3329,11 +3340,12 @@ class CRUDCustomerPriceListSource(
         return result.scalar_one_or_none()
 
     async def get_by_config_id(
-        self, config_id: int, session: AsyncSession
+        self, config_id: int, session: AsyncSession, *, load_relations: bool = True
     ) -> List[CustomerPriceListSource]:
         result = await session.execute(
             select(CustomerPriceListSource)
             .options(
+                *([] if load_relations else [raiseload("*")]),
                 selectinload(CustomerPriceListSource.provider_config).selectinload(
                     ProviderPriceListConfig.provider
                 )

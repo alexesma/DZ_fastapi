@@ -14,7 +14,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload, noload, selectinload
+from sqlalchemy.orm import joinedload, noload, raiseload, selectinload
 
 from dz_fastapi.analytics.price_history import (
     analyze_autopart_popularity,
@@ -136,7 +136,9 @@ from dz_fastapi.schemas.partner import (
     SupplierResponseConfigOut,
     SupplierResponseConfigUpdate,
 )
+from dz_fastapi.schemas.pricelist_job import CustomerPricelistJobCreate
 from dz_fastapi.services.crosses import load_bidirectional_cross_members
+from dz_fastapi.services.customer_pricelist_jobs import enqueue_job, get_job_state, job_response
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.monitoring import provider_config_intake_problems
@@ -438,6 +440,7 @@ async def _load_customer_pricelist_draft(
             await session.execute(
                 select(CustomerPriceList)
                 .options(
+                    raiseload("*"),
                     selectinload(CustomerPriceList.approved_by_user),
                     selectinload(CustomerPriceList.rejected_by_user),
                 )
@@ -2909,6 +2912,37 @@ async def delete_customer_pricelist_source(
 
 
 @router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/jobs",
+    tags=["customers", "pricelists"], status_code=202,
+)
+async def enqueue_customer_pricelist_job(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPricelistJobCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    job = await enqueue_job(
+        session, customer_id=customer_id, config_id=config_id,
+        action=payload.action, pricelist_id=payload.pricelist_id, user_id=current_user.id,
+    )
+    return job_response(job)
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/jobs",
+    tags=["customers", "pricelists"],
+)
+async def customer_pricelist_job_state(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    return await get_job_state(session, customer_id, config_id)
+
+
+@router.post(
     "/customers/{customer_id}/pricelist-configs/{config_id}/send-now",
     tags=["customers"],
     status_code=status.HTTP_200_OK,
@@ -2920,12 +2954,15 @@ async def send_customer_pricelist_now(
     config_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    customer = await crud_customer.get_by_id(
+        customer_id=customer_id, session=session, load_relations=False
+    )
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     config = await crud_customer_pricelist_config.get_by_id(
-        session=session, customer_id=customer_id, config_id=config_id
+        session=session, customer_id=customer_id, config_id=config_id,
+        load_relations=False,
     )
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found for this customer")
@@ -2969,11 +3006,14 @@ async def build_customer_pricelist_file(
     Нужен, чтобы посмотреть, что уедет клиенту, до отправки: раньше для
     этого приходилось отправлять письмо себе.
     """
-    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    customer = await crud_customer.get_by_id(
+        customer_id=customer_id, session=session, load_relations=False
+    )
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     config = await crud_customer_pricelist_config.get_by_id(
-        session=session, customer_id=customer_id, config_id=config_id
+        session=session, customer_id=customer_id, config_id=config_id,
+        load_relations=False,
     )
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found for this customer")
@@ -3309,11 +3349,14 @@ async def build_customer_pricelist_draft(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
-    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    customer = await crud_customer.get_by_id(
+        customer_id=customer_id, session=session, load_relations=False
+    )
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     config = await crud_customer_pricelist_config.get_by_id(
-        session=session, customer_id=customer_id, config_id=config_id
+        session=session, customer_id=customer_id, config_id=config_id,
+        load_relations=False,
     )
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
@@ -3347,6 +3390,7 @@ async def list_customer_pricelist_drafts(
             await session.execute(
                 select(CustomerPriceList)
                 .options(
+                    raiseload("*"),
                     selectinload(CustomerPriceList.approved_by_user),
                     selectinload(CustomerPriceList.rejected_by_user),
                 )
@@ -3765,9 +3809,12 @@ async def approve_customer_pricelist_draft(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(require_admin),
 ):
-    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    customer = await crud_customer.get_by_id(
+        customer_id=customer_id, session=session, load_relations=False
+    )
     config = await crud_customer_pricelist_config.get_by_id(
-        session=session, customer_id=customer_id, config_id=config_id
+        session=session, customer_id=customer_id, config_id=config_id,
+        load_relations=False,
     )
     pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
     if not customer or not config or not pricelist:

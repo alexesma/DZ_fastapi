@@ -595,6 +595,12 @@ async def sync_partssoft_documents_task(app: FastAPI):
             logger.info("Parts-Soft documents synchronized: %s", result)
 
 
+async def process_manual_customer_pricelists_task(app: FastAPI):
+    from dz_fastapi.services.customer_pricelist_jobs import run_pricelist_jobs
+
+    await run_pricelist_jobs(app.state.session_factory)
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -609,6 +615,19 @@ def start_scheduler(app: FastAPI):
             # задача встаёт в очередь и выполняется
             # как только event loop освободится.
         },
+    )
+
+    scheduler.add_job(
+        func=process_manual_customer_pricelists_task,
+        trigger="interval",
+        args=[app],
+        id="manual_customer_pricelists",
+        name="Process manual customer pricelist queue",
+        seconds=10,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        next_run_time=now_moscow(),
     )
 
     scheduler.add_job(

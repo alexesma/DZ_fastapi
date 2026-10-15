@@ -142,8 +142,9 @@ from dz_fastapi.models.price_control import (
     PriceControlSource,
     PriceControlSourceRecommendation,
 )
-from dz_fastapi.models.relay import RelayHeartbeat  # noqa
+from dz_fastapi.models.pricelist_job import CustomerPricelistJob  # noqa
 from dz_fastapi.models.process_architecture import ProcessArchitectureAnnotation  # noqa
+from dz_fastapi.models.relay import RelayHeartbeat  # noqa
 from dz_fastapi.models.settings import (
     CustomerOrderInboxSettings,
     DiadocIntegrationSettings,
@@ -160,6 +161,7 @@ from dz_fastapi.models.watchlist import PriceWatchItem
 from dz_fastapi.models.webchat import ChatMessage
 
 __all__ = [
+    "CustomerPricelistJob",
     "Base",
     "AutoPart",
     "Photo",

@@ -11,7 +11,8 @@ from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import partial
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from time import monotonic
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -1625,6 +1626,7 @@ async def _load_customer_benchmark_prices(
         pricelist = await crud_pricelist.get_latest_pricelist_by_config(
             session=session,
             provider_config_id=int(provider_config_id),
+            load_relations=False,
         )
         if pricelist is not None:
             latest_ids.append(int(pricelist.id))
@@ -3387,6 +3389,7 @@ async def _persist_customer_pricelist_artifact(
     direct_records: list[dict[str, Any]],
     alias_records: list[dict[str, Any]],
     session: AsyncSession,
+    progress_callback=None,
 ) -> bytes:
     """Persist the exact attachment and searchable rows before delivery."""
 
@@ -3412,6 +3415,7 @@ async def _persist_customer_pricelist_artifact(
 
     await asyncio.to_thread(_write_artifact)
 
+    await _pricelist_progress(progress_callback, "Файл создан. Сохранение строк для поиска", 88)
     direct_lookup: dict[tuple[str, str], dict[str, Any]] = {}
     oem_lookup: dict[str, dict[str, Any]] = {}
     for record in direct_records:
@@ -3432,7 +3436,7 @@ async def _persist_customer_pricelist_artifact(
         alias_lookup[key] = record
 
     insert_rows: list[dict[str, Any]] = []
-    for row in df_excel.itertuples(index=False, name=None):
+    for row_index, row in enumerate(df_excel.itertuples(index=False, name=None), start=1):
         values = dict(zip(df_excel.columns, row))
         brand = str(values.get("Производитель") or "").strip()
         oem = str(values.get("Артикул") or "").strip()
@@ -3485,6 +3489,11 @@ async def _persist_customer_pricelist_artifact(
         if len(insert_rows) >= 5000:
             await session.execute(insert(CustomerPriceListExportRow), insert_rows)
             insert_rows.clear()
+            await _pricelist_progress(
+                progress_callback,
+                f"Сохранение строк прайса: {row_index} из {len(df_excel)}",
+                88 + int(6 * row_index / max(1, len(df_excel))),
+            )
     if insert_rows:
         await session.execute(insert(CustomerPriceListExportRow), insert_rows)
 
@@ -3501,16 +3510,24 @@ async def _persist_customer_pricelist_artifact(
     return attachment_bytes
 
 
+async def _pricelist_progress(callback, stage: str, percent: int) -> None:
+    if callback is not None:
+        await callback(stage, percent)
+
+
 async def _process_customer_pricelist_unlocked(
     customer: Customer,
     request: CustomerPriceListCreate,
     session: AsyncSession,
     include_autoparts_response: bool = True,
     delivery_mode: str = "auto",
+    progress_callback: Optional[Callable[[str, int], Awaitable[None]]] = None,
 ) -> CustomerPriceListResponse:
 
+    await _pricelist_progress(progress_callback, "Чтение настроек прайса", 5)
     config = await crud_customer_pricelist_config.get_by_id(
-        config_id=request.config_id, customer_id=customer.id, session=session
+        config_id=request.config_id, customer_id=customer.id, session=session,
+        load_relations=False,
     )
     if not config:
         raise HTTPException(
@@ -3545,6 +3562,7 @@ async def _process_customer_pricelist_unlocked(
     configured_sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config.id,
         session=session,
+        load_relations=False,
     )
 
     # Старые клиенты API могли передавать произвольные ID прайсов в ``items``.
@@ -3617,9 +3635,16 @@ async def _process_customer_pricelist_unlocked(
         )
         stale_sources: list[dict[str, Any]] = []
         today = now_moscow().date()
-        for source in enabled_sources:
+        for source_index, source in enumerate(enabled_sources):
+            source_label = source.provider_config.name_price or str(source.provider_config_id)
+            await _pricelist_progress(
+                progress_callback,
+                f"Чтение источника {source_index + 1}/{len(enabled_sources)}: {source_label}",
+                10 + int(35 * source_index / max(1, len(enabled_sources))),
+            )
             latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
-                session=session, provider_config_id=source.provider_config_id
+                session=session, provider_config_id=source.provider_config_id,
+                load_relations=False,
             )
             filtered_df = None
             source_rows_before = 0
@@ -3701,6 +3726,12 @@ async def _process_customer_pricelist_unlocked(
                         "provider_mailing_brands": provider_mailing_brands,
                     }
                 )
+            logger.info(
+                "Customer pricelist source loaded: config_id=%s source_id=%s "
+                "pricelist_id=%s rows_before=%s rows_after=%s",
+                config.id, source.id, latest_pl.id if latest_pl else None,
+                source_rows_before, len(filtered_df) if filtered_df is not None else 0,
+            )
             participates = filtered_df is None or not filtered_df.empty
             pending_review = (
                 await session.execute(
@@ -3842,6 +3873,7 @@ async def _process_customer_pricelist_unlocked(
                 ),
             )
 
+    await _pricelist_progress(progress_callback, "Объединение предложений и расчёт цен", 48)
     if combined_data:
         final_df = pd.concat(combined_data, ignore_index=True)
     else:
@@ -4224,6 +4256,7 @@ async def _process_customer_pricelist_unlocked(
     dragonzap_source_records = _round_customer_record_prices_up(dragonzap_source_records)
     dragonzap_alias_records = _round_customer_record_prices_up(dragonzap_alias_records)
 
+    await _pricelist_progress(progress_callback, "Сохранение позиций прайса", 65)
     customer_pricelist = CustomerPriceList(
         customer_id=customer.id,
         customer_config_id=config.id,
@@ -4244,6 +4277,7 @@ async def _process_customer_pricelist_unlocked(
         session=session,
         load_associations=include_autoparts_response,
     )
+    await _pricelist_progress(progress_callback, "Подготовка таблицы и кроссов", 72)
     # Prepare data for Excel file: строим из уже готовых записей,
     # без зависимости от перезагруженных ассоциаций.
     main_records = (
@@ -4294,6 +4328,7 @@ async def _process_customer_pricelist_unlocked(
             benchmark_pricelist = await crud_pricelist.get_latest_pricelist_by_config(
                 session=session,
                 provider_config_id=int(benchmark_config_id),
+                load_relations=False,
             )
         if benchmark_pricelist is None:
             provider_diller = await crud_provider.get_provider_or_none(
@@ -4588,6 +4623,7 @@ async def _process_customer_pricelist_unlocked(
     }
     customer_pricelist.generation_summary = generation_summary
     customer_pricelist.generation_status = "draft"
+    await _pricelist_progress(progress_callback, "Создание файла и сохранение строк", 85)
     attachment_bytes = await _persist_customer_pricelist_artifact(
         customer_pricelist=customer_pricelist,
         customer=customer,
@@ -4596,9 +4632,15 @@ async def _process_customer_pricelist_unlocked(
         direct_records=(direct_output_records if pipeline_v2 else customer_autoparts_data),
         alias_records=dragonzap_alias_records,
         session=session,
+        progress_callback=progress_callback,
     )
     await session.commit()
 
+    logger.info(
+        "Customer pricelist artifact ready: config_id=%s pricelist_id=%s rows=%s bytes=%s",
+        config.id, customer_pricelist.id, customer_pricelist.positions_count,
+        len(attachment_bytes),
+    )
     should_send = delivery_mode == "send" or (
         delivery_mode == "auto" and not customer_pricelist_requires_draft(config)
     )
@@ -4648,6 +4690,7 @@ async def _process_customer_pricelist_unlocked(
                 "email для исходящего прайса в карточке клиента."
             )
     if should_send:
+        await _pricelist_progress(progress_callback, "Отправка прайса", 95)
         logger.debug("Calling send_pricelist")
         try:
             delivery_result = await send_pricelist(
@@ -4716,10 +4759,17 @@ async def process_customer_pricelist(
     session: AsyncSession,
     include_autoparts_response: bool = True,
     delivery_mode: str = "auto",
+    progress_callback: Optional[Callable[[str, int], Awaitable[None]]] = None,
+    lock_token: Optional[str] = None,
 ) -> CustomerPriceListResponse:
     """Generate one config at a time across HTTP and scheduler processes."""
     customer_id = int(request.customer_id)
-    lock_token = uuid.uuid4().hex
+    started_at = monotonic()
+    logger.info(
+        "Customer pricelist generation started: customer_id=%s config_id=%s mode=%s",
+        customer_id, request.config_id, delivery_mode,
+    )
+    lock_token = lock_token or uuid.uuid4().hex
     locked_at = now_moscow()
     stale_before = locked_at - timedelta(hours=2)
     claimed_id = await session.scalar(
@@ -4765,13 +4815,30 @@ async def process_customer_pricelist(
         locked_customer = await session.get(Customer, customer_id)
         if locked_customer is None:
             raise HTTPException(status_code=404, detail="Customer not found")
-        return await _process_customer_pricelist_unlocked(
+        result = await _process_customer_pricelist_unlocked(
             customer=locked_customer,
             request=request,
             session=session,
             include_autoparts_response=include_autoparts_response,
             delivery_mode=delivery_mode,
+            progress_callback=progress_callback,
         )
+        logger.info(
+            "Customer pricelist generation completed: customer_id=%s config_id=%s "
+            "pricelist_id=%s status=%s rows=%s duration_seconds=%.1f",
+            customer_id, request.config_id, result.id, result.generation_status,
+            result.positions_count, monotonic() - started_at,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(
+            "Customer pricelist generation failed: customer_id=%s config_id=%s "
+            "duration_seconds=%.1f",
+            customer_id, request.config_id, monotonic() - started_at,
+        )
+        raise
     finally:
         # The implementation intentionally commits its long stages. A token
         # prevents an old worker from clearing a newer lock after stale-lock
