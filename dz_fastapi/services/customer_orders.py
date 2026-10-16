@@ -3595,11 +3595,15 @@ async def _get_customer_order_for_processing(
 async def _partssoft_local_processing_config(
     session: AsyncSession,
     order: CustomerOrder,
+    *,
+    require_inn: bool = True,
 ) -> tuple[CustomerOrderConfig | None, str | None]:
-    """Return the single valid wholesale route or an explicit review reason."""
+    """Resolve a Parts-Soft wholesale route or expose candidates for review."""
 
     customer = await session.get(Customer, int(order.customer_id))
-    if customer is None or not re.sub(r"\D", "", str(customer.inn or "")):
+    if customer is None or (
+        require_inn and not re.sub(r"\D", "", str(customer.inn or ""))
+    ):
         return None, None
     configs = [
         config
@@ -3607,13 +3611,50 @@ async def _partssoft_local_processing_config(
             session=session,
             customer_id=order.customer_id,
         )
-        if config.pricelist_config_id
+        if config.pricelist_config_id or config.reference_pricelist_config_id
     ]
-    if len(configs) > 1:
-        return None, "CONFIG_AMBIGUOUS"
     if not configs:
         return None, "WHOLESALE_CONFIG_MISSING"
-    return configs[0], None
+    selected = next(
+        (config for config in configs if config.id == order.order_config_id),
+        None,
+    )
+    if selected is not None:
+        return selected, None
+    if len(configs) == 1:
+        return configs[0], None
+
+    rows = [
+        ParsedOrderRow(
+            row_index=item.row_index or index,
+            oem=item.oem,
+            brand=item.brand,
+            name=item.name,
+            requested_qty=item.requested_qty,
+            requested_price=item.requested_price,
+        )
+        for index, item in enumerate(order.items or [], start=1)
+    ]
+    if not rows:
+        return None, "ORDER_ITEMS_MISSING"
+    routing = await compare_order_pricelists(
+        session,
+        [{"config": config, "rows": rows, "filename": None} for config in configs],
+        order.received_at or now_moscow(),
+        _normalize_key,
+        _estimate_customer_order_rejections,
+    )
+    order.external_payload = {
+        **(order.external_payload or {}),
+        "pricelist_routing": routing,
+    }
+    if routing["selected_order_config_id"] is None:
+        return None, "CONFIG_AMBIGUOUS"
+    selected = next(
+        config for config in configs if config.id == routing["selected_order_config_id"]
+    )
+    order.order_config_id = selected.id
+    return selected, None
 
 
 def _build_order_response_buffer(
@@ -4250,6 +4291,11 @@ async def process_manual_customer_order(
             order.processing_state = review_reason
             session.add(order)
             await session.commit()
+            if review_reason == "CONFIG_AMBIGUOUS":
+                raise ValueError(
+                    "Не удалось однозначно выбрать прайс. "
+                    "Выберите конфигурацию в карточке заказа"
+                )
             raise ValueError(
                 f"Маршрут оптового заказа Parts-Soft требует настройки: {review_reason}"
             )
@@ -4383,22 +4429,18 @@ async def force_process_partssoft_customer_order(
     if str(order.external_source or "").upper() != "PARTS_SOFT":
         raise ValueError("Принудительная обработка доступна только для заказов Parts-Soft")
 
-    configs = [
-        config
-        for config in await crud_customer_order_config.list_by_customer_id(
-            session=session,
-            customer_id=order.customer_id,
-        )
-        if config.pricelist_config_id
-    ]
-    if not configs:
+    config, review_reason = await _partssoft_local_processing_config(
+        session,
+        order,
+        require_inn=False,
+    )
+    if config is None:
+        order.processing_state = review_reason
+        session.add(order)
+        await session.commit()
+        if review_reason == "CONFIG_AMBIGUOUS":
+            raise ValueError("Выберите конфигурацию прайса в карточке заказа")
         raise ValueError("Для клиента не настроена конфигурация заказов с клиентским прайсом")
-    if len(configs) > 1:
-        raise ValueError(
-            "У клиента несколько активных конфигураций заказов; "
-            "оставьте одну или выберите маршрут вручную"
-        )
-    config = configs[0]
 
     item_ids = [int(item.id) for item in (order.items or [])]
     if not item_ids:
@@ -4541,29 +4583,43 @@ async def select_customer_order_pricelist(
     if order is None:
         raise LookupError("Заказ не найден")
     routing = (order.external_payload or {}).get("pricelist_routing") or {}
-    if routing.get("basis") != "review_required" or order.status != CUSTOMER_ORDER_STATUS.ERROR:
+    is_partssoft = str(order.external_source or "").upper() == "PARTS_SOFT"
+    allowed_status = (
+        order.status in (CUSTOMER_ORDER_STATUS.NEW, CUSTOMER_ORDER_STATUS.PROCESSED)
+        if is_partssoft
+        else order.status == CUSTOMER_ORDER_STATUS.ERROR
+    )
+    if routing.get("basis") != "review_required" or not allowed_status:
         raise ValueError("Заказ не ожидает выбора конфигурации")
-    if await session.scalar(select(CustomerOrderItem.id).where(
+    if not is_partssoft and await session.scalar(select(CustomerOrderItem.id).where(
         CustomerOrderItem.order_id == order.id,
     ).limit(1)):
         raise ValueError("В заказе уже есть обработанные позиции; смена конфигурации запрещена")
     candidate = next((row for row in routing.get("candidates", [])
                       if row["order_config_id"] == config_id), None)
     config = await session.get(CustomerOrderConfig, config_id)
+    effective_pricelist_config_id = (
+        config.reference_pricelist_config_id or config.pricelist_config_id
+        if config is not None
+        else None
+    )
     if (candidate is None or config is None or not config.is_active
             or config.customer_id != order.customer_id
-            or config.pricelist_config_id != candidate["pricelist_config_id"]):
+            or effective_pricelist_config_id != candidate["pricelist_config_id"]):
         raise ValueError("Выбранная конфигурация недоступна для этого заказа")
-    # Each parser may have selected a different attachment. Only the saved file
-    # may be retried; never apply a choice that refers to another attachment.
-    if candidate.get("filename") and candidate["filename"] != order.source_filename:
-        raise ValueError("Конфигурация относится к другому вложению; загрузите его отдельно")
-    source_bytes = await _load_order_source_file(order)
-    if not source_bytes:
-        raise ValueError("Исходный файл недоступен. Загрузите заказ заново")
-    parsed = _parse_order_attachment(source_bytes, order.source_filename or "order.xlsx", config)
-    if not parsed[0]:
-        raise ValueError("В файле не распознаны позиции. Проверьте настройки разбора")
+    if not is_partssoft:
+        # Each parser may have selected a different attachment. Only the saved
+        # file may be retried; never apply a choice that refers to another attachment.
+        if candidate.get("filename") and candidate["filename"] != order.source_filename:
+            raise ValueError("Конфигурация относится к другому вложению; загрузите его отдельно")
+        source_bytes = await _load_order_source_file(order)
+        if not source_bytes:
+            raise ValueError("Исходный файл недоступен. Загрузите заказ заново")
+        parsed = _parse_order_attachment(
+            source_bytes, order.source_filename or "order.xlsx", config
+        )
+        if not parsed[0]:
+            raise ValueError("В файле не распознаны позиции. Проверьте настройки разбора")
     routing = {
         **routing, "basis": "manual", "selected_order_config_id": config.id,
         "pricelist_id": candidate.get("pricelist_id"),
@@ -4572,6 +4628,9 @@ async def select_customer_order_pricelist(
     order.order_config_id = config.id
     order.external_payload = {**(order.external_payload or {}), "pricelist_routing": routing}
     order.error_details = "Конфигурация выбрана. Нажмите «Повторить обработку»."
+    if is_partssoft:
+        order.processing_state = "CONFIG_SELECTED"
+        order.error_details = "Конфигурация выбрана. Запустите обработку заказа ещё раз."
     await session.commit()
 
 

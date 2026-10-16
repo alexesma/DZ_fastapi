@@ -1252,6 +1252,114 @@ async def test_site_processed_partssoft_order_can_be_forced_into_local_workflow(
 
 
 @pytest.mark.asyncio
+async def test_ambiguous_partssoft_order_exposes_and_accepts_manual_route(
+    test_session,
+    monkeypatch,
+):
+    from dz_fastapi.services import customer_orders
+
+    customer = Customer(
+        name="Оптовый клиент с несколькими прайсами",
+        inn="7701234567",
+    )
+    test_session.add(customer)
+    await test_session.flush()
+    price_configs = [
+        CustomerPriceListConfig(customer_id=customer.id, name=name)
+        for name in ("Основной прайс", "Дополнительный прайс")
+    ]
+    test_session.add_all(price_configs)
+    await test_session.flush()
+    configs = [
+        CustomerOrderConfig(
+            customer_id=customer.id,
+            pricelist_config_id=price_config.id,
+            oem_col=0,
+            brand_col=1,
+            qty_col=2,
+        )
+        for price_config in price_configs
+    ]
+    order = CustomerOrder(
+        customer_id=customer.id,
+        external_source="PARTS_SOFT",
+        external_order_id="ambiguous-9013",
+        status=CUSTOMER_ORDER_STATUS.NEW,
+    )
+    test_session.add_all([*configs, order])
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=order.id,
+            row_index=1,
+            oem="AMB-1",
+            brand="TEST",
+            requested_qty=1,
+            requested_price=Decimal("100"),
+            status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+        )
+    )
+    await test_session.commit()
+
+    async def require_choice(*_args, **_kwargs):
+        return {
+            "basis": "review_required",
+            "comparison": "latest_pricelists",
+            "review_reason": "Одинаковый ожидаемый процент отказа",
+            "selected_order_config_id": None,
+            "pricelist_id": None,
+            "received_at": service.now_moscow().isoformat(),
+            "candidates": [
+                {
+                    "order_config_id": config.id,
+                    "pricelist_config_id": config.pricelist_config_id,
+                    "name": price_config.name,
+                    "filename": None,
+                    "pricelist_id": 1000 + config.id,
+                    "rejected_pct": 10,
+                }
+                for config, price_config in zip(configs, price_configs)
+            ],
+        }
+
+    monkeypatch.setattr(customer_orders, "compare_order_pricelists", require_choice)
+    with pytest.raises(ValueError, match="Выберите конфигурацию"):
+        await customer_orders.process_manual_customer_order(test_session, order.id)
+
+    await test_session.refresh(order)
+    routing = order.external_payload["pricelist_routing"]
+    assert routing["basis"] == "review_required"
+    assert len(routing["candidates"]) == 2
+    assert order.processing_state == "CONFIG_AMBIGUOUS"
+
+    await customer_orders.select_customer_order_pricelist(
+        test_session,
+        order.id,
+        configs[1].id,
+        user_id=1,
+    )
+    await test_session.refresh(order)
+    assert order.order_config_id == configs[1].id
+    assert order.external_payload["pricelist_routing"]["basis"] == "manual"
+    assert order.processing_state == "CONFIG_SELECTED"
+
+    calls = []
+
+    async def fake_local_processing(session, selected_order, selected_config):
+        calls.append((selected_order.id, selected_config.id))
+        return selected_order
+
+    monkeypatch.setattr(
+        customer_orders,
+        "_process_partssoft_wholesale_order",
+        fake_local_processing,
+    )
+    processed = await customer_orders.process_manual_customer_order(test_session, order.id)
+    assert processed.id == order.id
+    assert calls == [(order.id, configs[1].id)]
+
+
+@pytest.mark.asyncio
 async def test_reconciliation_reads_saved_seven_day_snapshot(
     test_session,
     created_customers,
