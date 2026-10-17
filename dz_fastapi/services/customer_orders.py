@@ -715,6 +715,20 @@ def _normalize_email_list(values: Optional[List[str]]) -> List[str]:
     return [str(v).strip().lower() for v in values if str(v).strip()]
 
 
+def _config_sender_emails(config: CustomerOrderConfig) -> list[str]:
+    """Адреса отправителей настройки без повторов.
+
+    Один и тот же адрес бывает и в ``order_email``, и в ``order_emails``.
+    Раньше настройка попадала в список кандидатов письма дважды, система
+    принимала её за две конкурирующие конфигурации и отказывалась выбирать
+    прайс («одинаковый минимальный процент отказа»).
+    """
+    emails = _normalize_email_list(config.order_emails)
+    if config.order_email:
+        emails.append(config.order_email.strip().lower())
+    return list(dict.fromkeys(email for email in emails if email))
+
+
 def _normalize_email_account_ids(values) -> list[int]:
     if not values:
         return []
@@ -5025,9 +5039,7 @@ async def process_customer_orders(
     global_configs_for_uid: list[CustomerOrderConfig] = []
     account_configs_for_uid: dict[int, list[CustomerOrderConfig]] = {}
     for config in configs:
-        emails = _normalize_email_list(config.order_emails)
-        if config.order_email:
-            emails.append(config.order_email.lower())
+        emails = _config_sender_emails(config)
         config_account_ids = _get_config_email_account_ids(config)
         for email in emails:
             config_by_email.setdefault(email, []).append(config)

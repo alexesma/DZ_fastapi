@@ -3415,3 +3415,16 @@ async def test_document_receipt_unmatched_row_links_site_order_item(
     assert order_item.received_quantity == 4
     assert order_item.status == TYPE_ORDER_ITEM_STATUS.DELIVERED
     assert order.status == TYPE_STATUS_ORDER.ARRIVED
+
+
+def test_config_sender_emails_has_no_duplicates():
+    from types import SimpleNamespace
+
+    from dz_fastapi.services.customer_orders import _config_sender_emails
+
+    config = SimpleNamespace(
+        order_email="Meh_Order@stparts.ru ",
+        order_emails=["meh_order@stparts.ru", "other@stparts.ru"],
+    )
+    assert _config_sender_emails(config) == ["meh_order@stparts.ru", "other@stparts.ru"]
+    assert _config_sender_emails(SimpleNamespace(order_email=None, order_emails=None)) == []
