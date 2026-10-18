@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -2302,7 +2302,11 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                                 .where(
                                     CustomerPriceList.customer_config_id.in_(config_ids),
                                     CustomerPriceList.generated_at.is_not(None),
-                                    CustomerPriceList.generation_status.in_(("queued", "sent")),
+                                    or_(
+                                        CustomerPriceList.generation_status.in_(("queued", "sent")),
+                                        # прайс собран и действует без рассылки (нет получателей)
+                                        CustomerPriceList.published_at.is_not(None),
+                                    ),
                                 )
                                 .group_by(CustomerPriceList.customer_config_id)
                             )

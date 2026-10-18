@@ -423,3 +423,121 @@ async def test_regular_run_fetches_all_interrupted_order_uids(
 
     assert captured["last_uid"] == 1300
     assert captured["additional_uids"] == {1205, 1210}
+
+
+def _order_xlsx(rows):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    for row in rows:
+        sheet.append(row)
+    buffer = BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_one_failing_email_does_not_block_the_rest_of_the_batch(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    """Письмо, на котором обработка падает, не должно ломать остальные.
+
+    После rollback все загруженные объекты «просрочены», и прежний обработчик
+    ошибки падал на ``config.customer_id`` (greenlet_spawn). Письмо не
+    записывалось, отметка не двигалась, а вся остальная пачка падала следом.
+    """
+    from sqlalchemy import select
+
+    from dz_fastapi.models.partner import CustomerPriceListConfig
+
+    account = EmailAccount(
+        name="orders-inbox",
+        email="orders-inbox@example.com",
+        password="secret",
+        imap_host="imap.example.com",
+        imap_folder="INBOX",
+        purposes=["orders_in"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.flush()
+
+    configs = []
+    for index, customer in enumerate(created_customers[:2], start=1):
+        # У прайса нет ни одной опубликованной версии: подбор по заказу упадёт
+        price_config = CustomerPriceListConfig(
+            customer_id=customer.id,
+            name=f"price-{index}",
+            general_markup=1.0,
+            own_price_list_markup=1.0,
+            third_party_markup=1.0,
+            emails=[],
+            additional_filters={},
+        )
+        test_session.add(price_config)
+        await test_session.flush()
+        config = CustomerOrderConfig(
+            customer_id=customer.id,
+            order_email=f"client-{index}@example.com",
+            order_emails=[],
+            email_account_id=account.id,
+            pricelist_config_id=price_config.id,
+            order_start_row=1,
+            oem_col=0,
+            brand_col=1,
+            qty_col=2,
+            last_uid=100,
+            is_active=True,
+        )
+        test_session.add(config)
+        configs.append(config)
+    await test_session.commit()
+    config_ids = [config.id for config in configs]
+    customer_ids = [customer.id for customer in created_customers[:2]]
+
+    payload = _order_xlsx([["A100", "BRAND", 1], ["A200", "BRAND", 2]])
+    messages = [
+        SimpleNamespace(
+            uid=str(200 + index),
+            subject=f"Order {index}",
+            from_=f"client-{index}@example.com",
+            attachments=[SimpleNamespace(filename=f"order-{index}.xlsx", payload=payload)],
+            received_at=datetime(2026, 10, 18, 8, index, tzinfo=timezone.utc),
+            date=datetime(2026, 10, 18, 8, index, tzinfo=timezone.utc),
+            text="",
+            html="",
+            folder_name="INBOX",
+            email_account_id=account.id,
+        )
+        for index in (1, 2)
+    ]
+
+    async def fake_fetch_order_messages(*args, **kwargs):
+        return list(messages)
+
+    monkeypatch.setattr(customer_order_service, "_fetch_order_messages", fake_fetch_order_messages)
+
+    await customer_order_service.process_customer_orders(test_session)
+
+    orders = (
+        (
+            await test_session.execute(
+                select(CustomerOrder).where(CustomerOrder.customer_id.in_(customer_ids))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert sorted(order.source_uid for order in orders) == [201, 202]
+    assert all(order.status == CUSTOMER_ORDER_STATUS.ERROR for order in orders)
+    assert all("опубликованного прайса" in (order.error_details or "") for order in orders)
+    mark_rows = await test_session.execute(
+        select(CustomerOrderConfig.last_uid).where(CustomerOrderConfig.id.in_(config_ids))
+    )
+    marks = mark_rows.scalars().all()
+    assert sorted(marks) == [201, 202]

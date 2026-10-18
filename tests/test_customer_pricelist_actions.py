@@ -624,3 +624,44 @@ async def test_missing_saved_file_must_not_trigger_new_build(
     assert "Файл больше недоступен" in job.error
     await test_session.refresh(config)
     assert config.generation_lock_token is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_pricelist_without_recipients_is_published(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    created_brand: Brand,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Клиент без получателей: прайс собирается и становится действующим.
+
+    Заказы подбираются по опубликованному прайсу, поэтому отметка
+    ``published_at`` должна сохраниться в базе, а не остаться в памяти.
+    """
+    from dz_fastapi.models.partner import CustomerPriceList
+    from dz_fastapi.schemas.partner import CustomerPriceListCreate
+
+    monkeypatch.setattr(process_service, "send_email_with_attachment", lambda **kwargs: True)
+    customer = created_customers[0]
+    customer.email_outgoing_price = None
+    config = await _prepare_config(test_session, customer, created_brand)
+    config.emails = []
+    await test_session.commit()
+    customer_id, config_id = customer.id, config.id
+
+    await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(customer_id=customer_id, config_id=config_id, items=[]),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="auto",
+    )
+    await test_session.rollback()  # как при закрытии сессии планировщиком без commit
+
+    built = (
+        await test_session.execute(
+            select(CustomerPriceList).where(CustomerPriceList.customer_config_id == config_id)
+        )
+    ).scalars().all()
+    assert len(built) == 1
+    assert built[0].published_at is not None

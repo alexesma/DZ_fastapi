@@ -4981,6 +4981,31 @@ async def create_manual_supplier_order(
     return supplier_order
 
 
+async def _refresh_after_rollback(session: AsyncSession, *groups) -> None:
+    """Перечитывает объекты, «просроченные» откатом транзакции.
+
+    После ``rollback`` SQLAlchemy помечает все загруженные объекты просроченными.
+    В асинхронном коде первое же обращение к такому объекту
+    (``config.customer_id``) падало с ``greenlet_spawn``: письмо не сохранялось,
+    отметка ящика не двигалась, а вся оставшаяся пачка писем падала следом
+    и повторялась на каждом проходе.
+    """
+    seen: set[int] = set()
+    for group in groups:
+        for obj in group or ():
+            if obj is None or id(obj) in seen:
+                continue
+            seen.add(id(obj))
+            try:
+                await session.refresh(obj)
+                if isinstance(obj, CustomerOrderConfig):
+                    # Клиент нужен уведомлениям об ошибке импорта; без явной
+                    # подгрузки обращение к config.customer снова падало.
+                    await session.refresh(obj, attribute_names=["customer"])
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not refresh %r after rollback: %s", obj, exc)
+
+
 async def process_customer_orders(
     session: AsyncSession,
     customer_id: Optional[int] = None,
@@ -5756,6 +5781,7 @@ async def process_customer_orders(
                 await session.commit()
             except Exception as exc:
                 await session.rollback()
+                await _refresh_after_rollback(session, configs, order_accounts)
                 logger.error(
                     "Failed to process order email uid=%s: %s",
                     getattr(msg, "uid", None),
@@ -5792,6 +5818,7 @@ async def process_customer_orders(
                 )
         except Exception as exc:
             await session.rollback()
+            await _refresh_after_rollback(session, configs, order_accounts)
             if config and attachment and filename is not None:
                 try:
                     order = await _ensure_import_order_stub(
@@ -5823,6 +5850,7 @@ async def process_customer_orders(
                     )
                 except Exception as persist_exc:
                     await session.rollback()
+                    await _refresh_after_rollback(session, configs, order_accounts)
                     logger.error(
                         "Failed to persist order import error uid=%s: %s",
                         getattr(msg, "uid", None),
