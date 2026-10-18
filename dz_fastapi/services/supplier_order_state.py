@@ -141,7 +141,10 @@ def supplier_item_state(
             response_source = "automatic"
         elif any(receipt.source_message_id is not None for receipt in linked_receipts):
             response_source = "supplier"
-        elif any(receipt.created_by_user_id is not None for receipt in linked_receipts) and not item.response_status_raw:
+        elif (
+            any(receipt.created_by_user_id is not None for receipt in linked_receipts)
+            and not item.response_status_raw
+        ):
             response_source = "manager"
         elif item.response_status_raw:
             response_source = "supplier"

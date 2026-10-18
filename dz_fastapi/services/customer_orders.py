@@ -8,13 +8,13 @@ from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 from email import message_from_bytes
 from email.header import decode_header
 from html import escape
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import aiofiles
 import httpx
@@ -41,12 +41,12 @@ from sqlalchemy.sql import func
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.constants import IMAP_SERVER
-from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.email_folders import (
     DEFAULT_IMAP_FOLDER,
     normalize_imap_folder,
     resolve_imap_folders,
 )
+from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.customer_order import crud_customer_order, crud_customer_order_config

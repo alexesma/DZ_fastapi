@@ -26,9 +26,9 @@ from dz_fastapi.models.partner import (
     Client,
     CustomerPriceListConfig,
     Provider,
+    SupplierOrderAttachment,
     SupplierReceipt,
     SupplierResponseConfig,
-    SupplierOrderAttachment,
 )
 from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (
@@ -102,6 +102,7 @@ from dz_fastapi.services.customer_orders import (
     update_customer_order,
     update_customer_order_item_manual,
 )
+from dz_fastapi.services.holidays import get_effective_holiday_set
 from dz_fastapi.services.inventory_stock import (
     dispatch_stock_order,
     sync_posted_cross_docking_assemblies,
@@ -127,7 +128,13 @@ from dz_fastapi.services.supplier_order_state import (
     supplier_item_refusal_sources,
     supplier_item_state,
 )
-from dz_fastapi.services.holidays import get_effective_holiday_set
+from dz_fastapi.services.supplier_receipt_corrections import (
+    get_correction,
+    list_corrections,
+    post_correction,
+    save_correction_draft,
+    serialize_correction,
+)
 from dz_fastapi.services.supplier_receipt_upd import send_supplier_receipt_upd_email
 from dz_fastapi.services.supplier_workflow import (
     _auto_refuse_deadline,
@@ -147,13 +154,6 @@ from dz_fastapi.services.supplier_workflow import (
     update_stock_order_item_pick,
     update_supplier_receipt,
     update_supplier_receipt_item,
-)
-from dz_fastapi.services.supplier_receipt_corrections import (
-    get_correction,
-    list_corrections,
-    post_correction,
-    save_correction_draft,
-    serialize_correction,
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -1943,7 +1943,10 @@ async def list_supplier_receipt_corrections_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     rows = await list_corrections(session, provider_id=provider_id, status=status)
-    return [SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row)) for row in rows]
+    return [
+        SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row))
+        for row in rows
+    ]
 
 
 @router.get(

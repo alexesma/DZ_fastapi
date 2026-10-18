@@ -9,23 +9,23 @@ from sqlalchemy import select
 
 import dz_fastapi.services.supplier_order_responses as response_service
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.inventory import StockLot
 from dz_fastapi.models.order_status_mapping import (
     ExternalStatusMapping,
     ExternalStatusMatchMode,
     ExternalStatusUnmapped,
     SupplierResponseAction,
 )
-from dz_fastapi.models.inventory import StockLot
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_SHIP_MODE,
     ORDER_TRACKING_SOURCE,
     SUPPLIER_ORDER_STATUS,
     TYPE_ORDER_ITEM_STATUS,
     TYPE_STATUS_ORDER,
-    Order,
-    OrderItem,
     CustomerOrder,
     CustomerOrderItem,
+    Order,
+    OrderItem,
     ProviderPriceListConfig,
     SupplierOrder,
     SupplierOrderAttachment,
