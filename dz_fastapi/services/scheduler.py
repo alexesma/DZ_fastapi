@@ -83,7 +83,6 @@ from dz_fastapi.services.monitoring import (
 from dz_fastapi.services.notifications import create_admin_notifications, notify_admin_all
 from dz_fastapi.services.order_timing import (
     OUTSIDE_WINDOW_SLOW_SECONDS,
-    get_active_supplier_response_provider_ids,
     get_overdue_customer_windows,
     get_overdue_supplier_responses,
     is_in_any_order_window,
@@ -115,7 +114,10 @@ from dz_fastapi.services.production_waves import create_scheduled_production_wav
 from dz_fastapi.services.reclamations import cleanup_closed_reclamation_files
 from dz_fastapi.services.relay_health import check_email_relay_health
 from dz_fastapi.services.runtime_memory import process_rss_mb, trim_process_memory
-from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import (
+    expire_document_missing_items,
+    process_supplier_response_messages,
+)
 from dz_fastapi.services.supplier_workflow import mark_auto_refused_supplier_items
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
 from dz_fastapi.services.watchlist_site import check_watchlist_site
@@ -766,8 +768,8 @@ def start_scheduler(app: FastAPI):
     # Приоритеты нагрузки:
     #   1. Заказы клиентов — критичные; интенсивно в 08–10 и 13–16 МСК,
     #      фоново только вне вечернего окна сотрудников.
-    #   2. Ответы поставщиков — активный цикл оставляем в рабочее время,
-    #      фоновый запуск только утром; ночью и вечером не нужен.
+    #   2. Ответы поставщиков — регулярно весь день, чтобы срок молчаливого
+    #      подтверждения отсчитывался от фактической отправки.
     #   3. Документы поставщиков, Диадок, inbox — рабочий день 09–18 МСК.
     #   4. Прайсы поставщиков и трекинг сайта — только ночью, без старта
     #      в вечернее окно 19:00–00:30 МСК.
@@ -813,28 +815,14 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 2. Ответы поставщиков ─────────────────────────────────────────────
-    # Активный приём: 09–15 МСК, каждые N мин
+    # Проверяем почту перед каждым решением по правилу 30 + 15 минут.
     scheduler.add_job(
         func=process_supplier_responses_task,
         trigger="cron",
         args=[app],
         id="process_supplier_responses_active",
-        name="Process supplier responses — активный (09–16 МСК)",
-        hour="9-15",
+        name="Process supplier responses — every day",
         minute=_cron_minute_for_interval(SUPPLIER_RESPONSES_CHECK_MINUTES),
-        second=25,
-        replace_existing=True,
-    )
-    # Фоновый режим: только раннее утро. Ночью и вечером этот регламент
-    # не запускаем, потому что ответы поставщиков приходят утром.
-    scheduler.add_job(
-        func=process_supplier_responses_task,
-        trigger="cron",
-        args=[app],
-        id="process_supplier_responses_bg",
-        name="Process supplier responses — фон (вне 09–16 МСК)",
-        hour="7-8",
-        minute="*/30",
         second=25,
         replace_existing=True,
     )
@@ -850,6 +838,16 @@ def start_scheduler(app: FastAPI):
         hour="9-17",
         minute=_cron_minute_for_interval(SUPPLIER_DOCUMENTS_CHECK_MINUTES),
         second=35,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        func=expire_supplier_document_remainders_task,
+        trigger="cron",
+        args=[app],
+        id="expire_supplier_document_remainders",
+        name="Reject customer-order remainders after document grace period",
+        minute=_cron_minute_for_interval(SUPPLIER_RESPONSES_CHECK_MINUTES),
+        second=45,
         replace_existing=True,
     )
 
@@ -1039,15 +1037,15 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 14. Отправка заказов поставщикам ──────────────────────────────────
-    # Рабочий день 08–17 МСК, каждые 5 мин (смещение 2 мин)
+    # Проверяем отсечки каждые 5 минут круглосуточно: пользователь может
+    # выбрать вечернее или выходное время для отдельного поставщика.
     scheduler.add_job(
         func=send_scheduled_supplier_orders_task,
         trigger="cron",
         args=[app],
         id="send_supplier_orders",
         name="Send scheduled supplier orders",
-        hour="8-17",
-        minute="2-59/5",
+        minute="*/5",
         second=0,
         replace_existing=True,
     )
@@ -1205,13 +1203,13 @@ def start_scheduler(app: FastAPI):
         max_instances=1,
     )
 
-    # 23:00 — авто-отказ неподтверждённых позиций поставщиков
+    # 23:00 — отметка просроченного ответа поставщиков
     scheduler.add_job(
         func=auto_refuse_supplier_items_task,
         trigger="cron",
         args=[app],
         id="auto_refuse_supplier_items",
-        name="Auto-refuse unconfirmed supplier order items",
+        name="Mark overdue supplier order responses",
         hour=23,
         minute=0,
         replace_existing=True,
@@ -1599,25 +1597,6 @@ async def process_supplier_responses_task(app: FastAPI):
                 if not should_run:
                     trace.details["skipped_by_scheduler_setting"] = True
                     return
-                active_providers: list[int] = []
-                try:
-                    active_providers = await get_active_supplier_response_provider_ids(session)
-                    trace.details["active_provider_ids_count"] = len(active_providers)
-                except Exception as win_exc:
-                    logger.warning("Could not check supplier response window: %s", win_exc)
-                    trace.details["window_check_error"] = str(win_exc)[:500]
-                if not active_providers:
-                    last_run = setting.last_run_at if setting else None
-                    if last_run is not None:
-                        elapsed = (now_moscow() - last_run).total_seconds()
-                        trace.details["elapsed_since_last_run_sec"] = round(elapsed, 1)
-                        if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
-                            logger.debug(
-                                "No suppliers in response window," "slow mode: elapsed=%.0fs",
-                                elapsed,
-                            )
-                            trace.details["skipped_by_slow_mode"] = True
-                            return
                 summary = await asyncio.wait_for(
                     process_supplier_response_messages(session, file_payload_mode="responses"),
                     timeout=SUPPLIER_RESPONSES_TASK_TIMEOUT_SEC,
@@ -1667,6 +1646,25 @@ async def process_supplier_responses_task(app: FastAPI):
                         f"поставщиков.\nТекст ошибки: {e}"
                     ),
                 )
+
+
+async def expire_supplier_document_remainders_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="expire_supplier_document_remainders",
+        job_name="Expire supplier document remainders",
+    ) as trace:
+        async with app.state.session_factory() as session:
+            try:
+                trace.details["rejected_items"] = await expire_document_missing_items(
+                    session
+                )
+            except Exception as exc:
+                await session.rollback()
+                logger.error("Supplier document grace processing failed: %s", exc, exc_info=True)
+                trace.details["error"] = str(exc)[:2000]
+                trace.details["__trace_status"] = "error"
 
 
 async def process_supplier_documents_task(app: FastAPI):
@@ -1982,19 +1980,11 @@ async def send_scheduled_supplier_orders_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
-            should_run, setting = await _should_run_scheduled_job(session, "supplier_orders_send")
-            if not should_run:
-                return
-            summary = await send_scheduled_supplier_orders(
-                session,
-                use_provider_schedule=False,
-            )
+            summary = await send_scheduled_supplier_orders(session)
             logger.info(
                 "Completed send_scheduled_supplier_orders_task summary=%s",
                 summary,
             )
-            if setting:
-                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(
                 f"Error sending scheduled supplier orders: {e}",
@@ -3442,15 +3432,14 @@ async def cleanup_reclamation_files_task(app: FastAPI):
 
 
 async def auto_refuse_supplier_items_task(app: FastAPI):
-    """Помечает позиции заказов поставщику как авто-отказ если
-    прошёл рабочий день без подтверждения или поступления товара."""
+    """Фиксирует просрочку ответа без изменения суммы отказов."""
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
             marked = await mark_auto_refused_supplier_items(session)
             if marked:
                 logger.info(
-                    "auto_refuse_supplier_items_task: marked %s items " "as auto-refused",
+                    "auto_refuse_supplier_items_task: marked %s items " "as overdue",
                     marked,
                 )
             else:

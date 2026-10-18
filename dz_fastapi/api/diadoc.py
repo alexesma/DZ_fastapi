@@ -997,9 +997,13 @@ async def process_diadoc_inbound_document_endpoint(
             client=client,
         )
         detail = (
-            "Диадок-документ уже был обработан ранее"
-            if result.get("already_processed")
-            else "Диадок-документ обработан и передан в поступления"
+            "КСФ зарегистрирована; сопоставьте строки с исходным приходом"
+            if result.get("correction_id")
+            else (
+                "Диадок-документ уже был обработан ранее"
+                if result.get("already_processed")
+                else "Диадок-документ обработан и передан в поступления"
+            )
         )
         return DiadocInboundDocumentProcessResult(
             document_id=int(document.id),
@@ -1014,6 +1018,7 @@ async def process_diadoc_inbound_document_endpoint(
                 int(receipt_id)
                 for receipt_id in (result.get("receipt_ids") or [])
             ],
+            correction_id=(int(result["correction_id"]) if result.get("correction_id") else None),
             already_processed=bool(result.get("already_processed")),
             processed_messages=int(result.get("processed_messages") or 0),
             parsed_response_files=int(

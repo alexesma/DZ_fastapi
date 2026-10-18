@@ -24,6 +24,7 @@ from dz_fastapi.models.partner import (
     SupplierOrderItem,
 )
 from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
 
 EXTERNAL_STATUS_SOURCE_DRAGONZAP = "DRAGONZAP_SITE"
 EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL = "SUPPLIER_EMAIL"
@@ -368,16 +369,6 @@ def apply_supplier_response_action_to_order(
 
     for item in order.items or []:
         item_changed = False
-        if item.response_status_raw != raw_status:
-            item.response_status_raw = raw_status
-            item_changed = True
-        if item.response_status_normalized != (normalized_status or None):
-            item.response_status_normalized = normalized_status or None
-            item_changed = True
-        if item.response_status_synced_at != synced_at:
-            item.response_status_synced_at = synced_at
-            item_changed = True
-
         if allow_quantity_updates and action is not None:
             target_qty: Optional[int] = None
             if action == SupplierResponseAction.FULL_CONFIRM:
@@ -388,8 +379,24 @@ def apply_supplier_response_action_to_order(
                 target_qty is not None
                 and item.confirmed_quantity != target_qty
             ):
-                item.confirmed_quantity = target_qty
+                set_supplier_item_decision(
+                    item, confirmed_quantity=target_qty, source="supplier"
+                )
                 item_changed = True
+            if target_qty is not None:
+                item.decision_source = "supplier"
+                item.document_missing_since = None
+                item.document_missing_message_id = None
+
+        if item.response_status_raw != raw_status:
+            item.response_status_raw = raw_status
+            item_changed = True
+        if item.response_status_normalized != (normalized_status or None):
+            item.response_status_normalized = normalized_status or None
+            item_changed = True
+        if item.response_status_synced_at != synced_at:
+            item.response_status_synced_at = synced_at
+            item_changed = True
 
         if item_changed:
             updated_items += 1

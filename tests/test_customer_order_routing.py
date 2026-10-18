@@ -8,12 +8,15 @@ from sqlalchemy import select
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
     CUSTOMER_ORDER_STATUS,
     CustomerOrder,
     CustomerOrderConfig,
+    CustomerOrderItem,
     CustomerPriceList,
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
+    SupplierOrderItem,
 )
 from dz_fastapi.services import customer_orders as service
 from dz_fastapi.services.customer_order_routing import compare_order_pricelists
@@ -537,3 +540,110 @@ async def test_dry_estimate_matches_processing_without_creating_orders(
     assert sum(item.reject_qty for item in items) == estimate["rejected_qty"]
     assert estimate["rejected_qty"] == (8 if not own and price == 120 else 3)
     assert sum(item.ship_qty for item in items) == 8 - estimate["rejected_qty"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_force_price_rejection_into_supplier_order(
+    test_session,
+    created_customers,
+    created_providers,
+    created_autopart,
+    monkeypatch,
+):
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        order_email="buyer@example.com",
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        price_col=3,
+        price_warning_pct=5,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_config_id=config.id,
+        external_payload={},
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id,
+        row_index=0,
+        oem="ABC1",
+        brand="HAVAL",
+        name="Деталь",
+        requested_qty=5,
+        requested_price=100,
+        ship_qty=0,
+        reject_qty=5,
+        status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        reject_reason_code="PRICE_TOO_HIGH",
+        reject_reason_text="Цена предложения выше допустимой для клиента.",
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    offer = service.OfferRow(
+        autopart_id=created_autopart.id,
+        provider_id=created_providers[0].id,
+        provider_config_id=None,
+        quantity=3,
+        price=110,
+        supplier_price=90,
+        is_own_price=False,
+        actual_oem="ABC1",
+        actual_brand="HAVAL",
+        actual_name="Деталь",
+    )
+    monkeypatch.setattr(
+        service,
+        "_prepare_customer_order_context",
+        AsyncMock(return_value=({}, {("ABC1", "HAVAL"): offer}, {}, object())),
+    )
+    monkeypatch.setattr(service, "assert_customer_credit_available", AsyncMock())
+    finalize = AsyncMock()
+    monkeypatch.setattr(service, "try_finalize_customer_order_response", finalize)
+
+    preview = await service.get_customer_order_price_override_preview(
+        test_session,
+        item.id,
+    )
+    assert preview["accepted_qty"] == 3
+    assert preview["remaining_reject_qty"] == 2
+    assert preview["provider_id"] == created_providers[0].id
+    assert float(preview["supplier_price"]) == 90
+    assert preview["actual_markup_pct"] == pytest.approx(11.111, rel=1e-3)
+
+    updated, supplier_order_id, result_preview = (
+        await service.force_accept_customer_order_price(
+            test_session,
+            item.id,
+            approved_by_user_id=77,
+        )
+    )
+    supplier_item = await test_session.scalar(
+        select(SupplierOrderItem).where(
+            SupplierOrderItem.customer_order_item_id == item.id
+        )
+    )
+    assert supplier_order_id == supplier_item.supplier_order_id
+    assert supplier_item.quantity == 3
+    assert float(supplier_item.price) == 90
+    assert updated.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    assert updated.ship_qty == 3
+    assert updated.reject_qty == 2
+    assert updated.reject_reason_code == "PARTIAL_STOCK"
+    assert updated.source_payload["price_override"]["approved_by_user_id"] == 77
+    assert result_preview["accepted_qty"] == 3
+    finalize.assert_awaited_once_with(test_session, order_id=order.id)
+
+    with pytest.raises(ValueError, match="только для отказа"):
+        await service.force_accept_customer_order_price(
+            test_session,
+            item.id,
+            approved_by_user_id=77,
+        )

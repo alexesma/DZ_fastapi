@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 from sqlalchemy import select
@@ -32,9 +33,11 @@ from dz_fastapi.models.partner import (
     SupplierOrder,
     SupplierOrderItem,
     SupplierReceiptItem,
+    SupplierResponseConfig,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
+from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
 
 
 async def _create_user(session, email: str, role: UserRole):
@@ -56,6 +59,100 @@ async def _login(async_client, email: str):
         json={"email": email, "password": "secret123"},
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_force_price_override_endpoint(
+    async_client,
+    test_session,
+    created_customers,
+    created_providers,
+    monkeypatch,
+):
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        order_email="buyer@example.com",
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_config_id=config.id,
+        status="PROCESSED",
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order=order,
+        oem="ABC1",
+        brand="HAVAL",
+        requested_qty=1,
+        requested_price=Decimal("100.00"),
+        ship_qty=1,
+        reject_qty=0,
+        status="SUPPLIER",
+        supplier_id=created_providers[0].id,
+        matched_price=Decimal("90.00"),
+    )
+    test_session.add(item)
+    await test_session.commit()
+    preview = {
+        "item_id": item.id,
+        "provider_id": created_providers[0].id,
+        "provider_name": created_providers[0].name,
+        "provider_config_id": None,
+        "requested_qty": 1,
+        "available_qty": 10,
+        "accepted_qty": 1,
+        "remaining_reject_qty": 0,
+        "supplier_price": Decimal("90.00"),
+        "offer_price": Decimal("110.00"),
+        "customer_price": Decimal("100.00"),
+        "price_diff_pct": 9.09,
+        "actual_markup_pct": 11.11,
+        "actual_margin_pct": 10.0,
+        "planned_markup_pct": 22.22,
+        "price_warning_pct": 5.0,
+    }
+    force = AsyncMock(return_value=(item, 321, preview))
+    monkeypatch.setattr(
+        "dz_fastapi.api.customer_order.force_accept_customer_order_price",
+        force,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.api.customer_order.check_customer_credit_policy",
+        AsyncMock(return_value=None),
+    )
+
+    response = await async_client.post(
+        f"/customer-orders/items/{item.id}/force-price-override"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["supplier_order_id"] == 321
+    assert response.json()["preview"]["accepted_qty"] == 1
+    force.assert_awaited_once_with(
+        ANY,
+        item.id,
+        approved_by_user_id=1,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_auth_override
+async def test_manager_cannot_force_price_override(async_client, test_session):
+    await _create_user(test_session, "price-manager@example.com", UserRole.MANAGER)
+    await _login(async_client, "price-manager@example.com")
+
+    response = await async_client.post(
+        "/customer-orders/items/999/force-price-override"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Admin access required"
 
 
 @pytest.mark.asyncio
@@ -354,6 +451,120 @@ async def test_supplier_order_list_rejected_pct_uses_order_value_base(
     assert row["total_sum"] == pytest.approx(1000.0)
     assert row["rejected_sum"] == pytest.approx(300.0)
     assert row["rejected_pct"] == pytest.approx(30.0)
+
+    supplier_item = (
+        await test_session.execute(
+            select(SupplierOrderItem).where(
+                SupplierOrderItem.supplier_order_id == supplier_order.id
+            )
+        )
+    ).scalar_one()
+    supplier_item.decision_source = "supplier"
+    set_supplier_item_decision(
+        supplier_item, confirmed_quantity=5, source="document_timeout"
+    )
+    await test_session.commit()
+
+    response = await async_client.get("/customer-orders/supplier/list")
+    assert response.status_code == 200, response.text
+    row = next(item for item in response.json() if item["id"] == supplier_order.id)
+    assert row["rejected_sum"] == pytest.approx(500.0)
+    assert row["rejected_by_supplier_sum"] == pytest.approx(300.0)
+    assert row["rejected_by_document_timeout_sum"] == pytest.approx(200.0)
+
+    detail = await async_client.get(f"/customer-orders/supplier/{supplier_order.id}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["items"][0]["refusal_sources"] == {
+        "supplier": 3,
+        "document_timeout": 2,
+    }
+
+
+@pytest.mark.asyncio
+async def test_historical_auto_refusal_is_overdue_not_confirmed_rejection(
+    async_client, test_session, created_providers,
+):
+    order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        sent_at=now_moscow() - timedelta(days=4),
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add_all([
+        SupplierOrderItem(
+            supplier_order_id=order.id, quantity=1, price=Decimal("100"),
+            auto_refused_at=now_moscow() - timedelta(days=2),
+        ),
+        SupplierOrderItem(
+            supplier_order_id=order.id, quantity=1, price=Decimal("100"),
+            auto_refused_at=now_moscow() - timedelta(days=2),
+            received_quantity=1, received_at=now_moscow(),
+        ),
+        SupplierOrderItem(
+            supplier_order_id=order.id, quantity=1, price=Decimal("100"),
+            confirmed_quantity=0,
+        ),
+        SupplierOrderItem(
+            supplier_order_id=order.id, quantity=1, price=Decimal("100"),
+            confirmed_quantity=0, response_status_raw="автоотказ по документу",
+            auto_refused_at=now_moscow() - timedelta(days=2),
+        ),
+        SupplierOrderItem(
+            supplier_order_id=order.id, quantity=2, price=Decimal("100"),
+            received_quantity=1,
+            auto_refused_at=now_moscow() - timedelta(days=2),
+        ),
+    ])
+    await test_session.commit()
+
+    summary = await async_client.get("/customer-orders/supplier/list")
+    assert summary.status_code == 200, summary.text
+    row = next(row for row in summary.json() if row["id"] == order.id)
+    assert row["rejected_sum"] == pytest.approx(100)
+    assert row["rejected_pct"] == pytest.approx(100 / 6)
+    assert row["overdue_count"] == 3
+    assert row["confirmed_rejected_count"] == 1
+
+    detail = await async_client.get(f"/customer-orders/supplier/{order.id}")
+    assert detail.status_code == 200, detail.text
+    states = {item["response_state"] for item in detail.json()["items"]}
+    assert states == {"overdue", "received", "rejected", "partially_received_overdue"}
+    assert all(item["response_due_at"] for item in detail.json()["items"])
+
+
+@pytest.mark.asyncio
+async def test_supplier_response_grace_deadlines_are_visible(
+    async_client, test_session, created_providers,
+):
+    sent_at = now_moscow() - timedelta(minutes=35)
+    provider = created_providers[0]
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        sent_at=sent_at,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(SupplierOrderItem(supplier_order_id=order.id, quantity=2))
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="30 + 15",
+            response_type="text",
+            auto_confirm_after_minutes=30,
+            auto_confirm_grace_minutes=15,
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.get(f"/customer-orders/supplier/{order.id}")
+    assert response.status_code == 200, response.text
+    item = response.json()["items"][0]
+    assert item["response_state"] == "overdue"
+    assert datetime.fromisoformat(item["response_due_at"]) == sent_at + timedelta(minutes=30)
+    assert datetime.fromisoformat(item["auto_confirm_at"]) == sent_at + timedelta(minutes=45)
 
 
 @pytest.mark.asyncio
@@ -1159,7 +1370,12 @@ async def test_supplier_receipt_candidates_and_create_receipt(
         response_price=Decimal("119.00"),
         response_status_raw="готово",
     )
-    test_session.add(supplier_item)
+    stock_item = SupplierOrderItem(
+        supplier_order_id=supplier_order.id,
+        oem_number="STOCK-ONLY",
+        quantity=2,
+    )
+    test_session.add_all([supplier_item, stock_item])
     await test_session.commit()
 
     response = await async_client.get(
@@ -1172,6 +1388,15 @@ async def test_supplier_receipt_candidates_and_create_receipt(
     assert rows[0]["pending_quantity"] == 3
     assert rows[0]["customer_name"] == created_customers[0].name
     assert rows[0]["response_status_raw"] == "готово"
+
+    all_rows_response = await async_client.get(
+        "/customer-orders/supplier-receipts/candidates",
+        params={"provider_id": created_providers[0].id, "customer_only": False},
+    )
+    assert all_rows_response.status_code == 200, all_rows_response.text
+    assert {row["supplier_order_item_id"] for row in all_rows_response.json()} == {
+        supplier_item.id, stock_item.id,
+    }
 
     response = await async_client.post(
         "/customer-orders/supplier-receipts",
@@ -1195,8 +1420,8 @@ async def test_supplier_receipt_candidates_and_create_receipt(
     receipt_id = payload["id"]
 
     await test_session.refresh(supplier_item)
-    assert supplier_item.received_quantity == 2
-    assert supplier_item.received_at is not None
+    assert int(supplier_item.received_quantity or 0) == 0
+    assert supplier_item.received_at is None
 
     response = await async_client.get(
         "/customer-orders/supplier-receipts/candidates",
@@ -1204,19 +1429,32 @@ async def test_supplier_receipt_candidates_and_create_receipt(
     )
     assert response.status_code == 200, response.text
     rows = response.json()
-    assert rows == []
+    assert len(rows) == 1
+    assert rows[0]["supplier_order_item_id"] == supplier_item.id
+    assert rows[0]["already_received_quantity"] == 0
+    assert rows[0]["pending_quantity"] == 3
 
     response = await async_client.post(
         f"/customer-orders/supplier-receipts/{receipt_id}/post",
     )
     assert response.status_code == 200, response.text
     assert response.json()["posted_at"] is not None
+    await test_session.refresh(supplier_item)
+    assert supplier_item.received_quantity == 2
+    response = await async_client.get(
+        "/customer-orders/supplier-receipts/candidates",
+        params={"provider_id": created_providers[0].id},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()[0]["pending_quantity"] == 1
 
     response = await async_client.post(
         f"/customer-orders/supplier-receipts/{receipt_id}/unpost",
     )
     assert response.status_code == 200, response.text
     assert response.json()["posted_at"] is None
+    await test_session.refresh(supplier_item)
+    assert int(supplier_item.received_quantity or 0) == 0
 
     response = await async_client.delete(
         f"/customer-orders/supplier-receipts/{receipt_id}",
@@ -1286,6 +1524,8 @@ async def test_supplier_receipt_zero_quantity_marks_explicit_refusal(
         autopart_name=created_autopart.name,
         quantity=5,
         price=Decimal("100.00"),
+        auto_refused_at=now_moscow() - timedelta(days=1),
+        response_status_raw="автоотказ по документу",
     )
     test_session.add(supplier_item)
     await test_session.commit()
@@ -1323,6 +1563,12 @@ async def test_supplier_receipt_zero_quantity_marks_explicit_refusal(
     assert row["supplier_sum"] == pytest.approx(500.0)
     assert row["rejected_sum"] == pytest.approx(500.0)
     assert row["rejected_pct"] == pytest.approx(100.0)
+    assert row["rejected_by_manager_sum"] == pytest.approx(500.0)
+    assert row["rejected_by_supplier_sum"] == pytest.approx(0.0)
+    detail = await async_client.get(f"/customer-orders/supplier/{supplier_order.id}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["items"][0]["response_source"] == "manager"
+    assert detail.json()["items"][0]["response_state"] == "rejected"
 
 
 @pytest.mark.asyncio
@@ -1377,7 +1623,18 @@ async def test_manual_supplier_receipt_auto_links_site_tracking_item(
     assert response.status_code == 201, response.text
     payload = response.json()
     assert payload["items"][0]["order_item_id"] == order_item.id
+    assert payload["posted_at"] is None
 
+    await test_session.refresh(order_item)
+    await test_session.refresh(order)
+    assert order_item.received_quantity == 0
+    assert order_item.status == TYPE_ORDER_ITEM_STATUS.SENT
+    assert order.status == TYPE_STATUS_ORDER.ORDERED
+
+    posted = await async_client.post(
+        f"/customer-orders/supplier-receipts/{payload['id']}/post"
+    )
+    assert posted.status_code == 200, posted.text
     await test_session.refresh(order_item)
     await test_session.refresh(order)
     assert order_item.received_quantity == 2
@@ -1403,6 +1660,16 @@ async def test_manual_supplier_receipt_auto_links_site_tracking_item(
     payload = response.json()
     assert payload["items"][0]["order_item_id"] == order_item.id
 
+    await test_session.refresh(order_item)
+    await test_session.refresh(order)
+    assert order_item.received_quantity == 2
+    assert order_item.status == TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    assert order.status == TYPE_STATUS_ORDER.PROCESSING
+
+    posted = await async_client.post(
+        f"/customer-orders/supplier-receipts/{payload['id']}/post"
+    )
+    assert posted.status_code == 200, posted.text
     await test_session.refresh(order_item)
     await test_session.refresh(order)
     assert order_item.received_quantity == 5
@@ -1473,6 +1740,78 @@ async def test_manual_supplier_receipt_post_creates_stock_in_default_warehouse(
     )
     assert movement is not None
     assert movement.quantity == 4
+
+
+@pytest.mark.asyncio
+async def test_supplier_receipt_correction_preserves_original_and_reverses_stock(
+    async_client, test_session, created_autopart, created_providers,
+):
+    await _create_user(test_session, "correction@example.com", UserRole.MANAGER)
+    await _login(async_client, "correction@example.com")
+    receipt_response = await async_client.post(
+        "/customer-orders/supplier-receipts/manual",
+        json={
+            "provider_id": created_providers[0].id,
+            "document_number": "UPD-10",
+            "post_now": True,
+            "items": [{
+                "autopart_id": created_autopart.id,
+                "oem_number": created_autopart.oem_number,
+                "brand_name": "TEST BRAND",
+                "received_quantity": 4,
+            }],
+        },
+    )
+    assert receipt_response.status_code == 201, receipt_response.text
+    receipt = receipt_response.json()
+    item_id = receipt["items"][0]["id"]
+    correction_response = await async_client.post(
+        "/customer-orders/supplier-receipts/corrections",
+        json={
+            "receipt_id": receipt["id"],
+            "document_number": "KSF-10",
+            "items": [{"receipt_item_id": item_id, "quantity_after": 2}],
+        },
+    )
+    assert correction_response.status_code == 201, correction_response.text
+    correction_id = correction_response.json()["id"]
+    posted = await async_client.post(
+        f"/customer-orders/supplier-receipts/corrections/{correction_id}/post"
+    )
+    assert posted.status_code == 200, posted.text
+    assert posted.json()["items"][0]["quantity_delta"] == 2
+    repeated = await async_client.post(
+        f"/customer-orders/supplier-receipts/corrections/{correction_id}/post"
+    )
+    assert repeated.status_code == 200, repeated.text
+    original = await async_client.get(
+        f"/customer-orders/supplier-receipts/{receipt['id']}"
+    )
+    assert original.json()["items"][0]["received_quantity"] == 4
+    stock = (await test_session.execute(select(StockByLocation).where(
+        StockByLocation.autopart_id == created_autopart.id
+    ))).scalar_one()
+    assert stock.quantity == 2
+    correction_movements = (await test_session.execute(select(StockMovement).where(
+        StockMovement.reference_type == "supplier_receipt_correction",
+        StockMovement.reference_id == correction_id,
+    ))).scalars().all()
+    assert len(correction_movements) == 1
+    assert correction_movements[0].quantity == -2
+    invalid = await async_client.post(
+        "/customer-orders/supplier-receipts/corrections",
+        json={
+            "receipt_id": receipt["id"],
+            "items": [{"receipt_item_id": item_id, "quantity_after": 3}],
+        },
+    )
+    assert invalid.status_code == 201, invalid.text
+    rejected = await async_client.post(
+        f"/customer-orders/supplier-receipts/corrections/{invalid.json()['id']}/post"
+    )
+    assert rejected.status_code == 400
+    await test_session.refresh(stock)
+    assert stock.quantity == 2
 
 
 @pytest.mark.asyncio
@@ -1585,6 +1924,7 @@ async def test_supplier_receipt_providers_endpoint_filters_by_period(
         params={
             "date_from": (now_dt.date() - timedelta(days=2)).isoformat(),
             "date_to": now_dt.date().isoformat(),
+            "customer_only": False,
         },
     )
     assert response.status_code == 200, response.text
@@ -1592,3 +1932,12 @@ async def test_supplier_receipt_providers_endpoint_filters_by_period(
     provider_ids = {row["provider_id"] for row in payload}
     assert recent_provider.id in provider_ids
     assert old_provider.id not in provider_ids
+    default_response = await async_client.get(
+        "/customer-orders/supplier-receipts/providers",
+        params={
+            "date_from": (now_dt.date() - timedelta(days=2)).isoformat(),
+            "date_to": now_dt.date().isoformat(),
+        },
+    )
+    assert default_response.status_code == 200, default_response.text
+    assert default_response.json() == []

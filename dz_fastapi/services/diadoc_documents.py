@@ -19,6 +19,10 @@ from dz_fastapi.models.partner import (
     SupplierResponseConfig,
 )
 from dz_fastapi.services.supplier_order_responses import process_stored_supplier_document_message
+from dz_fastapi.services.supplier_receipt_corrections import (
+    is_correction_document,
+    register_incoming_correction,
+)
 
 DIADOC_DOCUMENTS_DIR = os.getenv(
     "DIADOC_DOCUMENTS_DIR",
@@ -272,7 +276,14 @@ async def register_diadoc_document_as_supplier_message(
     message_row = SupplierOrderMessage(
         supplier_order_id=None,
         provider_id=target_provider_id,
-        message_type="SHIPPING_DOC",
+        message_type=(
+            "CORRECTION_DOC"
+            if is_correction_document(
+                (document.raw_metadata or {}).get("TypeNamedId"),
+                document.file_name,
+            )
+            else "SHIPPING_DOC"
+        ),
         subject=(
             document.document_number
             or document.file_name
@@ -305,6 +316,13 @@ async def register_diadoc_document_as_supplier_message(
         parsed_kind="diadoc_document",
     )
     session.add(attachment)
+    if message_row.message_type == "CORRECTION_DOC":
+        await register_incoming_correction(
+            session, provider_id=target_provider_id,
+            message_id=int(message_row.id), source_kind="diadoc",
+            document_number=document.document_number,
+            document_date=document.document_date,
+        )
     document.provider_id = target_provider_id
     document.supplier_order_message_id = message_row.id
     document.status = "registered"
@@ -369,6 +387,28 @@ async def process_diadoc_incoming_document(
             raise LookupError("Document not found after registration")
     else:
         target_provider_id = int(message_row.provider_id)
+
+    if message_row.message_type == "CORRECTION_DOC" or is_correction_document(
+        (document.raw_metadata or {}).get("TypeNamedId"), document.file_name,
+    ):
+        message_row.message_type = "CORRECTION_DOC"
+        correction = await register_incoming_correction(
+            session, provider_id=target_provider_id,
+            message_id=int(message_row.id), source_kind="diadoc",
+            document_number=document.document_number,
+            document_date=document.document_date,
+        )
+        document.status = "registered"
+        document.import_error_details = None
+        await session.commit()
+        return {
+            "message_id": int(message_row.id),
+            "provider_id": target_provider_id,
+            "message_type": "CORRECTION_DOC",
+            "correction_id": int(correction.id),
+            "receipt_ids": [],
+            "needs_review": True,
+        }
 
     resolved_config_id = int(
         response_config_id or message_row.response_config_id or 0

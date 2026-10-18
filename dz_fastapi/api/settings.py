@@ -136,6 +136,14 @@ async def update_scheduler_setting(
         update_data["days"] = defaults.get("days", [])
     if "times" in update_data and not update_data.get("times"):
         update_data["times"] = defaults.get("times", [])
+    if key == "supplier_orders_send":
+        current = await crud_scheduler_setting.get_or_create(
+            session=session, key=key, defaults=defaults
+        )
+        enabled = update_data.get("enabled", current.enabled)
+        times = update_data.get("times", current.times or [])
+        if enabled and not times:
+            raise HTTPException(status_code=400, detail="Укажите время общей отправки заказов")
     setting = await crud_scheduler_setting.update(
         session=session,
         key=key,

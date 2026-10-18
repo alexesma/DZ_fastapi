@@ -321,6 +321,9 @@ class CRUDSupplierOrder:
                     SupplierOrderItem.customer_order_item
                 ),
                 selectinload(SupplierOrder.items)
+                .selectinload(SupplierOrderItem.receipt_items)
+                .selectinload(SupplierReceiptItem.receipt),
+                selectinload(SupplierOrder.items)
                 .selectinload(SupplierOrderItem.autopart)
                 .selectinload(AutoPart.brand),
                 selectinload(SupplierOrder.provider),

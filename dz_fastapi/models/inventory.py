@@ -45,6 +45,7 @@ class MovementType(StrEnum):
     TRANSFER_IN = "transfer_in"  # перемещение — приход
     TRANSFER_OUT = "transfer_out"  # перемещение — уход
     INVENTORY = "inventory"  # корректировка по итогам инвентаризации
+    SUPPLIER_CORRECTION = "supplier_correction"  # КСФ/УКД к поступлению
     MANUAL = "manual"  # ручная правка (от StockDocument)
     WRITEOFF = "writeoff"  # списание (от StockDocument)
     CUSTOMER_RETURN = "customer_return"  # возврат от клиента

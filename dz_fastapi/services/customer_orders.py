@@ -8,6 +8,7 @@ from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 from email import message_from_bytes
 from email.header import decode_header
@@ -40,6 +41,7 @@ from sqlalchemy.sql import func
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.email_folders import (
     DEFAULT_IMAP_FOLDER,
     normalize_imap_folder,
@@ -55,7 +57,7 @@ from dz_fastapi.crud.partner import (
     crud_customer_pricelist_source,
     crud_pricelist,
 )
-from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
+from dz_fastapi.crud.settings import crud_customer_order_inbox_settings, crud_scheduler_setting
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
@@ -245,6 +247,27 @@ class OrderRowPlan:
     reject_qty: int
 
 
+@dataclass(frozen=True)
+class PriceOverrideContext:
+    item: CustomerOrderItem
+    order: CustomerOrder
+    offer: OfferRow
+    provider: Provider
+    provider_order_config_id: Optional[int]
+    requested_qty: int
+    available_qty: int
+    accepted_qty: int
+    remaining_reject_qty: int
+    supplier_price: float
+    offer_price: float
+    customer_price: float
+    price_diff_pct: float
+    actual_markup_pct: float
+    actual_margin_pct: float
+    planned_markup_pct: float
+    price_warning_pct: float
+
+
 def _optional_int(value) -> Optional[int]:
     if value is None:
         return None
@@ -283,15 +306,11 @@ async def _get_or_create_open_supplier_order(
         .where(
             SupplierOrder.provider_id == provider_id,
             source_filter,
-            SupplierOrder.status.in_(
-                [
-                    SUPPLIER_ORDER_STATUS.NEW,
-                    SUPPLIER_ORDER_STATUS.SCHEDULED,
-                ]
-            ),
+            SupplierOrder.status == SUPPLIER_ORDER_STATUS.NEW,
         )
         .order_by(SupplierOrder.created_at.asc())
         .limit(1)
+        .with_for_update(of=SupplierOrder)
     )
     supplier_order = (await session.execute(order_stmt)).scalar_one_or_none()
     if supplier_order is not None:
@@ -5848,6 +5867,8 @@ async def send_supplier_orders(
     automatic_order_override_email = await _supplier_order_override_email_from_settings(session)
 
     for order in orders:
+        order.last_send_attempt_at = now_moscow()
+        order.last_send_error = None
         provider = order.provider
         is_manual_search_order = order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
         override_email = None if is_manual_search_order else automatic_order_override_email
@@ -5860,17 +5881,19 @@ async def send_supplier_orders(
         )
         to_email = override_email or original_recipient
         if not to_email:
+            order.status = SUPPLIER_ORDER_STATUS.ERROR
+            order.last_send_error = "Не указан адрес получателя заказа"
             failed += 1
             continue
 
-        rows, total_qty, total_sum = _build_supplier_order_rows(order)
-        attachment_bytes = _build_supplier_order_attachment_bytes(
-            order=order,
-            rows=rows,
-            total_qty=total_qty,
-            total_sum=total_sum,
-        )
         try:
+            rows, total_qty, total_sum = _build_supplier_order_rows(order)
+            attachment_bytes = _build_supplier_order_attachment_bytes(
+                order=order,
+                rows=rows,
+                total_qty=total_qty,
+                total_sum=total_sum,
+            )
             provider_name = provider.name if provider and provider.name else "Поставщик"
             attachment_filename = _supplier_order_attachment_filename(order.id)
             body = _build_supplier_order_body_html(
@@ -5924,6 +5947,7 @@ async def send_supplier_orders(
             )
             order.status = SUPPLIER_ORDER_STATUS.SENT
             order.sent_at = now_moscow()
+            order.last_send_error = None
             sent += 1
         except Exception as exc:
             logger.error(
@@ -5933,60 +5957,338 @@ async def send_supplier_orders(
                 exc_info=True,
             )
             order.status = SUPPLIER_ORDER_STATUS.ERROR
+            order.last_send_error = str(exc)[:2000]
             failed += 1
 
     await session.commit()
     return {"sent": sent, "failed": failed}
 
 
-async def send_scheduled_supplier_orders(
-    session: AsyncSession,
+def _latest_supplier_order_cutoff(
+    now: datetime,
     *,
-    use_provider_schedule: bool = True,
-) -> Dict[str, int]:
-    if not use_provider_schedule:
-        orders_stmt = select(SupplierOrder.id).where(
-            SupplierOrder.status == SUPPLIER_ORDER_STATUS.NEW,
-        )
-        order_ids = [row[0] for row in (await session.execute(orders_stmt)).all()]
-        if not order_ids:
-            return {"sent": 0, "failed": 0}
-        return await send_supplier_orders(session, order_ids)
+    days: list[str],
+    times: list[str],
+) -> Optional[datetime]:
+    """Latest configured Moscow cutoff; used to seal one accumulated batch."""
+    moscow = ZoneInfo("Europe/Moscow")
+    now = now.astimezone(moscow)
+    day_keys = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+    for offset in range(8):
+        candidate_day = now.date() - timedelta(days=offset)
+        if days and day_keys[candidate_day.weekday()] not in days:
+            continue
+        candidates = []
+        for raw in times:
+            try:
+                hour, minute = map(int, str(raw).split(":"))
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    continue
+                cutoff = datetime(
+                    candidate_day.year, candidate_day.month, candidate_day.day,
+                    hour, minute, tzinfo=moscow,
+                )
+            except (TypeError, ValueError):
+                continue
+            if cutoff <= now:
+                candidates.append(cutoff)
+        if candidates:
+            return max(candidates)
+    return None
 
+
+async def send_scheduled_supplier_orders(session: AsyncSession) -> Dict[str, int]:
+    """Seal batches at each provider's cutoff, falling back to the global one."""
     now = now_moscow()
-    day_key = {
-        0: "mon",
-        1: "tue",
-        2: "wed",
-        3: "thu",
-        4: "fri",
-        5: "sat",
-        6: "sun",
-    }[now.weekday()]
-    time_key = now.strftime("%H:%M")
-
-    providers_stmt = select(Provider).where(Provider.order_schedule_enabled.is_(True))
-    providers = (await session.execute(providers_stmt)).scalars().all()
-
-    eligible_provider_ids = []
-    for provider in providers:
-        days = provider.order_schedule_days or []
-        times = provider.order_schedule_times or []
-        if days and day_key not in days:
-            continue
-        if times and time_key not in times:
-            continue
-        eligible_provider_ids.append(provider.id)
-
-    if not eligible_provider_ids:
-        return {"sent": 0, "failed": 0}
-
-    orders_stmt = select(SupplierOrder.id).where(
-        SupplierOrder.provider_id.in_(eligible_provider_ids),
-        SupplierOrder.status == SUPPLIER_ORDER_STATUS.NEW,
+    defaults = SCHEDULER_SETTING_DEFAULTS["supplier_orders_send"]
+    general = await crud_scheduler_setting.get_or_create(
+        session, "supplier_orders_send", defaults
     )
-    order_ids = [row[0] for row in (await session.execute(orders_stmt)).all()]
+    orders = (
+        await session.execute(
+            select(SupplierOrder)
+            .options(joinedload(SupplierOrder.provider))
+            .where(SupplierOrder.status.in_([
+                SUPPLIER_ORDER_STATUS.NEW,
+                SUPPLIER_ORDER_STATUS.SCHEDULED,
+            ]))
+            .order_by(SupplierOrder.created_at.asc())
+            .with_for_update(of=SupplierOrder, skip_locked=True)
+        )
+    ).scalars().all()
+    order_ids = []
+    for order in orders:
+        if order.status == SUPPLIER_ORDER_STATUS.SCHEDULED:
+            order_ids.append(order.id)
+            continue
+        provider = order.provider
+        if provider and provider.order_schedule_enabled:
+            days = provider.order_schedule_days or []
+            times = provider.order_schedule_times or []
+        elif general.enabled:
+            days = general.days or []
+            times = general.times or []
+        else:
+            continue
+        if not times:
+            continue
+        cutoff = _latest_supplier_order_cutoff(now, days=days, times=times)
+        created_at = order.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=ZoneInfo("Europe/Moscow"))
+        if cutoff is None or (created_at and created_at > cutoff):
+            continue
+        order.status = SUPPLIER_ORDER_STATUS.SCHEDULED
+        order.scheduled_at = cutoff
+        order_ids.append(order.id)
+    if not order_ids:
+        return {"sent": 0, "failed": 0}
+    await session.commit()
     return await send_supplier_orders(session, order_ids)
+
+
+def _serialize_price_override_context(context: PriceOverrideContext) -> dict:
+    return {
+        "item_id": int(context.item.id),
+        "provider_id": int(context.provider.id),
+        "provider_name": str(context.provider.name),
+        "provider_config_id": _optional_int(context.offer.provider_config_id),
+        "requested_qty": context.requested_qty,
+        "available_qty": context.available_qty,
+        "accepted_qty": context.accepted_qty,
+        "remaining_reject_qty": context.remaining_reject_qty,
+        "supplier_price": Decimal(str(context.supplier_price)),
+        "offer_price": Decimal(str(context.offer_price)),
+        "customer_price": Decimal(str(context.customer_price)),
+        "price_diff_pct": context.price_diff_pct,
+        "actual_markup_pct": context.actual_markup_pct,
+        "actual_margin_pct": context.actual_margin_pct,
+        "planned_markup_pct": context.planned_markup_pct,
+        "price_warning_pct": context.price_warning_pct,
+    }
+
+
+async def _get_price_override_context(
+    session: AsyncSession,
+    item_id: int,
+    *,
+    lock_item: bool = False,
+) -> PriceOverrideContext:
+    stmt = (
+        select(CustomerOrderItem)
+        .where(CustomerOrderItem.id == item_id)
+    )
+    if lock_item:
+        stmt = stmt.with_for_update(of=CustomerOrderItem)
+    item = (
+        await session.execute(stmt.execution_options(populate_existing=True))
+    ).scalar_one_or_none()
+    if item is None:
+        raise LookupError("Позиция заказа не найдена")
+    if (
+        item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+        or item.reject_reason_code != "PRICE_TOO_HIGH"
+    ):
+        raise ValueError(
+            "Принудительное принятие цены доступно только для отказа "
+            "«Цена предложения выше допустимой для клиента»."
+        )
+
+    existing_supplier_item = await session.scalar(
+        select(SupplierOrderItem.id)
+        .where(SupplierOrderItem.customer_order_item_id == item.id)
+        .limit(1)
+    )
+    if existing_supplier_item is not None:
+        raise ValueError("Заказ поставщику по этой позиции уже создан")
+
+    order = await session.get(CustomerOrder, int(item.order_id))
+    if order is None or order.order_config_id is None:
+        raise ValueError("У заказа не сохранена конфигурация обработки")
+    config = await session.get(CustomerOrderConfig, int(order.order_config_id))
+    if config is None:
+        raise ValueError("Конфигурация обработки заказа больше недоступна")
+
+    row = ParsedOrderRow(
+        row_index=int(item.row_index or 0),
+        oem=str(item.oem or ""),
+        brand=str(item.brand or ""),
+        name=item.name,
+        requested_qty=int(item.requested_qty or 0),
+        requested_price=(
+            float(item.requested_price) if item.requested_price is not None else None
+        ),
+    )
+    routing = (order.external_payload or {}).get("pricelist_routing") or {}
+    snapshot_id = _optional_int(routing.get("pricelist_id"))
+    expected_prices, offers, aliases, _ = await _prepare_customer_order_context(
+        session,
+        config,
+        [row],
+        snapshot_id=snapshot_id,
+        require_published_pricelist=True,
+    )
+    key = _normalize_key(row.oem, row.brand, aliases)
+    offer = offers.get(key)
+    if offer is None:
+        raise ValueError(
+            "Предложение из клиентского прайса больше недоступно. "
+            "Повторно обработайте заказ или назначьте поставщика вручную."
+        )
+    if offer.is_own_price:
+        raise ValueError("Предложение относится к нашему складу, а не к поставщику")
+
+    customer_price = _resolve_customer_target_price(
+        expected_prices.get(key),
+        row.requested_price,
+        offer,
+    )
+    if customer_price is None or customer_price <= 0:
+        raise ValueError("Не удалось определить цену клиента для этой позиции")
+    supplier_price = float(offer.supplier_price or 0)
+    if supplier_price <= 0:
+        raise ValueError("В предложении поставщика отсутствует закупочная цена")
+
+    provider = await session.get(Provider, int(offer.provider_id))
+    if provider is None:
+        raise ValueError("Поставщик предложения больше недоступен")
+
+    requested_qty = max(0, int(item.requested_qty or 0))
+    available_qty = max(0, int(offer.quantity or 0))
+    accepted_qty = min(requested_qty, available_qty)
+    if accepted_qty <= 0:
+        raise ValueError("У поставщика больше нет доступного остатка по этой позиции")
+    offer_price = float(offer.price or 0)
+    price_diff_pct = _compute_price_diff_pct(customer_price, offer_price)
+    actual_markup_pct = ((customer_price / supplier_price) - 1) * 100
+    actual_margin_pct = ((customer_price - supplier_price) / customer_price) * 100
+    planned_markup_pct = ((offer_price / supplier_price) - 1) * 100
+    provider_order_config_id = _supplier_order_source_config_id(
+        split_orders_by_pricelist=bool(provider.split_orders_by_pricelist),
+        provider_config_id=_optional_int(offer.provider_config_id),
+    )
+    return PriceOverrideContext(
+        item=item,
+        order=order,
+        offer=offer,
+        provider=provider,
+        provider_order_config_id=provider_order_config_id,
+        requested_qty=requested_qty,
+        available_qty=available_qty,
+        accepted_qty=accepted_qty,
+        remaining_reject_qty=requested_qty - accepted_qty,
+        supplier_price=supplier_price,
+        offer_price=offer_price,
+        customer_price=customer_price,
+        price_diff_pct=price_diff_pct,
+        actual_markup_pct=actual_markup_pct,
+        actual_margin_pct=actual_margin_pct,
+        planned_markup_pct=planned_markup_pct,
+        price_warning_pct=float(config.price_warning_pct or 5.0),
+    )
+
+
+async def get_customer_order_price_override_preview(
+    session: AsyncSession,
+    item_id: int,
+) -> dict:
+    context = await _get_price_override_context(session, item_id)
+    return _serialize_price_override_context(context)
+
+
+async def force_accept_customer_order_price(
+    session: AsyncSession,
+    item_id: int,
+    *,
+    approved_by_user_id: int,
+) -> tuple[CustomerOrderItem, int, dict]:
+    context = await _get_price_override_context(session, item_id, lock_item=True)
+    item = context.item
+    await assert_customer_credit_available(
+        session,
+        customer_id=int(context.order.customer_id),
+    )
+
+    supplier_order = await _get_or_create_open_supplier_order(
+        session,
+        provider_id=int(context.provider.id),
+        provider_config_id=context.provider_order_config_id,
+    )
+    session.add(
+        SupplierOrderItem(
+            supplier_order_id=supplier_order.id,
+            customer_order_item_id=item.id,
+            autopart_id=context.offer.autopart_id,
+            oem_number=item.oem,
+            brand_name=item.brand,
+            autopart_name=item.name,
+            quantity=context.accepted_qty,
+            price=context.supplier_price,
+        )
+    )
+
+    item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    item.supplier_id = int(context.provider.id)
+    item.provider_config_id = _optional_int(context.offer.provider_config_id)
+    item.autopart_id = context.offer.autopart_id
+    item.match_type = context.offer.match_type
+    item.actual_oem = context.offer.actual_oem
+    item.actual_brand = context.offer.actual_brand
+    item.actual_name = context.offer.actual_name
+    item.matched_price = context.supplier_price
+    item.price_diff_pct = context.price_diff_pct
+    item.ship_qty = context.accepted_qty
+    item.reject_qty = context.remaining_reject_qty
+    item.source_resolution_status = "price_override"
+    if context.remaining_reject_qty:
+        _set_reject_reason(
+            item,
+            "PARTIAL_STOCK",
+            "Цена принята администратором; частичная отгрузка: доступно "
+            f"{context.accepted_qty} из {context.requested_qty}.",
+        )
+    else:
+        _clear_reject_reason(item)
+    item.source_payload = {
+        **(item.source_payload or {}),
+        "price_override": {
+            "approved_by_user_id": int(approved_by_user_id),
+            "approved_at": now_moscow().isoformat(),
+            "provider_id": int(context.provider.id),
+            "provider_config_id": _optional_int(context.offer.provider_config_id),
+            "supplier_order_id": int(supplier_order.id),
+            "supplier_price": context.supplier_price,
+            "offer_price": context.offer_price,
+            "customer_price": context.customer_price,
+            "price_diff_pct": context.price_diff_pct,
+            "actual_markup_pct": context.actual_markup_pct,
+            "actual_margin_pct": context.actual_margin_pct,
+            "quantity": context.accepted_qty,
+        },
+    }
+    preview = _serialize_price_override_context(context)
+    order_id = int(item.order_id)
+    supplier_order_id = int(supplier_order.id)
+    await session.commit()
+
+    try:
+        await try_finalize_customer_order_response(session, order_id=order_id)
+    except Exception:
+        await session.rollback()
+        logger.exception(
+            "Failed to refresh customer response after price override: order_id=%s item_id=%s",
+            order_id,
+            item_id,
+        )
+
+    refreshed = (
+        await session.execute(
+            select(CustomerOrderItem)
+            .options(joinedload(CustomerOrderItem.order))
+            .where(CustomerOrderItem.id == item_id)
+        )
+    ).scalar_one()
+    return refreshed, supplier_order_id, preview
 
 
 async def update_customer_order_item_manual(

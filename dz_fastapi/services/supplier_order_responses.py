@@ -80,6 +80,7 @@ from dz_fastapi.services.order_status_mapping import (
     record_unmapped_external_status,
     select_best_mapping,
 )
+from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
 from dz_fastapi.services.supplier_workflow import (
     _match_site_order_item_for_receipt,
     _refresh_receipt_links,
@@ -210,6 +211,16 @@ _FUTURE_CONFIRM_WORDS = {
     "будут",
     "будем",
 }
+_WHOLE_ORDER_CONFIRM_RE = re.compile(
+    r"\b(?:вс[её]\s+(?:ок|хорошо|есть|в\s+наличии)|отказов\s+нет)\b",
+    re.I,
+)
+_REJECT_BEFORE_ARTICLE_RE = re.compile(
+    r"\b(?:отказ|нет|отсутствует)\s+(?:по\s+)?"
+    r"(?:позици\w*|артикул\w*|товар\w*)\s+"
+    r"(?P<article>[A-Za-z0-9._/-]+)",
+    re.I,
+)
 _MAX_INT32 = 2_147_483_647
 _AUTO_CONFIRM_MISSING_COMMENT = (
     "Автоподтверждено: позиция отсутствует в ответе " "(режим исключений)"
@@ -221,20 +232,17 @@ _AUTO_CONFIRM_TIMEOUT_COMMENT_TEMPLATE = (
 _AUTO_CONFIRM_TIMEOUT_STATUS_TEMPLATE = (
     "автоподтверждено по таймауту ответа {minutes} мин"
 )
-_AUTO_REJECT_MISSING_COMMENT = (
-    "Авто-отказ: позиция отсутствует в документе поставщика"
-)
-_AUTO_REJECT_MISSING_STATUS = "автоотказ по документу"
-_AUTO_CONFIRM_TIMEOUT_RECEIPT_COMMENT = (
-    "Авто-черновик поступления: автоподтверждение по таймауту ответа "
-    "поставщика"
-)
+_MISSING_IN_DOCUMENT_COMMENT = "Позиция отсутствует в документе поставщика; ответ по ней ожидается"
+_MISSING_IN_DOCUMENT_STATUS = "нет в документе"
 _AUTO_CONFIRM_TIMEOUT_BLOCKING_MESSAGE_TYPES = frozenset(
     {
         "RESPONSE_FILE",
         "TEXT_RESPONSE",
         "SHIPPING_DOC",
         "STATUS",
+        "IMPORT_ERROR",
+        "UNKNOWN",
+        "RETRY_PENDING",
     }
 )
 _SUPPLIER_RESPONSE_AI_ALLOWED_TYPES = {
@@ -465,7 +473,10 @@ async def _fetch_supplier_response_messages(
     include_default_orders_out: bool = True,
     from_email_filters: Optional[Iterable[str]] = None,
     use_server_side_from_filters: bool = True,
+    fetch_health: Optional[dict[str, bool]] = None,
 ) -> list[tuple[object, Optional[EmailAccount]]]:
+    fetch_attempted = False
+    fetch_failed = False
     accounts: list[EmailAccount] = []
     account_map: dict[int, EmailAccount] = {}
     logger.info(
@@ -608,6 +619,7 @@ async def _fetch_supplier_response_messages(
                         ),
                         timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                     )
+                    fetch_attempted = True
                     filtered_messages = _filter_messages_by_sender(
                         account_messages
                     )
@@ -624,6 +636,7 @@ async def _fetch_supplier_response_messages(
                         (msg, account) for msg in filtered_messages
                     )
                 except asyncio.TimeoutError:
+                    fetch_failed = True
                     logger.warning(
                         (
                             "Supplier response Resend fetch timeout "
@@ -633,6 +646,7 @@ async def _fetch_supplier_response_messages(
                         _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                     )
                 except Exception as exc:
+                    fetch_failed = True
                     logger.error(
                         (
                             "Supplier response inbox fetch failed "
@@ -666,7 +680,9 @@ async def _fetch_supplier_response_messages(
                                 timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                             )
                             account_messages.extend(label_messages)
+                            fetch_attempted = True
                         except asyncio.TimeoutError:
+                            fetch_failed = True
                             logger.warning(
                                 (
                                     "Supplier response Gmail fetch timeout: "
@@ -694,6 +710,7 @@ async def _fetch_supplier_response_messages(
                         (msg, account) for msg in filtered_messages
                     )
                 except Exception as exc:
+                    fetch_failed = True
                     logger.error(
                         "Supplier response inbox fetch failed for %s: %s",
                         account.email,
@@ -702,6 +719,7 @@ async def _fetch_supplier_response_messages(
                     )
                 continue
             if not host:
+                fetch_failed = True
                 continue
             try:
                 account_messages = []
@@ -737,7 +755,9 @@ async def _fetch_supplier_response_messages(
                                     ),
                                 )
                             )
+                            fetch_attempted = True
                         except MailboxFolderSelectError as folder_exc:
+                            fetch_failed = True
                             logger.warning(
                                 (
                                     'Supplier response IMAP folder "%s" '
@@ -750,6 +770,7 @@ async def _fetch_supplier_response_messages(
                             )
                             break
                         except asyncio.TimeoutError:
+                            fetch_failed = True
                             logger.warning(
                                 (
                                     "Supplier response IMAP fetch timeout: "
@@ -776,6 +797,7 @@ async def _fetch_supplier_response_messages(
                 )
                 messages.extend((msg, account) for msg in filtered_messages)
             except Exception as exc:
+                fetch_failed = True
                 if _is_too_many_connections_error(exc):
                     logger.warning(
                         "Supplier response inbox fetch throttled for %s: %s",
@@ -814,7 +836,9 @@ async def _fetch_supplier_response_messages(
                             timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                         )
                     )
+                    fetch_attempted = True
                 except asyncio.TimeoutError:
+                    fetch_failed = True
                     logger.warning(
                         (
                             "Supplier response fallback inbox fetch timeout "
@@ -830,11 +854,14 @@ async def _fetch_supplier_response_messages(
             filtered_fallback = _filter_messages_by_sender(fallback_messages)
             messages = [(msg, None) for msg in filtered_fallback]
         except Exception as exc:
+            fetch_failed = True
             logger.error(
                 "Supplier response fallback inbox fetch failed: %s",
                 exc,
                 exc_info=True,
             )
+    if fetch_health is not None:
+        fetch_health["healthy"] = fetch_attempted and not fetch_failed
     messages = _dedupe_order_messages(messages)
     messages.sort(key=_message_sort_key)
     if date_to is None:
@@ -1501,8 +1528,12 @@ def _parse_text_value_after_article_window(
             return "confirm", parsed_qty, f"{token} {qty_candidate}"
 
     if value_mode in {"text", "both"}:
-        for token in window:
+        for index, token in enumerate(window):
             if _keyword_matches_text_token(token, confirm_keywords):
+                if index + 1 < len(window):
+                    parsed_qty = _safe_int(window[index + 1])
+                    if parsed_qty is not None and parsed_qty > 0:
+                        return "confirm", parsed_qty, f"{token} {window[index + 1]}"
                 return "confirm", None, token
 
     return None, None, None
@@ -1556,12 +1587,11 @@ def _parse_supplier_text_response(
             normalized_window = normalize_external_status_text(
                 window_token or ""
             )
-            immediate_token_is_numeric = _safe_float(status_token) is not None
             if (
                 window_decision == "reject"
                 or normalized_window in _FUTURE_CONFIRM_WORDS
                 or immediate_decision is None
-                or (window_qty is not None and immediate_token_is_numeric)
+                or (window_qty is not None and decision != "reject")
             ):
                 decision = window_decision
                 qty = window_qty
@@ -1607,6 +1637,28 @@ def _parse_supplier_text_response(
         # Prefer textual status over numeric token for duplicate article.
         if existing_is_numeric and not parsed_is_numeric:
             result.rows[existing_index] = parsed_row
+    if value_mode in {"text", "both"}:
+        for match in _REJECT_BEFORE_ARTICLE_RE.finditer(text or ""):
+            article = match.group("article").rstrip(".,;:")
+            oem_key = _normalize_oem_key(article)
+            if not _ARTICLE_TOKEN_RE.fullmatch(article) or not oem_key:
+                continue
+            reject_row = ParsedSupplierResponseRow(
+                oem_number=article,
+                brand_name=None,
+                confirmed_quantity=0,
+                response_price=None,
+                response_comment=None,
+                response_status_raw="отказ",
+                text_decision="reject",
+            )
+            existing_index = rows_by_oem.get(oem_key)
+            if existing_index is None:
+                rows_by_oem[oem_key] = len(result.rows)
+                result.rows.append(reject_row)
+                result.parsed_positions += 1
+            else:
+                result.rows[existing_index] = reject_row
     return result
 
 
@@ -1619,6 +1671,8 @@ def _detect_global_text_decision(
     normalized_text = normalize_external_status_text(text)
     if not normalized_text:
         return None, None
+    if _WHOLE_ORDER_CONFIRM_RE.search(text):
+        return "confirm", "всё подтверждено"
     reject_set = _normalize_keywords(
         reject_keywords,
         _DEFAULT_REJECT_KEYWORDS,
@@ -1647,6 +1701,7 @@ def _apply_global_text_decision_to_order(
     *,
     decision: str,
     status_label: Optional[str],
+    excluded_item_ids: Optional[set[int]] = None,
 ) -> tuple[int, list[AppliedSupplierResponseRow]]:
     normalized_decision = str(decision or "").strip().lower()
     if normalized_decision not in {"confirm", "reject"}:
@@ -1658,14 +1713,21 @@ def _apply_global_text_decision_to_order(
     updated = 0
     applied_rows: list[AppliedSupplierResponseRow] = []
     for order_item in order.items or []:
+        if excluded_item_ids and int(order_item.id) in excluded_item_ids:
+            continue
         target_qty = (
             max(int(order_item.quantity or 0), 0)
             if normalized_decision == "confirm"
             else 0
         )
         if order_item.confirmed_quantity != target_qty:
-            order_item.confirmed_quantity = target_qty
+            set_supplier_item_decision(
+                order_item, confirmed_quantity=target_qty, source="supplier"
+            )
             updated += 1
+        order_item.decision_source = "supplier"
+        order_item.document_missing_since = None
+        order_item.document_missing_message_id = None
         if order_item.response_status_raw != status_raw:
             order_item.response_status_raw = status_raw
             updated += 1
@@ -2520,6 +2582,7 @@ async def _apply_parsed_response_rows(
     default_raw_status: Optional[str],
     default_normalized_status: Optional[str],
     response_config: Optional[SupplierResponseConfig] = None,
+    document_mode: bool = False,
 ) -> tuple[
     int,
     int,
@@ -2581,6 +2644,7 @@ async def _apply_parsed_response_rows(
             matched_item=matched_item,
             default_raw_status=default_raw_status,
             default_normalized_status=default_normalized_status,
+            document_mode=document_mode,
         ):
             updated += 1
         applied_rows.append(
@@ -2618,8 +2682,15 @@ def _auto_confirm_unmentioned_order_items(
         if expected_quantity < 0:
             expected_quantity = 0
         if order_item.confirmed_quantity != expected_quantity:
-            order_item.confirmed_quantity = expected_quantity
+            set_supplier_item_decision(
+                order_item,
+                confirmed_quantity=expected_quantity,
+                source="supplier",
+            )
             updated += 1
+        order_item.decision_source = "supplier"
+        order_item.document_missing_since = None
+        order_item.document_missing_message_id = None
         if not str(order_item.response_comment or "").strip():
             order_item.response_comment = _AUTO_CONFIRM_MISSING_COMMENT
             updated += 1
@@ -2658,30 +2729,35 @@ def _auto_confirm_unmentioned_order_items(
     return updated, generated_rows
 
 
-def _auto_reject_unmentioned_order_items(
+def _mark_document_missing_items(
     order: SupplierOrder,
     *,
-    applied_rows: list[AppliedSupplierResponseRow],
+    message_id: int,
+    marked_at: datetime,
 ) -> int:
-    touched_item_ids = {
-        int(row.supplier_order_item_id) for row in applied_rows
-    }
+    """Start the 24-hour clock only after a parsed document was posted."""
     updated = 0
     for order_item in order.items or []:
-        item_id = int(order_item.id)
-        if item_id in touched_item_ids:
+        if order_item.customer_order_item_id is None:
             continue
-        if order_item.confirmed_quantity != 0:
-            order_item.confirmed_quantity = 0
-            updated += 1
+        ordered = max(int(order_item.quantity or 0), 0)
+        received = max(int(order_item.received_quantity or 0), 0)
+        confirmed = order_item.confirmed_quantity
+        if received >= ordered or (confirmed is not None and confirmed <= received):
+            continue
+        if order_item.document_missing_since is not None:
+            continue
+        order_item.document_missing_since = marked_at
+        order_item.document_missing_message_id = message_id
+        updated += 1
         if not str(order_item.response_comment or "").strip():
-            order_item.response_comment = _AUTO_REJECT_MISSING_COMMENT
+            order_item.response_comment = _MISSING_IN_DOCUMENT_COMMENT
             updated += 1
-        if order_item.response_status_raw != _AUTO_REJECT_MISSING_STATUS:
-            order_item.response_status_raw = _AUTO_REJECT_MISSING_STATUS
+        if not order_item.response_status_raw:
+            order_item.response_status_raw = _MISSING_IN_DOCUMENT_STATUS
             updated += 1
         normalized_status = normalize_external_status_text(
-            _AUTO_REJECT_MISSING_STATUS
+            order_item.response_status_raw
         )
         if order_item.response_status_normalized != (
             normalized_status or None
@@ -2692,10 +2768,96 @@ def _auto_reject_unmentioned_order_items(
     return updated
 
 
+async def expire_document_missing_items(
+    session: AsyncSession, *, now: Optional[datetime] = None
+) -> int:
+    """Reject customer-order remainders 24 hours after a parsed document."""
+    now_dt = now or now_moscow()
+    cutoff = now_dt - timedelta(hours=24)
+    rows = (
+        (
+            await session.execute(
+                select(SupplierOrderItem).where(
+                    SupplierOrderItem.customer_order_item_id.is_not(None),
+                    SupplierOrderItem.document_missing_since.is_not(None),
+                    SupplierOrderItem.document_missing_since <= cutoff,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    changed = 0
+    affected_customer_item_ids: set[int] = set()
+    for item in rows:
+        received = max(int(item.received_quantity or 0), 0)
+        ordered = max(int(item.quantity or 0), 0)
+        confirmed = item.confirmed_quantity
+        if received < ordered and (confirmed is None or int(confirmed) > received):
+            set_supplier_item_decision(
+                item, confirmed_quantity=received, source="document_timeout"
+            )
+            item.response_status_raw = "не вошло в документ за 24 часа"
+            item.response_status_normalized = normalize_external_status_text(
+                item.response_status_raw
+            ) or None
+            item.response_status_synced_at = now_dt
+            item.response_comment = (
+                f"Отказ остатка через 24 часа после документа "
+                f"#{item.document_missing_message_id}"
+            )
+            changed += 1
+            affected_customer_item_ids.add(int(item.customer_order_item_id))
+        item.document_missing_since = None
+    if rows:
+        await session.commit()
+    if affected_customer_item_ids:
+        order_ids = (
+            (
+                await session.execute(
+                    select(CustomerOrderItem.order_id).where(
+                        CustomerOrderItem.id.in_(affected_customer_item_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for order_id in set(order_ids):
+            if order_id is not None:
+                await try_finalize_customer_order_response(session, order_id=int(order_id))
+    return changed
+
+
+def supplier_auto_confirm_timings(
+    configs: Iterable[SupplierResponseConfig],
+) -> dict[int, tuple[int, int]]:
+    """Return the shortest active response policy per supplier.
+
+    The existing wait field keeps its meaning for older configurations: when
+    grace is unset, confirmation happens after exactly that many minutes.
+    """
+    timings: dict[int, tuple[int, int]] = {}
+    for config in configs:
+        if not config.is_active or config.file_payload_type == "document":
+            continue
+        wait_minutes = _safe_int(config.auto_confirm_after_minutes)
+        if wait_minutes is None or wait_minutes <= 0:
+            continue
+        grace_minutes = max(
+            _safe_int(config.auto_confirm_grace_minutes) or 0, 0
+        )
+        provider_id = int(config.provider_id)
+        current = timings.get(provider_id)
+        if current is None or wait_minutes + grace_minutes < sum(current):
+            timings[provider_id] = (wait_minutes, grace_minutes)
+    return timings
+
+
 async def _auto_confirm_orders_without_response_timeout(
     session: AsyncSession,
     *,
-    provider_timeouts: dict[int, int],
+    provider_timeouts: dict[int, tuple[int, int]],
     stats: SupplierResponseProcessingStats,
 ) -> None:
     if not provider_timeouts:
@@ -2703,7 +2865,8 @@ async def _auto_confirm_orders_without_response_timeout(
 
     now_dt = now_moscow()
     has_changes = False
-    for provider_key, timeout_minutes in provider_timeouts.items():
+    for provider_key, (wait_minutes, grace_minutes) in provider_timeouts.items():
+        timeout_minutes = wait_minutes + grace_minutes
         cutoff_dt = now_dt - timedelta(minutes=timeout_minutes)
         orders_stmt = (
             select(SupplierOrder)
@@ -2752,8 +2915,15 @@ async def _auto_confirm_orders_without_response_timeout(
                 if order_item.confirmed_quantity is not None:
                     continue
                 expected_quantity = max(int(order_item.quantity or 0), 0)
-                order_item.confirmed_quantity = expected_quantity
+                set_supplier_item_decision(
+                    order_item,
+                    confirmed_quantity=expected_quantity,
+                    source="automatic",
+                )
                 changed_fields += 1
+                order_item.decision_source = "automatic"
+                order_item.document_missing_since = None
+                order_item.document_missing_message_id = None
                 if not str(order_item.response_comment or "").strip():
                     order_item.response_comment = comment_label
                     changed_fields += 1
@@ -2783,62 +2953,6 @@ async def _auto_confirm_orders_without_response_timeout(
             )
             order.response_status_synced_at = now_dt
 
-            receipt_items_payload = _build_pending_receipt_items(order)
-            if receipt_items_payload:
-                receipt = await _find_open_supplier_receipt(
-                    session,
-                    provider_id=provider_key,
-                )
-                created_receipt = False
-                if receipt is None:
-                    warehouse = await resolve_warehouse_for_provider(
-                        session,
-                        provider_id=provider_key,
-                    )
-                    receipt = SupplierReceipt(
-                        provider_id=provider_key,
-                        warehouse_id=warehouse.id,
-                        supplier_order_id=int(order.id),
-                        source_message_id=None,
-                        document_number=None,
-                        document_date=now_dt.date(),
-                        created_by_user_id=None,
-                        created_at=now_dt,
-                        posted_at=None,
-                        comment=_AUTO_CONFIRM_TIMEOUT_RECEIPT_COMMENT,
-                    )
-                    session.add(receipt)
-                    await session.flush()
-                    created_receipt = True
-
-                added_items = await _append_supplier_receipt_items(
-                    session,
-                    receipt=receipt,
-                    order=order,
-                    items_payload=receipt_items_payload,
-                    post_now=False,
-                )
-                if added_items > 0:
-                    stats.receipt_items_added += added_items
-                    if created_receipt:
-                        stats.created_receipts += 1
-                        stats.draft_receipts += 1
-                    else:
-                        stats.updated_receipts += 1
-                    logger.info(
-                        (
-                            "Auto-created draft supplier receipt by timeout: "
-                            "provider_id=%s order_id=%s items=%s "
-                            "created=%s"
-                        ),
-                        provider_key,
-                        order.id,
-                        added_items,
-                        created_receipt,
-                    )
-                elif created_receipt:
-                    await session.delete(receipt)
-                    await session.flush()
             logger.info(
                 (
                     "Auto-confirmed supplier order by timeout: "
@@ -3023,15 +3137,18 @@ def _build_applied_row_payload(
     row: ParsedSupplierResponseRow,
     matched_item: SupplierOrderItem,
 ) -> AppliedSupplierResponseRow:
-    # For text decisions (ЕСТЬ/ОТКАЗ), quantity and price always come from
-    # the supplier order item, NOT from the email.  This prevents misreading
-    # quoted original-order tables (where customer-order numbers appear in the
-    # "comment" column and get confused with quantities).
+    # A bare ЕСТЬ confirms the ordered quantity. A parsed numeric quantity
+    # (for example "есть 2 из 5") confirms only that amount. The price still
+    # comes from the supplier order item.
     if row.text_decision:
         if row.text_decision == "reject":
             parsed_qty = 0
         else:  # "confirm"
-            parsed_qty = max(int(matched_item.quantity or 0), 0)
+            parsed_qty = (
+                max(min(int(row.confirmed_quantity), int(matched_item.quantity or 0)), 0)
+                if row.confirmed_quantity is not None
+                else max(int(matched_item.quantity or 0), 0)
+            )
         # Price: use the order item's own price
         # (= price from supplier price list)
         receipt_price = (
@@ -3075,27 +3192,43 @@ def _apply_row_to_item(
     matched_item: SupplierOrderItem,
     default_raw_status: Optional[str],
     default_normalized_status: Optional[str],
+    document_mode: bool = False,
 ) -> bool:
     item_changed = False
 
-    # For text decisions (ЕСТЬ/ОТКАЗ), quantity always comes from the order
-    # item — never from email parsing.  This avoids misreading quoted tables
-    # where customer order numbers appear in adjacent columns and get confused
-    # with quantities.
+    # A bare ЕСТЬ confirms all units; an explicit numeric reply confirms only
+    # its parsed amount. Quoted original-order content is stripped earlier.
     if row.text_decision:
         if row.text_decision == "reject":
             next_confirmed_quantity = 0
         else:  # "confirm"
-            next_confirmed_quantity = matched_item.quantity
+            next_confirmed_quantity = (
+                max(min(int(row.confirmed_quantity), int(matched_item.quantity or 0)), 0)
+                if row.confirmed_quantity is not None
+                else matched_item.quantity
+            )
     else:
         next_confirmed_quantity = row.confirmed_quantity
+
+    if document_mode:
+        # A document proves what is listed in it. It does not reject the
+        # unlisted remainder until the separate 24-hour grace period expires.
+        next_confirmed_quantity = None
 
     if (
         next_confirmed_quantity is not None
         and matched_item.confirmed_quantity != next_confirmed_quantity
     ):
-        matched_item.confirmed_quantity = next_confirmed_quantity
+        set_supplier_item_decision(
+            matched_item,
+            confirmed_quantity=next_confirmed_quantity,
+            source="supplier",
+        )
         item_changed = True
+    if not document_mode and next_confirmed_quantity is not None:
+        matched_item.decision_source = "supplier"
+        matched_item.document_missing_since = None
+        matched_item.document_missing_message_id = None
 
     # For text decisions don't update response_price on the order item —
     # the receipt will use the order item's own price (= supplier price list).
@@ -3158,6 +3291,7 @@ async def _apply_parsed_rows_without_order_id(
     default_normalized_status: Optional[str],
     date_from: date,
     response_config: Optional[SupplierResponseConfig] = None,
+    document_mode: bool = False,
 ) -> tuple[
     int,
     int,
@@ -3235,6 +3369,7 @@ async def _apply_parsed_rows_without_order_id(
             matched_item=matched_item,
             default_raw_status=default_raw_status,
             default_normalized_status=default_normalized_status,
+            document_mode=document_mode,
         ):
             updated += 1
         applied_row = _build_applied_row_payload(
@@ -3423,14 +3558,9 @@ def _build_full_document_items_payload(
         for item in (order.items or [])
     }
     payload: list[dict[str, object]] = []
-    seen_order_item_ids: set[int] = set()
-
     for applied_rows in applied_rows_by_order.values():
         for row in applied_rows:
             item_id = int(row.supplier_order_item_id)
-            if item_id in seen_order_item_ids:
-                continue
-            seen_order_item_ids.add(item_id)
             if row.received_quantity <= 0:
                 continue
             order_item = all_order_items.get(item_id)
@@ -3486,47 +3616,71 @@ def _build_full_document_items_payload(
     return payload
 
 
-def _build_document_items_payload_from_pending_orders(
+async def _document_receipt_is_safe_to_post(
+    session: AsyncSession,
+    items_payload: list[dict[str, object]],
+    order_items_by_id: dict[int, SupplierOrderItem],
     *,
-    orders_by_id: dict[int, SupplierOrder],
-) -> list[dict[str, object]]:
-    payload: list[dict[str, object]] = []
-    for order in orders_by_id.values():
-        order_id = int(order.id)
-        for order_item in order.items or []:
-            expected_quantity = (
-                int(order_item.confirmed_quantity)
-                if order_item.confirmed_quantity is not None
-                else int(order_item.quantity or 0)
+    response_config: Optional[SupplierResponseConfig] = None,
+) -> bool:
+    """Allow independent stock rows, but review ambiguous or unresolved rows."""
+    if not items_payload:
+        return False
+    quantities_by_item_id: dict[int, int] = {}
+    brand_aliases: Optional[dict[str, str]] = None
+    priority_brand_keys: list[str] = []
+    for payload in items_payload:
+        raw_item_id = payload.get("supplier_order_item_id")
+        qty = _safe_int(payload.get("received_quantity")) or 0
+        if qty <= 0:
+            return False
+        if raw_item_id in (None, ""):
+            if brand_aliases is None:
+                brand_aliases = await _load_brand_alias_map(session)
+                priority_brand_keys = _config_priority_brand_keys(
+                    response_config, brand_aliases
+                )
+            resolved = await _resolve_unlinked_payload_autopart(
+                session,
+                payload=payload,
+                response_config=response_config,
+                priority_brand_keys=priority_brand_keys,
+                brand_aliases=brand_aliases,
             )
-            current_received = int(order_item.received_quantity or 0)
-            pending_quantity = max(expected_quantity - current_received, 0)
-            if pending_quantity <= 0:
-                continue
-            payload.append(
-                {
-                    "supplier_order_item_id": int(order_item.id),
-                    "supplier_order_id": order_id,
-                    "received_quantity": pending_quantity,
-                    "response_price": order_item.response_price,
-                    "total_price_with_vat": None,
-                    "comment": order_item.response_comment,
-                    "gtd_code": None,
-                    "country_code": None,
-                    "country_name": None,
-                    "marking_codes": [],
-                    "oem_number": order_item.oem_number,
-                    "brand_name": order_item.brand_name,
-                    "autopart_name": order_item.autopart_name,
-                    "ordered_quantity": order_item.quantity,
-                    "confirmed_quantity": order_item.confirmed_quantity,
-                    "autopart_id": order_item.autopart_id,
-                    "customer_order_item_id": (
-                        order_item.customer_order_item_id
-                    ),
-                }
+            resolved_part_id = resolved.get("autopart_id") or payload.get("autopart_id")
+            if resolved_part_id is None:
+                return False
+            row_oem = _normalize_oem_key(payload.get("oem_number"))
+            row_brand = _canonical_brand_key_for_value(
+                payload.get("brand_name"), brand_aliases
             )
-    return payload
+            for known_item in order_items_by_id.values():
+                if known_item.autopart_id == resolved_part_id:
+                    return False
+                if row_oem and row_oem == _normalize_oem_key(known_item.oem_number):
+                    known_brand = _canonical_brand_key_for_value(
+                        known_item.brand_name, brand_aliases
+                    )
+                    if not row_brand or not known_brand or row_brand == known_brand:
+                        return False
+            continue
+        try:
+            item_id = int(raw_item_id)
+        except (TypeError, ValueError):
+            return False
+        item = order_items_by_id.get(item_id)
+        if item is None:
+            return False
+        quantities_by_item_id[item_id] = quantities_by_item_id.get(item_id, 0) + qty
+        accepted = (
+            int(item.confirmed_quantity)
+            if item.confirmed_quantity is not None
+            else int(item.quantity or 0)
+        )
+        remaining = max(accepted - int(item.received_quantity or 0), 0)
+        if quantities_by_item_id[item_id] > remaining:
+            return False
+    return True
 
 
 async def _append_document_receipt_items(
@@ -3536,6 +3690,7 @@ async def _append_document_receipt_items(
     items_payload: list[dict[str, object]],
     all_order_items_by_id: dict[int, SupplierOrderItem],
     response_config: Optional[SupplierResponseConfig] = None,
+    post_now: bool = True,
 ) -> int:
     """Add items to a single document receipt that may span multiple orders.
 
@@ -3596,6 +3751,7 @@ async def _append_document_receipt_items(
                     order_item_id=order_item_id,
                     autopart_id=(
                         resolved.get("autopart_id")
+                        or payload.get("autopart_id")
                         or (
                             matched_site_order_item.autopart_id
                             if matched_site_order_item is not None
@@ -3653,8 +3809,9 @@ async def _append_document_receipt_items(
                 continue
             supplier_order_item_id = int(supplier_order_item_id_raw)
             order_item = all_order_items_by_id.get(supplier_order_item_id)
-            # Cap to pending quantity to avoid over-receiving
-            if order_item is not None:
+            # Drafts retain the document quantity for manager review and do
+            # not change the factual received quantity on the order.
+            if order_item is not None and post_now:
                 expected_qty = (
                     int(order_item.confirmed_quantity)
                     if order_item.confirmed_quantity is not None
@@ -3721,12 +3878,14 @@ async def _append_document_receipt_items(
             added += 1
 
     if added:
+        if post_now:
+            receipt.posted_at = now_moscow()
+            await session.flush()
         await _refresh_receipt_links(
             session,
             supplier_order_item_ids=linked_supplier_order_item_ids,
             order_item_ids=linked_site_order_item_ids,
         )
-        receipt.posted_at = now_moscow()
     return added
 
 
@@ -3741,6 +3900,7 @@ async def _create_single_document_receipt(
     comment: Optional[str] = None,
     all_order_items_by_id: dict[int, SupplierOrderItem],
     response_config: Optional[SupplierResponseConfig] = None,
+    post_now: bool = True,
 ) -> tuple[Optional[SupplierReceipt], int]:
     """Create a single posted receipt for an entire document (УПД/накладная).
 
@@ -3773,6 +3933,7 @@ async def _create_single_document_receipt(
         items_payload=items_payload,
         all_order_items_by_id=all_order_items_by_id,
         response_config=response_config,
+        post_now=post_now,
     )
     if added <= 0:
         await session.delete(receipt)
@@ -4510,16 +4671,13 @@ async def process_supplier_response_messages(
         selected_config,
     ) = await _load_runtime_configs()
 
-    # Build provider_timeouts while ORM objects are fresh (before any
-    # session.rollback() in the processing loop can expire them).
-    _provider_timeouts_for_auto_confirm: dict[int, int] = {}
-    for _cfg in response_configs:
-        _minutes = _safe_int(getattr(_cfg, "auto_confirm_after_minutes", None))
-        if _minutes is not None and _minutes > 0:
-            _pk = int(_cfg.provider_id)
-            _prev = _provider_timeouts_for_auto_confirm.get(_pk)
-            if _prev is None or _minutes < _prev:
-                _provider_timeouts_for_auto_confirm[_pk] = _minutes
+    # Snapshot the policy before a processing rollback can expire ORM fields.
+    # A document-only run must never confirm an order for lack of email.
+    _provider_timeouts_for_auto_confirm = (
+        supplier_auto_confirm_timings(response_configs)
+        if file_payload_mode != "documents"
+        else {}
+    )
 
     explicit_account_ids = {
         int(config.inbox_email_account_id)
@@ -4556,6 +4714,8 @@ async def process_supplier_response_messages(
         fetch_kwargs["include_default_orders_out"] = False
     if from_email_filters:
         fetch_kwargs["from_email_filters"] = from_email_filters
+    fetch_health: dict[str, bool] = {"healthy": False}
+    fetch_kwargs["fetch_health"] = fetch_health
     messages = await _fetch_supplier_response_messages(session, **fetch_kwargs)
     stats.fetched_messages = len(messages)
     logger.info(
@@ -5143,8 +5303,41 @@ async def process_supplier_response_messages(
             session.add(message_row)
             await session.flush()
 
+            # A supplier correction changes a previous receipt. Never parse it
+            # as a new УПД or a supplier order response.
+            from dz_fastapi.services.supplier_receipt_corrections import (
+                is_correction_document,
+                register_incoming_correction,
+            )
+
+            if is_correction_document(
+                subject, *(attachment.filename for attachment in attachments)
+            ):
+                for attachment in attachments:
+                    file_path, digest = await _store_supplier_message_attachment(
+                        message_id=message_row.id, attachment=attachment,
+                    )
+                    session.add(SupplierOrderAttachment(
+                        message_id=message_row.id,
+                        filename=str(attachment.filename or "attachment.bin")[:255],
+                        mime_type=None,
+                        file_path=file_path,
+                        sha256=digest,
+                        parsed_kind="correction_document",
+                    ))
+                    stats.stored_attachments += 1
+                message_row.message_type = "CORRECTION_DOC"
+                await register_incoming_correction(
+                    session, provider_id=provider.id,
+                    message_id=message_row.id, source_kind="email",
+                )
+                await session.commit()
+                stats.processed_messages += 1
+                continue
+
             parsed_response_file = False
             parsed_text_rows = False
+            parsed_text = ParsedSupplierTextResponse()
             has_shipping_doc = False
             import_error_reasons: list[str] = []
             shipping_doc_filenames: list[str] = []
@@ -5332,6 +5525,7 @@ async def process_supplier_response_messages(
                             default_raw_status=raw_status,
                             default_normalized_status=normalized_status,
                             response_config=active_response_config,
+                            document_mode=attachment_kind == "SHIPPING_DOC",
                         )
                         stats.updated_items += updated_items
                         receipt_applied_rows_by_order.setdefault(
@@ -5374,6 +5568,7 @@ async def process_supplier_response_messages(
                             ),
                             date_from=date_from,
                             response_config=active_response_config,
+                            document_mode=attachment_kind == "SHIPPING_DOC",
                         )
                         stats.updated_items += updated_items
                         stats.recognized_positions += matched_count
@@ -5545,6 +5740,7 @@ async def process_supplier_response_messages(
                                     status_label=(
                                         _fallback_token or raw_status or None
                                     ),
+                                    excluded_item_ids=_touched_ids,
                                 )
                                 _new_fallback_rows = [
                                     r
@@ -5566,14 +5762,22 @@ async def process_supplier_response_messages(
                                             _fallback_updated
                                         )
                 if not parsed_text_rows and not parsed_response_file:
-                    (
-                        global_decision,
-                        global_decision_token,
-                    ) = _detect_global_text_decision(
-                        response_text_with_subject,
-                        confirm_keywords=confirm_keywords,
-                        reject_keywords=reject_keywords,
-                    )
+                    if (
+                        (parsed_text.rows or parsed_text.unresolved)
+                        and not _WHOLE_ORDER_CONFIRM_RE.search(response_text_with_subject)
+                    ):
+                        # A line-level reply that failed to match must not
+                        # become a rejection of the entire supplier order.
+                        global_decision, global_decision_token = None, None
+                    else:
+                        (
+                            global_decision,
+                            global_decision_token,
+                        ) = _detect_global_text_decision(
+                            response_text_with_subject,
+                            confirm_keywords=confirm_keywords,
+                            reject_keywords=reject_keywords,
+                        )
                     if global_decision is not None:
                         status_label = (
                             global_decision_token
@@ -5693,7 +5897,7 @@ async def process_supplier_response_messages(
                     )
 
             if matched_orders:
-                if auto_confirm_unmentioned_items:
+                if auto_confirm_unmentioned_items and not has_shipping_doc:
                     for matched_order in matched_orders.values():
                         order_key = int(matched_order.id)
                         applied_rows = receipt_applied_rows_by_order.get(
@@ -5716,25 +5920,6 @@ async def process_supplier_response_messages(
                                 [],
                             ).extend(auto_rows)
                         auto_confirmed_order_ids.add(order_key)
-                if (
-                    has_shipping_doc
-                    and parsed_response_file
-                    and normalized_file_payload_type == "document"
-                    and order is not None
-                ):
-                    target_order = matched_orders.get(int(order.id))
-                    if target_order is not None:
-                        order_key = int(target_order.id)
-                        applied_rows = receipt_applied_rows_by_order.get(
-                            order_key,
-                            [],
-                        )
-                        reject_updates = _auto_reject_unmentioned_order_items(
-                            target_order,
-                            applied_rows=applied_rows,
-                        )
-                        if reject_updates > 0:
-                            stats.updated_items += reject_updates
                 stats.matched_orders += len(matched_orders)
                 affected_customer_order_item_ids = {
                     int(order_item.customer_order_item_id)
@@ -5811,6 +5996,7 @@ async def process_supplier_response_messages(
                 )
                 stats.unmapped_statuses += 1
 
+            doc_requires_review = False
             if has_shipping_doc:
                 # Document receipt: ONE receipt for the ENTIRE document.
                 # Contains ALL items — matched to orders AND unmatched.
@@ -5828,12 +6014,23 @@ async def process_supplier_response_messages(
                     all_orders_by_id=all_orders_for_doc,
                     unmatched_rows=document_all_unmatched_rows,
                 )
-                if not doc_items_payload and all_orders_for_doc:
-                    doc_items_payload = (
-                        _build_document_items_payload_from_pending_orders(
-                            orders_by_id=all_orders_for_doc,
-                        )
+                if not doc_items_payload:
+                    import_error_reasons.append(
+                        "Документ найден, но ни одна товарная строка не разобрана"
                     )
+                else:
+                    doc_requires_review = not await _document_receipt_is_safe_to_post(
+                        session,
+                        doc_items_payload,
+                        all_order_items_for_doc,
+                        response_config=active_response_config,
+                    )
+                    if doc_requires_review:
+                        import_error_reasons.append(
+                            "Строки документа не полностью сопоставлены с заказом "
+                            "или товарным каталогом, либо превышают ожидаемое "
+                            "количество; проверьте черновик"
+                        )
                 # Extract document number / date from any matched applied row
                 all_applied_flat = [
                     row
@@ -5877,11 +6074,15 @@ async def process_supplier_response_messages(
                             ),
                             all_order_items_by_id=all_order_items_for_doc,
                             response_config=active_response_config,
+                            post_now=not doc_requires_review,
                         )
                     )
                     if added_items > 0:
                         stats.created_receipts += 1
-                        stats.posted_receipts += 1
+                        if doc_requires_review:
+                            stats.draft_receipts += 1
+                        else:
+                            stats.posted_receipts += 1
                         stats.receipt_items_added += added_items
                         linked_items_payload = [
                             payload
@@ -5889,7 +6090,17 @@ async def process_supplier_response_messages(
                             if payload.get("supplier_order_item_id")
                             not in (None, "")
                         ]
-                        if linked_items_payload and all_orders_for_doc:
+                        if (
+                            not doc_requires_review
+                            and linked_items_payload
+                            and all_orders_for_doc
+                        ):
+                            for matched_order in all_orders_for_doc.values():
+                                stats.updated_items += _mark_document_missing_items(
+                                    matched_order,
+                                    message_id=int(message_row.id),
+                                    marked_at=now_moscow(),
+                                )
                             updated_draft_receipt_ids: set[int] = set()
                             find_open_draft = (
                                 _find_open_supplier_receipt_for_order
@@ -6018,7 +6229,9 @@ async def process_supplier_response_messages(
             import_error_details = _build_import_error_details(
                 import_error_reasons
             )
-            is_import_error = False
+            is_import_error = bool(
+                has_shipping_doc and (not doc_items_payload or doc_requires_review)
+            )
             if expects_file_payload:
                 if not has_shipping_doc and not parsed_response_file:
                     is_import_error = True
@@ -6029,7 +6242,10 @@ async def process_supplier_response_messages(
                 ):
                     is_import_error = True
             if expects_text_payload:
-                if parsed_text_rows and recognized_for_message <= 0:
+                if (
+                    (parsed_text.rows or parsed_text.unresolved)
+                    and recognized_for_message <= 0
+                ):
                     is_import_error = True
                 elif not parsed_text_rows and not raw_status:
                     is_import_error = True
@@ -6102,18 +6318,23 @@ async def process_supplier_response_messages(
             stats.skipped_messages += 1
             reload_runtime_configs = True
 
-    try:
-        await _auto_confirm_orders_without_response_timeout(
-            session,
-            provider_timeouts=_provider_timeouts_for_auto_confirm,
-            stats=stats,
-        )
-    except Exception as exc:
-        await session.rollback()
-        logger.error(
-            "Failed to auto-confirm supplier orders by timeout: %s",
-            exc,
-            exc_info=True,
+    if fetch_health["healthy"]:
+        try:
+            await _auto_confirm_orders_without_response_timeout(
+                session,
+                provider_timeouts=_provider_timeouts_for_auto_confirm,
+                stats=stats,
+            )
+        except Exception as exc:
+            await session.rollback()
+            logger.error(
+                "Failed to auto-confirm supplier orders by timeout: %s",
+                exc,
+                exc_info=True,
+            )
+    elif _provider_timeouts_for_auto_confirm:
+        logger.warning(
+            "Supplier silent acceptance deferred: inbox fetch was incomplete"
         )
 
     for customer_order_id in sorted(pending_customer_order_ids):
@@ -6514,6 +6735,7 @@ async def process_stored_supplier_document_message(
                 default_raw_status=raw_status,
                 default_normalized_status=normalized_status,
                 response_config=response_config,
+                document_mode=True,
             )
             stats.updated_items += updated_items
             stats.recognized_positions += matched_count
@@ -6545,6 +6767,7 @@ async def process_stored_supplier_document_message(
                 default_normalized_status=normalized_status or None,
                 date_from=date_from,
                 response_config=response_config,
+                document_mode=True,
             )
             stats.updated_items += updated_items
             stats.recognized_positions += matched_count
@@ -6596,7 +6819,7 @@ async def process_stored_supplier_document_message(
             message_row.supplier_order_id = next(iter(matched_orders.keys()))
 
     if matched_orders:
-        if auto_confirm_unmentioned_items:
+        if auto_confirm_unmentioned_items and not has_shipping_doc:
             for matched_order in matched_orders.values():
                 order_key = int(matched_order.id)
                 applied_rows = receipt_applied_rows_by_order.get(
@@ -6618,27 +6841,10 @@ async def process_stored_supplier_document_message(
                         order_key,
                         [],
                     ).extend(auto_rows)
-        if (
-            has_shipping_doc
-            and parsed_response_file
-            and message_row.supplier_order is not None
-        ):
-            target_order = matched_orders.get(
-                int(message_row.supplier_order.id)
-            )
-            if target_order is not None:
-                reject_updates = _auto_reject_unmentioned_order_items(
-                    target_order,
-                    applied_rows=receipt_applied_rows_by_order.get(
-                        int(target_order.id),
-                        [],
-                    ),
-                )
-                if reject_updates > 0:
-                    stats.updated_items += reject_updates
         stats.matched_orders += len(matched_orders)
 
     receipt_ids: list[int] = []
+    doc_requires_review = False
     if has_shipping_doc:
         all_orders_for_doc: dict[int, SupplierOrder] = dict(matched_orders)
         all_order_items_for_doc: dict[int, SupplierOrderItem] = {
@@ -6651,12 +6857,23 @@ async def process_stored_supplier_document_message(
             all_orders_by_id=all_orders_for_doc,
             unmatched_rows=document_all_unmatched_rows,
         )
-        if not doc_items_payload and all_orders_for_doc:
-            doc_items_payload = (
-                _build_document_items_payload_from_pending_orders(
-                    orders_by_id=all_orders_for_doc,
-                )
+        if not doc_items_payload:
+            import_error_reasons.append(
+                "Документ найден, но ни одна товарная строка не разобрана"
             )
+        else:
+            doc_requires_review = not await _document_receipt_is_safe_to_post(
+                session,
+                doc_items_payload,
+                all_order_items_for_doc,
+                response_config=response_config,
+            )
+            if doc_requires_review:
+                import_error_reasons.append(
+                    "Строки документа не полностью сопоставлены с заказом "
+                    "или товарным каталогом, либо превышают ожидаемое "
+                    "количество; проверьте черновик"
+                )
 
         all_applied_flat = [
             row
@@ -6692,11 +6909,15 @@ async def process_stored_supplier_document_message(
                     comment="Авто-проведение по документу из Диадок",
                     all_order_items_by_id=all_order_items_for_doc,
                     response_config=response_config,
+                    post_now=not doc_requires_review,
                 )
             )
             if added_items > 0:
                 stats.created_receipts += 1
-                stats.posted_receipts += 1
+                if doc_requires_review:
+                    stats.draft_receipts += 1
+                else:
+                    stats.posted_receipts += 1
                 stats.receipt_items_added += added_items
                 if (
                     posted_receipt is not None
@@ -6708,7 +6929,17 @@ async def process_stored_supplier_document_message(
                     for payload in doc_items_payload
                     if payload.get("supplier_order_item_id") not in (None, "")
                 ]
-                if linked_items_payload and all_orders_for_doc:
+                if (
+                    not doc_requires_review
+                    and linked_items_payload
+                    and all_orders_for_doc
+                ):
+                    for matched_order in all_orders_for_doc.values():
+                        stats.updated_items += _mark_document_missing_items(
+                            matched_order,
+                            message_id=int(message_row.id),
+                            marked_at=now_moscow(),
+                        )
                     updated_draft_receipt_ids: set[int] = set()
                     for matched_order in all_orders_for_doc.values():
                         draft_receipt = (
@@ -6737,7 +6968,9 @@ async def process_stored_supplier_document_message(
 
     recognized_for_message = stats.recognized_positions - recognized_before
     is_import_error = False
-    if not has_shipping_doc and not parsed_response_file:
+    if has_shipping_doc and (not doc_items_payload or doc_requires_review):
+        is_import_error = True
+    elif not has_shipping_doc and not parsed_response_file:
         is_import_error = True
     elif parsed_response_file and recognized_for_message <= 0:
         positive_unmatched = any(

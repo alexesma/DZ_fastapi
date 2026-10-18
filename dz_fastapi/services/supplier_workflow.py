@@ -27,6 +27,8 @@ from dz_fastapi.models.partner import (
     SupplierOrder,
     SupplierOrderItem,
     SupplierReceipt,
+    SupplierReceiptCorrection,
+    SupplierReceiptCorrectionItem,
     SupplierReceiptItem,
 )
 from dz_fastapi.models.user import User
@@ -43,6 +45,7 @@ from dz_fastapi.services.inventory_stock import (
     apply_receipt_to_stock_by_id,
     resolve_warehouse_for_provider,
 )
+from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
 
 
 @dataclass(slots=True)
@@ -225,7 +228,11 @@ async def _recalculate_site_order_items_received(
                     0,
                 ),
             )
-            .where(SupplierReceiptItem.order_item_id.in_(item_ids))
+            .join(SupplierReceipt, SupplierReceipt.id == SupplierReceiptItem.receipt_id)
+            .where(
+                SupplierReceiptItem.order_item_id.in_(item_ids),
+                SupplierReceipt.posted_at.is_not(None),
+            )
             .group_by(SupplierReceiptItem.order_item_id)
         )
     ).all()
@@ -234,6 +241,31 @@ async def _recalculate_site_order_items_received(
         for item_id, total_qty in totals_rows
         if item_id is not None
     }
+    correction_rows = (
+        await session.execute(
+            select(
+                SupplierReceiptItem.order_item_id,
+                func.coalesce(func.sum(SupplierReceiptCorrectionItem.quantity_delta), 0),
+            )
+            .join(
+                SupplierReceiptCorrectionItem,
+                SupplierReceiptCorrectionItem.receipt_item_id == SupplierReceiptItem.id,
+            )
+            .join(
+                SupplierReceiptCorrection,
+                SupplierReceiptCorrection.id == SupplierReceiptCorrectionItem.correction_id,
+            )
+            .where(
+                SupplierReceiptItem.order_item_id.in_(item_ids),
+                SupplierReceiptCorrection.posted_at.is_not(None),
+            )
+            .group_by(SupplierReceiptItem.order_item_id)
+        )
+    ).all()
+    for item_id, corrected_qty in correction_rows:
+        totals_by_item_id[int(item_id)] = totals_by_item_id.get(int(item_id), 0) - int(
+            corrected_qty or 0
+        )
     touched_order_ids: set[int] = set()
     for item in order_items:
         ordered_quantity = max(int(item.quantity or 0), 0)
@@ -561,6 +593,7 @@ async def list_supplier_receipt_candidates(
     provider_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    customer_only: bool = True,
 ) -> list[dict]:
     if date_from is None or date_to is None:
         default_from, default_to = get_default_supplier_activity_window()
@@ -579,7 +612,7 @@ async def list_supplier_receipt_candidates(
     for order in orders:
         provider_name = getattr(order.provider, "name", None)
         for item in order.items or []:
-            if item.receipt_items:
+            if customer_only and item.customer_order_item_id is None:
                 continue
             customer_order = None
             customer = None
@@ -658,6 +691,7 @@ async def list_supplier_receipt_provider_options(
     *,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    customer_only: bool = True,
 ) -> list[dict]:
     """
     Return only providers that have at least one pending item to receive
@@ -665,7 +699,8 @@ async def list_supplier_receipt_provider_options(
     Reuses list_supplier_receipt_candidates so the filter logic is identical.
     """
     candidates = await list_supplier_receipt_candidates(
-        session, date_from=date_from, date_to=date_to
+        session, date_from=date_from, date_to=date_to,
+        customer_only=customer_only,
     )
 
     provider_map: dict[int, dict] = {}
@@ -844,7 +879,14 @@ async def create_supplier_receipt(
         # pending quantity for this supplier order item.
         if requested_quantity == 0 and pending_quantity > 0:
             if item.confirmed_quantity is None or int(item.confirmed_quantity) > current_received:
-                item.confirmed_quantity = current_received
+                set_supplier_item_decision(
+                    item, confirmed_quantity=current_received, source="manager"
+                )
+            item.document_missing_since = None
+            item.document_missing_message_id = None
+            item.response_status_raw = "отказ отмечен менеджером"
+            item.response_status_normalized = "отказ отмечен менеджером"
+            item.response_status_synced_at = now_moscow()
 
             receipt_item = SupplierReceiptItem(
                 receipt_id=receipt.id,
@@ -867,8 +909,9 @@ async def create_supplier_receipt(
         received_quantity = min(received_quantity, pending_quantity)
         if received_quantity <= 0:
             continue
-        item.received_quantity = current_received + received_quantity
-        item.received_at = now_moscow()
+        if post_now:
+            item.received_quantity = current_received + received_quantity
+            item.received_at = now_moscow()
 
         receipt_item = SupplierReceiptItem(
             receipt_id=receipt.id,
@@ -963,7 +1006,9 @@ async def post_supplier_receipt(
                 .where(
                     SupplierReceiptItem.supplier_order_item_id.in_(order_item_ids),
                     SupplierReceiptItem.receipt_id != receipt.id,
+                    SupplierReceipt.posted_at.is_not(None),
                 )
+                .join(SupplierReceipt, SupplierReceipt.id == SupplierReceiptItem.receipt_id)
                 .group_by(SupplierReceiptItem.supplier_order_item_id)
             )
             totals_rows = (await session.execute(totals_stmt)).all()
@@ -1000,6 +1045,19 @@ async def post_supplier_receipt(
         if receipt.created_by_user_id is None:
             receipt.created_by_user_id = user.id
         await session.flush()
+        await _refresh_receipt_links(
+            session,
+            supplier_order_item_ids={
+                int(item.supplier_order_item_id)
+                for item in (receipt.items or [])
+                if item.supplier_order_item_id is not None
+            },
+            order_item_ids={
+                int(item.order_item_id)
+                for item in (receipt.items or [])
+                if item.order_item_id is not None
+            },
+        )
         await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
         await ensure_cross_docking_labels(
             session,
@@ -1052,7 +1110,11 @@ async def _recalculate_supplier_order_items_received(
                     0,
                 ),
             )
-            .where(SupplierReceiptItem.supplier_order_item_id.in_(item_ids))
+            .join(SupplierReceipt, SupplierReceipt.id == SupplierReceiptItem.receipt_id)
+            .where(
+                SupplierReceiptItem.supplier_order_item_id.in_(item_ids),
+                SupplierReceipt.posted_at.is_not(None),
+            )
             .group_by(SupplierReceiptItem.supplier_order_item_id)
         )
     ).all()
@@ -1061,6 +1123,31 @@ async def _recalculate_supplier_order_items_received(
         for item_id, total_qty in totals_rows
         if item_id is not None
     }
+    correction_rows = (
+        await session.execute(
+            select(
+                SupplierReceiptItem.supplier_order_item_id,
+                func.coalesce(func.sum(SupplierReceiptCorrectionItem.quantity_delta), 0),
+            )
+            .join(
+                SupplierReceiptCorrectionItem,
+                SupplierReceiptCorrectionItem.receipt_item_id == SupplierReceiptItem.id,
+            )
+            .join(
+                SupplierReceiptCorrection,
+                SupplierReceiptCorrection.id == SupplierReceiptCorrectionItem.correction_id,
+            )
+            .where(
+                SupplierReceiptItem.supplier_order_item_id.in_(item_ids),
+                SupplierReceiptCorrection.posted_at.is_not(None),
+            )
+            .group_by(SupplierReceiptItem.supplier_order_item_id)
+        )
+    ).all()
+    for item_id, corrected_qty in correction_rows:
+        totals_by_item_id[int(item_id)] = totals_by_item_id.get(int(item_id), 0) - int(
+            corrected_qty or 0
+        )
     current_dt = now_moscow()
     for item in order_items:
         expected_quantity = (
@@ -1098,6 +1185,16 @@ async def unpost_supplier_receipt(
         raise LookupError("Документ поступления не найден")
 
     if receipt.posted_at is not None:
+        posted_correction = (
+            await session.execute(
+                select(SupplierReceiptCorrection.id).where(
+                    SupplierReceiptCorrection.receipt_id == receipt.id,
+                    SupplierReceiptCorrection.posted_at.is_not(None),
+                ).limit(1)
+            )
+        ).scalar_one_or_none()
+        if posted_correction is not None:
+            raise ValueError("Нельзя распровести приход с проведённой КСФ")
         await reset_cross_docking_acceptance(
             session,
             receipt_id=receipt.id,
@@ -1108,6 +1205,20 @@ async def unpost_supplier_receipt(
             reverse=True,
         )
         receipt.posted_at = None
+        await session.flush()
+        await _refresh_receipt_links(
+            session,
+            supplier_order_item_ids={
+                int(item.supplier_order_item_id)
+                for item in (receipt.items or [])
+                if item.supplier_order_item_id is not None
+            },
+            order_item_ids={
+                int(item.order_item_id)
+                for item in (receipt.items or [])
+                if item.order_item_id is not None
+            },
+        )
         if receipt.created_by_user_id is None:
             receipt.created_by_user_id = user.id
         from dz_fastapi.services.one_c_outbox import EVENT_CANCELLED, enqueue_receipt_event
@@ -1571,13 +1682,12 @@ def _auto_refuse_deadline(
     sent_at: datetime,
     holiday_set: set,
 ) -> datetime:
-    """Return the datetime when an item should be auto-refused.
+    """Return the datetime when an unanswered supplier item becomes overdue.
 
     Finds the next business day after *sent_at* (using holiday_set) and
     sets deadline at 23:00 Moscow time of that day.
 
-    Sat/Sun sent_at → returns a far-future sentinel
-    (orders not sent those days).
+    Manually sent weekend orders get the next business-day deadline too.
     """
     from zoneinfo import ZoneInfo
 
@@ -1588,10 +1698,6 @@ def _auto_refuse_deadline(
         sent_at_moscow = sent_at.replace(tzinfo=timezone.utc).astimezone(moscow)
     else:
         sent_at_moscow = sent_at.astimezone(moscow)
-
-    if sent_at_moscow.weekday() >= 5:
-        # Saturday / Sunday — orders not sent; return far-future sentinel
-        return sent_at_moscow + timedelta(days=365)
 
     deadline_date = next_business_day(sent_at_moscow.date(), holiday_set)
     return datetime(
@@ -1606,8 +1712,10 @@ def _auto_refuse_deadline(
 
 
 async def mark_auto_refused_supplier_items(session: AsyncSession) -> int:
-    """Mark SupplierOrderItems as auto-refused when no confirmation or receipt
-    arrived within one business day after the order was sent.
+    """Record missed response deadlines in the legacy auto_refused_at column.
+
+    This timestamp is not evidence of a supplier refusal. No quantity is
+    changed here, and the list computes confirmed refusals separately.
 
     Returns the number of items newly marked.
     """

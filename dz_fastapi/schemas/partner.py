@@ -860,6 +860,7 @@ class SupplierResponseConfigBase(BaseModel):
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
+    auto_confirm_grace_minutes: Optional[int] = Field(default=None, ge=0)
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: SupplierResponseFilePayloadType = SupplierResponseFilePayloadType.RESPONSE
     subject_pattern: Optional[str] = None
@@ -977,6 +978,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     process_shipping_docs: Optional[bool] = None
     auto_confirm_unmentioned_items: Optional[bool] = None
     auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
+    auto_confirm_grace_minutes: Optional[int] = Field(default=None, ge=0)
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: Optional[SupplierResponseFilePayloadType] = None
     subject_pattern: Optional[str] = None
@@ -1085,6 +1087,7 @@ class SupplierResponseConfigOut(BaseModel):
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = None
+    auto_confirm_grace_minutes: Optional[int] = None
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: SupplierResponseFilePayloadType = SupplierResponseFilePayloadType.RESPONSE
     subject_pattern: Optional[str] = None

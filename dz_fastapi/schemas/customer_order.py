@@ -263,6 +263,32 @@ class CustomerOrderItemUpdate(BaseModel):
     supplier_id: Optional[int] = None
 
 
+class CustomerOrderPriceOverridePreview(BaseModel):
+    item_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_id: Optional[int] = None
+    requested_qty: int
+    available_qty: int
+    accepted_qty: int
+    remaining_reject_qty: int
+    supplier_price: Decimal
+    offer_price: Decimal
+    customer_price: Decimal
+    price_diff_pct: float
+    actual_markup_pct: float
+    actual_margin_pct: float
+    planned_markup_pct: float
+    price_warning_pct: float
+
+
+class CustomerOrderPriceOverrideResult(BaseModel):
+    item: CustomerOrderItemResponse
+    supplier_order_id: int
+    preview: CustomerOrderPriceOverridePreview
+    credit_warning: Optional[dict] = None
+
+
 class CustomerOrderManualItemCreate(BaseModel):
     oem: str
     brand: str
@@ -459,6 +485,16 @@ class SupplierOrderItemDetailResponse(BaseModel):
     received_quantity: Optional[int] = None
     received_at: Optional[datetime] = None
     auto_refused_at: Optional[datetime] = None
+    response_due_at: Optional[datetime] = None
+    auto_confirm_at: Optional[datetime] = None
+    response_state: str = "not_sent"
+    response_source: Optional[str] = None
+    refusal_sources: dict[str, int] = Field(default_factory=dict)
+    response_at: Optional[datetime] = None
+    document_missing_since: Optional[datetime] = None
+    document_refusal_due_at: Optional[datetime] = None
+    explicit_rejected_quantity: int = 0
+    pending_quantity: int = 0
     requested_qty: Optional[int] = None
     ship_qty: Optional[int] = None
     reject_qty: Optional[int] = None
@@ -476,6 +512,8 @@ class SupplierOrderDetailResponse(BaseModel):
     created_at: datetime
     scheduled_at: Optional[datetime]
     sent_at: Optional[datetime]
+    last_send_attempt_at: Optional[datetime] = None
+    last_send_error: Optional[str] = None
     response_status_raw: Optional[str] = None
     response_status_normalized: Optional[str] = None
     response_status_synced_at: Optional[datetime] = None
@@ -502,6 +540,15 @@ class SupplierOrderSummaryResponse(BaseModel):
     supplier_sum: float = 0.0
     rejected_sum: float = 0.0
     rejected_pct: float = 0.0
+    awaiting_count: int = 0
+    overdue_count: int = 0
+    confirmed_rejected_count: int = 0
+    rejected_by_supplier_sum: float = 0.0
+    rejected_by_manager_sum: float = 0.0
+    rejected_by_document_timeout_sum: float = 0.0
+    rejected_by_other_sum: float = 0.0
+    last_send_attempt_at: Optional[datetime] = None
+    last_send_error: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -819,6 +866,53 @@ class SupplierReceiptResponse(BaseModel):
     items: List[SupplierReceiptItemResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SupplierReceiptCorrectionInputItem(BaseModel):
+    receipt_item_id: int
+    quantity_after: int = Field(ge=0)
+
+
+class SupplierReceiptCorrectionSave(BaseModel):
+    receipt_id: int
+    document_number: Optional[str] = Field(default=None, max_length=120)
+    document_date: Optional[date] = None
+    comment: Optional[str] = None
+    items: List[SupplierReceiptCorrectionInputItem]
+
+
+class SupplierReceiptCorrectionItemResponse(BaseModel):
+    id: int
+    receipt_item_id: int
+    quantity_before: Optional[int] = None
+    quantity_after: int
+    quantity_delta: Optional[int] = None
+    oem_number: Optional[str] = None
+    brand_name: Optional[str] = None
+
+
+class SupplierReceiptCorrectionAttachmentResponse(BaseModel):
+    id: int
+    filename: str
+
+
+class SupplierReceiptCorrectionResponse(BaseModel):
+    id: int
+    provider_id: int
+    receipt_id: Optional[int] = None
+    source_message_id: Optional[int] = None
+    source_kind: str
+    document_number: Optional[str] = None
+    document_date: Optional[date] = None
+    status: str
+    comment: Optional[str] = None
+    created_at: datetime
+    posted_at: Optional[datetime] = None
+    source_subject: Optional[str] = None
+    source_preview: Optional[str] = None
+    source_received_at: Optional[datetime] = None
+    attachments: List[SupplierReceiptCorrectionAttachmentResponse] = Field(default_factory=list)
+    items: List[SupplierReceiptCorrectionItemResponse] = Field(default_factory=list)
 
 
 class CrossDockingLabelPrintEventResponse(BaseModel):

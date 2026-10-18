@@ -158,6 +158,7 @@ class DiadocInboundDocumentProcessResult(BaseModel):
     supplier_order_message_id: int
     response_config_id: int | None = None
     receipt_ids: list[int] = Field(default_factory=list)
+    correction_id: int | None = None
     already_processed: bool = False
     processed_messages: int = 0
     parsed_response_files: int = 0

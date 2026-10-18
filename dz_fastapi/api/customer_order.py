@@ -1,14 +1,16 @@
 import logging
+import os
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi.responses import FileResponse
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import (
@@ -19,7 +21,15 @@ from dz_fastapi.crud.customer_order import (
 )
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS, Client, CustomerPriceListConfig
+from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
+    Client,
+    CustomerPriceListConfig,
+    Provider,
+    SupplierReceipt,
+    SupplierResponseConfig,
+    SupplierOrderAttachment,
+)
 from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (
     CrossDockingDocumentStatusUpdate,
@@ -32,6 +42,8 @@ from dz_fastapi.schemas.customer_order import (
     CustomerOrderItemStatsResponse,
     CustomerOrderItemUpdate,
     CustomerOrderManualCreate,
+    CustomerOrderPriceOverridePreview,
+    CustomerOrderPriceOverrideResult,
     CustomerOrderResponse,
     CustomerOrderRoutingChoice,
     CustomerOrderStatsMonthlyBucket,
@@ -52,6 +64,8 @@ from dz_fastapi.schemas.customer_order import (
     SupplierOrderManualCreate,
     SupplierOrderSummaryResponse,
     SupplierReceiptCandidateRow,
+    SupplierReceiptCorrectionResponse,
+    SupplierReceiptCorrectionSave,
     SupplierReceiptCreate,
     SupplierReceiptItemUpdate,
     SupplierReceiptManualCreate,
@@ -73,8 +87,10 @@ from dz_fastapi.services.cross_docking import (
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
+    force_accept_customer_order_price,
     force_process_partssoft_customer_order,
     forward_latest_customer_order_for_config,
+    get_customer_order_price_override_preview,
     process_customer_orders,
     process_manual_customer_order,
     retry_customer_order,
@@ -103,9 +119,18 @@ from dz_fastapi.services.stock_order_packages import (
     serialize_stock_order_packing,
     verify_stock_order_package,
 )
-from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import (
+    process_supplier_response_messages,
+    supplier_auto_confirm_timings,
+)
+from dz_fastapi.services.supplier_order_state import (
+    supplier_item_refusal_sources,
+    supplier_item_state,
+)
+from dz_fastapi.services.holidays import get_effective_holiday_set
 from dz_fastapi.services.supplier_receipt_upd import send_supplier_receipt_upd_email
 from dz_fastapi.services.supplier_workflow import (
+    _auto_refuse_deadline,
     add_supplier_receipt_items,
     create_manual_supplier_receipt,
     create_supplier_receipt,
@@ -122,6 +147,13 @@ from dz_fastapi.services.supplier_workflow import (
     update_stock_order_item_pick,
     update_supplier_receipt,
     update_supplier_receipt_item,
+)
+from dz_fastapi.services.supplier_receipt_corrections import (
+    get_correction,
+    list_corrections,
+    post_correction,
+    save_correction_draft,
+    serialize_correction,
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -999,6 +1031,63 @@ async def update_customer_order_item(
     return response
 
 
+@router.get(
+    "/items/{item_id}/price-override-preview",
+    response_model=CustomerOrderPriceOverridePreview,
+    status_code=status.HTTP_200_OK,
+)
+async def preview_customer_order_price_override(
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    try:
+        return await get_customer_order_price_override_preview(session, item_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post(
+    "/items/{item_id}/force-price-override",
+    response_model=CustomerOrderPriceOverrideResult,
+    status_code=status.HTTP_200_OK,
+)
+async def force_customer_order_price_override(
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    try:
+        item, supplier_order_id, preview = await force_accept_customer_order_price(
+            session,
+            item_id,
+            approved_by_user_id=int(current_user.id),
+        )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=item.order.customer_id if item.order else None,
+    )
+    return CustomerOrderPriceOverrideResult(
+        item=_serialize_customer_order_item_for_user(item, current_user),
+        supplier_order_id=supplier_order_id,
+        preview=CustomerOrderPriceOverridePreview.model_validate(preview),
+        credit_warning=(
+            credit_check.to_detail()
+            if credit_check is not None and credit_check.should_warn
+            else None
+        ),
+    )
+
+
 @router.post(
     "/process",
     status_code=status.HTTP_200_OK,
@@ -1497,6 +1586,31 @@ async def dispatch_stock_order_endpoint(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+async def _supplier_order_holidays(session: AsyncSession, orders) -> set[date]:
+    years = {order.sent_at.year for order in orders if order.sent_at is not None}
+    if not years:
+        return set()
+    years.update(year + 1 for year in list(years))
+    return await get_effective_holiday_set(session, sorted(years))
+
+
+async def _supplier_response_timings_for_orders(
+    session: AsyncSession, orders
+) -> dict[int, tuple[int, int]]:
+    provider_ids = {int(order.provider_id) for order in orders}
+    if not provider_ids:
+        return {}
+    configs = (
+        await session.execute(
+            select(SupplierResponseConfig).where(
+                SupplierResponseConfig.provider_id.in_(provider_ids),
+                SupplierResponseConfig.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    return supplier_auto_confirm_timings(configs)
+
+
 @router.get(
     "/supplier/list",
     response_model=List[SupplierOrderSummaryResponse],
@@ -1533,6 +1647,9 @@ async def list_supplier_orders(
         limit=limit,
     )
     results: List[SupplierOrderSummaryResponse] = []
+    holidays = await _supplier_order_holidays(session, orders)
+    response_timings = await _supplier_response_timings_for_orders(session, orders)
+    current_time = now_moscow()
 
     def _money(value) -> Decimal:
         if value is None:
@@ -1583,22 +1700,34 @@ async def list_supplier_orders(
                 price_value = _money(order_item.matched_price if order_item else None)
             supplier_sum += Decimal(item.quantity) * price_value
 
-        # "Сумма отказа" = what the supplier confirmed they CANNOT deliver,
-        # or items that were auto-refused due
-        # to no response within 1 business day.
+        # Historical auto_refused_at marks a missed response deadline, not a
+        # supplier refusal. Only an explicit confirmation below ordered qty
+        # contributes to the refusal amount.
         rejected_sum = Decimal("0")
+        rejected_by_source = {
+            "supplier": Decimal("0"),
+            "manager": Decimal("0"),
+            "document_timeout": Decimal("0"),
+            "other": Decimal("0"),
+        }
+        awaiting_count = 0
+        overdue_count = 0
+        confirmed_rejected_count = 0
+        timing = response_timings.get(int(order.provider_id))
+        if order.sent_at is None:
+            deadline = None
+        elif timing is not None:
+            deadline = order.sent_at + timedelta(minutes=timing[0])
+        else:
+            deadline = _auto_refuse_deadline(order.sent_at, holidays)
         for item in order.items or []:
-            ordered_qty = int(item.quantity or 0)
-            if item.confirmed_quantity is not None:
-                # Explicit supplier response
-                confirmed_qty = int(item.confirmed_quantity)
-                rejected_qty = max(ordered_qty - confirmed_qty, 0)
-            elif item.auto_refused_at is not None:
-                # Auto-refused: no response arrived within 1 business day
-                rejected_qty = ordered_qty
-            else:
-                # No supplier response yet — not a refusal
-                continue
+            state = supplier_item_state(
+                item, sent_at=order.sent_at, deadline_at=deadline, now=current_time
+            )
+            rejected_qty = state.rejected_quantity
+            awaiting_count += state.status in ("awaiting_response", "partially_received")
+            overdue_count += state.status in ("overdue", "partially_received_overdue")
+            confirmed_rejected_count += rejected_qty > 0
             if rejected_qty > 0:
                 # Refusal percent/sum should be measured against the supplier
                 # order value (ordered price), not response override price.
@@ -1607,7 +1736,14 @@ async def list_supplier_orders(
                     price_value = _money(item.price)
                 else:
                     price_value = _money(order_item.matched_price if order_item else None)
-                rejected_sum += Decimal(rejected_qty) * price_value
+                rejected_value = Decimal(rejected_qty) * price_value
+                rejected_sum += rejected_value
+                for source_key, source_qty in supplier_item_refusal_sources(
+                    item, state
+                ).items():
+                    if source_key not in rejected_by_source:
+                        source_key = "other"
+                    rejected_by_source[source_key] += Decimal(source_qty) * price_value
 
         total_sum = supplier_sum
         rejected_pct = float((rejected_sum / total_sum) * 100) if total_sum > 0 else 0.0
@@ -1663,6 +1799,17 @@ async def list_supplier_orders(
                 supplier_sum=float(supplier_sum),
                 rejected_sum=float(rejected_sum),
                 rejected_pct=rejected_pct,
+                awaiting_count=awaiting_count,
+                overdue_count=overdue_count,
+                confirmed_rejected_count=confirmed_rejected_count,
+                rejected_by_supplier_sum=float(rejected_by_source["supplier"]),
+                rejected_by_manager_sum=float(rejected_by_source["manager"]),
+                rejected_by_document_timeout_sum=float(
+                    rejected_by_source["document_timeout"]
+                ),
+                rejected_by_other_sum=float(rejected_by_source["other"]),
+                last_send_attempt_at=order.last_send_attempt_at,
+                last_send_error=order.last_send_error,
             )
         )
 
@@ -1681,6 +1828,7 @@ async def list_supplier_orders(
 async def list_supplier_receipt_providers_endpoint(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    customer_only: bool = True,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1688,6 +1836,7 @@ async def list_supplier_receipt_providers_endpoint(
         session=session,
         date_from=date_from,
         date_to=date_to,
+        customer_only=customer_only,
     )
     return [SupplierReceiptProviderOption.model_validate(row) for row in rows]
 
@@ -1701,6 +1850,7 @@ async def list_supplier_receipt_candidates_endpoint(
     provider_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    customer_only: bool = True,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1709,6 +1859,7 @@ async def list_supplier_receipt_candidates_endpoint(
         provider_id=provider_id,
         date_from=date_from,
         date_to=date_to,
+        customer_only=customer_only,
     )
     return [SupplierReceiptCandidateRow.model_validate(row) for row in rows]
 
@@ -1746,6 +1897,153 @@ async def process_supplier_responses_endpoint(
         link="/customer-orders/receipts",
     )
     return SupplierResponseProcessResult(**result)
+
+
+@router.get(
+    "/supplier-receipts/corrections/receipt-options",
+)
+async def supplier_receipt_correction_options_endpoint(
+    provider_id: Optional[int] = None,
+    query: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    stmt = (
+        select(SupplierReceipt.id, SupplierReceipt.provider_id, Provider.name,
+               SupplierReceipt.document_number, SupplierReceipt.document_date)
+        .join(Provider, Provider.id == SupplierReceipt.provider_id)
+        .where(SupplierReceipt.posted_at.is_not(None))
+        .order_by(SupplierReceipt.id.desc())
+        .limit(50)
+    )
+    if provider_id is not None:
+        stmt = stmt.where(SupplierReceipt.provider_id == provider_id)
+    search = str(query or "").strip()
+    if search:
+        terms = [SupplierReceipt.document_number.ilike(f"%{search}%")]
+        if search.isdigit():
+            terms.append(SupplierReceipt.id == int(search))
+        stmt = stmt.where(or_(*terms))
+    rows = (await session.execute(stmt)).all()
+    return [{
+        "id": receipt_id, "provider_id": supplier_id,
+        "provider_name": provider_name, "document_number": document_number,
+        "document_date": document_date,
+    } for receipt_id, supplier_id, provider_name, document_number, document_date in rows]
+
+
+@router.get(
+    "/supplier-receipts/corrections/list",
+    response_model=List[SupplierReceiptCorrectionResponse],
+)
+async def list_supplier_receipt_corrections_endpoint(
+    provider_id: Optional[int] = None,
+    status: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = await list_corrections(session, provider_id=provider_id, status=status)
+    return [SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row)) for row in rows]
+
+
+@router.get(
+    "/supplier-receipts/corrections/{correction_id}",
+    response_model=SupplierReceiptCorrectionResponse,
+)
+async def get_supplier_receipt_correction_endpoint(
+    correction_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await get_correction(session, correction_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row))
+
+
+@router.get("/supplier-receipts/corrections/{correction_id}/attachments/{attachment_id}")
+async def download_supplier_receipt_correction_attachment_endpoint(
+    correction_id: int,
+    attachment_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await get_correction(session, correction_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    attachment = (await session.execute(select(SupplierOrderAttachment).where(
+        SupplierOrderAttachment.id == attachment_id,
+        SupplierOrderAttachment.message_id == row.source_message_id,
+    ))).scalar_one_or_none()
+    if attachment is None or not os.path.isfile(attachment.file_path):
+        raise HTTPException(status_code=404, detail="Файл КСФ не найден")
+    return FileResponse(attachment.file_path, filename=attachment.filename)
+
+
+@router.post(
+    "/supplier-receipts/corrections",
+    response_model=SupplierReceiptCorrectionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_supplier_receipt_correction_endpoint(
+    payload: SupplierReceiptCorrectionSave,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await save_correction_draft(
+            session, correction_id=None, user_id=current_user.id,
+            **payload.model_dump(),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row))
+
+
+@router.put(
+    "/supplier-receipts/corrections/{correction_id}",
+    response_model=SupplierReceiptCorrectionResponse,
+)
+async def update_supplier_receipt_correction_endpoint(
+    correction_id: int,
+    payload: SupplierReceiptCorrectionSave,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await save_correction_draft(
+            session, correction_id=correction_id, user_id=current_user.id,
+            **payload.model_dump(),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row))
+
+
+@router.post(
+    "/supplier-receipts/corrections/{correction_id}/post",
+    response_model=SupplierReceiptCorrectionResponse,
+)
+async def post_supplier_receipt_correction_endpoint(
+    correction_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await post_correction(session, correction_id=correction_id)
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptCorrectionResponse.model_validate(serialize_correction(row))
 
 
 @router.get(
@@ -2184,8 +2482,26 @@ async def get_supplier_order_detail(
     order = await crud_supplier_order.get_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    holidays = await _supplier_order_holidays(session, [order])
+    response_timings = await _supplier_response_timings_for_orders(session, [order])
+    timing = response_timings.get(int(order.provider_id))
+    if order.sent_at is None:
+        deadline = None
+    elif timing is not None:
+        deadline = order.sent_at + timedelta(minutes=timing[0])
+    else:
+        deadline = _auto_refuse_deadline(order.sent_at, holidays)
+    auto_confirm_at = (
+        order.sent_at + timedelta(minutes=sum(timing))
+        if order.sent_at is not None and timing is not None
+        else None
+    )
+    current_time = now_moscow()
     items = []
     for item in order.items or []:
+        state = supplier_item_state(
+            item, sent_at=order.sent_at, deadline_at=deadline, now=current_time
+        )
         order_item = item.customer_order_item
         autopart = item.autopart
         brand_name = autopart.brand.name if autopart and autopart.brand else None
@@ -2216,6 +2532,20 @@ async def get_supplier_order_detail(
                 "max_delivery_day": item.max_delivery_day,
                 "received_quantity": item.received_quantity,
                 "received_at": item.received_at,
+                "auto_refused_at": item.auto_refused_at,
+                "response_due_at": deadline,
+                "auto_confirm_at": auto_confirm_at,
+                "response_state": state.status,
+                "response_source": state.response_source,
+                "refusal_sources": supplier_item_refusal_sources(item, state),
+                "response_at": state.response_at,
+                "document_missing_since": item.document_missing_since,
+                "document_refusal_due_at": (
+                    item.document_missing_since + timedelta(hours=24)
+                    if item.document_missing_since is not None else None
+                ),
+                "explicit_rejected_quantity": state.rejected_quantity,
+                "pending_quantity": state.pending_quantity,
                 "requested_qty": (order_item.requested_qty if order_item else None),
                 "ship_qty": order_item.ship_qty if order_item else None,
                 "reject_qty": order_item.reject_qty if order_item else None,
@@ -2231,6 +2561,8 @@ async def get_supplier_order_detail(
         created_at=order.created_at,
         scheduled_at=order.scheduled_at,
         sent_at=order.sent_at,
+        last_send_attempt_at=order.last_send_attempt_at,
+        last_send_error=order.last_send_error,
         response_status_raw=order.response_status_raw,
         response_status_normalized=order.response_status_normalized,
         response_status_synced_at=order.response_status_synced_at,

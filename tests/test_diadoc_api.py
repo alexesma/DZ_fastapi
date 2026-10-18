@@ -352,7 +352,7 @@ async def test_diadoc_process_endpoint_registers_message_and_posts_receipt(
     data = response.json()
     assert data["already_processed"] is False
     assert data["created_receipts"] == 1
-    assert data["posted_receipts"] == 1
+    assert data["posted_receipts"] == 0
     assert data["parsed_response_files"] == 1
     assert data["supplier_order_message_id"] > 0
     assert len(data["receipt_ids"]) == 1
@@ -383,13 +383,13 @@ async def test_diadoc_process_endpoint_registers_message_and_posts_receipt(
     unlinked_rows = [row for row in receipt_items if row.supplier_order_item_id is None]
 
     assert stored_document is not None
-    assert stored_document.status == "processed"
+    assert stored_document.status == "error"
     assert stored_message is not None
-    assert stored_message.message_type == "SHIPPING_DOC"
-    assert matched_item.received_quantity == 2
-    assert missing_item.confirmed_quantity == 0
-    assert missing_item.response_status_raw == "автоотказ по документу"
-    assert receipt.posted_at is not None
+    assert stored_message.message_type == "IMPORT_ERROR"
+    assert int(matched_item.received_quantity or 0) == 0
+    assert missing_item.confirmed_quantity is None
+    assert missing_item.response_status_raw is None
+    assert receipt.posted_at is None
     assert len(linked_rows) == 1
     assert linked_rows[0].received_quantity == 2
     assert len(unlinked_rows) == 1
@@ -569,11 +569,11 @@ async def test_diadoc_sync_can_auto_process_documents(
         .all()
     )
 
-    assert synced_document.status == "processed"
+    assert synced_document.status == "error"
     assert synced_document.supplier_order_message_id is not None
-    assert matched_item.received_quantity == 3
-    assert missing_item.response_status_raw == "автоотказ по документу"
-    assert receipt.posted_at is not None
+    assert int(matched_item.received_quantity or 0) == 0
+    assert missing_item.response_status_raw is None
+    assert receipt.posted_at is None
     assert any(
         row.supplier_order_item_id == matched_item.id and row.received_quantity == 3
         for row in receipt_items

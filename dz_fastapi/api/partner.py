@@ -553,6 +553,8 @@ async def create_provider(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    if provider_in.order_schedule_enabled and not provider_in.order_schedule_times:
+        raise HTTPException(status_code=400, detail="Укажите время отправки поставщику")
     if (
         provider_in.inventory_policy.value != "original_goods" or provider_in.inventory_policy_note
     ) and current_user.role != UserRole.ADMIN:
@@ -920,6 +922,23 @@ async def update_provider(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    if {"order_schedule_enabled", "order_schedule_times"} & provider_in.model_fields_set:
+        existing_schedule_provider = await crud_provider.get_by_id(
+            provider_id=provider_id, session=session
+        )
+        if existing_schedule_provider is not None:
+            enabled = (
+                provider_in.order_schedule_enabled
+                if "order_schedule_enabled" in provider_in.model_fields_set
+                else existing_schedule_provider.order_schedule_enabled
+            )
+            times = (
+                provider_in.order_schedule_times
+                if "order_schedule_times" in provider_in.model_fields_set
+                else existing_schedule_provider.order_schedule_times
+            )
+            if enabled and not times:
+                raise HTTPException(status_code=400, detail="Укажите время отправки поставщику")
     inventory_policy_fields = {
         "inventory_policy",
         "inventory_policy_note",

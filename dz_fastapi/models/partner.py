@@ -1038,6 +1038,7 @@ class SupplierResponseConfig(Base):
     process_shipping_docs = Column(Boolean, default=True, nullable=False)
     auto_confirm_unmentioned_items = Column(Boolean, default=False, nullable=False)
     auto_confirm_after_minutes = Column(Integer, nullable=True)
+    auto_confirm_grace_minutes = Column(Integer, nullable=True)
 
     file_format = Column(String(16), nullable=True)
     file_payload_type = Column(String(16), default="response", nullable=False)
@@ -1373,6 +1374,8 @@ class SupplierOrder(Base):
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     scheduled_at = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+    last_send_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    last_send_error = Column(Text, nullable=True)
     response_status_raw = Column(String(255), nullable=True)
     response_status_normalized = Column(String(255), nullable=True, index=True)
     response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
@@ -1413,6 +1416,12 @@ class SupplierOrderItem(Base):
     response_status_raw = Column(String(255), nullable=True)
     response_status_normalized = Column(String(255), nullable=True, index=True)
     response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
+    decision_source = Column(String(32), nullable=True, index=True)
+    refusal_sources = Column(JSON, nullable=True)
+    document_missing_since = Column(DateTime(timezone=True), nullable=True, index=True)
+    document_missing_message_id = Column(
+        Integer, ForeignKey("supplierordermessage.id"), nullable=True
+    )
     received_quantity = Column(Integer, nullable=True)
     received_at = Column(DateTime(timezone=True), nullable=True)
     auto_refused_at = Column(DateTime(timezone=True), nullable=True)
@@ -1614,6 +1623,51 @@ class SupplierReceiptItem(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+
+class SupplierReceiptCorrection(Base):
+    """A quantity correction linked to an immutable posted supplier receipt."""
+
+    provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False, index=True)
+    receipt_id = Column(Integer, ForeignKey("supplierreceipt.id"), nullable=True, index=True)
+    source_message_id = Column(
+        Integer, ForeignKey("supplierordermessage.id"), nullable=True, unique=True
+    )
+    source_kind = Column(String(16), nullable=False, default="manual")
+    document_number = Column(String(120), nullable=True)
+    document_date = Column(Date, nullable=True)
+    status = Column(String(20), nullable=False, default="draft", index=True)
+    comment = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+
+    provider = relationship("Provider")
+    receipt = relationship("SupplierReceipt")
+    source_message = relationship("SupplierOrderMessage")
+    items = relationship(
+        "SupplierReceiptCorrectionItem",
+        back_populates="correction",
+        cascade="all, delete-orphan",
+    )
+
+
+class SupplierReceiptCorrectionItem(Base):
+    correction_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptcorrection.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    receipt_item_id = Column(
+        Integer, ForeignKey("supplierreceiptitem.id"), nullable=False, index=True
+    )
+    quantity_before = Column(Integer, nullable=True)
+    quantity_after = Column(Integer, nullable=False)
+    quantity_delta = Column(Integer, nullable=True)
+
+    correction = relationship("SupplierReceiptCorrection", back_populates="items")
+    receipt_item = relationship("SupplierReceiptItem")
 
 
 class StockOrder(Base):
