@@ -5436,9 +5436,11 @@ async def process_customer_orders(
             matched_candidates = []
             has_pending_candidate = False
             for candidate in candidate_configs:
-                if not candidate.pricelist_config_id:
+                # Достаточно собственного прайса или прайса-эталона другого клиента
+                if not (candidate.pricelist_config_id or candidate.reference_pricelist_config_id):
                     logger.warning(
-                        "Order config %s has no pricelist_config_id; skip",
+                        "Order config %s has neither pricelist_config_id nor "
+                        "reference_pricelist_config_id; skip",
                         candidate.id,
                     )
                     continue

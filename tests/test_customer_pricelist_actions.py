@@ -665,3 +665,72 @@ async def test_scheduled_pricelist_without_recipients_is_published(
     ).scalars().all()
     assert len(built) == 1
     assert built[0].published_at is not None
+
+
+async def _run_auto(test_session, customer, config):
+    from dz_fastapi.schemas.partner import CustomerPriceListCreate
+
+    customer_id, config_id = customer.id, config.id
+    await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(customer_id=customer_id, config_id=config_id, items=[]),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="auto",
+    )
+    await test_session.rollback()
+    return config_id
+
+
+@pytest.mark.asyncio
+async def test_scheduled_pricelist_is_published_without_sending_by_default(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    created_brand: Brand,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Получатели есть, но рассылка из системы не включена: прайс только действует."""
+    from dz_fastapi.models.partner import CustomerPriceList
+
+    def must_not_send(**kwargs):
+        raise AssertionError("по умолчанию прайс клиенту не отправляется")
+
+    monkeypatch.setattr(process_service, "send_email_with_attachment", must_not_send)
+    customer = created_customers[0]
+    config = await _prepare_config(test_session, customer, created_brand)
+    config.additional_filters = {"REQUIRE_DRAFT_APPROVAL": True}  # одобрение не мешает
+    await test_session.commit()
+
+    config_id = await _run_auto(test_session, customer, config)
+
+    built = (
+        await test_session.execute(
+            select(CustomerPriceList).where(CustomerPriceList.customer_config_id == config_id)
+        )
+    ).scalars().all()
+    assert len(built) == 1
+    assert built[0].published_at is not None
+    assert built[0].sent_at is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_pricelist_is_sent_when_email_sending_is_enabled(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    created_brand: Brand,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    sent = []
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: sent.append(kwargs) or True,
+    )
+    customer = created_customers[0]
+    config = await _prepare_config(test_session, customer, created_brand)
+    config.additional_filters = {"SEND_PRICELIST_BY_EMAIL": True}
+    await test_session.commit()
+
+    await _run_auto(test_session, customer, config)
+
+    assert [item["to_email"] for item in sent] == ["client@example.com"]

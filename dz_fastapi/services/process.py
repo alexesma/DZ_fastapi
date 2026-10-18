@@ -424,6 +424,18 @@ def _customer_pricelist_v2_enabled(config: CustomerPriceListConfig) -> bool:
     return bool(_customer_pricelist_setting(config, "PIPELINE_V2_ENABLED", False))
 
 
+def customer_pricelist_sends_email(config: CustomerPriceListConfig) -> bool:
+    """Рассылка прайса клиенту по расписанию включена явно.
+
+    По умолчанию регламент только собирает прайс и делает его действующим
+    (по нему считаются заказы клиента), но клиенту ничего не отправляет:
+    пока прайсы уходят из старой программы, отправка из этой системы дала бы
+    клиенту двойную рассылку. Письмо клиенту уходит либо при включённой
+    настройке ``SEND_PRICELIST_BY_EMAIL``, либо по явной команде «Отправить».
+    """
+    return bool(_customer_pricelist_setting(config, "SEND_PRICELIST_BY_EMAIL", False))
+
+
 def customer_pricelist_requires_draft(
     config: CustomerPriceListConfig,
 ) -> bool:
@@ -4641,13 +4653,36 @@ async def _process_customer_pricelist_unlocked(
         config.id, customer_pricelist.id, customer_pricelist.positions_count,
         len(attachment_bytes),
     )
+    publish_only = delivery_mode == "auto" and not customer_pricelist_sends_email(config)
     should_send = delivery_mode == "send" or (
-        delivery_mode == "auto" and not customer_pricelist_requires_draft(config)
+        delivery_mode == "auto"
+        and not publish_only
+        and not customer_pricelist_requires_draft(config)
     )
     quality_control = generation_summary.get("quality_control") or {}
     quality_failed = bool(quality_control.get("enabled")) and (
         quality_control.get("status") == "failed"
     )
+    if publish_only:
+        # Рассылка клиенту выключена: прайс только становится действующим,
+        # заказы клиента считаются по нему. Не прошедший контроль качества
+        # прайс не публикуем.
+        if quality_failed:
+            customer_pricelist.generation_status = "draft"
+            customer_pricelist.send_error = (
+                "Публикация заблокирована: итоговый файл не прошёл контроль качества."
+            )
+        else:
+            customer_pricelist.published_at = now_moscow()
+            customer_pricelist.send_error = None
+            logger.info(
+                "Прайс клиента %s опубликован без рассылки: конфигурация %s, позиций %s",
+                customer.name,
+                config.id,
+                customer_pricelist.positions_count,
+            )
+        session.add(customer_pricelist)
+        await session.commit()
     if should_send and quality_failed:
         customer_pricelist.generation_status = "draft"
         customer_pricelist.send_error = (

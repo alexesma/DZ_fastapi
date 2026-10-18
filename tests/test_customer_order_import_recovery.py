@@ -541,3 +541,85 @@ async def test_one_failing_email_does_not_block_the_rest_of_the_batch(
     )
     marks = mark_rows.scalars().all()
     assert sorted(marks) == [201, 202]
+
+
+@pytest.mark.asyncio
+async def test_order_config_with_only_reference_pricelist_is_processed(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    """Достаточно прайса-эталона: собственный прайс клиента не обязателен."""
+    from sqlalchemy import select
+
+    from dz_fastapi.models.partner import CustomerPriceListConfig
+
+    account = EmailAccount(
+        name="orders-inbox-ref",
+        email="orders-inbox-ref@example.com",
+        password="secret",
+        imap_host="imap.example.com",
+        imap_folder="INBOX",
+        purposes=["orders_in"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.flush()
+    reference = CustomerPriceListConfig(
+        customer_id=created_customers[1].id,
+        name="reference-price",
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        emails=[],
+        additional_filters={},
+    )
+    test_session.add(reference)
+    await test_session.flush()
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        order_email="ref-client@example.com",
+        order_emails=[],
+        email_account_id=account.id,
+        pricelist_config_id=None,
+        reference_pricelist_config_id=reference.id,
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        last_uid=100,
+        is_active=True,
+    )
+    test_session.add(config)
+    await test_session.commit()
+    customer_id = created_customers[0].id
+
+    payload = _order_xlsx([["A100", "BRAND", 1]])
+    message = SimpleNamespace(
+        uid="300",
+        subject="Order ref",
+        from_="ref-client@example.com",
+        attachments=[SimpleNamespace(filename="order.xlsx", payload=payload)],
+        received_at=datetime(2026, 10, 18, 8, 0, tzinfo=timezone.utc),
+        date=datetime(2026, 10, 18, 8, 0, tzinfo=timezone.utc),
+        text="",
+        html="",
+        folder_name="INBOX",
+        email_account_id=account.id,
+    )
+
+    async def fake_fetch_order_messages(*args, **kwargs):
+        return [message]
+
+    monkeypatch.setattr(customer_order_service, "_fetch_order_messages", fake_fetch_order_messages)
+
+    await customer_order_service.process_customer_orders(test_session)
+
+    order_rows = await test_session.execute(
+        select(CustomerOrder).where(CustomerOrder.customer_id == customer_id)
+    )
+    orders = order_rows.scalars().all()
+    # Письмо принято: у эталона нет опубликованного прайса, поэтому заказ в ошибке
+    # с понятной причиной, а не молча пропущен.
+    assert [order.source_uid for order in orders] == [300]
+    assert "опубликованного прайса" in (orders[0].error_details or "")
