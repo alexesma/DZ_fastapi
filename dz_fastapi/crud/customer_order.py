@@ -2,11 +2,11 @@ import logging
 from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, false, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
     Customer,
@@ -159,6 +159,47 @@ class CRUDCustomerOrderConfig:
 
 
 class CRUDCustomerOrder:
+    @staticmethod
+    def _filter_orders(
+        stmt,
+        customer_id: Optional[int] = None,
+        status: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        supplier_ids: Optional[List[int]] = None,
+        item_oem: Optional[str] = None,
+        exclude_errors: bool = False,
+    ):
+        stmt = stmt.where(CustomerOrder.deleted_at.is_(None))
+        if customer_id is not None:
+            stmt = stmt.where(CustomerOrder.customer_id == customer_id)
+        if status is not None:
+            stmt = stmt.where(CustomerOrder.status == status)
+        if exclude_errors:
+            stmt = stmt.where(CustomerOrder.status != "ERROR")
+        item_conditions = []
+        if supplier_ids:
+            item_conditions.append(CustomerOrderItem.supplier_id.in_(supplier_ids))
+        if item_oem:
+            normalized = preprocess_oem_number(item_oem)
+            if not normalized:
+                return stmt.where(false())
+            normalized_oem = func.regexp_replace(
+                func.upper(CustomerOrderItem.oem), "[^A-Z0-9]", "", "g"
+            )
+            item_conditions.append(normalized_oem.like(f"%{normalized}%"))
+        if item_conditions:
+            stmt = stmt.where(CustomerOrder.items.any(and_(*item_conditions)))
+        if date_from is not None:
+            stmt = stmt.where(
+                CustomerOrder.received_at >= datetime.combine(date_from, datetime.min.time())
+            )
+        if date_to is not None:
+            stmt = stmt.where(
+                CustomerOrder.received_at <= datetime.combine(date_to, datetime.max.time())
+            )
+        return stmt
+
     async def get_by_id(
         self,
         session: AsyncSession,
@@ -183,32 +224,72 @@ class CRUDCustomerOrder:
         status: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
+        supplier_ids: Optional[List[int]] = None,
+        item_oem: Optional[str] = None,
+        exclude_errors: bool = False,
         skip: int = 0,
         limit: int = 100,
     ) -> List[CustomerOrder]:
-        stmt = (
+        stmt = self._filter_orders(
             select(CustomerOrder)
             .options(
                 joinedload(CustomerOrder.items),
                 joinedload(CustomerOrder.customer),
-            )
-            .where(CustomerOrder.deleted_at.is_(None))
+            ),
+            customer_id=customer_id,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            supplier_ids=supplier_ids,
+            item_oem=item_oem,
+            exclude_errors=exclude_errors,
         )
-        if customer_id is not None:
-            stmt = stmt.where(CustomerOrder.customer_id == customer_id)
-        if status is not None:
-            stmt = stmt.where(CustomerOrder.status == status)
-        if date_from is not None:
-            stmt = stmt.where(
-                CustomerOrder.received_at >= datetime.combine(date_from, datetime.min.time())
-            )
-        if date_to is not None:
-            stmt = stmt.where(
-                CustomerOrder.received_at <= datetime.combine(date_to, datetime.max.time())
-            )
         stmt = stmt.order_by(CustomerOrder.received_at.desc()).offset(skip).limit(limit)
         result = await session.execute(stmt)
         return result.unique().scalars().all()
+
+    async def count_orders(
+        self,
+        session: AsyncSession,
+        customer_id: Optional[int] = None,
+        status: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        supplier_ids: Optional[List[int]] = None,
+        item_oem: Optional[str] = None,
+        exclude_errors: bool = False,
+    ) -> int:
+        stmt = self._filter_orders(
+            select(func.count(CustomerOrder.id)),
+            customer_id=customer_id,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            supplier_ids=supplier_ids,
+            item_oem=item_oem,
+            exclude_errors=exclude_errors,
+        )
+        return int(await session.scalar(stmt) or 0)
+
+    async def suggest_item_oems(
+        self, session: AsyncSession, query: str, limit: int = 20
+    ) -> List[str]:
+        normalized = preprocess_oem_number(query)
+        if not normalized:
+            return []
+        normalized_oem = func.regexp_replace(
+            func.upper(CustomerOrderItem.oem), "[^A-Z0-9]", "", "g"
+        )
+        stmt = (
+            select(normalized_oem.label("oem"))
+            .join(CustomerOrder, CustomerOrderItem.order_id == CustomerOrder.id)
+            .where(CustomerOrder.deleted_at.is_(None))
+            .where(normalized_oem.like(f"{normalized}%"))
+            .distinct()
+            .order_by(normalized_oem)
+            .limit(limit)
+        )
+        return list((await session.scalars(stmt)).all())
 
     async def get_stats_rows(
         self,
@@ -253,7 +334,15 @@ class CRUDCustomerOrder:
         if kind == "brand":
             stmt = stmt.where(func.lower(CustomerOrderItem.brand) == normalized)
         else:
-            stmt = stmt.where(func.lower(CustomerOrderItem.oem) == normalized)
+            normalized_oem = preprocess_oem_number(value)
+            if not normalized_oem:
+                return []
+            stmt = stmt.where(
+                func.regexp_replace(
+                    func.upper(CustomerOrderItem.oem), "[^A-Z0-9]", "", "g"
+                )
+                == normalized_oem
+            )
 
         result = await session.execute(stmt)
         return result.all()

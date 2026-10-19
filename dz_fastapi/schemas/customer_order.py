@@ -439,8 +439,14 @@ class CustomerOrderSummaryResponse(BaseModel):
     supplier_sum: float = 0.0
     rejected_sum: float = 0.0
     rejected_pct: float = 0.0
+    matching_items: List[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerOrderSummaryPageResponse(BaseModel):
+    items: List[CustomerOrderSummaryResponse]
+    total: int
 
 
 class SupplierOrderItemResponse(BaseModel):

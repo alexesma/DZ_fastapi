@@ -20,6 +20,7 @@ from dz_fastapi.crud.customer_order import (
     crud_supplier_order,
 )
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
+from dz_fastapi.models.autopart import preprocess_oem_number
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
@@ -49,6 +50,7 @@ from dz_fastapi.schemas.customer_order import (
     CustomerOrderStatsMonthlyBucket,
     CustomerOrderStatsRecentRow,
     CustomerOrderStatsSummary,
+    CustomerOrderSummaryPageResponse,
     CustomerOrderSummaryResponse,
     CustomerOrderUpdate,
     StockOrderItemPickResponse,
@@ -666,6 +668,31 @@ async def delete_order_config(
     return None
 
 
+def _parse_supplier_ids(raw_value: Optional[str]) -> List[int]:
+    if not raw_value:
+        return []
+    try:
+        values = [int(value.strip()) for value in raw_value.split(",")]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Некорректный поставщик") from exc
+    if len(values) > 50 or any(value < 1 for value in values):
+        raise HTTPException(status_code=422, detail="Некорректный поставщик")
+    return list(dict.fromkeys(values))
+
+
+@router.get(
+    "/oem-suggestions",
+    response_model=List[str],
+    status_code=status.HTTP_200_OK,
+)
+async def suggest_customer_order_oems(
+    q: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await crud_customer_order.suggest_item_oems(session, q.strip()[:100])
+
+
 @router.get(
     "/",
     response_model=List[CustomerOrderResponse],
@@ -676,6 +703,8 @@ async def list_customer_orders(
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    supplier_ids: Optional[str] = None,
+    item_oem: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_session),
@@ -687,6 +716,8 @@ async def list_customer_orders(
         status=status,
         date_from=date_from,
         date_to=date_to,
+        supplier_ids=_parse_supplier_ids(supplier_ids),
+        item_oem=item_oem,
         skip=skip,
         limit=limit,
     )
@@ -703,6 +734,8 @@ async def list_customer_order_summary(
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    supplier_ids: Optional[str] = None,
+    item_oem: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_session),
@@ -714,10 +747,21 @@ async def list_customer_order_summary(
         status=status,
         date_from=date_from,
         date_to=date_to,
+        supplier_ids=_parse_supplier_ids(supplier_ids),
+        item_oem=item_oem,
         skip=skip,
         limit=limit,
     )
+    return _summarize_customer_orders(
+        orders, item_oem, _parse_supplier_ids(supplier_ids)
+    )
+
+
+def _summarize_customer_orders(
+    orders, item_oem: Optional[str], supplier_ids: Optional[List[int]] = None
+) -> List[CustomerOrderSummaryResponse]:
     results: List[CustomerOrderSummaryResponse] = []
+    normalized_query = preprocess_oem_number(item_oem or "")
 
     def _money(value) -> Decimal:
         if value is None:
@@ -760,6 +804,17 @@ async def list_customer_order_summary(
                 supplier_sum += Decimal(ship_qty) * price_value
         total_sum = stock_sum + supplier_sum + rejected_sum
         rejected_pct = float((rejected_sum / total_sum) * 100) if total_sum > 0 else 0.0
+        matching_items = [
+            {
+                "oem": item.oem,
+                "brand": item.brand,
+                "requested_qty": item.requested_qty,
+            }
+            for item in order.items or []
+            if normalized_query
+            and normalized_query in preprocess_oem_number(item.oem or "")
+            and (not supplier_ids or item.supplier_id in supplier_ids)
+        ]
         results.append(
             CustomerOrderSummaryResponse(
                 id=order.id,
@@ -780,9 +835,70 @@ async def list_customer_order_summary(
                 supplier_sum=float(supplier_sum),
                 rejected_sum=float(rejected_sum),
                 rejected_pct=rejected_pct,
+                matching_items=matching_items,
             )
         )
     return results
+
+
+@router.get(
+    "/summary-page",
+    response_model=CustomerOrderSummaryPageResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def list_customer_order_summary_page(
+    customer_id: Optional[int] = None,
+    status: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    supplier_ids: Optional[str] = None,
+    item_oem: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    selected_suppliers = _parse_supplier_ids(supplier_ids)
+    filters = {
+        "customer_id": customer_id,
+        "status": status,
+        "date_from": date_from,
+        "date_to": date_to,
+        "supplier_ids": selected_suppliers,
+        "item_oem": item_oem,
+        "exclude_errors": True,
+    }
+    page_size = max(1, min(limit, 100))
+    orders = await crud_customer_order.list_orders(
+        session=session, skip=max(0, skip), limit=page_size, **filters
+    )
+    total = await crud_customer_order.count_orders(session=session, **filters)
+    return CustomerOrderSummaryPageResponse(
+        items=_summarize_customer_orders(orders, item_oem, selected_suppliers),
+        total=total,
+    )
+
+
+@router.get("/count", response_model=int)
+async def count_customer_orders(
+    customer_id: Optional[int] = None,
+    status: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    supplier_ids: Optional[str] = None,
+    item_oem: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await crud_customer_order.count_orders(
+        session=session,
+        customer_id=customer_id,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        supplier_ids=_parse_supplier_ids(supplier_ids),
+        item_oem=item_oem,
+    )
 
 
 @router.get(

@@ -288,7 +288,7 @@ async def test_customer_order_item_stats_monthly_breakdown(
             ),
             CustomerOrderItem(
                 order_id=order_two.id,
-                oem="SH0113TM3",
+                oem="SH01-13TM3",
                 brand="MAZDA",
                 requested_qty=1,
                 requested_price=Decimal("2100.00"),
@@ -384,6 +384,128 @@ async def test_customer_order_summary_includes_partial_reject_qty(
     assert row["rejected_sum"] == pytest.approx(600.0)
     assert row["total_sum"] == pytest.approx(1600.0)
     assert row["rejected_pct"] == pytest.approx(37.5)
+
+
+@pytest.mark.asyncio
+async def test_customer_order_search_filters_and_oem_suggestions(
+    async_client, test_session, created_customers, created_providers
+):
+    await _create_user(test_session, "order-search@example.com", UserRole.MANAGER)
+    await _login(async_client, "order-search@example.com")
+    now = now_moscow()
+    orders = [
+        CustomerOrder(
+            customer_id=created_customers[0].id,
+            status="PROCESSED",
+            received_at=now - timedelta(days=days),
+        )
+        for days in (0, 4)
+    ]
+    error_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        status="ERROR",
+        received_at=now,
+    )
+    test_session.add_all([*orders, error_order])
+    await test_session.flush()
+    test_session.add_all(
+        [
+            CustomerOrderItem(
+                order_id=order.id,
+                oem=oem,
+                brand=brand,
+                requested_qty=2,
+                status="SUPPLIER",
+                supplier_id=provider.id,
+            )
+            for order, oem, brand, provider in zip(
+                orders,
+                ("90915-YZZD3", "90915YZZD3"),
+                ("TOYOTA", "Toyota"),
+                created_providers[:2],
+            )
+        ]
+    )
+    test_session.add(
+        CustomerOrderItem(
+            order_id=error_order.id,
+            oem="90915YZZD3",
+            brand="Toyota",
+            requested_qty=1,
+        )
+    )
+    test_session.add(
+        CustomerOrderItem(
+            order_id=orders[0].id,
+            oem="OTHER-PART",
+            brand="TOYOTA",
+            requested_qty=1,
+            status="SUPPLIER",
+            supplier_id=created_providers[1].id,
+        )
+    )
+    await test_session.commit()
+
+    suggestions = await async_client.get(
+        "/customer-orders/oem-suggestions", params={"q": "90915-"}
+    )
+    assert suggestions.status_code == 200, suggestions.text
+    assert suggestions.json() == ["90915YZZD3"]
+
+    supplier_ids = ",".join(str(provider.id) for provider in created_providers[:2])
+    response = await async_client.get(
+        "/customer-orders/summary-page",
+        params={"item_oem": "90915YZZD3", "supplier_ids": supplier_ids, "limit": 1},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 2
+    assert len(response.json()["items"]) == 1
+    assert response.json()["items"][0]["matching_items"][0]["oem"] == "90915-YZZD3"
+
+    error_count = await async_client.get(
+        "/customer-orders/count",
+        params={"status": "ERROR", "item_oem": "90915-YZZD3"},
+    )
+    assert error_count.status_code == 200, error_count.text
+    assert error_count.json() == 1
+
+    older_page = await async_client.get(
+        "/customer-orders/summary-page",
+        params={"item_oem": "90915-YZZD3", "supplier_ids": supplier_ids,
+                "skip": 1, "limit": 1},
+    )
+    assert older_page.status_code == 200, older_page.text
+    assert older_page.json()["items"][0]["id"] == orders[1].id
+
+    recent = await async_client.get(
+        "/customer-orders/summary-page",
+        params={"item_oem": "90915YZZD3", "supplier_ids": supplier_ids,
+                "date_from": (now.date() - timedelta(days=1)).isoformat()},
+    )
+    assert recent.status_code == 200, recent.text
+    assert recent.json()["total"] == 1
+    assert recent.json()["items"][0]["id"] == orders[0].id
+
+    one_supplier = await async_client.get(
+        "/customer-orders/summary-page",
+        params={"supplier_ids": str(created_providers[1].id)},
+    )
+    assert one_supplier.status_code == 200, one_supplier.text
+    assert one_supplier.json()["total"] == 2
+
+    same_item = await async_client.get(
+        "/customer-orders/summary-page",
+        params={"supplier_ids": str(created_providers[1].id),
+                "item_oem": "90915YZZD3"},
+    )
+    assert same_item.status_code == 200, same_item.text
+    assert same_item.json()["total"] == 1
+    assert same_item.json()["items"][0]["id"] == orders[1].id
+
+    invalid = await async_client.get(
+        "/customer-orders/summary-page", params={"supplier_ids": "bad"}
+    )
+    assert invalid.status_code == 422
 
 
 @pytest.mark.asyncio
