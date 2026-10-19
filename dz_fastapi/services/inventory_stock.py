@@ -41,12 +41,14 @@ from sqlalchemy import asc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import (
     AutoPart,
     LocationType,
     StorageLocation,
     autopart_storage_association,
+    preprocess_oem_number,
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
@@ -404,7 +406,7 @@ async def resolve_receipt_item_autopart_id(
     if item.autopart_id is not None:
         return int(item.autopart_id)
 
-    oem_number = str(item.oem_number or "").strip()
+    oem_number = preprocess_oem_number(str(item.oem_number or ""))
     if not oem_number:
         return None
 
@@ -430,10 +432,10 @@ async def resolve_receipt_item_autopart_id(
     if not brand_name:
         return None
 
-    normalized_brand = brand_name.casefold()
+    normalized_brand = normalize_brand_name(brand_name)
     for part in parts:
         brand = getattr(part, "brand", None)
-        if brand and str(brand.name or "").strip().casefold() == normalized_brand:
+        if brand and normalize_brand_name(str(brand.name or "")) == normalized_brand:
             return int(part.id)
 
     brand_stmt = select(Brand.id).where(Brand.name.ilike(brand_name))

@@ -9,8 +9,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
+from dz_fastapi.models.autopart import preprocess_oem_number
 from dz_fastapi.models.inventory import StockOrderPackageStatus
 from dz_fastapi.models.partner import (
     ORDER_TRACKING_SOURCE,
@@ -1293,8 +1295,16 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
         "customer_order_item_id": item.customer_order_item_id,
         "order_item_id": item.order_item_id,
         "autopart_id": item.autopart_id,
-        "oem_number": item.oem_number,
-        "brand_name": item.brand_name,
+        "oem_number": (
+            preprocess_oem_number(item.oem_number) or item.oem_number
+            if item.oem_number
+            else None
+        ),
+        "brand_name": (
+            normalize_brand_name(item.brand_name) or item.brand_name
+            if item.brand_name
+            else None
+        ),
         "autopart_name": item.autopart_name,
         "ordered_quantity": item.ordered_quantity,
         "confirmed_quantity": item.confirmed_quantity,
