@@ -535,10 +535,16 @@ async def update_stock_order_item_pick(
 def serialize_stock_order_item(item: StockOrderItem) -> dict:
     receipt_item = item.supplier_receipt_item
     receipt = receipt_item.receipt if receipt_item is not None else None
+    customer_item = item.customer_order_item
+    customer_order = customer_item.order if customer_item is not None else None
     return {
         "id": item.id,
         "autopart_id": item.autopart_id,
         "customer_order_item_id": item.customer_order_item_id,
+        "customer_order_id": customer_order.id if customer_order is not None else None,
+        "customer_order_number": (
+            customer_order.order_number if customer_order is not None else None
+        ),
         "supplier_receipt_item_id": item.supplier_receipt_item_id,
         "preferred_stock_lot_id": item.preferred_stock_lot_id,
         "source_type": (
@@ -1277,12 +1283,14 @@ async def delete_supplier_receipt(
 
 def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
     customer_name = None
+    customer_order_id = None
     customer_order_number = None
     try:
         coi = item.customer_order_item
         if coi is not None:
             co = coi.order
             if co is not None:
+                customer_order_id = co.id
                 customer_order_number = co.order_number
                 if co.customer is not None:
                     customer_name = co.customer.name
@@ -1320,6 +1328,7 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
             item.warehouse.name if getattr(item, "warehouse", None) is not None else None
         ),
         "customer_name": customer_name,
+        "customer_order_id": customer_order_id,
         "customer_order_number": customer_order_number,
         "cross_docking_status": item.cross_docking_status,
         "document_pending": bool(item.document_pending),

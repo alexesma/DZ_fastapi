@@ -563,6 +563,8 @@ class StockOrderItemResponse(BaseModel):
     id: int
     autopart_id: Optional[int]
     customer_order_item_id: Optional[int]
+    customer_order_id: Optional[int] = None
+    customer_order_number: Optional[str] = None
     supplier_receipt_item_id: Optional[int] = None
     preferred_stock_lot_id: Optional[int] = None
     source_type: str = "own_stock"
@@ -843,6 +845,7 @@ class SupplierReceiptItemResponse(BaseModel):
     warehouse_name: Optional[str] = None
     # Customer info (populated in detail view)
     customer_name: Optional[str] = None
+    customer_order_id: Optional[int] = None
     customer_order_number: Optional[str] = None
     cross_docking_status: Optional[CrossDockingItemStatus] = None
     document_pending: bool = False

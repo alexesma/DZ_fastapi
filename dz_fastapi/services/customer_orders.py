@@ -6466,11 +6466,35 @@ async def update_customer_order_item_manual(
 
         stock_order = existing_stock_order
         if not stock_order:
+            unrelated_item = (
+                select(StockOrderItem.id)
+                .outerjoin(
+                    CustomerOrderItem,
+                    CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+                )
+                .where(
+                    StockOrderItem.stock_order_id == StockOrder.id,
+                    or_(
+                        CustomerOrderItem.order_id.is_(None),
+                        CustomerOrderItem.order_id != item.order_id,
+                    ),
+                )
+                .correlate(StockOrder)
+                .exists()
+            )
             order_stmt = (
                 select(StockOrder)
+                .join(StockOrderItem)
+                .join(
+                    CustomerOrderItem,
+                    CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+                )
                 .where(
                     StockOrder.customer_id == item.order.customer_id,
+                    CustomerOrderItem.order_id == item.order_id,
                     StockOrder.status == STOCK_ORDER_STATUS.NEW,
+                    StockOrder.shipment_document_id.is_(None),
+                    ~unrelated_item,
                 )
                 .order_by(StockOrder.created_at.asc())
                 .limit(1)

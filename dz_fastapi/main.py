@@ -16,6 +16,7 @@ from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.certificate import router as certificate_router
 from dz_fastapi.api.cross import router as cross_router
+from dz_fastapi.api.customer_assembly import router as customer_assembly_router
 from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.dashboard import router as dashboard_router
 from dz_fastapi.api.deps import get_current_user
@@ -197,6 +198,7 @@ app.include_router(cross_router, dependencies=AUTH_REQUIRED)
 app.include_router(partner_router, dependencies=AUTH_REQUIRED)
 app.include_router(order_router, dependencies=AUTH_REQUIRED)
 app.include_router(order_status_mapping_router, dependencies=AUTH_REQUIRED)
+app.include_router(customer_assembly_router, dependencies=AUTH_REQUIRED)
 app.include_router(customer_order_router, dependencies=AUTH_REQUIRED)
 app.include_router(partssoft_router, dependencies=AUTH_REQUIRED)
 app.include_router(diadoc_router, dependencies=AUTH_REQUIRED)

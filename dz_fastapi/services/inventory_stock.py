@@ -37,7 +37,7 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
-from sqlalchemy import asc, func, select
+from sqlalchemy import asc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -52,6 +52,7 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
+    CustomerOrderPickLabel,
     LotSourceType,
     MovementType,
     ProductionWave,
@@ -77,6 +78,7 @@ from dz_fastapi.models.inventory import (
     StockLotRoleSource,
     StockMovement,
     StockOrderPackage,
+    StockOrderPackageItem,
     StockReserve,
     SyncStatus,
     Warehouse,
@@ -685,6 +687,7 @@ async def _consume_fifo(
     reference_id: Optional[int] = None,
     reference_type: Optional[str] = None,
     notes: Optional[str] = None,
+    exclude_customer_order_lots: bool = False,
 ) -> list[StockMovement]:
     """Internal FIFO engine.
 
@@ -701,6 +704,14 @@ async def _consume_fifo(
         StockLot.autopart_id == autopart_id,
         StockLot.remaining_quantity > 0,
     )
+    if exclude_customer_order_lots:
+        linked_receipt_lots = (
+            select(StockLot.id)
+            .join(SupplierReceiptItem,
+                  SupplierReceiptItem.id == StockLot.source_receipt_item_id)
+            .where(SupplierReceiptItem.customer_order_item_id.is_not(None))
+        )
+        lots_stmt = lots_stmt.where(~StockLot.id.in_(linked_receipt_lots))
     if storage_location_id is not None:
         lots_stmt = lots_stmt.where(StockLot.storage_location_id == storage_location_id)
     if warehouse_id is not None:
@@ -764,6 +775,26 @@ async def _consume_fifo(
             StorageLocation.id == StockByLocation.storage_location_id,
         ).where(StorageLocation.warehouse_id == warehouse_id)
     stock_total = int((await session.execute(stock_total_stmt)).scalar_one() or 0)
+    if exclude_customer_order_lots:
+        linked_qty_stmt = (
+            select(func.coalesce(func.sum(StockLot.remaining_quantity), 0))
+            .join(SupplierReceiptItem,
+                  SupplierReceiptItem.id == StockLot.source_receipt_item_id)
+            .where(StockLot.autopart_id == autopart_id,
+                   StockLot.remaining_quantity > 0,
+                   SupplierReceiptItem.customer_order_item_id.is_not(None))
+        )
+        if storage_location_id is not None:
+            linked_qty_stmt = linked_qty_stmt.where(
+                StockLot.storage_location_id == storage_location_id
+            )
+        if warehouse_id is not None:
+            linked_qty_stmt = linked_qty_stmt.join(
+                StorageLocation,
+                StorageLocation.id == StockLot.storage_location_id,
+            ).where(StorageLocation.warehouse_id == warehouse_id)
+        linked_qty = int((await session.execute(linked_qty_stmt)).scalar_one() or 0)
+        stock_total = max(0, stock_total - linked_qty)
     lotted_total = sum(int(lot.remaining_quantity) for lot in lots)
     unlotted_quantity = max(0, stock_total - lotted_total)
     if reserved_by_lot and quantity > free_lotted_quantity + unlotted_quantity:
@@ -1104,7 +1135,63 @@ async def _sync_receipt_customer_assembly(
 
     created = 0
     updated = 0
+    reassigned = 0
     order_cache: dict[tuple[int, int], StockOrder] = {}
+
+    async def find_order(customer_id: int, customer_order_id: int) -> StockOrder:
+        # A customer can have many simultaneous orders. Never append a new
+        # receipt to an unrelated assembly just because the customer matches.
+        unrelated_item = (
+            select(StockOrderItem.id)
+            .outerjoin(
+                CustomerOrderItem,
+                CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+            )
+            .where(
+                StockOrderItem.stock_order_id == StockOrder.id,
+                or_(
+                    CustomerOrderItem.order_id.is_(None),
+                    CustomerOrderItem.order_id != customer_order_id,
+                ),
+            )
+            .correlate(StockOrder)
+            .exists()
+        )
+        stock_order = order_cache.get((customer_id, customer_order_id))
+        if stock_order is None:
+            stock_order = (
+                await session.execute(
+                    select(StockOrder)
+                    .join(StockOrderItem)
+                    .join(
+                        CustomerOrderItem,
+                        CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+                    )
+                    .where(
+                        StockOrder.customer_id == customer_id,
+                        CustomerOrderItem.order_id == customer_order_id,
+                        StockOrder.status.in_(
+                            (STOCK_ORDER_STATUS.NEW, STOCK_ORDER_STATUS.COMPLETED)
+                        ),
+                        StockOrder.shipment_document_id.is_(None),
+                        ~unrelated_item,
+                    )
+                    .order_by(StockOrder.created_at.asc(), StockOrder.id.asc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+        if stock_order is None:
+            stock_order = StockOrder(
+                customer_id=customer_id,
+                status=STOCK_ORDER_STATUS.NEW,
+                packing_required=True,
+            )
+            session.add(stock_order)
+            await session.flush()
+        order_cache[(customer_id, customer_order_id)] = stock_order
+        stock_order.packing_required = True
+        stock_order.status = STOCK_ORDER_STATUS.NEW
+        return stock_order
 
     for receipt_item in linked_items:
         autopart_id = await resolve_receipt_item_autopart_id(session, receipt_item)
@@ -1149,6 +1236,67 @@ async def _sync_receipt_customer_assembly(
         customer_order_id = int(customer_item.order_id)
 
         if existing is not None:
+            foreign_item_id = (
+                await session.execute(
+                    select(StockOrderItem.id)
+                    .outerjoin(
+                        CustomerOrderItem,
+                        CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+                    )
+                    .where(
+                        StockOrderItem.stock_order_id == existing.stock_order_id,
+                        StockOrderItem.id != existing.id,
+                        or_(
+                            CustomerOrderItem.order_id.is_(None),
+                            CustomerOrderItem.order_id != customer_order_id,
+                        ),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if foreign_item_id is not None:
+                packed_item_id = (
+                    await session.execute(
+                        select(StockOrderPackageItem.id)
+                        .where(StockOrderPackageItem.stock_order_item_id == existing.id)
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                if (
+                    int(existing.picked_quantity or 0) > 0
+                    or packed_item_id is not None
+                    or existing.stock_order is None
+                    or existing.stock_order.status
+                    not in (STOCK_ORDER_STATUS.NEW, STOCK_ORDER_STATUS.COMPLETED)
+                    or existing.stock_order.shipment_document_id is not None
+                ):
+                    raise ValueError(
+                        f"Строка поступления #{receipt_item.id} попала в чужую "
+                        "комплектацию и уже подобрана или упакована"
+                    )
+                previous_order = existing.stock_order
+                target_order = await find_order(customer_id, customer_order_id)
+                existing.stock_order_id = target_order.id
+                await session.flush()
+                remaining = (
+                    await session.execute(
+                        select(StockOrderItem).where(
+                            StockOrderItem.stock_order_id == previous_order.id
+                        )
+                    )
+                ).scalars().all()
+                if not remaining and not previous_order.packages:
+                    await session.delete(previous_order)
+                elif remaining:
+                    previous_order.status = (
+                        STOCK_ORDER_STATUS.COMPLETED
+                        if all(
+                            int(row.picked_quantity or 0) >= int(row.quantity or 0)
+                            for row in remaining
+                        )
+                        else STOCK_ORDER_STATUS.NEW
+                    )
+                reassigned += 1
             unchanged = (
                 int(existing.autopart_id or 0) == int(autopart_id)
                 and int(existing.quantity or 0) == int(receipt_item.received_quantity)
@@ -1168,60 +1316,7 @@ async def _sync_receipt_customer_assembly(
             updated += 1
             continue
 
-        cache_key = (customer_id, customer_order_id)
-        stock_order = order_cache.get(cache_key)
-        if stock_order is None:
-            stock_order = (
-                await session.execute(
-                    select(StockOrder)
-                    .join(StockOrderItem)
-                    .join(
-                        CustomerOrderItem,
-                        CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
-                    )
-                    .where(
-                        CustomerOrderItem.order_id == customer_order_id,
-                        StockOrder.status.in_(
-                            (
-                                STOCK_ORDER_STATUS.NEW,
-                                STOCK_ORDER_STATUS.COMPLETED,
-                            )
-                        ),
-                        StockOrder.shipment_document_id.is_(None),
-                    )
-                    .order_by(StockOrder.created_at.asc(), StockOrder.id.asc())
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-        if stock_order is None:
-            stock_order = (
-                await session.execute(
-                    select(StockOrder)
-                    .where(
-                        StockOrder.customer_id == customer_id,
-                        StockOrder.status.in_(
-                            (
-                                STOCK_ORDER_STATUS.NEW,
-                                STOCK_ORDER_STATUS.COMPLETED,
-                            )
-                        ),
-                        StockOrder.shipment_document_id.is_(None),
-                    )
-                    .order_by(StockOrder.created_at.asc(), StockOrder.id.asc())
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-        if stock_order is None:
-            stock_order = StockOrder(
-                customer_id=customer_id,
-                status=STOCK_ORDER_STATUS.NEW,
-                packing_required=True,
-            )
-            session.add(stock_order)
-            await session.flush()
-        order_cache[cache_key] = stock_order
-        stock_order.packing_required = True
-        stock_order.status = STOCK_ORDER_STATUS.NEW
+        stock_order = await find_order(customer_id, customer_order_id)
         session.add(
             StockOrderItem(
                 stock_order_id=stock_order.id,
@@ -1236,31 +1331,42 @@ async def _sync_receipt_customer_assembly(
         created += 1
 
     await session.flush()
-    return {"created": created, "updated": updated, "removed": 0}
+    return {
+        "created": created,
+        "updated": updated,
+        "reassigned": reassigned,
+        "removed": 0,
+    }
 
 
 async def sync_posted_cross_docking_assemblies(
     session: AsyncSession,
+    *,
+    receipt_id: int | None = None,
 ) -> dict:
     """Backfill assembly lines for already posted linked receipts."""
+    stmt = (
+        select(SupplierReceipt)
+        .join(SupplierReceiptItem)
+        .outerjoin(
+            StockOrderItem,
+            StockOrderItem.supplier_receipt_item_id == SupplierReceiptItem.id,
+        )
+        .where(
+            SupplierReceipt.posted_at.is_not(None),
+            SupplierReceiptItem.customer_order_item_id.is_not(None),
+            SupplierReceiptItem.received_quantity > 0,
+        )
+        .options(selectinload(SupplierReceipt.items))
+        .order_by(SupplierReceipt.id.asc())
+    )
+    if receipt_id is None:
+        stmt = stmt.where(StockOrderItem.id.is_(None))
+    else:
+        stmt = stmt.where(SupplierReceipt.id == receipt_id)
     receipts = (
         (
-            await session.execute(
-                select(SupplierReceipt)
-                .join(SupplierReceiptItem)
-                .outerjoin(
-                    StockOrderItem,
-                    StockOrderItem.supplier_receipt_item_id == SupplierReceiptItem.id,
-                )
-                .where(
-                    SupplierReceipt.posted_at.is_not(None),
-                    SupplierReceiptItem.customer_order_item_id.is_not(None),
-                    SupplierReceiptItem.received_quantity > 0,
-                    StockOrderItem.id.is_(None),
-                )
-                .options(selectinload(SupplierReceipt.items))
-                .order_by(SupplierReceipt.id.asc())
-            )
+            await session.execute(stmt)
         )
         .scalars()
         .unique()
@@ -1268,6 +1374,7 @@ async def sync_posted_cross_docking_assemblies(
     )
     created = 0
     updated = 0
+    reassigned = 0
     errors: list[dict[str, str | int]] = []
     for receipt in receipts:
         try:
@@ -1287,11 +1394,13 @@ async def sync_posted_cross_docking_assemblies(
             continue
         created += int(result.get("created", 0))
         updated += int(result.get("updated", 0))
+        reassigned += int(result.get("reassigned", 0))
     await session.flush()
     return {
         "receipts_processed": len(receipts),
         "items_created": created,
         "items_updated": updated,
+        "items_reassigned": reassigned,
         "receipts_skipped": len(errors),
         "errors": errors,
     }
@@ -1786,7 +1895,6 @@ async def dispatch_stock_order(
     order = (await session.execute(stmt)).scalar_one_or_none()
     if order is None:
         raise LookupError("Складской заказ не найден")
-
     shipment = None
     if order.shipment_document_id is not None:
         shipment = await session.get(ShipmentDocument, order.shipment_document_id)
@@ -1805,6 +1913,20 @@ async def dispatch_stock_order(
                 "credit_warning": None,
                 "already_dispatched": True,
             }
+
+    active_pick_label = (await session.execute(
+        select(CustomerOrderPickLabel.id)
+        .join(StockOrderItem,
+              StockOrderItem.id == CustomerOrderPickLabel.stock_order_item_id)
+        .where(StockOrderItem.stock_order_id == stock_order_id,
+               CustomerOrderPickLabel.cancelled_at.is_(None))
+        .limit(1)
+    )).scalar_one_or_none()
+    if active_pick_label is not None:
+        raise ValueError(
+            "Для позиций с этикетками нашего склада создайте черновик "
+            "реализации в комплектации заказов клиентов"
+        )
 
     if order.status != STOCK_ORDER_STATUS.COMPLETED:
         raise ValueError("Перед отгрузкой заказ нужно полностью собрать")
@@ -2192,12 +2314,16 @@ async def post_shipment_document(
         .options(
             selectinload(ShipmentDocument.items).selectinload(ShipmentDocumentItem.allocations)
         )
+        .with_for_update(of=ShipmentDocument)
     )
     doc = result.scalar_one_or_none()
     if doc is None:
         raise ValueError(f"Накладная {doc_id} не найдена")
     if doc.status != ShipmentDocumentStatus.DRAFT:
         raise ValueError(f"Накладная уже в статусе «{doc.status}» — провести нельзя")
+    if doc.assembly_managed:
+        from dz_fastapi.services.customer_assembly import validate_assembly_packing
+        await validate_assembly_packing(session, doc)
     credit_check = await check_shipment_credit_policy(session, document=doc)
     await assert_shipment_credit_available(session, document=doc)
     credit_warning = (
@@ -2211,9 +2337,15 @@ async def post_shipment_document(
     for item in doc.items:
         # 1. Снимаем резерв
         if item.reserve_id:
-            reserve = await session.get(StockReserve, item.reserve_id)
+            reserve = (await session.execute(
+                select(StockReserve).where(StockReserve.id == item.reserve_id)
+                .with_for_update(of=StockReserve)
+            )).scalar_one_or_none()
             if reserve and reserve.status == ReserveStatus.ACTIVE:
-                await release_reserve(session, reserve)
+                if doc.assembly_managed and int(reserve.quantity or 0) > int(item.quantity or 0):
+                    reserve.quantity -= int(item.quantity)
+                else:
+                    await release_reserve(session, reserve)
                 reserves_released += 1
 
         # 2. Расходуем FIFO
@@ -2236,12 +2368,15 @@ async def post_shipment_document(
                 session,
                 autopart_id=item.autopart_id,
                 storage_location_id=item.storage_location_id,
-                warehouse_id=doc.warehouse_id,
+                warehouse_id=(None if doc.assembly_managed
+                              and item.storage_location_id is not None
+                              else doc.warehouse_id),
                 quantity=item.quantity,
                 movement_type=MovementType.SHIPMENT,
                 reference_id=doc.id,
                 reference_type="shipment_document",
                 notes=item.notes,
+                exclude_customer_order_lots=bool(doc.assembly_managed),
             )
         movements_created += len(movements)
 
@@ -2429,6 +2564,18 @@ async def unpost_shipment_document(
         item.lot_id = None
         item.cost_price = None
         item.cost_total = None
+        if doc.assembly_managed and item.assembly_pick_label_id and item.reserve_id:
+            reserve = (await session.execute(
+                select(StockReserve).where(StockReserve.id == item.reserve_id)
+                .with_for_update(of=StockReserve)
+            )).scalar_one_or_none()
+            if reserve is not None:
+                if reserve.status == ReserveStatus.ACTIVE:
+                    reserve.quantity += int(item.quantity)
+                else:
+                    reserve.quantity = int(item.quantity)
+                    reserve.status = ReserveStatus.ACTIVE
+                    reserve.released_at = None
 
     doc.status = ShipmentDocumentStatus.CANCELLED
     doc.posted_at = None

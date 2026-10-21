@@ -1905,6 +1905,42 @@ class ShipmentDocumentStatus(StrEnum):
     CANCELLED = "cancelled"  # отменён
 
 
+class CustomerOrderPickLabel(Base):
+    """One own-stock picking label, tied to a physical location and reserve."""
+
+    __tablename__ = "customerorderpicklabel"
+
+    stock_order_item_id = Column(
+        Integer, ForeignKey("stockorderitem.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    storage_location_id = Column(
+        Integer, ForeignKey("storagelocation.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    reserve_id = Column(
+        Integer, ForeignKey("stockreserve.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    quantity = Column(Integer, nullable=False)
+    barcode = Column(String(128), nullable=False, unique=True)
+    print_count = Column(Integer, nullable=False, default=1)
+    printed_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    printed_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True,
+    )
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    stock_order_item = relationship("StockOrderItem")
+    storage_location = relationship("StorageLocation")
+    reserve = relationship("StockReserve")
+
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_customer_order_pick_label_qty"),
+    )
+
+
 class ShipmentDocument(Base):
     """Накладная на отгрузку — аналог «Реализация товаров» в 1С.
 
@@ -1944,6 +1980,7 @@ class ShipmentDocument(Base):
         nullable=True,
         index=True,
     )
+    assembly_managed = Column(Boolean, nullable=False, default=False)
     warehouse_id = Column(
         Integer,
         ForeignKey("warehouse.id", ondelete="SET NULL"),
@@ -1982,6 +2019,10 @@ class ShipmentDocument(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    packages = relationship(
+        "ShipmentPackage", back_populates="document", cascade="all, delete-orphan",
+        lazy="selectin", order_by="ShipmentPackage.id",
+    )
 
 
 class ShipmentDocumentItem(Base):
@@ -2006,6 +2047,14 @@ class ShipmentDocumentItem(Base):
         nullable=True,
         index=True,
         comment="Строка заказа с артикулом, который видел клиент",
+    )
+    assembly_pick_label_id = Column(
+        Integer, ForeignKey("customerorderpicklabel.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    cross_docking_label_id = Column(
+        Integer, ForeignKey("crossdockinglabel.id", ondelete="SET NULL"),
+        nullable=True, index=True,
     )
     customer_oem = Column(String(255), nullable=True)
     customer_brand = Column(String(255), nullable=True)
@@ -2074,6 +2123,52 @@ class ShipmentDocumentItem(Base):
         back_populates="shipment_document_item",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+
+
+class ShipmentPackage(Base):
+    """A box assembled from one customer realization draft."""
+
+    __tablename__ = "shipmentpackage"
+
+    document_id = Column(
+        Integer, ForeignKey("shipmentdocument.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    number = Column(Integer, nullable=False)
+    sealed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    document = relationship("ShipmentDocument", back_populates="packages")
+    items = relationship(
+        "ShipmentPackageItem", back_populates="package", cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("document_id", "number", name="uq_shipment_package_number"),
+    )
+
+
+class ShipmentPackageItem(Base):
+    __tablename__ = "shipmentpackageitem"
+
+    package_id = Column(
+        Integer, ForeignKey("shipmentpackage.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    shipment_item_id = Column(
+        Integer, ForeignKey("shipmentdocumentitem.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    quantity = Column(Integer, nullable=False)
+
+    package = relationship("ShipmentPackage", back_populates="items")
+    shipment_item = relationship("ShipmentDocumentItem")
+
+    __table_args__ = (
+        UniqueConstraint("package_id", "shipment_item_id", name="uq_shipment_package_item"),
+        CheckConstraint("quantity > 0", name="ck_shipment_package_item_qty"),
     )
 
 

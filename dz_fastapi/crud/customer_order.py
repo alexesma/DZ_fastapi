@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import and_, false, func, select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -356,6 +356,7 @@ class CRUDStockOrder:
         date_to: Optional[date] = None,
         brand_id: Optional[int] = None,
         customer_id: Optional[int] = None,
+        customer_order_id: Optional[int] = None,
         storage_location_id: Optional[int] = None,
         skip: int = 0,
         limit: int = 100,
@@ -369,6 +370,9 @@ class CRUDStockOrder:
                 .selectinload(AutoPart.storage_locations),
                 joinedload(StockOrder.items).joinedload(StockOrderItem.picked_by_user),
                 joinedload(StockOrder.items)
+                .joinedload(StockOrderItem.customer_order_item)
+                .joinedload(CustomerOrderItem.order),
+                joinedload(StockOrder.items)
                 .joinedload(StockOrderItem.supplier_receipt_item)
                 .joinedload(SupplierReceiptItem.receipt)
                 .joinedload(SupplierReceipt.provider),
@@ -378,14 +382,41 @@ class CRUDStockOrder:
         )
         if customer_id is not None:
             stmt = stmt.where(StockOrder.customer_id == customer_id)
-        if date_from is not None:
+        if customer_order_id is not None:
             stmt = stmt.where(
-                StockOrder.created_at >= datetime.combine(date_from, datetime.min.time())
+                StockOrder.items.any(
+                    StockOrderItem.customer_order_item.has(
+                        CustomerOrderItem.order_id == customer_order_id
+                    )
+                )
             )
-        if date_to is not None:
-            stmt = stmt.where(
-                StockOrder.created_at <= datetime.combine(date_to, datetime.max.time())
+        if date_from is not None or date_to is not None:
+            created_range = []
+            receipt_range = []
+            if date_from is not None:
+                lower_bound = datetime.combine(date_from, datetime.min.time())
+                created_range.append(StockOrder.created_at >= lower_bound)
+                receipt_range.append(SupplierReceipt.posted_at >= lower_bound)
+            if date_to is not None:
+                upper_bound = datetime.combine(date_to, datetime.max.time())
+                created_range.append(StockOrder.created_at <= upper_bound)
+                receipt_range.append(SupplierReceipt.posted_at <= upper_bound)
+            recent_receipt = (
+                select(StockOrderItem.id)
+                .join(
+                    SupplierReceiptItem,
+                    SupplierReceiptItem.id == StockOrderItem.supplier_receipt_item_id,
+                )
+                .join(SupplierReceipt, SupplierReceipt.id == SupplierReceiptItem.receipt_id)
+                .where(
+                    StockOrderItem.stock_order_id == StockOrder.id,
+                    SupplierReceipt.posted_at.is_not(None),
+                    *receipt_range,
+                )
+                .correlate(StockOrder)
+                .exists()
             )
+            stmt = stmt.where(or_(and_(*created_range), recent_receipt))
         if brand_id is not None or storage_location_id is not None:
             stmt = stmt.join(StockOrderItem).join(AutoPart)
             if brand_id is not None:

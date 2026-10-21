@@ -828,6 +828,9 @@ class ShipmentDocumentItemOut(BaseModel):
     document_id: int
     autopart_id: int
     customer_order_item_id: Optional[int] = None
+    source_customer_order_id: Optional[int] = None
+    assembly_pick_label_id: Optional[int] = None
+    cross_docking_label_id: Optional[int] = None
     customer_oem: Optional[str] = None
     customer_brand: Optional[str] = None
     customer_name: Optional[str] = None
@@ -839,6 +842,7 @@ class ShipmentDocumentItemOut(BaseModel):
     cost_total: Optional[Decimal] = None
     reserve_id: Optional[int] = None
     lot_id: Optional[int] = None
+    preferred_lot_id: Optional[int] = None
     notes: Optional[str] = None
     # денормализованные
     autopart_oem: Optional[str] = None
@@ -893,6 +897,7 @@ class ShipmentDocumentOut(BaseModel):
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     customer_order_id: Optional[int] = None
+    assembly_managed: bool = False
     warehouse_id: Optional[int] = None
     warehouse_name: Optional[str] = None
     reason: Optional[str] = None

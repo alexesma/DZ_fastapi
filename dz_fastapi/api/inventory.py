@@ -137,6 +137,7 @@ from dz_fastapi.schemas.inventory import (
     TransferResult,
 )
 from dz_fastapi.services.credit_control import CreditLimitExceeded
+from dz_fastapi.services.customer_assembly import validate_assembly_quantity
 from dz_fastapi.services.inventory_stock import _apply_stock_delta as apply_stock_delta
 from dz_fastapi.services.inventory_stock import _consume_fifo as consume_stock_fifo
 from dz_fastapi.services.inventory_stock import _create_stock_lot as create_stock_lot
@@ -2805,6 +2806,10 @@ def _shipment_item_to_out(
         document_id=item.document_id,
         autopart_id=item.autopart_id,
         customer_order_item_id=item.customer_order_item_id,
+        source_customer_order_id=(item.customer_order_item.order_id
+                                  if item.customer_order_item else None),
+        assembly_pick_label_id=item.assembly_pick_label_id,
+        cross_docking_label_id=item.cross_docking_label_id,
         customer_oem=item.customer_oem,
         customer_brand=item.customer_brand,
         customer_name=item.customer_name,
@@ -2816,6 +2821,7 @@ def _shipment_item_to_out(
         cost_total=cost_total,
         reserve_id=item.reserve_id,
         lot_id=item.lot_id,
+        preferred_lot_id=item.preferred_lot_id,
         notes=item.notes,
         autopart_oem=item.customer_oem or (ap.oem_number if ap else None),
         autopart_name=item.customer_name or (ap.name if ap else None),
@@ -2850,6 +2856,7 @@ def _shipment_to_out(doc: ShipmentDocument) -> ShipmentDocumentOut:
         customer_id=doc.customer_id,
         customer_name=customer.document_name if customer else None,
         customer_order_id=doc.customer_order_id,
+        assembly_managed=bool(doc.assembly_managed),
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
         reason=doc.reason,
@@ -3521,6 +3528,11 @@ async def update_shipment_document(
             status_code=400,
             detail="Можно редактировать только черновик",
         )
+    if doc.assembly_managed and any(
+        key in data.model_fields_set
+        for key in ("customer_id", "customer_order_id", "warehouse_id")
+    ):
+        raise HTTPException(status_code=409, detail="Источник комплектации менять нельзя")
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(doc, field, value)
     await session.flush()
@@ -3548,6 +3560,8 @@ async def add_shipment_item(
             status_code=400,
             detail="Можно добавлять строки только в черновик",
         )
+    if doc.assembly_managed:
+        raise HTTPException(status_code=409, detail="Позиции добавляются из заказов клиента")
     customer_order_item = None
     if data.customer_order_item_id is not None:
         customer_order_item = await session.get(
@@ -3638,7 +3652,10 @@ async def update_shipment_item(
     data: ShipmentDocumentItemUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    doc = await session.get(ShipmentDocument, doc_id)
+    doc = (await session.execute(
+        select(ShipmentDocument).where(ShipmentDocument.id == doc_id)
+        .with_for_update(of=ShipmentDocument)
+    )).scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
     if doc.status != ShipmentDocumentStatus.DRAFT:
@@ -3649,6 +3666,18 @@ async def update_shipment_item(
     item = await session.get(ShipmentDocumentItem, item_id)
     if item is None or item.document_id != doc_id:
         raise HTTPException(status_code=404, detail="Строка не найдена")
+
+    if doc.assembly_managed:
+        if any(key not in {"quantity", "price", "notes"}
+               for key in data.model_fields_set):
+            raise HTTPException(status_code=409,
+                                detail=("В этом черновике можно изменить "
+                                        "количество, цену и примечание"))
+        if data.quantity is not None:
+            try:
+                await validate_assembly_quantity(session, item, data.quantity)
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
@@ -3680,7 +3709,10 @@ async def delete_shipment_item(
     item_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    doc = await session.get(ShipmentDocument, doc_id)
+    doc = (await session.execute(
+        select(ShipmentDocument).where(ShipmentDocument.id == doc_id)
+        .with_for_update(of=ShipmentDocument)
+    )).scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
     if doc.status != ShipmentDocumentStatus.DRAFT:
@@ -3691,6 +3723,15 @@ async def delete_shipment_item(
     item = await session.get(ShipmentDocumentItem, item_id)
     if item is None or item.document_id != doc_id:
         raise HTTPException(status_code=404, detail="Строка не найдена")
+    if doc.assembly_managed:
+        from dz_fastapi.models.inventory import ShipmentPackageItem
+        boxed = (await session.execute(
+            select(ShipmentPackageItem.id).where(
+                ShipmentPackageItem.shipment_item_id == item.id).limit(1)
+        )).scalar_one_or_none()
+        if boxed is not None:
+            raise HTTPException(status_code=409,
+                                detail="Сначала уберите позицию из коробки")
     await session.delete(item)
     await session.commit()
 

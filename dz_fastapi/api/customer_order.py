@@ -1389,6 +1389,7 @@ async def list_stock_orders(
     date_to: Optional[date] = None,
     brand_id: Optional[int] = None,
     customer_id: Optional[int] = None,
+    customer_order_id: Optional[int] = None,
     storage_location_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
@@ -1401,6 +1402,7 @@ async def list_stock_orders(
         date_to=date_to,
         brand_id=brand_id,
         customer_id=customer_id,
+        customer_order_id=customer_order_id,
         storage_location_id=storage_location_id,
         skip=skip,
         limit=limit,
@@ -1414,6 +1416,7 @@ async def list_stock_orders(
     summary="Добавить проведённые cross-docking поступления в комплектацию",
 )
 async def sync_cross_docking_stock_orders(
+    receipt_id: Optional[int] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1422,11 +1425,17 @@ async def sync_cross_docking_stock_orders(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Синхронизация доступна только администратору",
         )
-    result = await sync_posted_cross_docking_assemblies(session)
-    label_result = await sync_posted_cross_docking_labels(
-        session,
-        user_id=current_user.id,
+    result = await sync_posted_cross_docking_assemblies(
+        session, receipt_id=receipt_id
     )
+    if receipt_id is None:
+        label_result = await sync_posted_cross_docking_labels(
+            session, user_id=current_user.id
+        )
+    else:
+        label_result = await ensure_cross_docking_labels(
+            session, receipt_id=receipt_id, user_id=current_user.id
+        )
     result.update(label_result)
     await session.commit()
     return result

@@ -1437,6 +1437,158 @@ async def test_cross_docking_receipt_joins_assembly_and_uses_exact_lot(
 
 
 @pytest.mark.asyncio
+@pytest.mark.no_auth_override
+async def test_cross_docking_receipt_does_not_join_another_customer_order(
+    async_client,
+    test_session,
+    created_autopart,
+    created_customers,
+    created_providers,
+    created_storage,
+):
+    await _create_user(test_session, "crossdock-admin@example.com", UserRole.ADMIN)
+    await _login(async_client, "crossdock-admin@example.com")
+
+    warehouse = Warehouse(name="Склад для клиента", is_active=True)
+    test_session.add(warehouse)
+    await test_session.flush()
+    created_storage.warehouse_id = warehouse.id
+
+    customer_id = created_customers[0].id
+    old_order = CustomerOrder(
+        customer_id=customer_id,
+        order_number="OLD-CUSTOMER-ORDER",
+        status="PROCESSED",
+        received_at=now_moscow() - timedelta(days=10),
+    )
+    new_order = CustomerOrder(
+        customer_id=customer_id,
+        order_number="NEW-CUSTOMER-ORDER",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add_all([old_order, new_order])
+    await test_session.flush()
+    old_item = CustomerOrderItem(
+        order_id=old_order.id,
+        oem="OLD-ITEM",
+        brand="TEST",
+        requested_qty=1,
+        requested_price=Decimal("100"),
+        ship_qty=1,
+        status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+    )
+    new_item = CustomerOrderItem(
+        order_id=new_order.id,
+        oem="NEW-ITEM",
+        brand="TEST",
+        requested_qty=2,
+        requested_price=Decimal("100"),
+        ship_qty=2,
+        status="SUPPLIER",
+        autopart_id=created_autopart.id,
+    )
+    test_session.add_all([old_item, new_item])
+    await test_session.flush()
+    old_stock_order = StockOrder(customer_id=customer_id, status="NEW")
+    test_session.add(old_stock_order)
+    await test_session.flush()
+    test_session.add(
+        StockOrderItem(
+            stock_order_id=old_stock_order.id,
+            customer_order_item_id=old_item.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+        )
+    )
+    supplier_order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_moscow(),
+        sent_at=now_moscow(),
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+    supplier_item = SupplierOrderItem(
+        supplier_order_id=supplier_order.id,
+        customer_order_item_id=new_item.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name="TEST",
+        autopart_name=created_autopart.name,
+        quantity=2,
+        confirmed_quantity=2,
+        price=Decimal("50"),
+    )
+    test_session.add(supplier_item)
+    await test_session.commit()
+
+    receipt_response = await async_client.post(
+        "/customer-orders/supplier-receipts",
+        json={
+            "provider_id": created_providers[0].id,
+            "warehouse_id": warehouse.id,
+            "items": [
+                {"supplier_order_item_id": supplier_item.id, "received_quantity": 2}
+            ],
+        },
+    )
+    assert receipt_response.status_code == 201, receipt_response.text
+    receipt_id = receipt_response.json()["id"]
+    post_response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/post"
+    )
+    assert post_response.status_code == 200, post_response.text
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt_id)
+        )
+    ).scalar_one()
+    cross_stock_item = (
+        await test_session.execute(
+            select(StockOrderItem).where(
+                StockOrderItem.supplier_receipt_item_id == receipt_item.id
+            )
+        )
+    ).scalar_one()
+    assert cross_stock_item.stock_order_id != old_stock_order.id
+
+    # A receipt posted today remains visible when its assembly was created earlier.
+    own_assembly = await test_session.get(StockOrder, cross_stock_item.stock_order_id)
+    own_assembly.created_at = now_moscow() - timedelta(days=10)
+    await test_session.commit()
+    today = now_moscow().date().isoformat()
+    list_response = await async_client.get(
+        "/customer-orders/stock/list",
+        params={
+            "customer_id": customer_id,
+            "customer_order_id": new_order.id,
+            "date_from": today,
+            "date_to": today,
+        },
+    )
+    assert list_response.status_code == 200, list_response.text
+    assert any(
+        item["customer_order_id"] == new_order.id
+        for row in list_response.json()
+        for item in row["items"]
+    )
+
+    # Reproduce a line linked to an older assembly by the previous code.
+    cross_stock_item.stock_order_id = old_stock_order.id
+    await test_session.commit()
+    sync_response = await async_client.post(
+        f"/customer-orders/stock/sync-cross-docking?receipt_id={receipt_id}"
+    )
+    assert sync_response.status_code == 200, sync_response.text
+    assert sync_response.json()["items_reassigned"] == 1
+    await test_session.refresh(cross_stock_item)
+    assert cross_stock_item.stock_order_id != old_stock_order.id
+    assert cross_stock_item.stock_order_id is not None
+
+
+@pytest.mark.asyncio
 async def test_supplier_receipt_candidates_and_create_receipt(
     async_client,
     test_session,
