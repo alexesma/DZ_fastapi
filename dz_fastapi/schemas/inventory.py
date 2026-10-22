@@ -922,6 +922,7 @@ class ShipmentDocumentListItem(BaseModel):
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     customer_order_id: Optional[int] = None
+    customer_order_ids: List[int] = Field(default_factory=list)
     warehouse_id: Optional[int] = None
     warehouse_name: Optional[str] = None
     reason: Optional[str] = None

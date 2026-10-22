@@ -72,9 +72,15 @@ async def test_shipment_preserves_customer_alias_and_physical_stock_item(
     test_session.add(order_item)
     await test_session.commit()
 
+    incoming_only = await async_client.get("/inventory/shipments/")
+    assert incoming_only.status_code == 200
+    assert incoming_only.json() == []
+    assert incoming_only.headers["x-total-count"] == "0"
+
     response = await async_client.post(
         "/inventory/shipments/",
         json={
+            "doc_number": "REAL-TEST-1",
             "customer_id": created_customers[0].id,
             "customer_order_id": order.id,
             "items": [
@@ -93,6 +99,15 @@ async def test_shipment_preserves_customer_alias_and_physical_stock_item(
     assert item["customer_order_item_id"] == order_item.id
     assert item["autopart_oem"] == "DZ-CROSS-RETURN"
     assert item["stock_autopart_oem"] == created_autopart.oem_number
+
+    outgoing = await async_client.get(
+        "/inventory/shipments/", params={"offset": 0, "limit": 1,
+                                         "doc_number": response.json()["doc_number"]}
+    )
+    assert outgoing.status_code == 200
+    assert outgoing.headers["x-total-count"] == "1"
+    assert [row["id"] for row in outgoing.json()] == [response.json()["id"]]
+    assert outgoing.json()[0]["status"] == "draft"
 
 
 @pytest.mark.asyncio

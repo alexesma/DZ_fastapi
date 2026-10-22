@@ -194,7 +194,7 @@ async def test_only_latest_publication_is_used_without_seven_day_limit(
 
 
 @pytest.mark.asyncio
-async def test_exact_export_snapshot_does_not_restore_an_excluded_position(
+async def test_current_offer_can_fulfil_position_absent_from_export_snapshot(
     test_session,
     created_customers,
     monkeypatch,
@@ -229,7 +229,24 @@ async def test_exact_export_snapshot_does_not_restore_an_excluded_position(
     )
 
     assert expected_prices == {}
-    assert offers == {}
+    assert offers == {("EXCLUDED", "HAVAL"): current_offer}
+    plan = service._plan_customer_order_row(
+        configs[0],
+        excluded_row,
+        offers[("EXCLUDED", "HAVAL")],
+        expected_prices.get(("EXCLUDED", "HAVAL")),
+        {},
+    )
+    assert plan.reject_reason is None
+    assert plan.ship_qty == excluded_row.requested_qty
+    overpriced = service._plan_customer_order_row(
+        configs[0],
+        order_row(price=60, oem="EXCLUDED"),
+        current_offer,
+        None,
+        {},
+    )
+    assert overpriced.reject_reason == "PRICE_TOO_HIGH"
 
 
 @pytest.mark.asyncio
@@ -646,4 +663,96 @@ async def test_admin_can_force_price_rejection_into_supplier_order(
             test_session,
             item.id,
             approved_by_user_id=77,
+        )
+
+
+@pytest.mark.asyncio
+async def test_recheck_uses_current_offer_and_does_not_duplicate_supplier_order(
+    test_session,
+    created_customers,
+    created_providers,
+    created_autopart,
+    monkeypatch,
+):
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        order_email="buyer@example.com",
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        price_col=3,
+        price_warning_pct=5,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    order = CustomerOrder(
+        customer_id=config.customer_id,
+        order_config_id=config.id,
+        external_payload={},
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id,
+        row_index=0,
+        oem="DZ1016002020",
+        brand="DRAGONZAP",
+        requested_qty=4,
+        requested_price=34,
+        ship_qty=0,
+        reject_qty=4,
+        status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        reject_reason_code="OFFER_MATCH_DIAGNOSTIC",
+    )
+    test_session.add(item)
+    await test_session.commit()
+    offer = service.OfferRow(
+        autopart_id=created_autopart.id,
+        provider_id=created_providers[0].id,
+        provider_config_id=None,
+        quantity=3,
+        price=50,
+        supplier_price=40,
+        is_own_price=False,
+    )
+    prepare = AsyncMock(return_value=(
+        {}, {("DZ1016002020", "DRAGONZAP"): offer}, {}, object(),
+    ))
+    monkeypatch.setattr(service, "_prepare_customer_order_context", prepare)
+    monkeypatch.setattr(service, "assert_customer_credit_available", AsyncMock())
+    finalize = AsyncMock()
+    monkeypatch.setattr(service, "try_finalize_customer_order_response", finalize)
+
+    with pytest.raises(ValueError, match="цена выше допустимой"):
+        await service.recheck_rejected_customer_order_item(
+            test_session, item.id, checked_by_user_id=77,
+        )
+    assert await test_session.scalar(
+        select(SupplierOrderItem.id).where(SupplierOrderItem.customer_order_item_id == item.id)
+    ) is None
+
+    offer.price = 34
+    offer.supplier_price = 30
+    updated = await service.recheck_rejected_customer_order_item(
+        test_session, item.id, checked_by_user_id=77,
+    )
+    supplier_item = await test_session.scalar(
+        select(SupplierOrderItem).where(SupplierOrderItem.customer_order_item_id == item.id)
+    )
+    assert updated.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    assert updated.ship_qty == 3
+    assert updated.reject_qty == 1
+    assert supplier_item.quantity == 3
+    assert float(supplier_item.price) == 30
+    assert updated.source_payload["current_offer_recheck"]["checked_by_user_id"] == 77
+    assert (
+        updated.source_payload["current_offer_recheck"]["previous_reject_reason_code"]
+        == "OFFER_MATCH_DIAGNOSTIC"
+    )
+    finalize.assert_awaited_once_with(test_session, order_id=order.id)
+    with pytest.raises(ValueError, match="только для автоматического отказа"):
+        await service.recheck_rejected_customer_order_item(
+            test_session, item.id, checked_by_user_id=77,
         )

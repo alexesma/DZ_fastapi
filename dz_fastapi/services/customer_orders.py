@@ -2289,7 +2289,8 @@ async def _diagnose_missing_offer_reason(
             continue
 
         diagnostics.append(
-            f"{source_name}: предложение найдено, но не было выбрано " "для строки заказа."
+            f"{source_name}: предложение есть в текущем прайсе, но итоговый "
+            "подбор его не сопоставил со строкой заказа; требуется проверка."
         )
 
     if filtered_out:
@@ -3328,12 +3329,9 @@ async def _prepare_customer_order_context(
         offers,
         brand_aliases,
     )
-    if has_exact_export_snapshot:
-        # The exported rows are the exact contract with the customer. Current
-        # supplier data may fulfil an advertised position, but it must not
-        # introduce a position that was absent from the selected snapshot.
-        published_keys = set(expected_prices)
-        offers = {key: offer for key, offer in offers.items() if key in published_keys}
+    # The published export supplies the customer's historical price reference.
+    # Fulfilment uses current eligible offers, including positions absent from
+    # that export; the requested price and tolerance checks remain in force.
     return expected_prices, offers, brand_aliases, pricelist_config
 
 
@@ -6319,6 +6317,208 @@ async def force_accept_customer_order_price(
         )
     ).scalar_one()
     return refreshed, supplier_order_id, preview
+
+
+async def recheck_rejected_customer_order_item(
+    session: AsyncSession,
+    item_id: int,
+    *,
+    checked_by_user_id: int,
+) -> CustomerOrderItem:
+    """Accept a formerly rejected line only when a current offer passes normal checks."""
+    item = (
+        await session.execute(
+            select(CustomerOrderItem)
+            .where(CustomerOrderItem.id == item_id)
+            .with_for_update(of=CustomerOrderItem)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        raise LookupError("Позиция заказа не найдена")
+    eligible_reasons = {
+        "NO_OFFER", "NO_TARGET_PRICE", "OFFER_MATCH_DIAGNOSTIC", "ZERO_STOCK",
+        "NONPOSITIVE_OFFER", "FILTERED_BY_SOURCE_RULE",
+        "FILTERED_BY_PRICE_CONFIG", "PRICE_TOO_HIGH",
+    }
+    if (
+        item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+        or item.reject_reason_code not in eligible_reasons
+    ):
+        raise ValueError("Повторная проверка доступна только для автоматического отказа")
+    previous_reject_reason_code = item.reject_reason_code
+    previous_reject_reason_text = item.reject_reason_text
+    if await session.scalar(
+        select(SupplierOrderItem.id)
+        .where(SupplierOrderItem.customer_order_item_id == item.id)
+        .limit(1)
+    ) or await session.scalar(
+        select(StockOrderItem.id)
+        .where(StockOrderItem.customer_order_item_id == item.id)
+        .limit(1)
+    ):
+        raise ValueError("По позиции уже создан заказ на поставку или сборку")
+
+    order = await session.get(CustomerOrder, int(item.order_id))
+    if order is None or order.order_config_id is None:
+        raise ValueError("У заказа не сохранена конфигурация обработки")
+    if order.status == CUSTOMER_ORDER_STATUS.SENT:
+        raise ValueError(
+            "Клиенту уже отправлен ответ по заказу. Сначала согласуйте изменение "
+            "отказа с клиентом."
+        )
+    config = await session.get(CustomerOrderConfig, int(order.order_config_id))
+    if config is None:
+        raise ValueError("Конфигурация обработки заказа больше недоступна")
+    response_source = None
+    if order.response_file_path:
+        source_bytes = await _load_order_source_file(order)
+        if not source_bytes:
+            raise ValueError("Исходный файл заказа недоступен для обновления ответа клиенту")
+        filename = order.source_filename or "order.xlsx"
+        try:
+            _, _, _, file_buffer, file_ext = _parse_order_attachment(
+                source_bytes, filename, config,
+            )
+        except Exception as exc:
+            raise ValueError(f"Не удалось обновить ответ клиенту: {exc}") from exc
+        response_source = (filename, file_ext, file_buffer)
+    row = ParsedOrderRow(
+        row_index=int(item.row_index or 0),
+        oem=str(item.oem or ""),
+        brand=str(item.brand or ""),
+        name=item.name,
+        requested_qty=int(item.requested_qty or 0),
+        requested_price=(
+            float(item.requested_price) if item.requested_price is not None else None
+        ),
+    )
+    if row.requested_qty <= 0:
+        raise ValueError("В позиции нет положительного количества")
+    routing = (order.external_payload or {}).get("pricelist_routing") or {}
+    expected, offers, aliases, _ = await _prepare_customer_order_context(
+        session,
+        config,
+        [row],
+        snapshot_id=_optional_int(routing.get("pricelist_id")),
+        require_published_pricelist=True,
+    )
+    key = _normalize_key(row.oem, row.brand, aliases)
+    offer = offers.get(key)
+    plan = _plan_customer_order_row(config, row, offer, expected.get(key), {})
+    if plan.reject_reason == "PRICE_TOO_HIGH":
+        raise ValueError("Текущая цена выше допустимой; проверьте её вручную")
+    if plan.reject_reason or plan.ship_qty <= 0:
+        raise ValueError("Подходящего предложения с доступным остатком сейчас нет")
+    if not offer.is_own_price and float(offer.supplier_price or 0) <= 0:
+        raise ValueError("В текущем предложении нет закупочной цены")
+    await assert_customer_credit_available(session, customer_id=int(order.customer_id))
+
+    if offer.is_own_price:
+        stock_order = StockOrder(
+            customer_id=order.customer_id,
+            status=STOCK_ORDER_STATUS.NEW,
+            packing_required=True,
+        )
+        session.add(stock_order)
+        await session.flush()
+        session.add(StockOrderItem(
+            stock_order_id=stock_order.id,
+            customer_order_item_id=item.id,
+            autopart_id=offer.autopart_id,
+            quantity=plan.ship_qty,
+        ))
+        item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+        item.supplier_id = None
+        item.provider_config_id = None
+    else:
+        provider = await session.get(Provider, int(offer.provider_id))
+        if provider is None:
+            raise ValueError("Поставщик текущего предложения больше недоступен")
+        supplier_order = await _get_or_create_open_supplier_order(
+            session,
+            provider_id=int(provider.id),
+            provider_config_id=_supplier_order_source_config_id(
+                split_orders_by_pricelist=bool(provider.split_orders_by_pricelist),
+                provider_config_id=_optional_int(offer.provider_config_id),
+            ),
+        )
+        session.add(SupplierOrderItem(
+            supplier_order_id=supplier_order.id,
+            customer_order_item_id=item.id,
+            autopart_id=offer.autopart_id,
+            oem_number=item.oem,
+            brand_name=item.brand,
+            autopart_name=item.name,
+            quantity=plan.ship_qty,
+            price=offer.supplier_price,
+        ))
+        item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+        item.supplier_id = int(provider.id)
+        item.provider_config_id = _optional_int(offer.provider_config_id)
+
+    item.autopart_id = offer.autopart_id
+    item.match_type = offer.match_type
+    item.actual_oem = offer.actual_oem
+    item.actual_brand = offer.actual_brand
+    item.actual_name = offer.actual_name
+    item.matched_price = offer.supplier_price
+    item.price_diff_pct = plan.price_diff_pct
+    item.ship_qty = plan.ship_qty
+    item.reject_qty = plan.reject_qty
+    item.source_resolution_status = "current_offer_recheck"
+    item.source_payload = {
+        **(item.source_payload or {}),
+        "current_offer_recheck": {
+            "checked_at": now_moscow().isoformat(),
+            "checked_by_user_id": checked_by_user_id,
+            "previous_reject_reason_code": previous_reject_reason_code,
+            "previous_reject_reason_text": previous_reject_reason_text,
+            "provider_id": int(offer.provider_id),
+            "provider_config_id": _optional_int(offer.provider_config_id),
+            "quantity": plan.ship_qty,
+            "supplier_price": offer.supplier_price,
+            "offer_price": offer.price,
+        },
+    }
+    if plan.reject_qty:
+        _set_reject_reason(
+            item,
+            "PARTIAL_STOCK",
+            f"Текущее предложение: доступно {plan.ship_qty} из {row.requested_qty}.",
+        )
+    else:
+        _clear_reject_reason(item)
+    if response_source is not None:
+        filename, file_ext, file_buffer = response_source
+        await session.flush()
+        order_items = (
+            await session.scalars(
+                select(CustomerOrderItem)
+                .where(CustomerOrderItem.order_id == order.id)
+                .order_by(CustomerOrderItem.row_index.asc(), CustomerOrderItem.id.asc())
+            )
+        ).all()
+        response_buffer = _build_order_response_buffer(
+            file_ext, file_buffer, config, order_items,
+        )
+        await _write_order_response_file(order, filename, file_ext, response_buffer)
+    await session.commit()
+    try:
+        await try_finalize_customer_order_response(session, order_id=int(order.id))
+    except Exception:
+        await session.rollback()
+        logger.exception(
+            "Failed to refresh customer response after offer recheck: item_id=%s",
+            item_id,
+        )
+    return (
+        await session.execute(
+            select(CustomerOrderItem)
+            .options(joinedload(CustomerOrderItem.order))
+            .where(CustomerOrderItem.id == item_id)
+        )
+    ).scalar_one()
 
 
 async def update_customer_order_item_manual(

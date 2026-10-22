@@ -185,6 +185,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Total-Count"],
 )
 AUTH_REQUIRED = [Depends(get_current_user)]
 

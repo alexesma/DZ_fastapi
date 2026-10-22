@@ -17,9 +17,9 @@ from io import BytesIO
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import delete, func, insert, update
+from sqlalchemy import delete, func, insert, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -2874,6 +2874,11 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
     customer = doc.customer
     warehouse = doc.warehouse
     items = doc.items or []
+    customer_order_ids = {doc.customer_order_id} if doc.customer_order_id else set()
+    customer_order_ids.update(
+        item.customer_order_item.order_id
+        for item in items if item.customer_order_item is not None
+    )
     return ShipmentDocumentListItem(
         id=doc.id,
         doc_number=doc.doc_number,
@@ -2882,6 +2887,7 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
         customer_id=doc.customer_id,
         customer_name=customer.document_name if customer else None,
         customer_order_id=doc.customer_order_id,
+        customer_order_ids=sorted(customer_order_ids),
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
         reason=doc.reason,
@@ -3041,9 +3047,11 @@ async def create_shipment_document(
     summary="Список накладных на отгрузку",
 )
 async def list_shipment_documents(
+    response: Response,
     status_filter: Optional[ShipmentDocumentStatus] = Query(
         None, alias="status"
     ),
+    doc_number: Optional[str] = Query(None),
     customer_id: Optional[int] = Query(None),
     customer_order_id: Optional[int] = Query(None),
     autopart_id: Optional[int] = Query(None),
@@ -3057,24 +3065,23 @@ async def list_shipment_documents(
     limit: int = Query(100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ):
-    stmt = (
-        select(ShipmentDocument)
-        .options(
-            selectinload(ShipmentDocument.items),
-            selectinload(ShipmentDocument.customer),
-            selectinload(ShipmentDocument.warehouse),
-        )
-        .order_by(ShipmentDocument.doc_date.desc(), ShipmentDocument.id.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    stmt = select(ShipmentDocument)
     if status_filter is not None:
         stmt = stmt.where(ShipmentDocument.status == status_filter)
+    if doc_number:
+        stmt = stmt.where(ShipmentDocument.doc_number.ilike(f"%{doc_number.strip()}%"))
     if customer_id is not None:
         stmt = stmt.where(ShipmentDocument.customer_id == customer_id)
     if customer_order_id is not None:
         stmt = stmt.where(
-            ShipmentDocument.customer_order_id == customer_order_id
+            or_(
+                ShipmentDocument.customer_order_id == customer_order_id,
+                ShipmentDocument.items.any(
+                    ShipmentDocumentItem.customer_order_item.has(
+                        CustomerOrderItem.order_id == customer_order_id
+                    )
+                ),
+            )
         )
     if autopart_id is not None:
         stmt = stmt.where(
@@ -3102,6 +3109,16 @@ async def list_shipment_documents(
     if posted_to is not None:
         stmt = stmt.where(ShipmentDocument.posted_at <= posted_to)
 
+    total = (await session.execute(
+        select(func.count()).select_from(stmt.subquery())
+    )).scalar_one()
+    response.headers["X-Total-Count"] = str(total)
+    stmt = (stmt.options(
+        selectinload(ShipmentDocument.items),
+        selectinload(ShipmentDocument.customer),
+        selectinload(ShipmentDocument.warehouse),
+    ).order_by(ShipmentDocument.doc_date.desc(), ShipmentDocument.id.desc())
+        .offset(offset).limit(limit))
     rows = (await session.execute(stmt)).scalars().all()
     return [_shipment_to_list_item(r) for r in rows]
 

@@ -148,6 +148,16 @@ async def test_assembly_partial_realizations_and_box_limits(
     assert shipment.json()["assembly_managed"] is True
     assert shipment.json()["customer_order_id"] is None
     assert len(shipment.json()["items"]) == 2
+    listed = await async_client.get(
+        "/inventory/shipments/", params={"doc_number": created.json()["doc_number"]}
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.headers["x-total-count"] == "1"
+    assert listed.json()[0]["customer_order_ids"] == sorted(row.id for row in orders)
+    second_order_list = await async_client.get(
+        "/inventory/shipments/", params={"customer_order_id": orders[1].id}
+    )
+    assert shipment_id in [row["id"] for row in second_order_list.json()]
     first = next(row for row in shipment.json()["items"]
                  if row["source_customer_order_id"] == orders[0].id)
     second = next(row for row in shipment.json()["items"]
@@ -163,6 +173,17 @@ async def test_assembly_partial_realizations_and_box_limits(
         json={"order_ids": [orders[0].id]},
     )
     assert next_draft.status_code == 201, next_draft.text
+    first_page = await async_client.get(
+        "/inventory/shipments/", params={"offset": 0, "limit": 1}
+    )
+    second_page = await async_client.get(
+        "/inventory/shipments/", params={"offset": 1, "limit": 1}
+    )
+    assert first_page.headers["x-total-count"] == "2"
+    assert second_page.headers["x-total-count"] == "2"
+    assert {first_page.json()[0]["id"], second_page.json()[0]["id"]} == {
+        shipment_id, next_draft.json()["id"],
+    }
     next_doc = await async_client.get(
         f"/inventory/shipments/{next_draft.json()['id']}/"
     )

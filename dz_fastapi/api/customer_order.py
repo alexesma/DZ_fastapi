@@ -95,6 +95,7 @@ from dz_fastapi.services.customer_orders import (
     get_customer_order_price_override_preview,
     process_customer_orders,
     process_manual_customer_order,
+    recheck_rejected_customer_order_item,
     retry_customer_order,
     retry_customer_order_errors_for_config,
     select_customer_order_pricelist,
@@ -1137,6 +1138,36 @@ async def update_customer_order_item(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    response = _serialize_customer_order_item_for_user(item, current_user)
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=item.order.customer_id if item.order else None,
+    )
+    if credit_check is not None and credit_check.should_warn:
+        response = response.model_copy(update={"credit_warning": credit_check.to_detail()})
+    return response
+
+
+@router.post(
+    "/items/{item_id}/recheck-offer",
+    response_model=CustomerOrderItemResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def recheck_customer_order_item_offer(
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        item = await recheck_rejected_customer_order_item(
+            session, item_id, checked_by_user_id=int(current_user.id),
+        )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     response = _serialize_customer_order_item_for_user(item, current_user)
     credit_check = await check_customer_credit_policy(
         session,
