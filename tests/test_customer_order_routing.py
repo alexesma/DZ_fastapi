@@ -743,9 +743,18 @@ async def test_recheck_uses_current_offer_and_does_not_duplicate_supplier_order(
     )
     assert updated.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
     assert updated.ship_qty == 3
-    assert updated.reject_qty == 1
+    assert updated.requested_qty == 3
+    assert updated.reject_qty == 0
     assert supplier_item.quantity == 3
     assert float(supplier_item.price) == 30
+    remainder = await test_session.scalar(
+        select(CustomerOrderItem).where(
+            CustomerOrderItem.order_id == order.id,
+            CustomerOrderItem.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        )
+    )
+    assert remainder.requested_qty == remainder.reject_qty == 1
+    assert remainder.reject_reason_code == "PARTIAL_STOCK"
     assert updated.source_payload["current_offer_recheck"]["checked_by_user_id"] == 77
     assert (
         updated.source_payload["current_offer_recheck"]["previous_reject_reason_code"]
@@ -756,3 +765,96 @@ async def test_recheck_uses_current_offer_and_does_not_duplicate_supplier_order(
         await service.recheck_rejected_customer_order_item(
             test_session, item.id, checked_by_user_id=77,
         )
+
+
+@pytest.mark.asyncio
+async def test_recheck_prefers_affordable_supplier_over_loss_making_primary(
+    test_session,
+    created_customers,
+    created_providers,
+    created_autopart,
+    monkeypatch,
+):
+    config = CustomerOrderConfig(
+        customer_id=created_customers[0].id,
+        order_email="buyer@example.com",
+        order_start_row=1,
+        oem_col=0,
+        brand_col=1,
+        qty_col=2,
+        price_col=3,
+        price_warning_pct=5,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    order = CustomerOrder(
+        customer_id=config.customer_id,
+        order_config_id=config.id,
+        external_payload={},
+        status=CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id,
+        row_index=0,
+        oem="4861933010",
+        brand="TOYOTA",
+        requested_qty=6,
+        requested_price=2596,
+        ship_qty=0,
+        reject_qty=6,
+        status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        reject_reason_code="PRICE_TOO_HIGH",
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    avtek = service.OfferRow(
+        autopart_id=created_autopart.id,
+        provider_id=created_providers[0].id,
+        provider_config_id=None,
+        quantity=56,
+        price=7982.50,
+        supplier_price=5000,
+        is_own_price=False,
+    )
+    vladimirberg = service.OfferRow(
+        autopart_id=created_autopart.id,
+        provider_id=created_providers[1].id,
+        provider_config_id=None,
+        quantity=58,
+        price=2703.75,
+        supplier_price=2100,
+        is_own_price=False,
+    )
+    avtek.alternatives = (vladimirberg,)
+    monkeypatch.setattr(
+        service,
+        "_prepare_customer_order_context",
+        AsyncMock(return_value=(
+            {}, {("4861933010", "TOYOTA"): avtek}, {}, object(),
+        )),
+    )
+    monkeypatch.setattr(service, "assert_customer_credit_available", AsyncMock())
+    monkeypatch.setattr(
+        service, "try_finalize_customer_order_response", AsyncMock(),
+    )
+
+    with pytest.raises(ValueError, match="Проверить сейчас"):
+        await service.get_customer_order_price_override_preview(
+            test_session, item.id,
+        )
+    updated = await service.recheck_rejected_customer_order_item(
+        test_session, item.id, checked_by_user_id=77,
+    )
+    supplier_item = await test_session.scalar(
+        select(SupplierOrderItem).where(
+            SupplierOrderItem.customer_order_item_id == item.id
+        )
+    )
+    assert updated.supplier_id == created_providers[1].id
+    assert updated.requested_qty == updated.ship_qty == 6
+    assert updated.reject_qty == 0
+    assert float(supplier_item.price) == 2100
+    assert supplier_item.quantity == 6

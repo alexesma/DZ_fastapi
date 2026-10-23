@@ -224,7 +224,8 @@ def local_order_fingerprint(order: CustomerOrder) -> tuple[tuple[str, str, int, 
     grouped = {}
     for index, item in enumerate(order.items or []):
         oem, brand, quantity, price = _local_item_signature(item)
-        row_key = item.row_index if item.row_index is not None else index
+        row_index = getattr(item, "row_index", None)
+        row_key = row_index if row_index is not None else index
         key = (row_key, oem, brand, price)
         grouped[key] = grouped.get(key, 0) + quantity
     return tuple(sorted(
