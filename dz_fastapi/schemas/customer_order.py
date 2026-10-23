@@ -229,6 +229,7 @@ class CustomerOrderConfigResponse(CustomerOrderConfigBase):
 
 class CustomerOrderItemResponse(BaseModel):
     id: int
+    row_index: Optional[int] = None
     oem: str
     brand: str
     name: Optional[str]

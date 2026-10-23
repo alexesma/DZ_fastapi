@@ -219,7 +219,18 @@ def remote_order_fingerprint(order: dict[str, Any]) -> tuple[tuple[str, str, int
 
 
 def local_order_fingerprint(order: CustomerOrder) -> tuple[tuple[str, str, int, str], ...]:
-    return tuple(sorted(_local_item_signature(item) for item in order.items or []))
+    # One source row can become several local procurement rows when its stock
+    # is split between suppliers. Compare the original customer-row quantity.
+    grouped = {}
+    for index, item in enumerate(order.items or []):
+        oem, brand, quantity, price = _local_item_signature(item)
+        row_key = item.row_index if item.row_index is not None else index
+        key = (row_key, oem, brand, price)
+        grouped[key] = grouped.get(key, 0) + quantity
+    return tuple(sorted(
+        (oem, brand, quantity, price)
+        for (_, oem, brand, price), quantity in grouped.items()
+    ))
 
 
 def _core_item_fingerprint(items: list[Any], *, remote: bool) -> tuple[tuple[str, int], ...]:

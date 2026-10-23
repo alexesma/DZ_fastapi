@@ -236,6 +236,8 @@ class OfferRow:
     actual_oem: Optional[str] = None
     actual_brand: Optional[str] = None
     actual_name: Optional[str] = None
+    vat_rate: Optional[float] = None
+    alternatives: Tuple["OfferRow", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -245,6 +247,25 @@ class OrderRowPlan:
     reject_reason: Optional[str]
     ship_qty: int
     reject_qty: int
+
+
+@dataclass(frozen=True)
+class OfferAllocation:
+    offer: OfferRow
+    quantity: int
+    price_diff_pct: float
+
+
+@dataclass(frozen=True)
+class MultiOfferPlan:
+    customer_price: Optional[float]
+    allocations: Tuple[OfferAllocation, ...]
+    reject_reason: Optional[str]
+    reject_qty: int
+
+    @property
+    def ship_qty(self) -> int:
+        return sum(allocation.quantity for allocation in self.allocations)
 
 
 @dataclass(frozen=True)
@@ -1373,6 +1394,23 @@ def _parse_order_attachment(
     return parsed_rows, order_date, order_number, file_buffer, file_ext
 
 
+def _response_row_totals(
+    items: List[CustomerOrderItem],
+) -> Dict[int, Tuple[int, int, Optional[float]]]:
+    """Return one customer-facing result for each original file row."""
+    totals: Dict[int, Tuple[int, int, Optional[float]]] = {}
+    for item in items:
+        if item.row_index is None:
+            continue
+        ship_qty, reject_qty, ship_price = totals.get(item.row_index, (0, 0, None))
+        ship_qty += max(int(item.ship_qty or 0), 0)
+        reject_qty += max(int(item.reject_qty or 0), 0)
+        if ship_price is None and item.ship_qty and item.requested_price is not None:
+            ship_price = float(item.requested_price)
+        totals[item.row_index] = (ship_qty, reject_qty, ship_price)
+    return totals
+
+
 def _apply_response_updates_excel(
     file_bytes: BytesIO,
     config: CustomerOrderConfig,
@@ -1385,24 +1423,19 @@ def _apply_response_updates_excel(
     ship_price_col = config.ship_price_col + 1 if config.ship_price_col is not None else None
     reject_col = config.reject_qty_col + 1 if config.reject_qty_col is not None else None
 
-    for item in items:
-        row_index = item.row_index
-        if row_index is None:
-            continue
+    for row_index, (ship_qty, reject_qty, ship_price) in _response_row_totals(items).items():
         if config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.REPLACE_QTY:
-            ws.cell(row=row_index, column=qty_col).value = item.ship_qty or 0
+            ws.cell(row=row_index, column=qty_col).value = ship_qty
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_SHIP_QTY:
             if ship_col is None:
                 raise ValueError("ship_qty_col is required for WRITE_SHIP_QTY")
-            ws.cell(row=row_index, column=ship_col).value = item.ship_qty or 0
+            ws.cell(row=row_index, column=ship_col).value = ship_qty
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_REJECT_QTY:
             if reject_col is None:
                 raise ValueError("reject_qty_col is required for WRITE_REJECT_QTY")
-            ws.cell(row=row_index, column=reject_col).value = item.reject_qty or 0
+            ws.cell(row=row_index, column=reject_col).value = reject_qty
         if ship_price_col is not None:
-            ws.cell(row=row_index, column=ship_price_col).value = _get_response_ship_price_value(
-                item
-            )
+            ws.cell(row=row_index, column=ship_price_col).value = ship_price
 
     output = BytesIO()
     wb.save(output)
@@ -1419,23 +1452,20 @@ def _apply_response_updates_csv(
     df = pd.read_csv(file_bytes, header=None)
     if config.ship_price_col is not None:
         df[config.ship_price_col] = df[config.ship_price_col].astype(object)
-    for item in items:
-        row_index = item.row_index
-        if row_index is None:
-            continue
+    for row_index, (ship_qty, reject_qty, ship_price) in _response_row_totals(items).items():
         if config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.REPLACE_QTY:
-            df.iat[row_index, config.qty_col] = item.ship_qty or 0
+            df.iat[row_index, config.qty_col] = ship_qty
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_SHIP_QTY:
             if config.ship_qty_col is None:
                 raise ValueError("ship_qty_col is required for WRITE_SHIP_QTY")
-            df.iat[row_index, config.ship_qty_col] = item.ship_qty or 0
+            df.iat[row_index, config.ship_qty_col] = ship_qty
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_REJECT_QTY:
             if config.reject_qty_col is None:
                 raise ValueError("reject_qty_col is required for WRITE_REJECT_QTY")
-            df.iat[row_index, config.reject_qty_col] = item.reject_qty or 0
+            df.iat[row_index, config.reject_qty_col] = reject_qty
         if config.ship_price_col is not None:
-            df.iat[row_index, config.ship_price_col] = _get_response_ship_price_value(
-                item, blank_value=""
+            df.iat[row_index, config.ship_price_col] = (
+                ship_price if ship_price is not None else ""
             )
 
     output = BytesIO()
@@ -1789,6 +1819,13 @@ async def _build_current_offers(
             brand_filter_aliases=brand_filter_aliases,
         )
         df = _apply_source_markups(df, config, source)
+        provider_config = getattr(source, "provider_config", None)
+        provider = getattr(provider_config, "provider", None)
+        df["__provider_vat_rate"] = (
+            getattr(provider, "vat_rate", None)
+            if getattr(provider, "is_vat_payer", False)
+            else None
+        )
         combined_data.append(df)
 
     if not combined_data:
@@ -1800,30 +1837,7 @@ async def _build_current_offers(
         lambda brand: _canonicalize_brand_key(brand, brand_aliases)
     )
 
-    if "is_own_price" in final_df.columns:
-        final_df["__own_rank"] = final_df["is_own_price"].astype(int)
-        final_df = (
-            final_df.sort_values(
-                by=[
-                    "__normalized_oem",
-                    "__normalized_brand",
-                    "__own_rank",
-                    "price",
-                ],
-                ascending=[True, True, False, True],
-            )
-            .drop_duplicates(
-                subset=["__normalized_oem", "__normalized_brand"],
-                keep="first",
-            )
-            .drop(columns=["__own_rank"])
-        )
-    else:
-        final_df = final_df.sort_values(
-            by=["__normalized_oem", "__normalized_brand", "price"]
-        ).drop_duplicates(subset=["__normalized_oem", "__normalized_brand"], keep="first")
-
-    offers = {}
+    grouped_offers: Dict[Tuple[str, str], List[OfferRow]] = {}
     for _, row in final_df.iterrows():
         key = (
             str(row.get("__normalized_oem") or ""),
@@ -1833,7 +1847,9 @@ async def _build_current_offers(
         if pd.isna(supplier_price_raw):
             supplier_price_raw = row.get("price")
         supplier_price = float(supplier_price_raw) if pd.notna(supplier_price_raw) else 0.0
-        offers[key] = OfferRow(
+        vat_rate_raw = row.get("__provider_vat_rate")
+        vat_rate = float(vat_rate_raw) if pd.notna(vat_rate_raw) else None
+        grouped_offers.setdefault(key, []).append(OfferRow(
             autopart_id=int(row.get("autopart_id")),
             provider_id=int(row.get("provider_id")),
             provider_config_id=_optional_int(row.get("provider_config_id")),
@@ -1844,8 +1860,42 @@ async def _build_current_offers(
             actual_oem=str(row.get("oem_number") or "").strip() or None,
             actual_brand=str(row.get("brand") or "").strip() or None,
             actual_name=str(row.get("name") or "").strip() or None,
-        )
+            vat_rate=vat_rate,
+        ))
+
+    offers = {}
+    for key, candidates in grouped_offers.items():
+        # The same provider may publish overlapping price lists for one stock
+        # pool. Keep one offer per provider so its quantity is not counted twice.
+        candidates.sort(key=_offer_profit_rank)
+        unique_providers = []
+        seen_providers = set()
+        for candidate in candidates:
+            if candidate.provider_id in seen_providers:
+                continue
+            seen_providers.add(candidate.provider_id)
+            unique_providers.append(candidate)
+        primary = unique_providers[0]
+        primary.alternatives = tuple(unique_providers[1:])
+        offers[key] = primary
     return offers
+
+
+def _offer_profit_rank(offer: OfferRow) -> tuple:
+    """Prefer own stock, then the lowest purchase cost after input VAT."""
+    rate = offer.vat_rate or 0
+    net_cost = (
+        offer.supplier_price / (1 + rate / 100)
+        if 0 < rate <= 100
+        else offer.supplier_price
+    )
+    return (
+        0 if offer.is_own_price else 1,
+        net_cost,
+        offer.price,
+        offer.provider_id,
+        offer.provider_config_id or 0,
+    )
 
 
 def _resolve_customer_target_price(
@@ -1888,6 +1938,48 @@ def _plan_customer_order_row(config, row, offer, expected_price, allocated):
     ship_qty = min(row.requested_qty, max(int(offer.quantity or 0) - used, 0))
     allocated[key] = used + ship_qty
     return OrderRowPlan(price, diff, None, ship_qty, max(row.requested_qty - ship_qty, 0))
+
+
+def _plan_customer_order_allocations(
+    config,
+    row: ParsedOrderRow,
+    primary: Optional[OfferRow],
+    expected_price: Optional[float],
+    allocated: dict[tuple[int, int], int],
+) -> MultiOfferPlan:
+    """Fill a customer row from eligible suppliers without sharing their stocks."""
+    customer_price = _resolve_customer_target_price(
+        expected_price, row.requested_price, primary,
+    )
+    if primary is None:
+        return MultiOfferPlan(customer_price, (), "NO_OFFER", row.requested_qty)
+    if not customer_price or customer_price <= 0:
+        return MultiOfferPlan(customer_price, (), "NO_TARGET_PRICE", row.requested_qty)
+
+    remaining = row.requested_qty
+    allocations = []
+    has_acceptable_price = False
+    for offer in (primary, *primary.alternatives):
+        diff = _compute_price_diff_pct(customer_price, offer.price)
+        if not offer.is_own_price and diff > (config.price_warning_pct or 5.0):
+            continue
+        has_acceptable_price = True
+        stock_key = (int(offer.provider_id), int(offer.autopart_id))
+        available = max(int(offer.quantity or 0) - allocated.get(stock_key, 0), 0)
+        quantity = min(remaining, available)
+        if quantity <= 0:
+            continue
+        allocations.append(OfferAllocation(offer, quantity, diff))
+        allocated[stock_key] = allocated.get(stock_key, 0) + quantity
+        remaining -= quantity
+        if remaining == 0:
+            break
+
+    if allocations:
+        reason = "PARTIAL_STOCK" if remaining else None
+    else:
+        reason = "ZERO_STOCK" if has_acceptable_price else "PRICE_TOO_HIGH"
+    return MultiOfferPlan(customer_price, tuple(allocations), reason, remaining)
 
 
 def _compute_order_requested_total(
@@ -2833,7 +2925,7 @@ def _customer_order_forward_attachment_filename(order_id: int) -> str:
 def _build_customer_order_forward_rows(
     order: CustomerOrder,
 ) -> tuple[list[dict[str, object]], int, float]:
-    rows: list[dict[str, object]] = []
+    grouped: dict[tuple[str, int], dict[str, object]] = {}
     total_qty = 0
     total_sum = 0.0
     for index, item in enumerate(order.items or [], start=1):
@@ -2842,20 +2934,33 @@ def _build_customer_order_forward_rows(
         line_sum = round(quantity * price, 2)
         total_qty += quantity
         total_sum += line_sum
-        rows.append(
-            {
-                "index": index,
+        group_key = (
+            ("row", int(item.row_index))
+            if item.row_index is not None else ("item", index)
+        )
+        if group_key not in grouped:
+            grouped[group_key] = {
                 "brand": item.brand or "",
                 "oem": item.oem or "",
                 "comment": order.order_number or order.id,
                 "name": item.name or "",
                 "note": item.reject_reason_text or "",
-                "qty": quantity,
+                "qty": 0,
                 "price": _format_numeric_for_excel(price),
-                "sum": _format_numeric_for_excel(line_sum),
+                "sum": 0.0,
                 "price_code": "",
             }
-        )
+        grouped[group_key]["qty"] += quantity
+        grouped[group_key]["sum"] += line_sum
+        if item.reject_reason_text:
+            grouped[group_key]["note"] = item.reject_reason_text
+    rows = []
+    for index, row in enumerate(grouped.values(), start=1):
+        rows.append({
+            **row,
+            "index": index,
+            "sum": _format_numeric_for_excel(row["sum"]),
+        })
     return rows, total_qty, round(total_sum, 2)
 
 
@@ -3349,7 +3454,9 @@ async def _estimate_customer_order_rejections(session, config, rows, snapshot_id
     allocated = {}
     for row in rows:
         key = _normalize_key(row.oem, row.brand, aliases)
-        plan = _plan_customer_order_row(config, row, offers.get(key), expected.get(key), allocated)
+        plan = _plan_customer_order_allocations(
+            config, row, offers.get(key), expected.get(key), allocated,
+        )
         weight = Decimal(str(row.requested_price)) if by_amount else Decimal(1)
         total += weight * row.requested_qty
         rejected += weight * plan.reject_qty
@@ -3392,9 +3499,12 @@ async def _process_manual_rows(
     supplier_items: Dict[Tuple[int, Optional[int]], List[CustomerOrderItem]] = {}
     stock_items: List[CustomerOrderItem] = []
     rejected_items: List[CustomerOrderItem] = []
-    allocated_qty_by_autopart: Dict[int, int] = {}
+    allocated_qty_by_source_part: Dict[Tuple[int, int], int] = {}
     supplier_provider_ids = {
-        int(offer.provider_id) for offer in offers.values() if not offer.is_own_price
+        int(candidate.provider_id)
+        for offer in offers.values()
+        for candidate in (offer, *offer.alternatives)
+        if not candidate.is_own_price
     }
     split_provider_ids: set[int] = set()
     if supplier_provider_ids:
@@ -3412,147 +3522,116 @@ async def _process_manual_rows(
     for row in parsed_rows:
         key = _normalize_key(row.oem, row.brand, brand_aliases)
         expected_price = expected_prices.get(key)
-        offer = offers.get(key)
-        requested_price = row.requested_price
-        plan = _plan_customer_order_row(
-            config, row, offer, expected_price, allocated_qty_by_autopart,
+        primary = offers.get(key)
+        plan = _plan_customer_order_allocations(
+            config, row, primary, expected_price, allocated_qty_by_source_part,
         )
-        customer_price = plan.customer_price
-
-        item = CustomerOrderItem(
-            order_id=order.id,
-            row_index=row.row_index,
-            oem=row.oem,
-            brand=row.brand,
-            name=row.name,
-            requested_qty=row.requested_qty,
-            requested_price=requested_price,
-            status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
-            match_type=offer.match_type if offer else None,
-            actual_oem=offer.actual_oem if offer else None,
-            actual_brand=offer.actual_brand if offer else None,
-            actual_name=offer.actual_name if offer else None,
-        )
-        if plan.reject_reason == "NO_OFFER":
-            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-            item.ship_qty = 0
-            item.reject_qty = row.requested_qty
-            reason_code, reason_text = await _diagnose_missing_offer_reason(
-                session,
-                pricelist_config,
-                row,
-                brand_aliases,
+        for allocation in plan.allocations:
+            offer = allocation.offer
+            item = CustomerOrderItem(
+                order_id=order.id,
+                row_index=row.row_index,
+                oem=row.oem,
+                brand=row.brand,
+                name=row.name,
+                requested_qty=allocation.quantity,
+                requested_price=row.requested_price,
+                ship_qty=allocation.quantity,
+                reject_qty=0,
+                status=(
+                    CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+                    if offer.is_own_price else CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+                ),
+                supplier_id=None if offer.is_own_price else offer.provider_id,
+                provider_config_id=(
+                    None if offer.is_own_price
+                    else _optional_int(offer.provider_config_id)
+                ),
+                autopart_id=offer.autopart_id,
+                match_type=offer.match_type,
+                actual_oem=offer.actual_oem,
+                actual_brand=offer.actual_brand,
+                actual_name=offer.actual_name,
+                matched_price=offer.supplier_price,
+                price_diff_pct=allocation.price_diff_pct,
             )
-            _set_reject_reason(item, reason_code, reason_text)
-        elif plan.reject_reason == "NO_TARGET_PRICE":
-            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-            item.ship_qty = 0
-            item.reject_qty = row.requested_qty
-            _set_reject_reason(
-                item,
-                "NO_TARGET_PRICE",
-                "Не удалось определить целевую цену для строки заказа: "
-                "нет цены в заказе и нет цены в клиентском прайсе.",
-            )
-        else:
-            offered_price = offer.price
-            diff_pct = plan.price_diff_pct
-            item.price_diff_pct = diff_pct
-            item.matched_price = offer.supplier_price
-
             warning_pct = config.price_warning_pct or 5.0
             tolerance_pct = config.price_tolerance_pct or 2.0
-            if diff_pct > warning_pct:
-                if offer.is_own_price:
-                    item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-                    await _send_price_warning(
-                        session,
-                        order,
-                        item,
-                        customer_price,
-                        offered_price,
-                        diff_pct,
-                        critical=True,
-                    )
-                else:
-                    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-                    item.ship_qty = 0
-                    item.reject_qty = row.requested_qty
-                    _set_reject_reason(
-                        item,
-                        "PRICE_TOO_HIGH",
-                        "Цена предложения выше допустимой для клиента: "
-                        f"{offered_price:.2f} против {customer_price:.2f} "
-                        f"({diff_pct:.2f}%).",
-                    )
-                    await _send_price_warning(
-                        session,
-                        order,
-                        item,
-                        customer_price,
-                        offered_price,
-                        diff_pct,
-                        critical=True,
-                    )
-            else:
-                if diff_pct > tolerance_pct:
-                    await _send_price_warning(
-                        session,
-                        order,
-                        item,
-                        customer_price,
-                        offered_price,
-                        diff_pct,
-                        critical=False,
-                    )
-                item.status = (
-                    CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-                    if offer.is_own_price
-                    else CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+            if allocation.price_diff_pct > tolerance_pct:
+                await _send_price_warning(
+                    session, order, item, plan.customer_price, offer.price,
+                    allocation.price_diff_pct,
+                    critical=allocation.price_diff_pct > warning_pct,
                 )
+            order_items.append(item)
+            session.add(item)
+            await session.flush()
+            if offer.is_own_price:
+                stock_items.append(item)
+            else:
+                source_config_id = _supplier_order_source_config_id(
+                    split_orders_by_pricelist=(offer.provider_id in split_provider_ids),
+                    provider_config_id=item.provider_config_id,
+                )
+                supplier_items.setdefault(
+                    (offer.provider_id, source_config_id), [],
+                ).append(item)
 
-            if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                ship_qty = plan.ship_qty
-                reject_qty = plan.reject_qty
-                item.ship_qty = ship_qty
-                item.reject_qty = reject_qty
-                item.autopart_id = offer.autopart_id
-                if offer.is_own_price:
-                    item.supplier_id = None
-                    item.provider_config_id = None
-                else:
-                    item.supplier_id = offer.provider_id
-                    item.provider_config_id = _optional_int(offer.provider_config_id)
-                if ship_qty == 0:
-                    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-                    _set_reject_reason(
-                        item,
-                        "ZERO_STOCK",
-                        "Предложение найдено, но доступный остаток равен 0.",
-                    )
-                elif reject_qty > 0:
-                    _set_reject_reason(
-                        item,
-                        "PARTIAL_STOCK",
-                        "Частичная отгрузка: доступно " f"{ship_qty} из {row.requested_qty}.",
-                    )
-                else:
-                    _clear_reject_reason(item)
-
-        order_items.append(item)
-        session.add(item)
-        await session.flush()
-
-        if item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK and item.ship_qty:
-            stock_items.append(item)
-        elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER and item.ship_qty:
-            source_config_id = _supplier_order_source_config_id(
-                split_orders_by_pricelist=(int(item.supplier_id) in split_provider_ids),
-                provider_config_id=item.provider_config_id,
+        if plan.reject_qty:
+            item = CustomerOrderItem(
+                order_id=order.id,
+                row_index=row.row_index,
+                oem=row.oem,
+                brand=row.brand,
+                name=row.name,
+                requested_qty=plan.reject_qty,
+                requested_price=row.requested_price,
+                ship_qty=0,
+                reject_qty=plan.reject_qty,
+                status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+                match_type=primary.match_type if primary else None,
+                actual_oem=primary.actual_oem if primary else None,
+                actual_brand=primary.actual_brand if primary else None,
+                actual_name=primary.actual_name if primary else None,
             )
-            supplier_items.setdefault((int(item.supplier_id), source_config_id), []).append(item)
-        elif item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
+            if plan.reject_reason == "NO_OFFER":
+                reason_code, reason_text = await _diagnose_missing_offer_reason(
+                    session, pricelist_config, row, brand_aliases,
+                )
+            elif plan.reject_reason == "NO_TARGET_PRICE":
+                reason_code = "NO_TARGET_PRICE"
+                reason_text = (
+                    "Не удалось определить целевую цену для строки заказа: "
+                    "нет цены в заказе и нет цены в клиентском прайсе."
+                )
+            elif plan.reject_reason == "PRICE_TOO_HIGH":
+                reason_code = "PRICE_TOO_HIGH"
+                diff = _compute_price_diff_pct(plan.customer_price, primary.price)
+                reason_text = (
+                    "Цена предложения выше допустимой для клиента: "
+                    f"{primary.price:.2f} против {plan.customer_price:.2f} "
+                    f"({diff:.2f}%)."
+                )
+                item.price_diff_pct = diff
+                item.matched_price = primary.supplier_price
+                await _send_price_warning(
+                    session, order, item, plan.customer_price, primary.price,
+                    diff, critical=True,
+                )
+            elif plan.allocations:
+                reason_code = "PARTIAL_STOCK"
+                reason_text = (
+                    f"Доступно у разрешённых поставщиков {plan.ship_qty} "
+                    f"из {row.requested_qty}."
+                )
+            else:
+                reason_code = "ZERO_STOCK"
+                reason_text = "Предложения найдены, но доступный остаток равен 0."
+            _set_reject_reason(item, reason_code, reason_text)
+            order_items.append(item)
             rejected_items.append(item)
+            session.add(item)
+            await session.flush()
 
     if stock_items:
         stock_order = StockOrder(
@@ -4428,15 +4507,23 @@ async def _process_partssoft_wholesale_order(
     )
 
     source_by_row = {row["row_index"]: row for row in source_rows}
+    linked_external_rows = set()
     for item in order_items:
         source = source_by_row.get(item.row_index)
         if source is None:
             continue
-        item.external_order_item_id = source["external_order_item_id"]
+        # Several local allocations can belong to one Parts-Soft line. Its
+        # external identifier is unique per order and belongs to the first.
+        if item.row_index not in linked_external_rows:
+            item.external_order_item_id = source["external_order_item_id"]
+            linked_external_rows.add(item.row_index)
         item.external_offer_id = source["external_offer_id"]
         item.external_provider_id = source["external_provider_id"]
         item.external_warehouse_id = source["external_warehouse_id"]
-        item.source_payload = source["source_payload"]
+        item.source_payload = {
+            **source["source_payload"],
+            "original_external_order_item_id": source["external_order_item_id"],
+        }
         item.source_resolution_status = "local_workflow"
         session.add(item)
     order.processing_owner = "LOCAL"
