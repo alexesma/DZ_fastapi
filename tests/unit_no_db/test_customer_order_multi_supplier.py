@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.partner import CustomerOrderItem, SupplierOrderItem
 from dz_fastapi.services import customer_orders as service
 from dz_fastapi.services.partssoft_order_reconciliation import (
@@ -25,6 +26,34 @@ def _offer(provider_id, quantity, purchase_price, customer_offer_price):
         is_own_price=False,
         vat_rate=22,
     )
+
+
+def test_order_fingerprint_accepts_items_without_row_index():
+    remote = {
+        "order_items": [
+            {"oem": "4861933010", "make_name": "TOYOTA", "qnt": 6, "cost": 2596},
+        ],
+    }
+    local = SimpleNamespace(items=[SimpleNamespace(
+        oem="4861933010", brand="TOYOTA", requested_qty=6,
+        requested_price=2596,
+    )])
+
+    assert local_order_fingerprint(local) == remote_order_fingerprint(remote)
+
+
+@pytest.mark.asyncio
+async def test_latest_pricelist_can_exclude_inactive_versions():
+    session = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(
+        scalars=lambda: SimpleNamespace(first=lambda: None),
+    )))
+
+    await crud_pricelist.get_latest_pricelist_by_config(
+        session, 44, active_only=True,
+    )
+
+    statement = session.execute.call_args.args[0]
+    assert "is_active IS true" in str(statement)
 
 
 def test_one_row_uses_cheaper_supplier_then_fills_from_second_supplier():
@@ -69,6 +98,26 @@ def test_expensive_candidate_is_skipped_before_allocating_stock():
     ]
     assert plan.reject_qty == 0
     assert (930, 4680) not in allocated
+
+
+def test_rejection_audit_records_each_supplier_and_price_decision():
+    expensive = _offer(930, 56, 5000, 7982.50)
+    expensive.pricelist_id = 10
+    affordable = _offer(938, 58, 2100, 2703.75)
+    affordable.pricelist_id = 11
+    expensive.alternatives = (affordable,)
+    config = SimpleNamespace(price_warning_pct=5)
+    row = service.ParsedOrderRow(0, "4861933010", "TOYOTA", None, 6, 2596)
+
+    snapshot = service._offer_decision_snapshot(
+        config, row, expensive, 2596, {},
+    )
+
+    assert [(candidate["provider_id"], candidate["pricelist_id"],
+             candidate["decision"]) for candidate in snapshot["candidates"]] == [
+        (930, 10, "price_too_high"),
+        (938, 11, "eligible"),
+    ]
 
 
 def test_profit_order_accounts_for_input_vat():
@@ -129,7 +178,7 @@ async def test_current_offers_keep_second_supplier_and_rank_by_net_cost(monkeypa
         service.crud_pricelist,
         "get_latest_pricelist_by_config",
         AsyncMock(
-            side_effect=lambda session, provider_config_id: SimpleNamespace(
+            side_effect=lambda session, provider_config_id, active_only: SimpleNamespace(
                 id=provider_config_id,
             ),
         ),
@@ -158,6 +207,10 @@ async def test_current_offers_keep_second_supplier_and_rank_by_net_cost(monkeypa
     )
 
     primary = offers[("9030122013", "TOYOTA")]
+    assert all(
+        call.kwargs["active_only"] is True
+        for call in service.crud_pricelist.get_latest_pricelist_by_config.call_args_list
+    )
     assert primary.provider_id == 930
     assert primary.quantity == 78
     assert primary.price == pytest.approx(82.25)

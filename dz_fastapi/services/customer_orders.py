@@ -238,6 +238,7 @@ class OfferRow:
     actual_name: Optional[str] = None
     vat_rate: Optional[float] = None
     alternatives: Tuple["OfferRow", ...] = ()
+    pricelist_id: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -1595,6 +1596,7 @@ def _merge_published_dragonzap_alias_offers(
             actual_oem=source_offer.actual_oem,
             actual_brand=source_offer.actual_brand,
             actual_name=source_offer.actual_name,
+            pricelist_id=source_offer.pricelist_id,
         )
     return merged
 
@@ -1642,6 +1644,7 @@ def _merge_confirmed_own_cross_offers(
             actual_oem=source_offer.actual_oem or alias.source_oem,
             actual_brand=source_offer.actual_brand or alias.source_brand,
             actual_name=source_offer.actual_name,
+            pricelist_id=source_offer.pricelist_id,
         )
     return merged
 
@@ -1781,7 +1784,8 @@ async def _build_current_offers(
         if not source.enabled:
             continue
         latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
-            session=session, provider_config_id=source.provider_config_id
+            session=session, provider_config_id=source.provider_config_id,
+            active_only=True,
         )
         if not latest_pl:
             continue
@@ -1861,6 +1865,7 @@ async def _build_current_offers(
             actual_brand=str(row.get("brand") or "").strip() or None,
             actual_name=str(row.get("name") or "").strip() or None,
             vat_rate=vat_rate,
+            pricelist_id=_optional_int(row.get("pricelist_id")),
         ))
 
     offers = {}
@@ -1980,6 +1985,50 @@ def _plan_customer_order_allocations(
     else:
         reason = "ZERO_STOCK" if has_acceptable_price else "PRICE_TOO_HIGH"
     return MultiOfferPlan(customer_price, tuple(allocations), reason, remaining)
+
+
+def _offer_decision_snapshot(
+    config,
+    row: ParsedOrderRow,
+    primary: Optional[OfferRow],
+    customer_price: Optional[float],
+    allocated: dict[tuple[int, int], int],
+) -> dict:
+    """Record what the routing engine actually saw for later diagnosis."""
+    candidates = []
+    for offer in (primary, *primary.alternatives) if primary else ():
+        price_diff_pct = (
+            _compute_price_diff_pct(customer_price, offer.price)
+            if customer_price else None
+        )
+        stock_key = (int(offer.provider_id), int(offer.autopart_id))
+        available_qty = max(int(offer.quantity or 0) - allocated.get(stock_key, 0), 0)
+        if not customer_price:
+            decision = "no_target_price"
+        elif (not offer.is_own_price
+              and price_diff_pct > (config.price_warning_pct or 5.0)):
+            decision = "price_too_high"
+        elif available_qty <= 0:
+            decision = "no_stock"
+        else:
+            decision = "eligible"
+        candidates.append({
+            "provider_id": int(offer.provider_id),
+            "provider_config_id": _optional_int(offer.provider_config_id),
+            "pricelist_id": _optional_int(offer.pricelist_id),
+            "supplier_price": float(offer.supplier_price or 0),
+            "offer_price": float(offer.price or 0),
+            "available_qty": available_qty,
+            "price_diff_pct": price_diff_pct,
+            "decision": decision,
+        })
+    return {
+        "evaluated_at": now_moscow().isoformat(),
+        "requested_qty": row.requested_qty,
+        "customer_price": customer_price,
+        "price_warning_pct": float(config.price_warning_pct or 5.0),
+        "candidates": candidates,
+    }
 
 
 def _compute_order_requested_total(
@@ -2284,6 +2333,7 @@ async def _diagnose_missing_offer_reason(
         latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
             session=session,
             provider_config_id=source.provider_config_id,
+            active_only=True,
         )
         if not latest_pl:
             continue
@@ -3523,6 +3573,11 @@ async def _process_manual_rows(
         key = _normalize_key(row.oem, row.brand, brand_aliases)
         expected_price = expected_prices.get(key)
         primary = offers.get(key)
+        offer_decision = _offer_decision_snapshot(
+            config, row, primary,
+            _resolve_customer_target_price(expected_price, row.requested_price, primary),
+            allocated_qty_by_source_part,
+        )
         plan = _plan_customer_order_allocations(
             config, row, primary, expected_price, allocated_qty_by_source_part,
         )
@@ -3593,6 +3648,7 @@ async def _process_manual_rows(
                 actual_oem=primary.actual_oem if primary else None,
                 actual_brand=primary.actual_brand if primary else None,
                 actual_name=primary.actual_name if primary else None,
+                source_payload={"offer_decision": offer_decision},
             )
             if plan.reject_reason == "NO_OFFER":
                 reason_code, reason_text = await _diagnose_missing_offer_reason(
@@ -3606,16 +3662,20 @@ async def _process_manual_rows(
                 )
             elif plan.reject_reason == "PRICE_TOO_HIGH":
                 reason_code = "PRICE_TOO_HIGH"
-                diff = _compute_price_diff_pct(plan.customer_price, primary.price)
+                cheapest = min(
+                    (primary, *primary.alternatives),
+                    key=lambda candidate: candidate.price,
+                )
+                diff = _compute_price_diff_pct(plan.customer_price, cheapest.price)
                 reason_text = (
-                    "Цена предложения выше допустимой для клиента: "
-                    f"{primary.price:.2f} против {plan.customer_price:.2f} "
+                    "Все предложения выше допустимой цены клиента: "
+                    f"минимум {cheapest.price:.2f} против {plan.customer_price:.2f} "
                     f"({diff:.2f}%)."
                 )
                 item.price_diff_pct = diff
-                item.matched_price = primary.supplier_price
+                item.matched_price = cheapest.supplier_price
                 await _send_price_warning(
-                    session, order, item, plan.customer_price, primary.price,
+                    session, order, item, plan.customer_price, cheapest.price,
                     diff, critical=True,
                 )
             elif plan.allocations:
@@ -6260,6 +6320,14 @@ async def _get_price_override_context(
     )
     if customer_price is None or customer_price <= 0:
         raise ValueError("Не удалось определить цену клиента для этой позиции")
+    regular_plan = _plan_customer_order_allocations(
+        config, row, offer, expected_prices.get(key), {},
+    )
+    if regular_plan.allocations:
+        raise ValueError(
+            "Есть подходящее предложение без принудительного принятия цены. "
+            "Используйте «Проверить сейчас»."
+        )
     supplier_price = float(offer.supplier_price or 0)
     if supplier_price <= 0:
         raise ValueError("В предложении поставщика отсутствует закупочная цена")
@@ -6426,7 +6494,7 @@ async def recheck_rejected_customer_order_item(
     eligible_reasons = {
         "NO_OFFER", "NO_TARGET_PRICE", "OFFER_MATCH_DIAGNOSTIC", "ZERO_STOCK",
         "NONPOSITIVE_OFFER", "FILTERED_BY_SOURCE_RULE",
-        "FILTERED_BY_PRICE_CONFIG", "PRICE_TOO_HIGH",
+        "FILTERED_BY_PRICE_CONFIG", "PRICE_TOO_HIGH", "PARTIAL_STOCK",
     }
     if (
         item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED
@@ -6492,90 +6560,140 @@ async def recheck_rejected_customer_order_item(
     )
     key = _normalize_key(row.oem, row.brand, aliases)
     offer = offers.get(key)
-    plan = _plan_customer_order_row(config, row, offer, expected.get(key), {})
+    plan = _plan_customer_order_allocations(
+        config, row, offer, expected.get(key), {},
+    )
     if plan.reject_reason == "PRICE_TOO_HIGH":
         raise ValueError("Текущая цена выше допустимой; проверьте её вручную")
-    if plan.reject_reason or plan.ship_qty <= 0:
+    if not plan.allocations:
         raise ValueError("Подходящего предложения с доступным остатком сейчас нет")
-    if not offer.is_own_price and float(offer.supplier_price or 0) <= 0:
+    if any(
+        not allocation.offer.is_own_price
+        and float(allocation.offer.supplier_price or 0) <= 0
+        for allocation in plan.allocations
+    ):
         raise ValueError("В текущем предложении нет закупочной цены")
     await assert_customer_credit_available(session, customer_id=int(order.customer_id))
-
-    if offer.is_own_price:
-        stock_order = StockOrder(
-            customer_id=order.customer_id,
-            status=STOCK_ORDER_STATUS.NEW,
-            packing_required=True,
+    checked_at = now_moscow().isoformat()
+    original_payload = dict(item.source_payload or {})
+    for index, allocation in enumerate(plan.allocations):
+        candidate = allocation.offer
+        current_item = item if index == 0 else CustomerOrderItem(
+            order_id=order.id,
+            row_index=row.row_index,
+            oem=row.oem,
+            brand=row.brand,
+            name=row.name,
+            requested_price=row.requested_price,
         )
-        session.add(stock_order)
+        if index:
+            session.add(current_item)
+        current_item.requested_qty = allocation.quantity
+        current_item.ship_qty = allocation.quantity
+        current_item.reject_qty = 0
+        current_item.status = (
+            CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+            if candidate.is_own_price else CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+        )
+        current_item.supplier_id = (
+            None if candidate.is_own_price else int(candidate.provider_id)
+        )
+        current_item.provider_config_id = (
+            None if candidate.is_own_price
+            else _optional_int(candidate.provider_config_id)
+        )
+        current_item.autopart_id = candidate.autopart_id
+        current_item.match_type = candidate.match_type
+        current_item.actual_oem = candidate.actual_oem
+        current_item.actual_brand = candidate.actual_brand
+        current_item.actual_name = candidate.actual_name
+        current_item.matched_price = candidate.supplier_price
+        current_item.price_diff_pct = allocation.price_diff_pct
+        current_item.source_resolution_status = "current_offer_recheck"
+        current_item.source_payload = {
+            **original_payload,
+            "current_offer_recheck": {
+                "checked_at": checked_at,
+                "checked_by_user_id": checked_by_user_id,
+                "previous_reject_reason_code": previous_reject_reason_code,
+                "previous_reject_reason_text": previous_reject_reason_text,
+                "provider_id": int(candidate.provider_id),
+                "provider_config_id": _optional_int(candidate.provider_config_id),
+                "quantity": allocation.quantity,
+                "supplier_price": candidate.supplier_price,
+                "offer_price": candidate.price,
+            },
+        }
+        _clear_reject_reason(current_item)
         await session.flush()
-        session.add(StockOrderItem(
-            stock_order_id=stock_order.id,
-            customer_order_item_id=item.id,
-            autopart_id=offer.autopart_id,
-            quantity=plan.ship_qty,
-        ))
-        item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-        item.supplier_id = None
-        item.provider_config_id = None
-    else:
-        provider = await session.get(Provider, int(offer.provider_id))
-        if provider is None:
-            raise ValueError("Поставщик текущего предложения больше недоступен")
-        supplier_order = await _get_or_create_open_supplier_order(
-            session,
-            provider_id=int(provider.id),
-            provider_config_id=_supplier_order_source_config_id(
-                split_orders_by_pricelist=bool(provider.split_orders_by_pricelist),
-                provider_config_id=_optional_int(offer.provider_config_id),
-            ),
-        )
-        session.add(SupplierOrderItem(
-            supplier_order_id=supplier_order.id,
-            customer_order_item_id=item.id,
-            autopart_id=offer.autopart_id,
-            oem_number=item.oem,
-            brand_name=item.brand,
-            autopart_name=item.name,
-            quantity=plan.ship_qty,
-            price=offer.supplier_price,
-        ))
-        item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
-        item.supplier_id = int(provider.id)
-        item.provider_config_id = _optional_int(offer.provider_config_id)
+        if candidate.is_own_price:
+            stock_order = StockOrder(
+                customer_id=order.customer_id,
+                status=STOCK_ORDER_STATUS.NEW,
+                packing_required=True,
+            )
+            session.add(stock_order)
+            await session.flush()
+            session.add(StockOrderItem(
+                stock_order_id=stock_order.id,
+                customer_order_item_id=current_item.id,
+                autopart_id=candidate.autopart_id,
+                quantity=allocation.quantity,
+            ))
+        else:
+            provider = await session.get(Provider, int(candidate.provider_id))
+            if provider is None:
+                raise ValueError("Поставщик текущего предложения больше недоступен")
+            supplier_order = await _get_or_create_open_supplier_order(
+                session,
+                provider_id=int(provider.id),
+                provider_config_id=_supplier_order_source_config_id(
+                    split_orders_by_pricelist=bool(provider.split_orders_by_pricelist),
+                    provider_config_id=_optional_int(candidate.provider_config_id),
+                ),
+            )
+            session.add(SupplierOrderItem(
+                supplier_order_id=supplier_order.id,
+                customer_order_item_id=current_item.id,
+                autopart_id=candidate.autopart_id,
+                oem_number=current_item.oem,
+                brand_name=current_item.brand,
+                autopart_name=current_item.name,
+                quantity=allocation.quantity,
+                price=candidate.supplier_price,
+            ))
 
-    item.autopart_id = offer.autopart_id
-    item.match_type = offer.match_type
-    item.actual_oem = offer.actual_oem
-    item.actual_brand = offer.actual_brand
-    item.actual_name = offer.actual_name
-    item.matched_price = offer.supplier_price
-    item.price_diff_pct = plan.price_diff_pct
-    item.ship_qty = plan.ship_qty
-    item.reject_qty = plan.reject_qty
-    item.source_resolution_status = "current_offer_recheck"
-    item.source_payload = {
-        **(item.source_payload or {}),
-        "current_offer_recheck": {
-            "checked_at": now_moscow().isoformat(),
-            "checked_by_user_id": checked_by_user_id,
-            "previous_reject_reason_code": previous_reject_reason_code,
-            "previous_reject_reason_text": previous_reject_reason_text,
-            "provider_id": int(offer.provider_id),
-            "provider_config_id": _optional_int(offer.provider_config_id),
-            "quantity": plan.ship_qty,
-            "supplier_price": offer.supplier_price,
-            "offer_price": offer.price,
-        },
-    }
     if plan.reject_qty:
-        _set_reject_reason(
-            item,
-            "PARTIAL_STOCK",
-            f"Текущее предложение: доступно {plan.ship_qty} из {row.requested_qty}.",
+        remainder = CustomerOrderItem(
+            order_id=order.id,
+            row_index=row.row_index,
+            oem=row.oem,
+            brand=row.brand,
+            name=row.name,
+            requested_qty=plan.reject_qty,
+            requested_price=row.requested_price,
+            ship_qty=0,
+            reject_qty=plan.reject_qty,
+            status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+            source_resolution_status="current_offer_recheck",
+            source_payload={
+                **original_payload,
+                "current_offer_recheck": {
+                    "checked_at": checked_at,
+                    "checked_by_user_id": checked_by_user_id,
+                    "previous_reject_reason_code": previous_reject_reason_code,
+                    "previous_reject_reason_text": previous_reject_reason_text,
+                    "remaining_quantity": plan.reject_qty,
+                },
+            },
         )
-    else:
-        _clear_reject_reason(item)
+        _set_reject_reason(
+            remainder,
+            "PARTIAL_STOCK",
+            f"У разрешённых поставщиков доступно {plan.ship_qty} "
+            f"из {row.requested_qty}.",
+        )
+        session.add(remainder)
     if response_source is not None:
         filename, file_ext, file_buffer = response_source
         await session.flush()
