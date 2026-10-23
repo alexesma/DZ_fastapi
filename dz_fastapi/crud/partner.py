@@ -2373,7 +2373,8 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         return sorted(pricelist_ids)
 
     async def get_latest_pricelist_by_config(
-        self, session: AsyncSession, provider_config_id: int, *, load_relations: bool = True
+        self, session: AsyncSession, provider_config_id: int, *,
+        load_relations: bool = True, active_only: bool = False,
     ) -> Optional[PriceList]:
         stmt = (
             select(PriceList)
@@ -2382,6 +2383,8 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             .order_by(PriceList.date.desc().nullslast(), PriceList.id.desc())
             .limit(1)
         )
+        if active_only:
+            stmt = stmt.where(PriceList.is_active.is_(True))
         result = await session.execute(stmt)
         return result.scalars().first()
 
