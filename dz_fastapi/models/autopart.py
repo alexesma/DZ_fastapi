@@ -339,10 +339,13 @@ class Category(Base):
         lazy="selectin",
     )
     comment = Column(Text, nullable=True, default="")
+    # Обратная связь «все запчасти категории/места/сертификата» не должна
+    # подгружаться сама: при загрузке любой запчасти она тянула весь каталог
+    # (гигабайты памяти и OOM). Нужна — грузим явно selectinload(...).
     autoparts = relationship(
         "AutoPart",
         secondary="autopart_category_association",
-        lazy="selectin",
+        lazy="noload",
         back_populates="categories",
     )
 
@@ -390,11 +393,14 @@ class StorageLocation(Base):
     )
     capacity = Column(Integer, nullable=True)  # max SKUs (None = unlimited)
     system_code = Column(String(50), nullable=True)
+    # Обратная связь «все запчасти категории/места/сертификата» не должна
+    # подгружаться сама: при загрузке любой запчасти она тянула весь каталог
+    # (гигабайты памяти и OOM). Нужна — грузим явно selectinload(...).
     autoparts = relationship(
         "AutoPart",
         secondary="autopart_storage_association",
         back_populates="storage_locations",
-        lazy="selectin",
+        lazy="noload",
         cascade="all, delete",
     )
     warehouse = relationship(

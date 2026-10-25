@@ -92,11 +92,14 @@ class Certificate(Base):
     )
 
     brand = relationship("Brand", lazy="joined")
+    # Обратная связь «все запчасти категории/места/сертификата» не должна
+    # подгружаться сама: при загрузке любой запчасти она тянула весь каталог
+    # (гигабайты памяти и OOM). Нужна — грузим явно selectinload(...).
     autoparts = relationship(
         "AutoPart",
         secondary=autopart_certificate_association,
         back_populates="certificates",
-        lazy="selectin",
+        lazy="noload",
     )
 
     __table_args__ = (

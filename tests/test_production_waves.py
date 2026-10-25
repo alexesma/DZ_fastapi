@@ -154,6 +154,7 @@ async def test_production_wave_plans_fifo_and_posts_finished_lots(
     test_session: AsyncSession,
 ):
     warehouse, finished, material, stock_item, source_lots = await _wave_scenario(test_session)
+    finished_id = finished.id  # rollback ниже сбрасывает загруженные поля
     groups = await async_client.get("/inventory/production-groups")
     assert groups.status_code == 200, groups.text
     group_id = groups.json()["items"][0]["id"]
@@ -259,7 +260,7 @@ async def test_production_wave_plans_fifo_and_posts_finished_lots(
             await test_session.execute(
                 select(StockLot)
                 .where(
-                    StockLot.autopart_id == finished.id,
+                    StockLot.autopart_id == finished_id,
                     StockLot.source_type == LotSourceType.PRODUCTION,
                 )
                 .order_by(StockLot.id)
