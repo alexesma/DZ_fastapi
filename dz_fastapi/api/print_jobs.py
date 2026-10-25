@@ -193,6 +193,21 @@ async def list_print_jobs(
     return [_job_out(row) for row in rows]
 
 
+@router.get("/{job_id}")
+async def get_print_job(
+    job_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    job = (await session.execute(
+        select(PrintJob).options(joinedload(PrintJob.device))
+        .where(PrintJob.id == job_id, PrintJob.user_id == user.id)
+    )).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Задание печати не найдено")
+    return _job_out(job)
+
+
 @router.get("/admin/devices")
 async def admin_devices(
     _admin: User = Depends(require_admin),

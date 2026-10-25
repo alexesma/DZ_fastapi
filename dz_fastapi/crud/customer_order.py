@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
+    TYPE_PRICES,
     Customer,
     CustomerOrder,
     CustomerOrderConfig,
@@ -163,6 +164,7 @@ class CRUDCustomerOrder:
     def _filter_orders(
         stmt,
         customer_id: Optional[int] = None,
+        customer_group: Optional[str] = None,
         status: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
@@ -173,6 +175,14 @@ class CRUDCustomerOrder:
         stmt = stmt.where(CustomerOrder.deleted_at.is_(None))
         if customer_id is not None:
             stmt = stmt.where(CustomerOrder.customer_id == customer_id)
+        if customer_group == "wholesale":
+            stmt = stmt.where(
+                CustomerOrder.customer.has(Customer.type_prices == TYPE_PRICES.WHOLESALE)
+            )
+        elif customer_group == "retail":
+            stmt = stmt.where(CustomerOrder.customer.has(
+                Customer.type_prices.in_((TYPE_PRICES.RETAIL, TYPE_PRICES.CASH))
+            ))
         if status is not None:
             stmt = stmt.where(CustomerOrder.status == status)
         if exclude_errors:
@@ -209,7 +219,7 @@ class CRUDCustomerOrder:
     ) -> Optional[CustomerOrder]:
         stmt = (
             select(CustomerOrder)
-            .options(joinedload(CustomerOrder.items))
+            .options(joinedload(CustomerOrder.items), joinedload(CustomerOrder.customer))
             .where(CustomerOrder.id == order_id)
         )
         if not include_deleted:
@@ -221,6 +231,7 @@ class CRUDCustomerOrder:
         self,
         session: AsyncSession,
         customer_id: Optional[int] = None,
+        customer_group: Optional[str] = None,
         status: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
@@ -237,6 +248,7 @@ class CRUDCustomerOrder:
                 joinedload(CustomerOrder.customer),
             ),
             customer_id=customer_id,
+            customer_group=customer_group,
             status=status,
             date_from=date_from,
             date_to=date_to,
@@ -252,6 +264,7 @@ class CRUDCustomerOrder:
         self,
         session: AsyncSession,
         customer_id: Optional[int] = None,
+        customer_group: Optional[str] = None,
         status: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
@@ -262,6 +275,7 @@ class CRUDCustomerOrder:
         stmt = self._filter_orders(
             select(func.count(CustomerOrder.id)),
             customer_id=customer_id,
+            customer_group=customer_group,
             status=status,
             date_from=date_from,
             date_to=date_to,

@@ -337,6 +337,7 @@ class SupplierOrderManualCreate(BaseModel):
 class CustomerOrderResponse(BaseModel):
     id: int
     customer_id: int
+    customer_name: Optional[str] = None
     order_config_id: Optional[int] = None
     pricelist_routing: Optional[dict] = None
     status: CUSTOMER_ORDER_STATUS
@@ -441,6 +442,8 @@ class CustomerOrderSummaryResponse(BaseModel):
     rejected_sum: float = 0.0
     rejected_pct: float = 0.0
     matching_items: List[dict] = Field(default_factory=list)
+    fulfillment: dict = Field(default_factory=dict)
+    next_actions: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

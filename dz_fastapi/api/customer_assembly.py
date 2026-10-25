@@ -1,6 +1,7 @@
 """Customer-order assembly and realization packing endpoints."""
 
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -26,7 +27,9 @@ from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.services.customer_assembly import (
     create_realization_draft,
     list_assembly,
+    list_assembly_page,
     print_own_labels,
+    update_cross_picks_bulk,
 )
 from dz_fastapi.services.customer_order_stock_switch import (
     SUGGESTION_KEY,
@@ -45,6 +48,15 @@ class Selection(BaseModel):
     order_ids: list[int] = Field(min_length=1, max_length=100)
 
 
+class BulkPickRow(BaseModel):
+    id: int
+    picked_quantity: int = Field(ge=0)
+
+
+class BulkPickSelection(BaseModel):
+    items: list[BulkPickRow] = Field(min_length=1, max_length=200)
+
+
 class LabelSelection(BaseModel):
     stock_item_ids: list[int] = Field(min_length=1, max_length=200)
     storage_location_id: int | None = None
@@ -61,15 +73,56 @@ class BoxContents(BaseModel):
 
 @router.get("")
 async def get_assembly(customer_id: int | None = None,
+                       customer_group: Literal["wholesale", "retail"] | None = None,
                        date_from: date | None = None,
                        date_to: date | None = None,
                        search: str | None = None,
                        limit: int = 200,
                        session: AsyncSession = Depends(get_session)):
     return await list_assembly(session, customer_id=customer_id,
+                               customer_group=customer_group,
                                date_from=date_from, date_to=date_to,
                                search=search,
                                limit=min(max(limit, 1), 500))
+
+
+@router.get("/page")
+async def get_assembly_page(
+    customer_id: int | None = None,
+    customer_group: Literal["wholesale", "retail"] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: str | None = None,
+    view: Literal["work", "dates"] = "work",
+    page: int = 1,
+    page_size: int = 50,
+    session: AsyncSession = Depends(get_session),
+):
+    return await list_assembly_page(
+        session, customer_id=customer_id, customer_group=customer_group,
+        date_from=date_from, date_to=date_to, search=search,
+        open_only=view == "work", page=max(page, 1),
+        page_size=min(max(page_size, 1), 100),
+    )
+
+
+@router.post("/cross-picks/bulk")
+async def bulk_cross_picks(
+    payload: BulkPickSelection,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    ids = [row.id for row in payload.items]
+    if len(ids) != len(set(ids)):
+        raise HTTPException(status_code=400, detail="Позиция повторяется в запросе")
+    try:
+        return await update_cross_picks_bulk(
+            session, {row.id: row.picked_quantity for row in payload.items},
+            user_id=user.id,
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/source-switch/{item_id}/approve")
@@ -219,6 +272,41 @@ async def cancel_own_stock_label(label_id: int,
         row.picked_quantity = max(0, int(row.picked_quantity or 0) - int(label.quantity))
     await session.commit()
     return {"cancelled": True}
+
+
+@router.post("/realizations/preview")
+async def preview_realization(
+    payload: Selection,
+    session: AsyncSession = Depends(get_session),
+):
+    ids = sorted(set(payload.order_ids))
+    orders = await list_assembly(session, order_ids=ids, limit=len(ids))
+    if len(orders) != len(ids):
+        raise HTTPException(status_code=404, detail="Один из заказов не найден")
+    if len({order["customer_id"] for order in orders}) != 1:
+        raise HTTPException(status_code=409, detail="Выберите заказы одного клиента")
+    lines = []
+    for order in orders:
+        for item in order["items"]:
+            shippable = int(item["ordered"])
+            committed = int(item["committed"])
+            ready = int(item["ready"])
+            if shippable <= 0:
+                continue
+            lines.append({
+                "order_id": order["id"], "item_id": item["id"],
+                "order_number": order["number"],
+                "brand": item["brand"], "oem": item["oem"],
+                "ordered": shippable, "committed": committed,
+                "ready": ready,
+                "remaining_after_draft": max(0, shippable - committed - ready),
+            })
+    return {
+        "customer_name": orders[0]["customer_name"],
+        "orders": len(orders), "lines": lines,
+        "ready_total": sum(row["ready"] for row in lines),
+        "remaining_total": sum(row["remaining_after_draft"] for row in lines),
+    }
 
 
 @router.post("/realizations", status_code=201)

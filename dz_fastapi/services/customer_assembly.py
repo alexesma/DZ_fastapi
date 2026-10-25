@@ -9,6 +9,7 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import StorageLocation
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
@@ -26,14 +27,89 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
+    STOCK_ORDER_STATUS,
+    TYPE_PRICES,
     Customer,
     CustomerOrder,
     CustomerOrderItem,
+    StockOrder,
     StockOrderItem,
     SupplierReceipt,
     SupplierReceiptItem,
 )
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
+
+ASSEMBLY_ACTION_PRIORITY = (
+    "check_source", "create_realization", "accept_receipt",
+    "print_own_labels", "print_supplier_labels", "await_stock", "await_supplier",
+)
+
+
+def _open_customer_order_condition():
+    """Orders with an uncommitted shippable quantity, including old orders."""
+    committed = (
+        select(func.coalesce(func.sum(ShipmentDocumentItem.quantity), 0))
+        .join(ShipmentDocument)
+        .where(
+            ShipmentDocumentItem.customer_order_item_id == CustomerOrderItem.id,
+            ShipmentDocument.status != ShipmentDocumentStatus.CANCELLED,
+        )
+        .correlate(CustomerOrderItem)
+        .scalar_subquery()
+    )
+    return CustomerOrder.items.any(
+        func.coalesce(CustomerOrderItem.ship_qty, 0) > committed
+    )
+
+
+async def list_assembly_page(
+    session: AsyncSession, *, customer_id: int | None = None,
+    customer_group: str | None = None, date_from: date | None = None,
+    date_to: date | None = None, search: str | None = None,
+    open_only: bool = True, page: int = 1, page_size: int = 50,
+):
+    stmt = select(CustomerOrder.id).where(CustomerOrder.deleted_at.is_(None))
+    if customer_id is not None:
+        stmt = stmt.where(CustomerOrder.customer_id == customer_id)
+    if customer_group == "wholesale":
+        stmt = stmt.where(CustomerOrder.customer.has(
+            Customer.type_prices == TYPE_PRICES.WHOLESALE
+        ))
+    elif customer_group == "retail":
+        stmt = stmt.where(CustomerOrder.customer.has(
+            Customer.type_prices.in_((TYPE_PRICES.RETAIL, TYPE_PRICES.CASH))
+        ))
+    if open_only:
+        stmt = stmt.where(_open_customer_order_condition())
+    else:
+        if date_from is not None:
+            stmt = stmt.where(CustomerOrder.received_at >= datetime.combine(date_from, time.min))
+        if date_to is not None:
+            stmt = stmt.where(CustomerOrder.received_at <= datetime.combine(date_to, time.max))
+    if search:
+        pattern = f"%{search.strip()[:100]}%"
+        stmt = stmt.where(or_(
+            cast(CustomerOrder.id, String).ilike(pattern),
+            CustomerOrder.order_number.ilike(pattern),
+            CustomerOrder.items.any(or_(
+                CustomerOrderItem.oem.ilike(pattern),
+                CustomerOrderItem.brand.ilike(pattern),
+                CustomerOrderItem.name.ilike(pattern),
+            )),
+        ))
+    total = int(await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
+    ids = (await session.execute(
+        stmt.order_by(CustomerOrder.received_at.desc(), CustomerOrder.id.desc())
+        .offset((page - 1) * page_size).limit(page_size)
+    )).scalars().all()
+    if not ids:
+        return {"items": [], "total": total, "page": page, "page_size": page_size}
+    rows = await list_assembly(session, order_ids=list(ids), limit=len(ids))
+    by_id = {row["id"]: row for row in rows}
+    return {
+        "items": [by_id[order_id] for order_id in ids],
+        "total": total, "page": page, "page_size": page_size,
+    }
 
 
 def _money(value):
@@ -42,6 +118,7 @@ def _money(value):
 
 async def _assembly_data(session: AsyncSession, order_ids: list[int] | None = None, *,
                          customer_id: int | None = None,
+                         customer_group: str | None = None,
                          date_from: date | None = None,
                          date_to: date | None = None,
                          search: str | None = None,
@@ -53,6 +130,14 @@ async def _assembly_data(session: AsyncSession, order_ids: list[int] | None = No
         stmt = stmt.where(CustomerOrder.id.in_(order_ids))
     if customer_id is not None:
         stmt = stmt.where(CustomerOrder.customer_id == customer_id)
+    if customer_group == "wholesale":
+        stmt = stmt.where(
+            CustomerOrder.customer.has(Customer.type_prices == TYPE_PRICES.WHOLESALE)
+        )
+    elif customer_group == "retail":
+        stmt = stmt.where(CustomerOrder.customer.has(
+            Customer.type_prices.in_((TYPE_PRICES.RETAIL, TYPE_PRICES.CASH))
+        ))
     if date_from is not None:
         stmt = stmt.where(CustomerOrder.received_at >= datetime.combine(date_from, time.min))
     if date_to is not None:
@@ -247,6 +332,7 @@ def _sources(item, own_rows, own_labels, receipts, cross_by_receipt,
 
 
 async def list_assembly(session: AsyncSession, *, customer_id: int | None = None,
+                        customer_group: str | None = None,
                         order_ids: list[int] | None = None,
                         date_from: date | None = None,
                         date_to: date | None = None,
@@ -256,12 +342,14 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
      lots_by_receipt, committed, source_used, location_choices,
      cross_stock_by_receipt, reserves_by_id, draft_lot_used) = await _assembly_data(
          session, order_ids, customer_id=customer_id,
+         customer_group=customer_group,
          date_from=date_from, date_to=date_to, search=search, limit=limit)
     result = []
     for order in orders:
         items = []
         totals = defaultdict(float)
         counts = defaultdict(int)
+        actions = set()
         for item in order.items:
             ordered = max(int(item.ship_qty or 0), 0)
             own_ordered = sum(max(int(row.quantity or 0), 0) for row in own_rows.get(item.id, []))
@@ -325,12 +413,38 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
             counts["cross_labeled"] += cross_labeled
             counts["own_labeled"] += own_labeled
             counts["ready"] += available
+            counts["committed"] += committed[item.id]
+            if item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
+                counts["awaiting_receipt"] += max(0, ordered - received)
+            counts["awaiting_labels"] += max(0, own_ordered - own_labeled)
+            counts["awaiting_labels"] += max(0, received - cross_labeled)
+            accepted = sum(int(row.get("picked_quantity") or 0)
+                           for row in cross_stock_items)
+            counts["awaiting_acceptance"] += max(0, received - accepted)
             source_payload = item.source_payload or {}
             pending_switch = source_payload.get("receipt_stock_source_suggestion")
             source_switch = (
                 pending_switch if pending_switch and pending_switch.get("status") == "blocked"
                 else source_payload.get("receipt_stock_source_switch")
             )
+            if source_switch and source_switch.get("status") == "blocked":
+                actions.add("check_source")
+            if cross_stock_items and received > accepted:
+                actions.add("accept_receipt")
+            if any(row["remaining"] > 0 and row["location"] for row in stock_items):
+                actions.add("print_own_labels")
+            if any(row["remaining"] > 0 and not row["location"] for row in stock_items):
+                actions.add("await_stock")
+            if received > cross_labeled:
+                actions.add("print_supplier_labels")
+            if available > 0:
+                actions.add("create_realization")
+            if (item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+                    and ordered > received):
+                actions.add("await_supplier")
+            if (item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+                    and ordered > own_ordered):
+                actions.add("await_stock")
             items.append({
                 "id": item.id, "order_id": order.id,
                 "customer_id": order.customer_id,
@@ -362,9 +476,81 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
                 or getattr(order.customer, "name", None)
                 or "—"
             ),
-            "amounts": dict(totals), "counts": dict(counts), "items": items,
+            "amounts": dict(totals), "counts": dict(counts),
+            "actions": [action for action in ASSEMBLY_ACTION_PRIORITY if action in actions],
+            "items": items,
         })
     return result
+
+
+async def update_cross_picks_bulk(
+    session: AsyncSession, quantities: dict[int, int], *, user_id: int,
+):
+    """Validate every receipt row before committing any pick changes."""
+    if not quantities or len(quantities) > 200:
+        raise ValueError("Выберите от 1 до 200 позиций поступления")
+    rows = (await session.execute(
+        select(StockOrderItem)
+        .where(StockOrderItem.id.in_(quantities))
+        .order_by(StockOrderItem.id)
+        .with_for_update()
+    )).scalars().all()
+    if len(rows) != len(quantities):
+        raise ValueError("Часть позиций поступления не найдена")
+    from dz_fastapi.services.stock_order_packages import get_allocated_stock_order_item_quantity
+
+    for row in rows:
+        target = quantities[row.id]
+        if row.supplier_receipt_item_id is None:
+            raise ValueError("Позиция не относится к поступлению поставщика")
+        if target < 0 or target > int(row.quantity or 0):
+            raise ValueError(f"Количество позиции #{row.id} вне допустимого диапазона")
+        if target < int(row.picked_quantity or 0):
+            allocated = await get_allocated_stock_order_item_quantity(
+                session, stock_order_item_id=row.id,
+            )
+            if target < allocated:
+                raise ValueError(
+                    f"Позиция #{row.id} уже распределена по коробкам: {allocated} шт."
+                )
+    now = now_moscow()
+    order_ids = {row.stock_order_id for row in rows}
+    customer_item_ids = {row.customer_order_item_id for row in rows
+                         if row.customer_order_item_id is not None}
+    for row in rows:
+        target = quantities[row.id]
+        row.picked_quantity = target
+        row.picked_at = now if target else None
+        row.picked_by_user_id = user_id if target else None
+    await session.flush()
+    stock_orders = (await session.execute(
+        select(StockOrder).options(selectinload(StockOrder.items))
+        .where(StockOrder.id.in_(order_ids)).with_for_update()
+    )).scalars().all()
+    for stock_order in stock_orders:
+        stock_order.status = (
+            STOCK_ORDER_STATUS.COMPLETED
+            if all(int(item.picked_quantity or 0) >= int(item.quantity or 0)
+                   for item in stock_order.items)
+            else STOCK_ORDER_STATUS.NEW
+        )
+    await session.commit()
+    if customer_item_ids:
+        from dz_fastapi.services.customer_orders import try_finalize_customer_order_response
+
+        customer_order_ids = (await session.execute(
+            select(CustomerOrderItem.order_id)
+            .where(CustomerOrderItem.id.in_(customer_item_ids))
+            .distinct()
+        )).scalars().all()
+        for customer_order_id in customer_order_ids:
+            try:
+                await try_finalize_customer_order_response(
+                    session, order_id=int(customer_order_id),
+                )
+            except Exception:
+                pass
+    return [{"id": row.id, "picked_quantity": quantities[row.id]} for row in rows]
 
 
 async def _own_location_capacity(session: AsyncSession, autopart_id: int,

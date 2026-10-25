@@ -87,6 +87,7 @@ from dz_fastapi.services.cross_docking import (
     sync_posted_cross_docking_labels,
     update_cross_docking_document_status,
 )
+from dz_fastapi.services.customer_assembly import list_assembly
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
@@ -325,6 +326,10 @@ def _serialize_customer_order_for_user(
     return model.model_copy(
         update={
             "items": items,
+            "customer_name": (
+                order.__dict__["customer"].name
+                if order.__dict__.get("customer") else None
+            ),
             "pricelist_routing": (getattr(order, "external_payload", None) or {}).get(
                 "pricelist_routing"
             ),
@@ -702,6 +707,7 @@ async def suggest_customer_order_oems(
 )
 async def list_customer_orders(
     customer_id: Optional[int] = None,
+    customer_group: Optional[Literal["wholesale", "retail"]] = None,
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -715,6 +721,7 @@ async def list_customer_orders(
     orders = await crud_customer_order.list_orders(
         session=session,
         customer_id=customer_id,
+        customer_group=customer_group,
         status=status,
         date_from=date_from,
         date_to=date_to,
@@ -733,6 +740,7 @@ async def list_customer_orders(
 )
 async def list_customer_order_summary(
     customer_id: Optional[int] = None,
+    customer_group: Optional[Literal["wholesale", "retail"]] = None,
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -746,6 +754,7 @@ async def list_customer_order_summary(
     orders = await crud_customer_order.list_orders(
         session=session,
         customer_id=customer_id,
+        customer_group=customer_group,
         status=status,
         date_from=date_from,
         date_to=date_to,
@@ -850,6 +859,7 @@ def _summarize_customer_orders(
 )
 async def list_customer_order_summary_page(
     customer_id: Optional[int] = None,
+    customer_group: Optional[Literal["wholesale", "retail"]] = None,
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -863,6 +873,7 @@ async def list_customer_order_summary_page(
     selected_suppliers = _parse_supplier_ids(supplier_ids)
     filters = {
         "customer_id": customer_id,
+        "customer_group": customer_group,
         "status": status,
         "date_from": date_from,
         "date_to": date_to,
@@ -875,8 +886,19 @@ async def list_customer_order_summary_page(
         session=session, skip=max(0, skip), limit=page_size, **filters
     )
     total = await crud_customer_order.count_orders(session=session, **filters)
+    summaries = _summarize_customer_orders(orders, item_oem, selected_suppliers)
+    if summaries:
+        assembly = await list_assembly(
+            session, order_ids=[row.id for row in summaries], limit=len(summaries),
+        )
+        by_id = {row["id"]: row for row in assembly}
+        for summary in summaries:
+            progress = by_id.get(summary.id)
+            if progress:
+                summary.fulfillment = progress["counts"]
+                summary.next_actions = progress["actions"]
     return CustomerOrderSummaryPageResponse(
-        items=_summarize_customer_orders(orders, item_oem, selected_suppliers),
+        items=summaries,
         total=total,
     )
 
@@ -884,6 +906,7 @@ async def list_customer_order_summary_page(
 @router.get("/count", response_model=int)
 async def count_customer_orders(
     customer_id: Optional[int] = None,
+    customer_group: Optional[Literal["wholesale", "retail"]] = None,
     status: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -895,6 +918,7 @@ async def count_customer_orders(
     return await crud_customer_order.count_orders(
         session=session,
         customer_id=customer_id,
+        customer_group=customer_group,
         status=status,
         date_from=date_from,
         date_to=date_to,
