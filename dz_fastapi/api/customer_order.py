@@ -27,6 +27,7 @@ from dz_fastapi.models.partner import (
     Client,
     CustomerPriceListConfig,
     Provider,
+    ProviderPriceListConfig,
     SupplierOrderAttachment,
     SupplierReceipt,
     SupplierResponseConfig,
@@ -1819,12 +1820,39 @@ async def list_supplier_orders(
             return False
         return True
 
+    item_config_ids = {
+        int(item.customer_order_item.provider_config_id)
+        for order in orders
+        for item in (order.items or [])
+        if item.customer_order_item is not None
+        and item.customer_order_item.provider_config_id is not None
+    }
+    config_names: dict[int, str] = {}
+    if item_config_ids:
+        config_names = {
+            int(config_id): str(name)
+            for config_id, name in (await session.execute(
+                select(
+                    ProviderPriceListConfig.id,
+                    ProviderPriceListConfig.name_price,
+                ).where(ProviderPriceListConfig.id.in_(item_config_ids))
+            )).all()
+            if name
+        }
+
     for order in orders:
         customer_orders = {}
+        order_config_names: list[str] = []
         for item in order.items or []:
             order_item = item.customer_order_item
             if order_item and order_item.order:
                 customer_orders[order_item.order.id] = order_item.order
+            config_id = (
+                order_item.provider_config_id if order_item else None
+            ) or order.provider_config_id
+            name = config_names.get(int(config_id)) if config_id else None
+            if name and name not in order_config_names:
+                order_config_names.append(name)
 
         if customer_id is not None:
             if not any(o.customer_id == customer_id for o in customer_orders.values()):
@@ -1945,6 +1973,7 @@ async def list_supplier_orders(
                 provider_config_name=(
                     order.provider_config.name_price if order.provider_config else None
                 ),
+                provider_config_names=order_config_names,
                 status=order.status,
                 created_at=order.created_at,
                 customer_order_id=(customer_order.id if customer_order else None),

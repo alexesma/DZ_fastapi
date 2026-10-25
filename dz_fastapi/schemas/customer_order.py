@@ -534,6 +534,9 @@ class SupplierOrderSummaryResponse(BaseModel):
     provider_id: int
     provider_config_id: Optional[int] = None
     provider_config_name: Optional[str] = None
+    # Прайсы, из которых реально взяты позиции заказа (заказ у поставщика
+    # может быть общим для нескольких прайсов).
+    provider_config_names: List[str] = Field(default_factory=list)
     status: SUPPLIER_ORDER_STATUS
     created_at: datetime
     customer_order_id: Optional[int] = None
