@@ -22,11 +22,16 @@ from dz_fastapi.models.inventory import (
     StockReserve,
 )
 from dz_fastapi.models.partner import CustomerOrder, CustomerOrderItem, StockOrderItem
-from dz_fastapi.models.user import User
+from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.services.customer_assembly import (
     create_realization_draft,
     list_assembly,
     print_own_labels,
+)
+from dz_fastapi.services.customer_order_stock_switch import (
+    SUGGESTION_KEY,
+    SWITCH_KEY,
+    switch_unpicked_crosses_after_receipt,
 )
 
 router = APIRouter(
@@ -65,6 +70,67 @@ async def get_assembly(customer_id: int | None = None,
                                date_from=date_from, date_to=date_to,
                                search=search,
                                limit=min(max(limit, 1), 500))
+
+
+@router.post("/source-switch/{item_id}/approve")
+async def approve_exact_stock_switch(
+    item_id: int, session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    if user.role not in (UserRole.ADMIN, UserRole.MANAGER):
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    item = (await session.execute(
+        select(CustomerOrderItem).where(CustomerOrderItem.id == item_id)
+        .with_for_update(of=CustomerOrderItem)
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Позиция заказа не найдена")
+    payload = item.source_payload or {}
+    notice = payload.get(SUGGESTION_KEY) or payload.get(SWITCH_KEY) or {}
+    if notice.get("status") != "blocked":
+        raise HTTPException(status_code=409, detail="Нет предложения о переключении")
+    outcomes = await switch_unpicked_crosses_after_receipt(
+        session, autopart_id=int(notice["autopart_id"]),
+        source_type=notice["source_type"],
+        document_id=int(notice["document_id"]), target_item_id=item_id,
+        allow_cancelled_labels=True, decided_by_user_id=user.id,
+    )
+    if not outcomes or outcomes[0]["status"] != "switched":
+        await session.rollback()
+        reason = outcomes[0]["reason"] if outcomes else "источник заказа изменился"
+        raise HTTPException(status_code=409, detail=reason)
+    await session.commit()
+    return outcomes[0]
+
+
+@router.post("/source-switch/{item_id}/keep-cross")
+async def keep_cross_source(
+    item_id: int, session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    if user.role not in (UserRole.ADMIN, UserRole.MANAGER):
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    item = (await session.execute(
+        select(CustomerOrderItem).where(CustomerOrderItem.id == item_id)
+        .with_for_update(of=CustomerOrderItem)
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Позиция заказа не найдена")
+    payload = dict(item.source_payload or {})
+    notice_key = (
+        SUGGESTION_KEY if payload.get(SUGGESTION_KEY, {}).get("status") == "blocked"
+        else SWITCH_KEY
+    )
+    notice = dict(payload.get(notice_key) or {})
+    if notice.get("status") != "blocked":
+        raise HTTPException(status_code=409, detail="Нет предложения о переключении")
+    notice["status"] = "kept"
+    notice["decided_at"] = now_moscow().isoformat()
+    notice["decided_by_user_id"] = user.id
+    payload[notice_key] = notice
+    item.source_payload = payload
+    await session.commit()
+    return {"item_id": item_id, "status": "kept"}
 
 
 @router.post("/own-labels/print")

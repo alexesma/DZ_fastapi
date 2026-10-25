@@ -325,10 +325,19 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
             counts["cross_labeled"] += cross_labeled
             counts["own_labeled"] += own_labeled
             counts["ready"] += available
+            source_payload = item.source_payload or {}
+            pending_switch = source_payload.get("receipt_stock_source_suggestion")
+            source_switch = (
+                pending_switch if pending_switch and pending_switch.get("status") == "blocked"
+                else source_payload.get("receipt_stock_source_switch")
+            )
             items.append({
                 "id": item.id, "order_id": order.id,
                 "customer_id": order.customer_id,
                 "brand": item.brand, "oem": item.oem, "name": item.name,
+                "actual_brand": item.actual_brand,
+                "actual_oem": item.actual_oem,
+                "source_switch": source_switch,
                 "price": price, "ordered": ordered, "own_ordered": own_ordered,
                 "received": received, "cross_labeled": cross_labeled,
                 "own_labeled": own_labeled, "committed": committed[item.id],

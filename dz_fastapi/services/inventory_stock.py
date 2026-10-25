@@ -98,6 +98,10 @@ from dz_fastapi.services.credit_control import (
     assert_shipment_credit_available,
     check_shipment_credit_policy,
 )
+from dz_fastapi.services.customer_order_stock_switch import (
+    restore_unpicked_switches_for_unpost,
+    switch_unpicked_crosses_after_receipt,
+)
 from dz_fastapi.services.marking_codes import (
     allocate_marking_codes_for_shipment_allocation,
     register_receipt_marking_codes,
@@ -1040,6 +1044,9 @@ async def apply_receipt_to_stock_by_id(
     if receipt is None:
         raise LookupError("Документ поступления не найден")
     if reverse:
+        await restore_unpicked_switches_for_unpost(
+            session, source_type="supplier_receipt", document_id=receipt.id,
+        )
         await _sync_receipt_customer_assembly(
             session,
             receipt=receipt,
@@ -1054,6 +1061,18 @@ async def apply_receipt_to_stock_by_id(
         receipt=receipt,
         reverse=False,
     )
+    received_part_ids = set()
+    for item in receipt.items or []:
+        if int(item.received_quantity or 0) <= 0:
+            continue
+        autopart_id = await resolve_receipt_item_autopart_id(session, item)
+        if autopart_id is not None:
+            received_part_ids.add(autopart_id)
+    for autopart_id in sorted(received_part_ids):
+        await switch_unpicked_crosses_after_receipt(
+            session, autopart_id=autopart_id,
+            source_type="supplier_receipt", document_id=receipt.id,
+        )
 
 
 async def _sync_receipt_customer_assembly(
@@ -1725,6 +1744,7 @@ async def post_stock_document(
 
     processed = 0
     movements_created = 0
+    received_part_ids = set()
 
     for item in doc.items or []:
         qty = int(item.quantity or 0)
@@ -1746,6 +1766,7 @@ async def post_stock_document(
             continue
 
         if doc.doc_type == StockDocumentType.MANUAL_RECEIPT:
+            received_part_ids.add(item.autopart_id)
             lot = await _create_stock_lot(
                 session,
                 autopart_id=item.autopart_id,
@@ -1793,11 +1814,18 @@ async def post_stock_document(
     doc.posted_at = now_moscow()
     doc.sync_status = SyncStatus.PENDING
     await session.flush()
+    source_switches = []
+    for autopart_id in sorted(received_part_ids):
+        source_switches.extend(await switch_unpicked_crosses_after_receipt(
+            session, autopart_id=autopart_id,
+            source_type="stock_document", document_id=doc.id,
+        ))
     from dz_fastapi.services.one_c_outbox import enqueue_stock_document_event
 
     await enqueue_stock_document_event(session, doc.id)
 
     return {
+        "source_switches": source_switches,
         "document_id": document_id,
         "doc_type": doc.doc_type,
         "items_processed": processed,
@@ -1832,6 +1860,10 @@ async def unpost_stock_document(
             "Распроведение списания не поддерживается автоматически. "
             "Создайте документ оприходования для корректировки."
         )
+
+    await restore_unpicked_switches_for_unpost(
+        session, source_type="stock_document", document_id=doc.id,
+    )
 
     # A receipt that has already supplied another operation cannot be edited
     # and posted again without rewriting that operation's lot provenance.
