@@ -134,7 +134,9 @@ async def ensure_cross_docking_labels(
                     (customer_item.name if customer_item else None)
                     or receipt_item.autopart_name
                 ),
-                customer_name=(customer.name if customer else None),
+                customer_name=(
+                    customer.label_display_name if customer else None
+                ),
                 order_number=(customer_order.order_number if customer_order else None),
                 order_date=_order_date(customer_order),
                 barcode=f"XD-{receipt.id:08d}-{receipt_item.id:08d}",

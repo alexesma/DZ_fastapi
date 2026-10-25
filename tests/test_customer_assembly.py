@@ -439,3 +439,67 @@ async def test_own_label_uses_first_sufficient_location_and_reprint_does_not_pic
     assert [(row["location"], row["quantity"]) for row in second_location_print.json()] == [
         (second_location.name, 2),
     ]
+
+
+@pytest.mark.asyncio
+async def test_label_uses_custom_label_name_when_set(
+    async_client, test_session, created_customers, created_autopart,
+    created_storage,
+):
+    customer = created_customers[0]
+    user = User(
+        email="assembly-labelname@example.com",
+        password_hash=get_password_hash("secret123"),
+        role=UserRole.MANAGER,
+        status=UserStatus.ACTIVE,
+    )
+    order = CustomerOrder(customer_id=customer.id, status="PROCESSED")
+    test_session.add_all([user, order])
+    await test_session.flush()
+    item = CustomerOrderItem(
+        order_id=order.id, oem=created_autopart.oem_number, brand="TEST",
+        requested_qty=1, ship_qty=1, status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+    )
+    stock_order = StockOrder(customer_id=customer.id)
+    test_session.add_all([item, stock_order])
+    await test_session.flush()
+    stock_item = StockOrderItem(
+        stock_order_id=stock_order.id, customer_order_item_id=item.id,
+        autopart_id=created_autopart.id, quantity=1,
+    )
+    test_session.add_all([
+        stock_item,
+        StockByLocation(autopart_id=created_autopart.id,
+                        storage_location_id=created_storage.id, quantity=1),
+    ])
+    await test_session.commit()
+    login = await async_client.post(
+        "/auth/login", json={"email": user.email, "password": "secret123"}
+    )
+    assert login.status_code == 200
+
+    printed = await async_client.post(
+        "/customer-orders/assembly/own-labels/print",
+        json={"stock_item_ids": [stock_item.id]},
+    )
+    assert printed.status_code == 200, printed.text
+    label = printed.json()[0]
+    default_name = label["customer_name"]
+    assert default_name
+
+    saved = await async_client.patch(
+        f"/customers/{customer.id}/", json={"name": customer.name, "label_name": "  Мотор  "}
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["label_name"] == "Мотор"
+    listed = (await async_client.get("/customer-orders/assembly")).json()[0]
+    assert listed["customer_label_name"] == "Мотор"
+    assert listed["customer_name"] != "Мотор"
+
+    cleared = await async_client.patch(
+        f"/customers/{customer.id}/", json={"name": customer.name, "label_name": ""}
+    )
+    assert cleared.json()["label_name"] is None
+    listed = (await async_client.get("/customer-orders/assembly")).json()[0]
+    assert listed["customer_label_name"] == default_name

@@ -1912,7 +1912,10 @@ async def list_supplier_orders(
         customer_orders_count = len(customer_orders)
         if len(customer_orders) == 1:
             customer_order = next(iter(customer_orders.values()))
-            customer_name = customer_order.customer.name if customer_order.customer else None
+            customer_name = (
+                customer_order.customer.label_display_name
+                if customer_order.customer else None
+            )
             customer_order_number = customer_order.order_number
             customer_received_at = customer_order.received_at
             customer_status = customer_order.status

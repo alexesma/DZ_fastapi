@@ -191,6 +191,12 @@ class Client(Base):
     email_contact = Column(String(255), unique=True, index=True, nullable=True)
     description = Column(Text, nullable=True)
     comment = Column(Text, default="")
+    # Название, которое печатается на этикетках; пусто — берём имя клиента.
+    label_name = Column(String(255), nullable=True)
+
+    @property
+    def label_display_name(self) -> str:
+        return str(self.label_name or "").strip() or str(self.name or "")
 
     @staticmethod
     def is_valid_email(email):

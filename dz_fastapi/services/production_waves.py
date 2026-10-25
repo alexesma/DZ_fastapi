@@ -192,7 +192,7 @@ async def list_eligible_demands(
             "customer_order_item_id": order_item.id,
             "customer_order_id": order.id,
             "customer_id": customer.id,
-            "customer_name": customer.name,
+            "customer_name": customer.label_display_name,
             "order_number": order.order_number,
             "order_date": order.order_date,
             "requested_brand": order_item.brand,

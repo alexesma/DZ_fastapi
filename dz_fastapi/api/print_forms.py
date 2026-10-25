@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,7 +74,11 @@ def _out(row: PrintFormTemplate) -> dict:
 
 
 @router.get("")
-async def list_print_forms(session: AsyncSession = Depends(get_session)):
+async def list_print_forms(
+    response: Response, session: AsyncSession = Depends(get_session)
+):
+    # Макет должен быть всегда свежим: иначе печать идёт по старому.
+    response.headers["Cache-Control"] = "no-store"
     rows = (await session.execute(
         select(PrintFormTemplate).order_by(PrintFormTemplate.key)
     )).scalars().all()

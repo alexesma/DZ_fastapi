@@ -523,7 +523,9 @@ def serialize_stock_order_packing(order: StockOrder) -> dict:
     return {
         "stock_order_id": order.id,
         "customer_id": order.customer_id,
-        "customer_name": order.customer.name if order.customer else None,
+        "customer_name": (
+            order.customer.label_display_name if order.customer else None
+        ),
         "stock_order_status": order.status,
         "packing_required": bool(order.packing_required),
         "packing_ready": bool(packages)

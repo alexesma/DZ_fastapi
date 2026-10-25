@@ -347,6 +347,12 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
                 or getattr(order.customer, "name", None)
                 or "—"
             ),
+            "customer_label_name": (
+                (getattr(order.customer, "label_name", None) or "").strip()
+                or getattr(order.customer, "document_name", None)
+                or getattr(order.customer, "name", None)
+                or "—"
+            ),
             "amounts": dict(totals), "counts": dict(counts), "items": items,
         })
     return result
@@ -481,7 +487,10 @@ async def print_own_labels(session: AsyncSession, stock_item_ids: list[int],
                 "brand": customer_item.brand, "oem": customer_item.oem,
                 "name": customer_item.name,
                 "order_number": order.order_number or str(order.id),
-                "customer_name": customer.document_name if customer else "",
+                "customer_name": (
+                    (customer.label_name or "").strip() or customer.document_name
+                    if customer else ""
+                ),
             })
             needed -= qty
             printed_qty += qty

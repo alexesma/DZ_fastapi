@@ -56,6 +56,13 @@ class ClientBase(BaseModel):
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
+    label_name: Optional[str] = Field(default=None, max_length=255)
+
+    @field_validator("label_name", mode="before")
+    def blank_label_name_to_none(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+        return v or None
 
     @field_validator("name", mode="before")
     def name_must_not_be_empty(cls, v):
@@ -155,6 +162,13 @@ class ProviderUpdate(BaseModel):
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
+    label_name: Optional[str] = Field(default=None, max_length=255)
+
+    @field_validator("label_name", mode="before")
+    def blank_label_name_to_none(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+        return v or None
     email_incoming_price: Optional[EmailStr] = None
     inn: Optional[str] = Field(default=None, max_length=32)
     kpp: Optional[str] = Field(default=None, max_length=32)
@@ -655,6 +669,7 @@ class CustomerResponseShort(BaseModel):
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
+    label_name: Optional[str] = None
     credit_control_mode: str = "off"
     credit_limit: Optional[Decimal] = None
     payment_terms_days: int = 0
