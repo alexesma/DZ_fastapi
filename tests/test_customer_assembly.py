@@ -11,6 +11,8 @@ from dz_fastapi.models.inventory import CrossDockingLabel, StockByLocation, Stoc
 from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
+    CustomerPriceList,
+    CustomerPriceListAutoPartAssociation,
     StockOrder,
     StockOrderItem,
     SupplierReceipt,
@@ -522,3 +524,41 @@ async def test_label_uses_custom_label_name_when_set(
     assert cleared.json()["label_name"] is None
     listed = (await async_client.get("/customer-orders/assembly")).json()[0]
     assert listed["customer_label_name"] == default_name
+
+
+@pytest.mark.asyncio
+async def test_saving_customer_does_not_load_price_list_rows(
+    async_client, test_session, created_customers, created_autopart,
+):
+    customer = created_customers[0]
+    pricelist = CustomerPriceList(customer_id=customer.id)
+    test_session.add(pricelist)
+    await test_session.flush()
+    test_session.add(CustomerPriceListAutoPartAssociation(
+        customerpricelist_id=pricelist.id, autopart_id=created_autopart.id,
+        quantity=1, price=Decimal("10.00"),
+    ))
+    await test_session.commit()
+
+    statements = []
+
+    def capture(conn, cursor, statement, *args):
+        statements.append(" ".join(statement.lower().split()))
+
+    event.listen(Engine, "before_cursor_execute", capture)
+    try:
+        saved = await async_client.patch(
+            f"/customers/{customer.id}/",
+            json={"name": customer.name, "label_name": "Мотор"},
+        )
+    finally:
+        event.remove(Engine, "before_cursor_execute", capture)
+    assert saved.status_code == 200, saved.text
+    # Позиции ежедневных прайсов (сотни тысяч строк) при сохранении карточки
+    # читать нельзя: это вешало сохранение до таймаута.
+    heavy = [
+        text for text in statements
+        if "from customerpricelistautopartassociation" in text
+        and "count(" not in text
+    ]
+    assert not heavy, heavy[:1]

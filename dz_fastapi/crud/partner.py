@@ -1355,14 +1355,16 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
         self, customer_id: int, session: AsyncSession, *, load_relations: bool = True
     ) -> Optional[Customer]:
         # Generation needs only customer scalars, never all historical price rows.
+        # Список прайсов клиента здесь не нужен, а у каждого ежедневного
+        # прайса сотни тысяч позиций, которые подгружались автоматически:
+        # сохранение карточки клиента поднимало миллионы объектов и упиралось
+        # в таймаут. Прайсы грузятся явно там, где они нужны.
         options = (
-            [
-                selectinload(Customer.customer_price_lists),
-                selectinload(Customer.external_references),
-            ]
+            [selectinload(Customer.external_references)]
             if load_relations
             else [raiseload("*")]
         )
+
         result = await session.execute(
             select(Customer).options(*options).where(Customer.id == customer_id)
         )
