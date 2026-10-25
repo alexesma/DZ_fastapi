@@ -642,7 +642,8 @@ class CustomerMergeResponse(BaseModel):
 class CustomerPriceListResponseShort(BaseModel):
     id: int
     date: date
-    autoparts_count: int
+    # None — количество не считалось (старые прайсы)
+    autoparts_count: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 

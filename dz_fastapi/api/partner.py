@@ -1475,36 +1475,50 @@ def build_customer_response_short(customer: Customer) -> CustomerResponseShort:
     )
 
 
+CUSTOMER_PRICE_LIST_COUNT_LIMIT = 10
+
+
 async def build_customer_response_short_aggregated(
     customer: Customer, session: AsyncSession
 ) -> CustomerResponseShort:
+    # Прайсы клиента ежедневные и по ~90 тысяч строк каждый: считать строки
+    # во всех сразу — десятки миллионов записей, из-за чего карточка клиента
+    # не загружалась и не сохранялась (таймаут). Количество считаем только
+    # для самых свежих прайсов.
     price_list_rows = (
         await session.execute(
-            select(
-                CustomerPriceList.id,
-                CustomerPriceList.date,
-                func.count(CustomerPriceListAutoPartAssociation.autopart_id).label(
-                    "autoparts_count"
-                ),
-            )
-            .outerjoin(
-                CustomerPriceListAutoPartAssociation,
-                CustomerPriceListAutoPartAssociation.customerpricelist_id == CustomerPriceList.id,
-            )
+            select(CustomerPriceList.id, CustomerPriceList.date)
             .where(CustomerPriceList.customer_id == customer.id)
-            .group_by(CustomerPriceList.id, CustomerPriceList.date)
-            .order_by(
-                CustomerPriceList.date.desc(),
-                CustomerPriceList.id.desc(),
-            )
+            .order_by(CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
         )
     ).all()
+    counted_ids = [row.id for row in price_list_rows[:CUSTOMER_PRICE_LIST_COUNT_LIMIT]]
+    counts_by_id: dict[int, int] = {}
+    if counted_ids:
+        counts_by_id = dict(
+            (
+                await session.execute(
+                    select(
+                        CustomerPriceListAutoPartAssociation.customerpricelist_id,
+                        func.count(),
+                    )
+                    .where(
+                        CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(
+                            counted_ids
+                        )
+                    )
+                    .group_by(CustomerPriceListAutoPartAssociation.customerpricelist_id)
+                )
+            ).all()
+        )
 
     customer_price_lists_short = [
         CustomerPriceListResponseShort(
             id=row.id,
             date=row.date,
-            autoparts_count=int(row.autoparts_count or 0),
+            autoparts_count=(
+                int(counts_by_id.get(row.id, 0)) if row.id in counted_ids else None
+            ),
         )
         for row in price_list_rows
     ]
