@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, func, insert, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, noload, selectinload
 
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
@@ -57,8 +57,14 @@ from dz_fastapi.models.inventory import (
     StockMovement,
     StockReserve,
     SyncStatus,
+    Warehouse,
 )
-from dz_fastapi.models.partner import CustomerOrderItem, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    Customer,
+    CustomerOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.inventory import (
     AdHocLabelPrintEventOut,
@@ -2878,9 +2884,18 @@ def _shipment_to_out(doc: ShipmentDocument) -> ShipmentDocumentOut:
     )
 
 
-def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
-    customer = doc.customer
-    warehouse = doc.warehouse
+_NAME_FROM_DOC = object()
+
+
+def _shipment_to_list_item(
+    doc: ShipmentDocument,
+    customer_name=_NAME_FROM_DOC,
+    warehouse_name=_NAME_FROM_DOC,
+) -> ShipmentDocumentListItem:
+    if customer_name is _NAME_FROM_DOC:
+        customer_name = doc.customer.document_name if doc.customer else None
+    if warehouse_name is _NAME_FROM_DOC:
+        warehouse_name = doc.warehouse.name if doc.warehouse else None
     items = doc.items or []
     customer_order_ids = {doc.customer_order_id} if doc.customer_order_id else set()
     customer_order_ids.update(
@@ -2893,11 +2908,11 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
         doc_date=doc.doc_date,
         status=doc.status,
         customer_id=doc.customer_id,
-        customer_name=customer.document_name if customer else None,
+        customer_name=customer_name,
         customer_order_id=doc.customer_order_id,
         customer_order_ids=sorted(customer_order_ids),
         warehouse_id=doc.warehouse_id,
-        warehouse_name=warehouse.name if warehouse else None,
+        warehouse_name=warehouse_name,
         reason=doc.reason,
         item_count=len(items),
         total_quantity=sum(i.quantity for i in items),
@@ -2905,6 +2920,59 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
         created_at=doc.created_at,
         posted_at=doc.posted_at,
     )
+
+
+def _light_shipment_options():
+    """Загрузка накладной для списков: только то, что нужно для строки.
+
+    Позиция по умолчанию тянет за собой запчасть и всё её дерево (места
+    хранения -> все запчасти места -> категории ...), клиент и склад — тоже
+    тяжёлые деревья; на реальных данных это съедало гигабайты памяти и
+    убивало процесс по OOM, поэтому эти связи отключаем.
+    """
+    return (
+        selectinload(ShipmentDocument.items).options(
+            noload(ShipmentDocumentItem.autopart),
+            noload(ShipmentDocumentItem.storage_location),
+            noload(ShipmentDocumentItem.allocations),
+            joinedload(ShipmentDocumentItem.customer_order_item).options(
+                noload(CustomerOrderItem.autopart),
+            ),
+        ),
+        noload(ShipmentDocument.packages),
+        noload(ShipmentDocument.customer),
+        noload(ShipmentDocument.warehouse),
+    )
+
+
+async def _shipment_list_items(
+    session: AsyncSession, rows: list[ShipmentDocument]
+) -> list[ShipmentDocumentListItem]:
+    customer_ids = {r.customer_id for r in rows if r.customer_id}
+    warehouse_ids = {r.warehouse_id for r in rows if r.warehouse_id}
+    customer_names = {}
+    if customer_ids:
+        customer_names = {
+            cid: (legal or name)
+            for cid, name, legal in (await session.execute(
+                select(Customer.id, Customer.name, Customer.legal_name)
+                .where(Customer.id.in_(customer_ids))
+            )).all()
+        }
+    warehouse_names = {}
+    if warehouse_ids:
+        warehouse_names = dict((await session.execute(
+            select(Warehouse.id, Warehouse.name)
+            .where(Warehouse.id.in_(warehouse_ids))
+        )).all())
+    return [
+        _shipment_to_list_item(
+            r,
+            customer_name=customer_names.get(r.customer_id),
+            warehouse_name=warehouse_names.get(r.warehouse_id),
+        )
+        for r in rows
+    ]
 
 
 def _shipment_profit_period_start(
@@ -3121,14 +3189,11 @@ async def list_shipment_documents(
         select(func.count()).select_from(stmt.subquery())
     )).scalar_one()
     response.headers["X-Total-Count"] = str(total)
-    stmt = (stmt.options(
-        selectinload(ShipmentDocument.items),
-        selectinload(ShipmentDocument.customer),
-        selectinload(ShipmentDocument.warehouse),
-    ).order_by(ShipmentDocument.doc_date.desc(), ShipmentDocument.id.desc())
-        .offset(offset).limit(limit))
+    stmt = stmt.options(*_light_shipment_options()).order_by(
+        ShipmentDocument.doc_date.desc(), ShipmentDocument.id.desc()
+    ).offset(offset).limit(limit)
     rows = (await session.execute(stmt)).scalars().all()
-    return [_shipment_to_list_item(r) for r in rows]
+    return await _shipment_list_items(session, rows)
 
 
 async def _collect_shipment_profit_report_rows(
@@ -4883,16 +4948,12 @@ async def export_shipments_for_1c(
     stmt = (
         select(ShipmentDocument)
         .where(ShipmentDocument.sync_status == sync_status)
-        .options(
-            selectinload(ShipmentDocument.items),
-            selectinload(ShipmentDocument.customer),
-            selectinload(ShipmentDocument.warehouse),
-        )
+        .options(*_light_shipment_options())
         .order_by(ShipmentDocument.id)
         .limit(limit)
     )
     rows = (await session.execute(stmt)).scalars().all()
-    items = [_shipment_to_list_item(r) for r in rows]
+    items = await _shipment_list_items(session, rows)
     return ShipmentsExportOut(total=len(items), items=items)
 
 

@@ -2,7 +2,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy.engine import Engine
+from sqlalchemy import event, update
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import StorageLocation
@@ -148,10 +149,28 @@ async def test_assembly_partial_realizations_and_box_limits(
     assert shipment.json()["assembly_managed"] is True
     assert shipment.json()["customer_order_id"] is None
     assert len(shipment.json()["items"]) == 2
-    listed = await async_client.get(
-        "/inventory/shipments/", params={"doc_number": created.json()["doc_number"]}
-    )
+    statements = []
+
+    def capture(conn, cursor, statement, *args):
+        statements.append(statement.lower())
+
+    event.listen(Engine, "before_cursor_execute", capture)
+    try:
+        listed = await async_client.get(
+            "/inventory/shipments/",
+            params={"doc_number": created.json()["doc_number"]},
+        )
+    finally:
+        event.remove(Engine, "before_cursor_execute", capture)
     assert listed.status_code == 200, listed.text
+    # список не должен тянуть запчасти и их дерево (раздувало память до OOM)
+    assert not any(
+        "autopart_storage_association" in text
+        or "autopart_category_association" in text
+        or "join autopart" in text
+        or "from autopart" in text
+        for text in statements
+    ), [t.replace(chr(10), ' ')[:200] for t in statements]
     assert listed.headers["x-total-count"] == "1"
     assert listed.json()[0]["customer_order_ids"] == sorted(row.id for row in orders)
     second_order_list = await async_client.get(
