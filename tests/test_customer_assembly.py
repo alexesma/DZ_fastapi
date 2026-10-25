@@ -2,8 +2,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy.engine import Engine
 from sqlalchemy import event, update
+from sqlalchemy.engine import Engine
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import StorageLocation
