@@ -84,6 +84,39 @@ async def _truncate_database(engine, schema_name: str) -> None:
             await conn.execute(table.delete())
 
 
+async def _drop_schema(database_url: str, schema_name: str) -> None:
+    """Drop a test schema without exhausting PostgreSQL's shared lock table.
+
+    One ``DROP SCHEMA ... CASCADE`` locks every table/index/sequence of the
+    schema inside a single transaction; with hundreds of tables and several
+    xdist workers that fails with "out of shared memory ... increase
+    max_locks_per_transaction". Drop the tables one by one, each in its own
+    transaction, then drop the (now almost empty) schema.
+    """
+    engine = create_async_engine(
+        database_url, echo=False, future=True, isolation_level="AUTOCOMMIT"
+    )
+    try:
+        quoted_schema = _quote_identifier(schema_name)
+        async with engine.connect() as conn:
+            table_names = (
+                await conn.execute(
+                    text("SELECT tablename FROM pg_tables WHERE schemaname = :s"),
+                    {"s": schema_name},
+                )
+            ).scalars().all()
+            for table_name in table_names:
+                await conn.execute(
+                    text(
+                        f"DROP TABLE IF EXISTS {quoted_schema}."
+                        f"{_quote_identifier(table_name)} CASCADE"
+                    )
+                )
+            await conn.execute(text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
+    finally:
+        await engine.dispose()
+
+
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_engine(test_schema_name):
     """Create tables once per worker instead of twice per individual test."""
@@ -91,10 +124,10 @@ async def test_engine(test_schema_name):
     dialect_name = make_url(database_url).get_backend_name()
 
     if dialect_name == "postgresql":
+        await _drop_schema(database_url, test_schema_name)
         admin_engine = create_async_engine(database_url, echo=False, future=True)
         quoted_schema = _quote_identifier(test_schema_name)
         async with admin_engine.begin() as conn:
-            await conn.execute(text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
             await conn.execute(text(f"CREATE SCHEMA {quoted_schema}"))
         await admin_engine.dispose()
 
@@ -124,18 +157,13 @@ async def test_engine(test_schema_name):
 
     await engine.dispose()
 
-    cleanup_engine = create_async_engine(database_url, echo=False, future=True)
-    async with cleanup_engine.begin() as conn:
-        if dialect_name == "postgresql":
-            await conn.execute(
-                text(
-                    f"DROP SCHEMA IF EXISTS "
-                    f"{_quote_identifier(test_schema_name)} CASCADE"
-                )
-            )
-        else:
+    if dialect_name == "postgresql":
+        await _drop_schema(database_url, test_schema_name)
+    else:
+        cleanup_engine = create_async_engine(database_url, echo=False, future=True)
+        async with cleanup_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-    await cleanup_engine.dispose()
+        await cleanup_engine.dispose()
 
 
 # @pytest_asyncio.fixture(scope="function")
