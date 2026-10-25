@@ -246,6 +246,7 @@ __all__ = [
     "ExternalStatusMapping",
     "ExternalStatusUnmapped",
     "PriceCheckSchedule",
+    "PrintFormTemplate",
     "PriceCheckLog",
     "SchedulerSetting",
     "SystemMetricSnapshot",

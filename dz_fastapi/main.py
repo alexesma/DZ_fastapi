@@ -33,8 +33,8 @@ from dz_fastapi.api.order_status_mapping import router as order_status_mapping_r
 from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.api.partssoft import router as partssoft_router
 from dz_fastapi.api.price_control import router as price_control_router
-from dz_fastapi.api.print_jobs import router as print_jobs_router
 from dz_fastapi.api.print_forms import router as print_forms_router
+from dz_fastapi.api.print_jobs import router as print_jobs_router
 from dz_fastapi.api.process_architecture import router as process_architecture_router
 from dz_fastapi.api.reclamation import router as reclamation_router
 from dz_fastapi.api.regulatory import router as regulatory_router
