@@ -27,6 +27,7 @@ import base64
 import imaplib
 import json
 import logging
+import logging.handlers
 import os
 import smtplib
 import socket
@@ -40,10 +41,13 @@ from email.utils import formatdate, getaddresses, make_msgid
 from pathlib import Path
 
 import requests
-from printing import installed_printers, print_html_job
+try:
+    from .printing import installed_printers, print_html_job
+except ImportError:  # запуск как скрипт / PyInstaller
+    from printing import installed_printers, print_html_job
 
 logger = logging.getLogger("email_relay")
-RELAY_VERSION = "multi-recipient-v2"
+RELAY_VERSION = "2026.10-safe-delivery"
 
 
 def configure_stdio() -> None:
@@ -72,8 +76,10 @@ def configure_logging(config_path: Path) -> None:
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     try:
         handlers.append(
-            logging.FileHandler(
+            logging.handlers.RotatingFileHandler(
                 config_path.parent / "relay.log",
+                maxBytes=5 * 1024 * 1024,
+                backupCount=5,
                 encoding="utf-8",
             )
         )
@@ -94,11 +100,16 @@ class RelayConfig:
         self.poll_interval_seconds = int(data.get("poll_interval_seconds", 30))
         self.batch_limit = int(data.get("batch_limit", 25))
         self.verify_tls = bool(data.get("verify_tls", True))
+        if not self.verify_tls:
+            logger.warning(
+                "verify_tls=false: сертификат сервера НЕ проверяется"
+            )
         self.request_timeout = int(data.get("request_timeout_seconds", 30))
-        # Уникальный идентификатор этой машины/процесса для «захвата» писем
+        # Идентификатор машины для «захвата» писем. Стабильный между
+        # перезапусками, чтобы можно было подтвердить уже отправленное.
         self.worker_id = str(
             data.get("worker_id")
-            or f"{socket.gethostname()}:{os.getpid()}"
+            or socket.gethostname()
         )[:128]
         self.claim_lease_seconds = int(data.get("claim_lease_seconds", 300))
         # from_email -> { host, port, username, password, use_ssl }
@@ -330,7 +341,9 @@ def build_message(item: dict, from_email: str) -> MIMEMultipart:
     subject = item.get("subject") or ""
     msg["Subject"] = str(Header(subject, "utf-8"))
     msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid()
+    msg["Message-ID"] = make_msgid(
+        domain=(from_email.rsplit("@", 1)[-1] if "@" in from_email else None)
+    )
     if item.get("reply_to"):
         msg["Reply-To"] = item["reply_to"]
     if item.get("in_reply_to"):
@@ -383,7 +396,7 @@ def send_via_smtp(
     from_email: str,
     to_email: str,
     message: MIMEMultipart,
-) -> None:
+) -> dict:
     host = smtp_cfg.get("host", "smtp.yandex.ru")
     port = int(smtp_cfg.get("port", 465))
     username = smtp_cfg.get("username") or from_email
@@ -397,13 +410,15 @@ def send_via_smtp(
         server.starttls()
     try:
         server.login(username, password)
-        refused = server.sendmail(
+        # sendmail сам бросает SMTPRecipientsRefused, если отказали ВСЕМ.
+        # При частичном отказе письмо уже доставлено части адресатов:
+        # повторная отправка целиком создала бы им дубль, поэтому
+        # возвращаем отказавших, а решение принимает вызывающий код.
+        return server.sendmail(
             from_email,
             recipient_addresses(to_email),
             message.as_string(),
-        )
-        if refused:
-            raise smtplib.SMTPRecipientsRefused(refused)
+        ) or {}
     finally:
         try:
             server.quit()
@@ -448,6 +463,78 @@ def save_copy_to_sent(
             pass
 
 
+class UnconfirmedSends:
+    """Отправлено по SMTP/Telegram, но сервер ещё не подтвердил mark-sent.
+
+    Такие записи повторно НЕ отправляются: релей только повторяет отметку.
+    Список хранится в файле, чтобы пережить перезапуск программы.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path
+        self.items: set[str] = set()
+        if path and path.is_file():
+            try:
+                self.items = set(json.loads(path.read_text("utf-8")))
+            except (OSError, ValueError):
+                logger.warning("Не удалось прочитать %s", path)
+
+    def _save(self) -> None:
+        if not self.path:
+            return
+        try:
+            self.path.write_text(json.dumps(sorted(self.items)), "utf-8")
+        except OSError:
+            logger.warning("Не удалось сохранить %s", self.path)
+
+    def add(self, key: str) -> None:
+        self.items.add(key)
+        self._save()
+
+    def discard(self, key: str) -> None:
+        if key in self.items:
+            self.items.discard(key)
+            self._save()
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.items
+
+
+UNCONFIRMED = UnconfirmedSends()
+
+
+def confirm_sent(mark, key: str, outbox_id: int) -> bool:
+    """Отметить отправку на сервере; при сбое запомнить, но не ретраить."""
+    try:
+        mark(outbox_id)
+    except requests.HTTPError as exc:
+        status = getattr(exc.response, "status_code", None)
+        if status in (404, 409):
+            # чужой захват/запись исчезла — повторять нечего
+            UNCONFIRMED.discard(key)
+            logger.warning("Отметка отправки %s отклонена: %s", key, exc)
+            return False
+        UNCONFIRMED.add(key)
+        logger.error("Отправлено, но отметка %s не принята: %s", key, exc)
+        return False
+    except Exception as exc:  # noqa: BLE001
+        UNCONFIRMED.add(key)
+        logger.error("Отправлено, но отметка %s не принята: %s", key, exc)
+        return False
+    UNCONFIRMED.discard(key)
+    return True
+
+
+def retry_unconfirmed(client: "ApiClient") -> None:
+    for key in sorted(UNCONFIRMED.items):
+        kind, _, raw_id = key.partition(":")
+        mark = (
+            client.telegram_mark_sent if kind == "tg" else client.mark_sent
+        )
+        if confirm_sent(mark, key, int(raw_id)):
+            logger.info("Подтверждена ранее отправленная запись %s", key)
+
+
 def process_once(client: ApiClient, config: RelayConfig,
                  dry_run: bool = False) -> int:
     # dry-run только смотрит (pending, без захвата); рабочий цикл — claim.
@@ -456,8 +543,14 @@ def process_once(client: ApiClient, config: RelayConfig,
         return 0
     logger.info("Получено писем к отправке: %d", len(items))
     sent = 0
+    down_hosts: dict[str, str] = {}
     for item in items:
         outbox_id = item["id"]
+        key = f"mail:{outbox_id}"
+        if key in UNCONFIRMED:
+            # письмо уже ушло, не хватало только отметки на сервере
+            confirm_sent(client.mark_sent, key, outbox_id)
+            continue
         attachment_errors = item.get("attachment_errors") or []
         if attachment_errors:
             msg = "; ".join(str(error) for error in attachment_errors)
@@ -486,39 +579,61 @@ def process_once(client: ApiClient, config: RelayConfig,
             )
             continue
 
+        host_key = f"{smtp_cfg.get('host')}:{smtp_cfg.get('port')}"
+        if host_key in down_hosts:
+            # SMTP уже не ответил в этом проходе — не ждём таймаут снова
+            try:
+                client.mark_error(outbox_id, down_hosts[host_key], retry=True)
+            except Exception:  # noqa: BLE001
+                logger.exception("Не удалось отметить ошибку #%s", outbox_id)
+            continue
+
         try:
             client.renew(outbox_id)
             message = build_message(item, from_email or smtp_cfg.get("username"))
-            send_via_smtp(
+            refused = send_via_smtp(
                 smtp_cfg,
                 from_email or smtp_cfg.get("username"),
                 item["to_email"],
                 message,
             )
-            try:
-                save_copy_to_sent(
-                    smtp_cfg,
-                    from_email or smtp_cfg.get("username"),
-                    message,
-                )
-            except Exception:  # noqa: BLE001
-                # SMTP уже прошёл: не возвращаем письмо в очередь, иначе
-                # следующий цикл отправит клиенту дубль.
-                logger.exception(
-                    "Письмо #%s отправлено, но копия не сохранена в Sent",
-                    outbox_id,
-                )
-            client.mark_sent(outbox_id)
-            sent += 1
-            logger.info(
-                "Отправлено #%s → %s", outbox_id, item.get("to_email")
-            )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Ошибка отправки #%s", outbox_id)
+            if isinstance(exc, OSError) and not isinstance(
+                exc, smtplib.SMTPException
+            ):
+                down_hosts[host_key] = str(exc)
             try:
                 client.mark_error(outbox_id, str(exc), retry=True)
             except Exception:  # noqa: BLE001
                 logger.exception("Не удалось отметить ошибку #%s", outbox_id)
+            continue
+
+        # Письмо ушло. Дальше ошибки НЕ должны возвращать его в очередь.
+        UNCONFIRMED.add(key)
+        if refused:
+            logger.warning(
+                "Письмо #%s доставлено не всем: отказ у %s",
+                outbox_id, ", ".join(sorted(refused)),
+            )
+        try:
+            save_copy_to_sent(
+                smtp_cfg,
+                from_email or smtp_cfg.get("username"),
+                message,
+            )
+        except Exception:  # noqa: BLE001
+            # SMTP уже прошёл: не возвращаем письмо в очередь, иначе
+            # следующий цикл отправит клиенту дубль.
+            logger.exception(
+                "Письмо #%s отправлено, но копия не сохранена в Sent",
+                outbox_id,
+            )
+        if confirm_sent(client.mark_sent, key, outbox_id):
+            sent += 1
+            logger.info(
+                "Отправлено #%s → %s", outbox_id, item.get("to_email")
+            )
     return sent
 
 
@@ -635,15 +750,20 @@ def process_telegram_once(
                 item.get("document_name") or item.get("text"),
             )
             continue
+        key = f"tg:{outbox_id}"
+        if key in UNCONFIRMED:
+            confirm_sent(client.telegram_mark_sent, key, outbox_id)
+            continue
         try:
             send_to_telegram(config, item)
-            client.telegram_mark_sent(outbox_id)
-            sent += 1
-            logger.info(
-                "Отправлено Telegram #%s → %s",
-                outbox_id,
-                item.get("chat_id"),
-            )
+            UNCONFIRMED.add(key)
+            if confirm_sent(client.telegram_mark_sent, key, outbox_id):
+                sent += 1
+                logger.info(
+                    "Отправлено Telegram #%s → %s",
+                    outbox_id,
+                    item.get("chat_id"),
+                )
         except TelegramSendError as exc:
             logger.exception("Ошибка отправки Telegram #%s", outbox_id)
             try:
@@ -732,8 +852,12 @@ def main() -> int:
     logger.info("Версия релея: %s", RELAY_VERSION)
     client = ApiClient(config)
     client.login()
+    global UNCONFIRMED
+    UNCONFIRMED = UnconfirmedSends(config_path.parent / "relay_unconfirmed.json")
 
     if args.once or args.dry_run:
+        if not args.dry_run:
+            retry_unconfirmed(client)
         if config.email_enabled:
             process_once(client, config, dry_run=args.dry_run)
         process_telegram_once(client, config, dry_run=args.dry_run)
@@ -753,6 +877,7 @@ def main() -> int:
         if now >= next_mail_at:
             next_mail_at = now + config.poll_interval_seconds
             try:
+                retry_unconfirmed(client)
                 if config.email_enabled:
                     process_once(client, config)
                 process_telegram_once(client, config)

@@ -33,6 +33,8 @@ def safe_print_html(html: str) -> str:
     ):
         if forbidden in lowered:
             raise ValueError("Печатная форма содержит внешний ресурс")
+    if re.search(r"<meta\b[^>]*http-equiv\s*=\s*[\"']?\s*refresh", lowered):
+        raise ValueError("Печатная форма содержит внешний ресурс")
     if re.search(r'''\b(?:src|href)\s*=\s*["']?\s*(?:https?:|//|file:)''',
                  cleaned, re.IGNORECASE) or re.search(
                      r'''url\(\s*["']?\s*(?:https?:|//|file:)''',
