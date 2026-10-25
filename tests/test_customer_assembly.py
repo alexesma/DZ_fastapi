@@ -151,6 +151,28 @@ async def test_assembly_partial_realizations_and_box_limits(
     assert shipment.json()["assembly_managed"] is True
     assert shipment.json()["customer_order_id"] is None
     assert len(shipment.json()["items"]) == 2
+    for kind, marker in (
+        ("upd", "Универсальный передаточный документ"),
+        ("packing_list", "Упаковочный лист"),
+        ("transport_waybill", "ТРАНСПОРТНАЯ НАКЛАДНАЯ"),
+    ):
+        printed_doc = await async_client.get(
+            f"/inventory/shipments/{shipment_id}/print/{kind}"
+        )
+        assert printed_doc.status_code == 200, printed_doc.text
+        assert marker in printed_doc.text
+        assert created.json()["doc_number"] in printed_doc.text
+    upd_text = (await async_client.get(
+        f"/inventory/shipments/{shipment_id}/print/upd", params={"status": 2}
+    )).text
+    assert "23 января 2026 г. № 26" in upd_text and "(5б)" in upd_text
+    assert (await async_client.get(
+        f"/inventory/shipments/{shipment_id}/print/unknown"
+    )).status_code == 404
+    kinds = await async_client.get("/inventory/print-documents/kinds")
+    assert [row["kind"] for row in kinds.json()] == [
+        "upd", "packing_list", "transport_waybill",
+    ]
     statements = []
 
     def capture(conn, cursor, statement, *args):

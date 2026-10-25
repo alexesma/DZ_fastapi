@@ -18,7 +18,7 @@ from typing import List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import delete, func, insert, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -3583,6 +3583,52 @@ async def export_shipment_profit_report(
             "Content-Disposition": f'attachment; filename="{filename}"'
         },
     )
+
+
+@router.get(
+    "/print-documents/kinds",
+    summary="Печатные формы реализации: список и правовое основание",
+)
+async def list_shipment_print_document_kinds():
+    from dz_fastapi.services.shipment_print_documents import DOCUMENT_KINDS, LEGAL_NOTES
+
+    return [
+        {"kind": kind, "title": title, "legal_basis": LEGAL_NOTES[kind]}
+        for kind, title in DOCUMENT_KINDS.items()
+    ]
+
+
+@router.get(
+    "/shipments/{doc_id}/print/{kind}",
+    response_class=HTMLResponse,
+    summary="Печатная форма реализации: УПД, упаковочный лист, ТН",
+)
+async def print_shipment_document(
+    doc_id: int,
+    kind: str,
+    upd_status: int = Query(default=1, alias="status", ge=1, le=2),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.diadoc_outgoing import _load_shipment_document
+    from dz_fastapi.services.shipment_print_documents import (
+        DOCUMENT_KINDS,
+        render_packing_list,
+        render_transport_waybill,
+        render_upd,
+    )
+
+    if kind not in DOCUMENT_KINDS:
+        raise HTTPException(status_code=404, detail="Неизвестная печатная форма")
+    doc = await _load_shipment_document(session, shipment_id=doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Реализация не найдена")
+    if kind == "upd":
+        html = await render_upd(session, doc, status=upd_status)
+    elif kind == "packing_list":
+        html = await render_packing_list(session, doc)
+    else:
+        html = await render_transport_waybill(session, doc)
+    return HTMLResponse(content=html)
 
 
 @router.get(

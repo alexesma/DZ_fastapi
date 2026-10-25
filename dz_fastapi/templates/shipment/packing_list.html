@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Упаковочный лист № {{ doc_number }} от {{ doc_date }}</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; color: #000; margin: 0; }
+  h1 { font-size: 14pt; margin: 0 0 3mm; }
+  table { border-collapse: collapse; width: 100%; }
+  .grid td, .grid th { border: 1px solid #000; padding: 1.2mm 1.6mm; vertical-align: top; }
+  .grid th { background: #f0f0f0; font-weight: bold; text-align: center; }
+  .num { text-align: right; white-space: nowrap; }
+  .c { text-align: center; }
+  .meta td { padding: 0.6mm 0; vertical-align: top; border: 0; }
+  .meta td:first-child { width: 36mm; color: #333; }
+  .box-title { background: #e6e6e6; font-weight: bold; }
+  .small { font-size: 7.5pt; color: #333; }
+  .sign td { border: 0; padding: 4mm 0 0; vertical-align: bottom; }
+  .line { border-bottom: 1px solid #000; height: 6mm; }
+  .noprint { margin: 3mm 0; }
+  @media print { .noprint { display: none; } }
+  tr { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+<div class="noprint">
+  <button onclick="window.print()">Печать</button>
+  <span class="small">{{ legal_basis }}. Сформировано {{ generated_at }}.</span>
+</div>
+
+<h1>Упаковочный лист № {{ doc_number }} от {{ doc_date }}</h1>
+<table class="meta">
+  <tr><td>Отправитель</td><td>{{ seller.name }}{% if seller.inn %}, ИНН {{ seller.inn }}{% endif %}{% if seller.postal_address %}, {{ seller.postal_address }}{% endif %}</td></tr>
+  <tr><td>Получатель</td><td>{{ buyer.name }}{% if buyer.inn %}, ИНН {{ buyer.inn }}{% endif %}{% if buyer.postal_address %}, {{ buyer.postal_address }}{% endif %}</td></tr>
+  <tr><td>Основание</td><td>Реализация № {{ doc_number }} от {{ doc_date }}</td></tr>
+</table>
+
+<table class="grid" style="margin-top:4mm">
+  <thead><tr><th style="width:18mm">Место №</th><th style="width:34mm">Артикул</th><th>Наименование</th><th style="width:20mm">Кол-во, шт.</th><th style="width:24mm">Масса, кг</th></tr></thead>
+  <tbody>
+  {% for box in boxes %}
+    <tr class="box-title"><td colspan="3">Грузовое место {{ box.number }}</td><td class="num">{{ box.qty }}</td><td class="num">{{ box.weight }}</td></tr>
+    {% for line in box.lines %}
+    <tr><td></td><td>{{ line.code }}</td><td>{{ line.title }}</td><td class="num">{{ line.qty }}</td><td></td></tr>
+    {% endfor %}
+  {% endfor %}
+  {% if loose %}
+    <tr class="box-title"><td colspan="5">Без грузового места (россыпью / не упаковано в короба)</td></tr>
+    {% for line in loose %}
+    <tr><td></td><td>{{ line.code }}</td><td>{{ line.title }}</td><td class="num">{{ line.qty }}</td><td></td></tr>
+    {% endfor %}
+  {% endif %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="3"><b>Итого: грузовых мест — {{ total_places }}</b></td><td class="num"><b>{{ total_qty }}</b></td><td class="num"><b>{{ total_weight }}</b></td></tr>
+  </tfoot>
+</table>
+<div class="small" style="margin-top:2mm">Масса указана по данным карточек номенклатуры (нетто, без тары); если масса не заполнена — поле пустое.</div>
+
+<table class="sign" style="margin-top:6mm">
+  <tr>
+    <td style="width:22mm">Упаковал</td><td class="line"></td><td style="width:6mm"></td><td class="line"></td>
+    <td style="width:12mm"></td>
+    <td style="width:22mm">Проверил</td><td class="line"></td><td style="width:6mm"></td><td class="line"></td>
+  </tr>
+  <tr class="small"><td></td><td class="c small">(подпись)</td><td></td><td class="c small">(ф.и.о.)</td><td></td><td></td><td class="c small">(подпись)</td><td></td><td class="c small">(ф.и.о.)</td></tr>
+</table>
+</body>
+</html>

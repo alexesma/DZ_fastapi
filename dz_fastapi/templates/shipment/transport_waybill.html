@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Транспортная накладная № {{ doc_number }} от {{ doc_date }}</title>
+<style>
+  @page { size: A4 portrait; margin: 9mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #000; margin: 0; }
+  h1 { font-size: 12pt; text-align: center; margin: 0 0 1mm; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #000; padding: 1.1mm 1.5mm; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: bold; text-align: left; }
+  .c { text-align: center; }
+  .num { text-align: right; white-space: nowrap; }
+  .small { font-size: 6.8pt; color: #333; }
+  .head { border: 0; padding: 0.4mm 0; }
+  .warn { border: 1px solid #b00; background: #fff3f3; color: #800; padding: 1.5mm 2mm; margin: 0 0 2mm; font-size: 7.5pt; }
+  .blank { height: 14mm; }
+  .noprint { margin: 2mm 0; }
+  @media print { .noprint { display: none; } }
+  tr { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+<div class="noprint">
+  <button onclick="window.print()">Печать</button>
+  <span class="small">{{ legal_basis }}. Сформировано {{ generated_at }}.</span>
+</div>
+
+<div class="warn noprint">
+  С 01.09.2026 транспортная накладная при автомобильных перевозках оформляется в электронном виде (ЭТрН) через оператора ЭДО.
+  Бумажный бланк допустим только в случаях, прямо установленных Минтрансом России, и печатается здесь по форме Приложения № 4
+  к постановлению Правительства РФ № 2200 (новая редакция форм на дату формирования не утверждена). Перед использованием проверьте, что случай допускает бумажную накладную.
+</div>
+
+<h1>ТРАНСПОРТНАЯ НАКЛАДНАЯ</h1>
+<table>
+  <tr>
+    <td class="head" style="width:30%">Дата: {{ doc_date }}</td>
+    <td class="head c">№ {{ doc_number }}</td>
+    <td class="head" style="width:38%; text-align:right">Заказ (заявка) №: ______________</td>
+  </tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th style="width:50%">1. Грузоотправитель <span class="small">(полное наименование, адрес места нахождения, ИНН, номер телефона)</span></th>
+      <th>2. Грузополучатель <span class="small">(полное наименование, адрес места нахождения, ИНН, номер телефона)</span></th></tr>
+  <tr>
+    <td>{{ seller.name }}{% if seller.inn %}, ИНН {{ seller.inn }}{% endif %}{% if seller.address %}, {{ seller.address }}{% endif %}{% if seller.phone %}, тел. {{ seller.phone }}{% endif %}</td>
+    <td>{{ buyer.name }}{% if buyer.inn %}, ИНН {{ buyer.inn }}{% endif %}{% if buyer.address %}, {{ buyer.address }}{% endif %}{% if buyer.phone %}, тел. {{ buyer.phone }}{% endif %}</td>
+  </tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th colspan="2">3. Наименование груза <span class="small">(отгрузочное наименование, количество грузовых мест, вид упаковки, масса брутто, объём)</span></th></tr>
+  <tr>
+    <td colspan="2">Автомобильные запчасти (по реализации № {{ doc_number }} от {{ doc_date }}), позиций: {{ doc.items|length }}, штук: {{ total_qty }};
+      грузовых мест: {{ places or '______' }}{% if total_weight %}; масса (нетто по карточкам номенклатуры), кг: {{ total_weight }}{% endif %}.
+      Стоимость груза: {{ total_sum }} руб.</td>
+  </tr>
+  <tr><th style="width:50%">4. Сопроводительные документы на груз <span class="small">(перечень прилагаемых документов)</span></th>
+      <th>5. Указания грузоотправителя <span class="small">(параметры, режим перевозки, порядок выдачи)</span></th></tr>
+  <tr>
+    <td>УПД № {{ doc_number }} от {{ doc_date }}; упаковочный лист № {{ doc_number }} от {{ doc_date }}</td>
+    <td class="blank"></td>
+  </tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th style="width:50%">6. Перевозчик <span class="small">(наименование, адрес, ИНН, телефон)</span><br>Водитель <span class="small">(ф.и.о., номер водительского удостоверения, телефон)</span></th>
+      <th>7. Транспортное средство <span class="small">(марка, модель, государственный регистрационный номер; прицеп)</span></th></tr>
+  <tr><td class="blank"></td><td class="blank"></td></tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th style="width:50%">8. Приём груза <span class="small">(адрес места погрузки, дата и время подачи ТС и убытия, фактическое состояние груза, количество мест, масса брутто)</span></th>
+      <th>9. Условия перевозки <span class="small">(срок доставки, особые условия, сведения о перевозке опасных грузов)</span></th></tr>
+  <tr>
+    <td class="blank">Адрес погрузки: {{ seller.postal_address or seller.address }}{% if warehouse_name %} ({{ warehouse_name }}){% endif %}</td>
+    <td class="blank"></td>
+  </tr>
+  <tr>
+    <td>Груз сдал (грузоотправитель): ________ / {{ seller.signer_name }}<br><span class="small">(подпись, ф.и.о., должность, основание — доверенность / печать)</span></td>
+    <td>Груз принял (перевозчик / водитель): ________ / ________________<br><span class="small">(подпись, ф.и.о., основание — доверенность)</span></td>
+  </tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th style="width:50%">10. Выдача груза <span class="small">(адрес места выгрузки, дата и время прибытия и убытия, фактическое состояние груза)</span></th>
+      <th>11. Отметки грузоотправителя, грузополучателя, перевозчика <span class="small">(о погрузке, выгрузке, простое, претензиях)</span></th></tr>
+  <tr>
+    <td class="blank">Адрес выгрузки: {{ buyer.postal_address or buyer.address }}</td>
+    <td class="blank"></td>
+  </tr>
+  <tr>
+    <td>Груз получил (грузополучатель): ________ / ________________<br><span class="small">(подпись, ф.и.о., должность, основание — доверенность / печать)</span></td>
+    <td>Груз выдал (перевозчик / водитель): ________ / ________________<br><span class="small">(подпись, ф.и.о.)</span></td>
+  </tr>
+</table>
+
+<table style="margin-top:1.5mm">
+  <tr><th>12. Стоимость услуг перевозчика <span class="small">(порядок расчёта, сумма, НДС)</span></th></tr>
+  <tr><td class="blank"></td></tr>
+</table>
+</body>
+</html>
