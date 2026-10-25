@@ -410,6 +410,7 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
             counts["ordered"] += ordered
             counts["lines"] += 1
             counts["received"] += received
+            counts["rejected"] += max(int(item.reject_qty or 0), 0)
             counts["cross_labeled"] += cross_labeled
             counts["own_labeled"] += own_labeled
             counts["ready"] += available
