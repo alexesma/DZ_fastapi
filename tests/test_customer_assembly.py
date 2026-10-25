@@ -516,6 +516,7 @@ async def test_label_uses_custom_label_name_when_set(
     assert saved.json()["label_name"] == "Мотор"
     listed = (await async_client.get("/customer-orders/assembly")).json()[0]
     assert listed["customer_label_name"] == "Мотор"
+    assert listed["items"][0]["supplier_names"] == []  # позиция со своего склада
     assert listed["customer_name"] != "Мотор"
 
     cleared = await async_client.patch(

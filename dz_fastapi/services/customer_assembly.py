@@ -29,6 +29,7 @@ from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     STOCK_ORDER_STATUS,
     TYPE_PRICES,
+    Client,
     Customer,
     CustomerOrder,
     CustomerOrderItem,
@@ -344,6 +345,28 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
          session, order_ids, customer_id=customer_id,
          customer_group=customer_group,
          date_from=date_from, date_to=date_to, search=search, limit=limit)
+    # Названия поставщиков позиций: назначенный при обработке заказа и тот,
+    # от кого фактически пришло поступление (может отличаться).
+    receipt_row_ids = {
+        row.receipt_id for rows in receipts.values() for row in rows
+        if getattr(row, "receipt_id", None)
+    }
+    provider_by_receipt = {}
+    if receipt_row_ids:
+        provider_by_receipt = dict((await session.execute(
+            select(SupplierReceipt.id, SupplierReceipt.provider_id)
+            .where(SupplierReceipt.id.in_(receipt_row_ids))
+        )).all())
+    supplier_ids = {
+        int(item.supplier_id) for order in orders for item in order.items
+        if item.supplier_id
+    } | {int(value) for value in provider_by_receipt.values() if value}
+    supplier_names = {}
+    if supplier_ids:
+        supplier_names = dict((await session.execute(
+            select(Client.id, Client.name).where(Client.id.in_(supplier_ids))
+        )).all())
+
     result = []
     for order in orders:
         items = []
@@ -453,6 +476,14 @@ async def list_assembly(session: AsyncSession, *, customer_id: int | None = None
                 "actual_brand": item.actual_brand,
                 "actual_oem": item.actual_oem,
                 "source_switch": source_switch,
+                "supplier_names": list(dict.fromkeys(
+                    name for name in (
+                        [supplier_names.get(int(item.supplier_id))
+                         if item.supplier_id else None]
+                        + [supplier_names.get(provider_by_receipt.get(row.receipt_id))
+                           for row in receipts.get(item.id, [])]
+                    ) if name
+                )),
                 "price": price, "ordered": ordered, "own_ordered": own_ordered,
                 "received": received, "cross_labeled": cross_labeled,
                 "own_labeled": own_labeled, "committed": committed[item.id],
