@@ -5,7 +5,7 @@ from copy import deepcopy
 from datetime import date
 from math import ceil
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -1232,6 +1232,9 @@ async def get_customers_summary(
     page_size: int = Query(20, ge=1, le=200, description="Количество элементов на странице"),
     search: Optional[str] = Query(None, description="Поиск по имени клиента"),
     type_prices: Optional[TYPE_PRICES] = Query(None, description="Фильтр по типу цен"),
+    customer_group: Optional[Literal["wholesale", "retail"]] = Query(
+        None, description="Группа клиентов: retail включает Retail и Cash"
+    ),
     has_price_lists: Optional[bool] = Query(None, description="Фильтр: есть прайс-листы"),
     has_pricelist_configs: Optional[bool] = Query(
         None, description="Фильтр: есть конфигурации прайс-листов"
@@ -1300,7 +1303,13 @@ async def get_customers_summary(
 
     if search:
         stmt = stmt.where(Customer.name.ilike(f"%{search}%"))
-    if type_prices:
+    if customer_group == "wholesale":
+        stmt = stmt.where(Customer.type_prices == TYPE_PRICES.WHOLESALE)
+    elif customer_group == "retail":
+        stmt = stmt.where(
+            Customer.type_prices.in_((TYPE_PRICES.RETAIL, TYPE_PRICES.CASH))
+        )
+    elif type_prices:
         stmt = stmt.where(Customer.type_prices == type_prices)
     if has_price_lists is not None:
         if has_price_lists:

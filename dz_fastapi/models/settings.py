@@ -44,6 +44,19 @@ class SchedulerSetting(Base):
     )
 
 
+class PrintFormTemplate(Base):
+    """Shared layout for one printable label format."""
+
+    key = Column(String(64), unique=True, nullable=False, index=True)
+    width_mm = Column(Float, nullable=False)
+    height_mm = Column(Float, nullable=False)
+    blocks = Column(JSON, nullable=False, default=list)
+    updated_at = Column(
+        DateTime(timezone=True), default=now_moscow,
+        onupdate=now_moscow, nullable=False,
+    )
+
+
 class CustomerOrderInboxSettings(Base):
     lookback_days = Column(Integer, default=1)
     mark_seen = Column(Boolean, default=False)

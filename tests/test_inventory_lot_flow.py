@@ -30,6 +30,7 @@ from dz_fastapi.services.inventory_stock import (
     receive_stock,
     reconcile_stock_absolute,
     transfer_stock_with_lot_trace,
+    unpost_stock_document,
 )
 
 
@@ -150,6 +151,86 @@ async def test_manual_receipt_document_creates_manual_lot(
     assert manual_lots[0].gtd_number == "GTD-MANUAL"
     assert manual_lots[0].remaining_quantity == 4
     assert manual_lots[0].cost_price == Decimal("55.4321")
+
+
+@pytest.mark.asyncio
+async def test_manual_receipt_can_be_edited_and_reposted_after_unpost(
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+    created_storage: StorageLocation,
+):
+    doc = StockDocument(
+        doc_type=StockDocumentType.MANUAL_RECEIPT,
+        status=StockDocumentStatus.DRAFT,
+    )
+    test_session.add(doc)
+    await test_session.flush()
+    item = StockDocumentItem(
+        document_id=doc.id,
+        autopart_id=created_autopart.id,
+        storage_location_id=created_storage.id,
+        quantity=4,
+    )
+    test_session.add(item)
+    await test_session.flush()
+
+    await post_stock_document(test_session, document_id=doc.id)
+    assert await _sbl_qty(
+        test_session,
+        autopart_id=created_autopart.id,
+        storage_location_id=created_storage.id,
+    ) == 4
+
+    await unpost_stock_document(test_session, document_id=doc.id)
+    assert doc.status == StockDocumentStatus.CANCELLED
+    assert doc.posted_at is None
+    assert item.lot_id is None
+    assert await _sbl_qty(
+        test_session,
+        autopart_id=created_autopart.id,
+        storage_location_id=created_storage.id,
+    ) == 0
+
+    item.quantity = 2
+    await post_stock_document(test_session, document_id=doc.id)
+    assert doc.status == StockDocumentStatus.POSTED
+    assert await _sbl_qty(
+        test_session,
+        autopart_id=created_autopart.id,
+        storage_location_id=created_storage.id,
+    ) == 2
+
+
+@pytest.mark.asyncio
+async def test_manual_receipt_cannot_unpost_a_consumed_lot(
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+    created_storage: StorageLocation,
+):
+    doc = StockDocument(
+        doc_type=StockDocumentType.MANUAL_RECEIPT,
+        status=StockDocumentStatus.DRAFT,
+    )
+    test_session.add(doc)
+    await test_session.flush()
+    item = StockDocumentItem(
+        document_id=doc.id,
+        autopart_id=created_autopart.id,
+        storage_location_id=created_storage.id,
+        quantity=4,
+    )
+    test_session.add(item)
+    await test_session.flush()
+    await post_stock_document(test_session, document_id=doc.id)
+    lot = (await test_session.execute(select(StockLot).where(
+        StockLot.source_document_item_id == item.id,
+    ))).scalar_one()
+    lot.remaining_quantity = 3
+    await test_session.flush()
+
+    with pytest.raises(ValueError, match="уже использован"):
+        await unpost_stock_document(test_session, document_id=doc.id)
+    assert doc.status == StockDocumentStatus.POSTED
 
 
 @pytest.mark.asyncio

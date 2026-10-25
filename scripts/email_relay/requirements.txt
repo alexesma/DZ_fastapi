@@ -1,1 +1,4 @@
 requests>=2.31,<3
+Pillow>=10,<12; platform_system == "Windows"
+pypdfium2>=4.30,<6; platform_system == "Windows"
+pywin32>=306; platform_system == "Windows"

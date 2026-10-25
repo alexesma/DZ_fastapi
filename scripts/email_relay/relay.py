@@ -40,6 +40,7 @@ from email.utils import formatdate, getaddresses, make_msgid
 from pathlib import Path
 
 import requests
+from printing import installed_printers, print_html_job
 
 logger = logging.getLogger("email_relay")
 RELAY_VERSION = "multi-recipient-v2"
@@ -107,6 +108,7 @@ class RelayConfig:
         }
         # запасной аккаунт, если from не совпал ни с одним ключом
         self.default_smtp = data.get("default_smtp")
+        self.email_enabled = bool(data.get("email_enabled", True))
         telegram = data.get("telegram") or {}
         self.telegram_enabled = bool(
             telegram.get("enabled", bool(telegram.get("bot_token")))
@@ -127,6 +129,18 @@ class RelayConfig:
             raise ValueError(
                 "telegram.enabled=true, но telegram.bot_token не задан"
             )
+        printing = data.get("printing") or {}
+        self.print_enabled = bool(printing.get("enabled", False))
+        self.print_machine_id = str(
+            printing.get("machine_id") or socket.gethostname()
+        ).strip()[:128]
+        self.print_poll_interval = max(2, int(printing.get("poll_interval_seconds", 3)))
+        self.print_register_interval = max(
+            30, int(printing.get("register_interval_seconds", 60))
+        )
+        self.print_edge_path = printing.get("edge_path") or None
+        if self.print_enabled and not self.print_machine_id:
+            raise ValueError("printing.machine_id не может быть пустым")
 
     def smtp_for(self, from_email: str | None):
         key = str(from_email or "").strip().lower()
@@ -279,6 +293,33 @@ class ApiClient:
         self._post_with_retry(
             f"/telegram-outbox/{outbox_id}/mark-error",
             json={"error": error[:2000], "retry": retry},
+        )
+
+    def register_printers(self, machine_id: str, printers: list[str]) -> None:
+        self._post_with_retry(
+            "/print-jobs/relay/register",
+            json={"machine_id": machine_id, "printers": printers},
+        )
+
+    def claim_print_jobs(self, machine_id: str) -> list[dict]:
+        response = self._post_with_retry(
+            "/print-jobs/relay/claim",
+            params={"machine_id": machine_id, "limit": 10},
+        )
+        return response.json()
+
+    def mark_printed(self, job_id: int, machine_id: str) -> None:
+        self._post_with_retry(
+            f"/print-jobs/relay/{job_id}/printed",
+            params={"machine_id": machine_id},
+        )
+
+    def mark_print_error(self, job_id: int, machine_id: str,
+                         error: str) -> None:
+        self._post_with_retry(
+            f"/print-jobs/relay/{job_id}/error",
+            params={"machine_id": machine_id},
+            json={"error": error[:2000]},
         )
 
 
@@ -619,6 +660,37 @@ def process_telegram_once(
     return sent
 
 
+def process_print_once(client: ApiClient, config: RelayConfig,
+                       register: bool = False) -> int:
+    """Spool assigned jobs once; never automatically reprint an uncertain job."""
+    if not config.print_enabled:
+        return 0
+    printers = installed_printers()
+    if register:
+        client.register_printers(config.print_machine_id, printers)
+        logger.info("Обнаружено принтеров Windows: %d", len(printers))
+    jobs = client.claim_print_jobs(config.print_machine_id)
+    for job in jobs:
+        try:
+            if job["printer_name"] not in printers:
+                raise RuntimeError("Принтер сейчас не установлен в Windows")
+            print_html_job(job, config.print_edge_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Ошибка печати задания #%s", job["id"])
+            try:
+                client.mark_print_error(
+                    job["id"], config.print_machine_id, str(exc)
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("Не удалось сообщить об ошибке печати")
+            continue
+        # Если ответ сервера потеряется, задание останется закреплённым.
+        # Автоматический повтор здесь дал бы физический дубль этикетки.
+        client.mark_printed(job["id"], config.print_machine_id)
+        logger.info("Задание #%s передано в очередь Windows", job["id"])
+    return len(jobs)
+
+
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(
@@ -631,10 +703,23 @@ def main() -> int:
     )
     parser.add_argument("--once", action="store_true", help="один проход")
     parser.add_argument(
+        "--check-printers", action="store_true",
+        help="показать принтеры Windows без подключения к серверу",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="показать письма, но не отправлять и не отмечать",
     )
     args = parser.parse_args()
+
+    if args.check_printers:
+        if os.name == "nt":
+            import pypdfium2  # noqa: F401
+            import win32ui  # noqa: F401
+            from PIL import ImageWin  # noqa: F401
+        for name in installed_printers():
+            print(name)
+        return 0
 
     config_path = Path(args.config).expanduser().resolve()
     configure_logging(config_path)
@@ -649,28 +734,42 @@ def main() -> int:
     client.login()
 
     if args.once or args.dry_run:
-        process_once(client, config, dry_run=args.dry_run)
+        if config.email_enabled:
+            process_once(client, config, dry_run=args.dry_run)
         process_telegram_once(client, config, dry_run=args.dry_run)
+        if not args.dry_run:
+            process_print_once(client, config, register=True)
         return 0
 
     logger.info(
         "Релей запущен. Опрос каждые %d c. Ctrl+C для остановки.",
         config.poll_interval_seconds,
     )
+    next_mail_at = 0.0
+    next_print_at = 0.0
+    next_register_at = 0.0
     while True:
-        try:
-            process_once(client, config)
-            process_telegram_once(client, config)
-        except requests.RequestException as exc:
-            logger.warning(
-                "Сервер временно недоступен после повторных попыток: %s. "
-                "Следующий опрос через %d с.",
-                exc,
-                config.poll_interval_seconds,
-            )
-        except Exception:  # noqa: BLE001
-            logger.exception("Непредвиденная ошибка в цикле релея")
-        time.sleep(config.poll_interval_seconds)
+        now = time.monotonic()
+        if now >= next_mail_at:
+            next_mail_at = now + config.poll_interval_seconds
+            try:
+                if config.email_enabled:
+                    process_once(client, config)
+                process_telegram_once(client, config)
+            except Exception:  # noqa: BLE001
+                logger.exception("Ошибка обработки почты или Telegram")
+        if config.print_enabled and now >= next_print_at:
+            next_print_at = now + config.print_poll_interval
+            try:
+                register = now >= next_register_at
+                process_print_once(client, config, register=register)
+                if register:
+                    next_register_at = (
+                        time.monotonic() + config.print_register_interval
+                    )
+            except Exception:  # noqa: BLE001
+                logger.exception("Ошибка обработки очереди печати")
+        time.sleep(1 if config.print_enabled else config.poll_interval_seconds)
 
 
 if __name__ == "__main__":

@@ -37,11 +37,14 @@ jobs:
           --clean
           --onefile
           --console
+          --collect-all pypdfium2
           --name DZEmailRelay
           scripts/email_relay/relay.py
 
       - name: Smoke test executable
-        run: .\dist\DZEmailRelay.exe --help
+        run: |
+          .\dist\DZEmailRelay.exe --help
+          .\dist\DZEmailRelay.exe --check-printers
 
       - name: Create portable ZIP
         shell: pwsh

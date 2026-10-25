@@ -2255,7 +2255,7 @@ async def get_stock_document(
 @router.patch(
     "/documents/{doc_id}",
     response_model=StockDocumentOut,
-    summary="Обновить реквизиты черновика",
+    summary="Обновить реквизиты черновика или распроведённого документа",
 )
 async def update_stock_document(
     doc_id: int,
@@ -2270,10 +2270,12 @@ async def update_stock_document(
     doc = (await db.execute(stmt)).scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="Документ не найден")
-    if doc.status != StockDocumentStatus.DRAFT:
+    if doc.status not in (
+        StockDocumentStatus.DRAFT, StockDocumentStatus.CANCELLED,
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Редактировать можно только черновик",
+            detail="Редактировать можно черновик или распроведённый документ",
         )
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(doc, field, value)
@@ -2285,7 +2287,7 @@ async def update_stock_document(
     "/documents/{doc_id}/items",
     response_model=StockDocumentItemOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Добавить строку в черновик",
+    summary="Добавить строку в черновик или распроведённый документ",
 )
 async def add_document_item(
     doc_id: int,
@@ -2295,9 +2297,11 @@ async def add_document_item(
     doc = await db.get(StockDocument, doc_id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Документ не найден")
-    if doc.status != StockDocumentStatus.DRAFT:
+    if doc.status not in (
+        StockDocumentStatus.DRAFT, StockDocumentStatus.CANCELLED,
+    ):
         raise HTTPException(
-            status_code=400, detail="Документ не в статусе черновика"
+            status_code=400, detail="Документ уже проведён"
         )
 
     item = StockDocumentItem(
@@ -2333,7 +2337,7 @@ async def add_document_item(
 @router.patch(
     "/documents/{doc_id}/items/{item_id}",
     response_model=StockDocumentItemOut,
-    summary="Обновить строку черновика",
+    summary="Обновить строку черновика или распроведённого документа",
 )
 async def update_document_item(
     doc_id: int,
@@ -2344,9 +2348,11 @@ async def update_document_item(
     doc = await db.get(StockDocument, doc_id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Документ не найден")
-    if doc.status != StockDocumentStatus.DRAFT:
+    if doc.status not in (
+        StockDocumentStatus.DRAFT, StockDocumentStatus.CANCELLED,
+    ):
         raise HTTPException(
-            status_code=400, detail="Документ не в статусе черновика"
+            status_code=400, detail="Документ уже проведён"
         )
 
     stmt = (
@@ -2375,7 +2381,7 @@ async def update_document_item(
 @router.delete(
     "/documents/{doc_id}/items/{item_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Удалить строку черновика",
+    summary="Удалить строку черновика или распроведённого документа",
 )
 async def delete_document_item(
     doc_id: int,
@@ -2385,9 +2391,11 @@ async def delete_document_item(
     doc = await db.get(StockDocument, doc_id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Документ не найден")
-    if doc.status != StockDocumentStatus.DRAFT:
+    if doc.status not in (
+        StockDocumentStatus.DRAFT, StockDocumentStatus.CANCELLED,
+    ):
         raise HTTPException(
-            status_code=400, detail="Документ не в статусе черновика"
+            status_code=400, detail="Документ уже проведён"
         )
 
     item = await db.get(StockDocumentItem, item_id)

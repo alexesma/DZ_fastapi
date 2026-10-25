@@ -2,11 +2,19 @@
   "api_base_url": "https://dragonzap.online/api",
   "relay_api_token": "СОВПАДАЕТ_С_EMAIL_RELAY_API_TOKEN_НА_СЕРВЕРЕ",
   "poll_interval_seconds": 30,
+  "email_enabled": true,
   "batch_limit": 25,
   "verify_tls": true,
   "request_timeout_seconds": 30,
   "worker_id": null,
   "claim_lease_seconds": 300,
+  "printing": {
+    "enabled": false,
+    "machine_id": null,
+    "poll_interval_seconds": 3,
+    "register_interval_seconds": 60,
+    "edge_path": null
+  },
   "telegram": {
     "enabled": true,
     "bot_token": "ТОКЕН_БОТА_ТОЛЬКО_НА_КОМПЬЮТЕРЕ_РЕЛЕЯ",

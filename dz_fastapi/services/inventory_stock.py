@@ -1702,7 +1702,7 @@ async def post_stock_document(
     *,
     document_id: int,
 ) -> dict:
-    """Post a DRAFT StockDocument — update stock and create lots/movements.
+    """Post a draft or unposted StockDocument, updating stock and lots.
 
     - MANUAL_RECEIPT:
     creates StockLot(MANUAL) + StockMovement(MANUAL) per line.
@@ -1718,8 +1718,10 @@ async def post_stock_document(
     doc = (await session.execute(stmt)).scalar_one_or_none()
     if doc is None:
         raise LookupError("Документ не найден")
-    if doc.status != StockDocumentStatus.DRAFT:
-        raise ValueError(f"Документ не в статусе DRAFT (текущий: {doc.status})")
+    if doc.status not in (
+        StockDocumentStatus.DRAFT, StockDocumentStatus.CANCELLED,
+    ):
+        raise ValueError(f"Документ нельзя провести (текущий: {doc.status})")
 
     processed = 0
     movements_created = 0
@@ -1831,20 +1833,59 @@ async def unpost_stock_document(
             "Создайте документ оприходования для корректировки."
         )
 
+    # A receipt that has already supplied another operation cannot be edited
+    # and posted again without rewriting that operation's lot provenance.
+    reversal_by_location = {}
+    for item in doc.items or []:
+        if int(item.quantity or 0) <= 0 or item.storage_location_id is None:
+            continue
+        if item.lot_id is None:
+            raise ValueError(
+                f"Строка #{item.id}: партия поступления не найдена; "
+                "распроведение невозможно"
+            )
+        lot = await session.get(StockLot, item.lot_id)
+        if lot is None or lot.remaining_quantity != lot.initial_quantity:
+            raise ValueError(
+                f"Строка #{item.id}: товар из этого поступления уже "
+                "использован. Исправьте его отдельным складским документом"
+            )
+        key = (item.autopart_id, item.storage_location_id)
+        reversal_by_location[key] = (
+            reversal_by_location.get(key, 0) + int(item.quantity)
+        )
+
+    for (autopart_id, location_id), reversal_qty in reversal_by_location.items():
+        stock = (await session.execute(
+            select(StockByLocation.quantity).where(
+                StockByLocation.autopart_id == autopart_id,
+                StockByLocation.storage_location_id == location_id,
+            )
+        )).scalar_one_or_none() or 0
+        reserved = (await session.execute(
+            select(func.coalesce(func.sum(StockReserve.quantity), 0)).where(
+                StockReserve.autopart_id == autopart_id,
+                StockReserve.storage_location_id == location_id,
+                StockReserve.status == ReserveStatus.ACTIVE,
+            )
+        )).scalar_one()
+        if int(stock) - reversal_qty < int(reserved):
+            raise ValueError(
+                "Распроведение затронет зарезервированный товар. "
+                "Сначала снимите резерв или создайте отдельную корректировку"
+            )
+
     processed = 0
     for item in doc.items or []:
         qty = int(item.quantity or 0)
         if qty <= 0 or item.storage_location_id is None:
             continue
 
-        # Reverse the lot
+        # Reverse the untouched lot
         if item.lot_id is not None:
             lot = await session.get(StockLot, item.lot_id)
             if lot is not None:
-                if lot.remaining_quantity == lot.initial_quantity:
-                    await session.delete(lot)
-                else:
-                    lot.remaining_quantity = 0
+                await session.delete(lot)
             item.lot_id = None
 
         await _apply_stock_delta(
@@ -1865,6 +1906,9 @@ async def unpost_stock_document(
     from dz_fastapi.services.one_c_outbox import EVENT_CANCELLED, enqueue_stock_document_event
 
     await enqueue_stock_document_event(session, doc.id, EVENT_CANCELLED)
+
+    doc.posted_at = None
+    await session.flush()
 
     return {
         "document_id": document_id,
