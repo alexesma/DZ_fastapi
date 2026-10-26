@@ -85,6 +85,9 @@ async def render_invoice_html(
         and invoice.status not in (InvoiceStatus.PAID, InvoiceStatus.CANCELLED)
     )
 
+    from dz_fastapi.services.company_profile import load_company_requisites
+
+    company = await load_company_requisites(session)
     template = _jinja_env.get_template("invoice_print.html")
     html = template.render(
         invoice=invoice,
@@ -93,12 +96,13 @@ async def render_invoice_html(
         shipment_number=shipment_number,
         is_overdue=is_overdue,
         status_label=STATUS_LABELS.get(invoice.status, invoice.status),
-        seller_name=SELLER_NAME,
-        seller_inn=SELLER_INN,
-        seller_kpp=SELLER_KPP,
-        seller_address=SELLER_ADDRESS,
-        seller_phone=SELLER_PHONE,
-        seller_email=SELLER_EMAIL,
+        seller_name=company["full_name"] or company["name"] or SELLER_NAME,
+        seller_inn=company["inn"] or SELLER_INN,
+        seller_kpp=company["kpp"] or SELLER_KPP,
+        seller_address=company["address"] or SELLER_ADDRESS,
+        seller_phone=company["phone"] or SELLER_PHONE,
+        seller_email=company["email"] or SELLER_EMAIL,
+        seller_bank=company,
         generated_at=now_moscow().strftime("%d.%m.%Y %H:%M"),
     )
     return html

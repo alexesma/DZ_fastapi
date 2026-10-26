@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PriceCheckScheduleBase(BaseModel):
@@ -170,3 +170,94 @@ class MonitorSummaryOut(BaseModel):
     db: MonitorDbOut
     system: MonitorSystemOut
     app: MonitorAppOut
+
+
+def _digits(value, lengths, label):
+    if value is None:
+        return None
+    value = str(value).strip().replace(" ", "")
+    if not value:
+        return None
+    if not value.isdigit() or len(value) not in lengths:
+        expected = " или ".join(str(item) for item in lengths)
+        raise ValueError(f"{label}: нужно {expected} цифр")
+    return value
+
+
+class CompanyProfileBase(BaseModel):
+    is_individual_entrepreneur: bool = False
+    short_name: Optional[str] = Field(default=None, max_length=255)
+    full_name: Optional[str] = Field(default=None, max_length=512)
+    inn: Optional[str] = None
+    kpp: Optional[str] = None
+    ogrn: Optional[str] = None
+    ogrn_assigned_at: Optional[date] = None
+    okpo: Optional[str] = None
+    legal_address: Optional[str] = None
+    postal_address: Optional[str] = None
+    shipping_address: Optional[str] = None
+    phone: Optional[str] = Field(default=None, max_length=64)
+    email: Optional[str] = Field(default=None, max_length=255)
+    website: Optional[str] = Field(default=None, max_length=255)
+    bank_name: Optional[str] = Field(default=None, max_length=255)
+    bank_bik: Optional[str] = None
+    bank_account: Optional[str] = None
+    bank_corr_account: Optional[str] = None
+    director_position: Optional[str] = Field(default=None, max_length=255)
+    director_name: Optional[str] = Field(default=None, max_length=255)
+    director_basis: Optional[str] = Field(default=None, max_length=255)
+    accountant_name: Optional[str] = Field(default=None, max_length=255)
+    vat_payer: bool = True
+
+    @field_validator(
+        "short_name", "full_name", "legal_address", "postal_address",
+        "shipping_address", "phone", "email", "website", "bank_name",
+        "director_position", "director_name", "director_basis",
+        "accountant_name", mode="before",
+    )
+    @classmethod
+    def _blank_to_none(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value or None
+
+    @field_validator("inn", mode="before")
+    @classmethod
+    def _inn(cls, value):
+        return _digits(value, (10, 12), "ИНН")
+
+    @field_validator("kpp", mode="before")
+    @classmethod
+    def _kpp(cls, value):
+        return _digits(value, (9,), "КПП")
+
+    @field_validator("ogrn", mode="before")
+    @classmethod
+    def _ogrn(cls, value):
+        return _digits(value, (13, 15), "ОГРН/ОГРНИП")
+
+    @field_validator("okpo", mode="before")
+    @classmethod
+    def _okpo(cls, value):
+        return _digits(value, (8, 10, 14), "ОКПО")
+
+    @field_validator("bank_bik", mode="before")
+    @classmethod
+    def _bik(cls, value):
+        return _digits(value, (9,), "БИК")
+
+    @field_validator("bank_account", "bank_corr_account", mode="before")
+    @classmethod
+    def _account(cls, value):
+        return _digits(value, (20,), "Счёт")
+
+
+class CompanyProfileUpdate(CompanyProfileBase):
+    pass
+
+
+class CompanyProfileOut(CompanyProfileBase):
+    # True — запись ещё не сохранялась, поля предзаполнены из настроек Диадока
+    prefilled: bool = False
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)

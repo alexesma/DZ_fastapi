@@ -226,6 +226,7 @@
       {% if seller_address %}{{ seller_address }}<br>{% endif %}
       {% if seller_phone %}{{ seller_phone }}<br>{% endif %}
       {% if seller_email %}{{ seller_email }}{% endif %}
+      {% if seller_bank and seller_bank.bank_account %}<br>Р/с {{ seller_bank.bank_account }}, {{ seller_bank.bank_name }}{% if seller_bank.bank_bik %}, БИК {{ seller_bank.bank_bik }}{% endif %}{% if seller_bank.bank_corr_account %}, к/с {{ seller_bank.bank_corr_account }}{% endif %}{% endif %}
     </p>
   </div>
   <div class="party-block">

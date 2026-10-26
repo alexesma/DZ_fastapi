@@ -23,7 +23,6 @@
 
 from __future__ import annotations
 
-import os
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -31,12 +30,10 @@ from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import ShipmentDocument
-from dz_fastapi.models.settings import DiadocIntegrationSettings
 
 LEGAL_NOTES = {
     "upd": (
@@ -105,31 +102,11 @@ def _party(name: str | None, inn: str | None, kpp: str | None,
     }
 
 
-async def load_seller(session: AsyncSession) -> dict[str, str]:
-    """Реквизиты продавца: настройки Диадока, запасной вариант — env."""
-    settings = (await session.execute(
-        select(DiadocIntegrationSettings).limit(1)
-    )).scalar_one_or_none()
-    seller = _party(
-        getattr(settings, "organization_name", None)
-        or os.getenv("SELLER_NAME", "ООО «ДрагонЗап»"),
-        getattr(settings, "organization_inn", None)
-        or os.getenv("SELLER_INN", ""),
-        getattr(settings, "organization_kpp", None)
-        or os.getenv("SELLER_KPP", ""),
-        getattr(settings, "seller_legal_address", None)
-        or os.getenv("SELLER_ADDRESS", ""),
-    )
-    seller["postal_address"] = (
-        getattr(settings, "seller_postal_address", None) or seller["address"]
-    )
-    seller["signer_name"] = (getattr(settings, "signer_full_name", None) or "")
-    seller["signer_position"] = (
-        getattr(settings, "signer_position", None) or "Руководитель"
-    )
-    seller["signer_basis"] = getattr(settings, "signer_basis", None) or ""
-    seller["phone"] = os.getenv("SELLER_PHONE", "")
-    return seller
+async def load_seller(session: AsyncSession) -> dict[str, Any]:
+    """Реквизиты продавца из «Настройки → Реквизиты организации»."""
+    from dz_fastapi.services.company_profile import load_company_requisites
+
+    return await load_company_requisites(session)
 
 
 def _buyer(customer: Any) -> dict[str, str]:

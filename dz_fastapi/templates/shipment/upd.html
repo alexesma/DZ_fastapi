@@ -147,12 +147,24 @@
         <tr>
           <td style="width:42mm">Главный бухгалтер или иное уполномоченное лицо</td>
           <td class="line" style="width:22mm"></td>
-          <td class="line"></td>
+          <td class="line c">{{ seller.accountant_name }}</td>
         </tr>
         <tr><td></td><td class="c small">(подпись)</td><td class="c small">(ф.и.о.)</td></tr>
       </table>
     </td>
   </tr>
+  {% if seller.is_ip %}
+  <tr>
+    <td colspan="2">
+      <table class="sign"><tr>
+        <td style="width:42mm">Индивидуальный предприниматель или иное уполномоченное лицо</td>
+        <td class="line" style="width:30mm"></td>
+        <td class="line c">{{ seller.signer_name }}</td>
+        <td style="width:90mm" class="small">ОГРНИП {{ seller.ogrn }}{% if seller.ogrn_assigned_at %} от {{ seller.ogrn_assigned_at.strftime('%d.%m.%Y') }}{% endif %}</td>
+      </tr></table>
+    </td>
+  </tr>
+  {% endif %}
 </table>
 
 <table class="grid page-break" style="margin-top:3mm">

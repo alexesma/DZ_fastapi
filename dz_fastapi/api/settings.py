@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.crud.settings import (
@@ -15,6 +16,8 @@ from dz_fastapi.crud.settings import (
 )
 from dz_fastapi.models.settings import SupplierHoliday
 from dz_fastapi.schemas.settings import (
+    CompanyProfileOut,
+    CompanyProfileUpdate,
     CustomerOrderInboxSettingsOut,
     CustomerOrderInboxSettingsUpdate,
     ExecutionTraceOut,
@@ -33,6 +36,35 @@ from dz_fastapi.services.holidays import _auto_holidays_for_years, get_manual_ho
 from dz_fastapi.services.monitoring import build_snapshot_payload, get_monitor_summary
 
 router = APIRouter()
+
+
+@router.get(
+    "/settings/company-profile",
+    tags=["settings"],
+    response_model=CompanyProfileOut,
+    summary="Юридические данные нашей организации",
+)
+async def get_company_profile(session: AsyncSession = Depends(get_session)):
+    from dz_fastapi.services.company_profile import get_profile_payload
+
+    return CompanyProfileOut(**await get_profile_payload(session))
+
+
+@router.put(
+    "/settings/company-profile",
+    tags=["settings"],
+    response_model=CompanyProfileOut,
+    summary="Сохранить юридические данные организации (только администратор)",
+    dependencies=[Depends(require_admin)],
+)
+async def update_company_profile(
+    payload: CompanyProfileUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.company_profile import get_profile_payload, save_profile
+
+    await save_profile(session, payload.model_dump())
+    return CompanyProfileOut(**await get_profile_payload(session))
 
 
 @router.get(

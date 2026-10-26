@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
 )
 from sqlalchemy.orm import relationship
 
@@ -228,3 +229,42 @@ class SupplierHoliday(Base):
     # False = non-working day (holiday); True = forced working day (override)
     is_working_day = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
+
+
+class CompanyProfile(Base):
+    """Юридические данные нашей организации (одна запись).
+
+    Подставляются в УПД, упаковочный лист, транспортную накладную, счёт и
+    другие печатные формы.
+    """
+
+    __tablename__ = "companyprofile"
+
+    is_individual_entrepreneur = Column(Boolean, nullable=False, default=False)
+    short_name = Column(String(255), nullable=True)
+    full_name = Column(String(512), nullable=True)
+    inn = Column(String(12), nullable=True)
+    kpp = Column(String(9), nullable=True)
+    ogrn = Column(String(15), nullable=True)
+    ogrn_assigned_at = Column(Date, nullable=True)
+    okpo = Column(String(14), nullable=True)
+    legal_address = Column(Text, nullable=True)
+    postal_address = Column(Text, nullable=True)
+    shipping_address = Column(Text, nullable=True)
+    phone = Column(String(64), nullable=True)
+    email = Column(String(255), nullable=True)
+    website = Column(String(255), nullable=True)
+    bank_name = Column(String(255), nullable=True)
+    bank_bik = Column(String(9), nullable=True)
+    bank_account = Column(String(20), nullable=True)
+    bank_corr_account = Column(String(20), nullable=True)
+    director_position = Column(String(255), nullable=True)
+    director_name = Column(String(255), nullable=True)
+    director_basis = Column(String(255), nullable=True)
+    accountant_name = Column(String(255), nullable=True)
+    vat_payer = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )

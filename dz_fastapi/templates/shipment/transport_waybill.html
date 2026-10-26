@@ -77,7 +77,7 @@
   <tr><th style="width:50%">8. Приём груза <span class="small">(адрес места погрузки, дата и время подачи ТС и убытия, фактическое состояние груза, количество мест, масса брутто)</span></th>
       <th>9. Условия перевозки <span class="small">(срок доставки, особые условия, сведения о перевозке опасных грузов)</span></th></tr>
   <tr>
-    <td class="blank">Адрес погрузки: {{ seller.postal_address or seller.address }}{% if warehouse_name %} ({{ warehouse_name }}){% endif %}</td>
+    <td class="blank">Адрес погрузки: {{ seller.shipping_address or seller.postal_address or seller.address }}{% if warehouse_name %} ({{ warehouse_name }}){% endif %}</td>
     <td class="blank"></td>
   </tr>
   <tr>

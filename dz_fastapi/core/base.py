@@ -149,6 +149,7 @@ from dz_fastapi.models.printing import PrintAssignment, PrintDevice, PrintJob  #
 from dz_fastapi.models.pricelist_job import CustomerPricelistJob  # noqa
 from dz_fastapi.models.process_architecture import ProcessArchitectureAnnotation  # noqa
 from dz_fastapi.models.relay import RelayHeartbeat  # noqa
+from dz_fastapi.models.settings import CompanyProfile  # noqa
 from dz_fastapi.models.settings import (
     CustomerOrderInboxSettings,
     DiadocIntegrationSettings,
