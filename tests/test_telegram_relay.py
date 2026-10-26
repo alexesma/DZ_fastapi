@@ -157,3 +157,62 @@ def test_local_relay_processes_telegram_queue(monkeypatch):
     assert delivered == [7]
     assert client.sent_ids == [7]
     assert client.errors == []
+
+
+@pytest.mark.asyncio
+async def test_telegram_network_failure_does_not_burn_attempts(
+    test_session: AsyncSession,
+):
+    row = await enqueue_telegram_message(
+        test_session, chat_id="-100123", text="Сеть", parse_mode=None,
+    )
+    for _ in range(8):
+        failed = await mark_telegram_outbox_error(
+            test_session,
+            outbox_id=row.id,
+            error="Нет связи с api.telegram.org (ConnectTimeout): "
+                  "Connection timed out",
+            retry=True,
+        )
+    assert failed.status == TELEGRAM_OUTBOX_STATUS.PENDING
+    assert failed.attempts == 0
+
+
+def test_telegram_outage_hides_token_and_pauses(monkeypatch):
+    import requests
+
+    from scripts.email_relay import relay
+
+    token = "123456:SECRET-TOKEN"
+    config = RelayConfig({
+        "api_base_url": "https://example.test/api",
+        "relay_api_token": "relay-token",
+        "telegram": {"enabled": True, "bot_token": token},
+    })
+
+    def boom(*args, **kwargs):
+        raise requests.ConnectTimeout(f"HTTPSConnectionPool: /bot{token}/sendMessage")
+
+    monkeypatch.setattr(relay.requests, "post", boom)
+    monkeypatch.setattr(relay, "_telegram_down_until", 0.0)
+
+    class FakeClient:
+        errors = []
+        claims = 0
+
+        def telegram_claim(self):
+            self.claims += 1
+            return [{"id": 1, "chat_id": "1", "text": "a"},
+                    {"id": 2, "chat_id": "1", "text": "b"}]
+
+        def telegram_mark_error(self, outbox_id, error, retry=True):
+            self.errors.append((outbox_id, error, retry))
+
+    client = FakeClient()
+    assert process_telegram_once(client, config) == 0
+    assert [row[0] for row in client.errors] == [1]  # второе не трогаем
+    assert token not in client.errors[0][1]
+    assert client.errors[0][2] is True
+    # пауза: следующий проход даже не забирает сообщения
+    assert process_telegram_once(client, config) == 0
+    assert client.claims == 1

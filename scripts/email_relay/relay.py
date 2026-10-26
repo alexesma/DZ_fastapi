@@ -650,9 +650,11 @@ def process_once(client: ApiClient, config: RelayConfig,
 
 
 class TelegramSendError(RuntimeError):
-    def __init__(self, message: str, *, retryable: bool = True):
+    def __init__(self, message: str, *, retryable: bool = True,
+                 network: bool = False):
         super().__init__(message)
         self.retryable = retryable
+        self.network = network
 
 
 def send_to_telegram(config: RelayConfig, item: dict) -> None:
@@ -705,7 +707,15 @@ def send_to_telegram(config: RelayConfig, item: dict) -> None:
                 proxies=proxies,
             )
     except (requests.ConnectionError, requests.Timeout) as exc:
-        raise TelegramSendError(str(exc), retryable=True) from exc
+        # В тексте исключения requests есть полный URL с токеном бота —
+        # в лог и на сервер его отдавать нельзя.
+        raise TelegramSendError(
+            "Нет связи с api.telegram.org "
+            f"({type(exc).__name__}): таймаут или блокировка сети. "
+            "Проверьте доступ в интернет или укажите telegram.proxy_url",
+            retryable=True,
+            network=True,
+        ) from None
     except (ValueError, TypeError) as exc:
         raise TelegramSendError(
             f"Повреждён Telegram-документ: {exc}",
@@ -728,12 +738,20 @@ def send_to_telegram(config: RelayConfig, item: dict) -> None:
     )
 
 
+TELEGRAM_COOLDOWN_SECONDS = 300
+_telegram_down_until = 0.0
+
+
 def process_telegram_once(
     client: ApiClient,
     config: RelayConfig,
     dry_run: bool = False,
 ) -> int:
+    global _telegram_down_until
     if not config.telegram_enabled:
+        return 0
+    if not dry_run and time.monotonic() < _telegram_down_until:
+        # Telegram недоступен: не берём сообщения и не задерживаем почту
         return 0
     items = (
         client.telegram_pending() if dry_run else client.telegram_claim()
@@ -777,7 +795,10 @@ def process_telegram_once(
                     item.get("chat_id"),
                 )
         except TelegramSendError as exc:
-            logger.exception("Ошибка отправки Telegram #%s", outbox_id)
+            if exc.network:
+                logger.error("Telegram #%s: %s", outbox_id, exc)
+            else:
+                logger.exception("Ошибка отправки Telegram #%s", outbox_id)
             try:
                 client.telegram_mark_error(
                     outbox_id,
@@ -789,6 +810,16 @@ def process_telegram_once(
                     "Не удалось отметить ошибку Telegram #%s",
                     outbox_id,
                 )
+            if exc.network:
+                # Остальные захваченные сообщения вернутся в очередь сами по
+                # истечении аренды; ждём, не блокируя почту на таймаутах.
+                _telegram_down_until = (
+                    time.monotonic() + TELEGRAM_COOLDOWN_SECONDS
+                )
+                logger.warning(
+                    "Telegram недоступен: пауза %d с", TELEGRAM_COOLDOWN_SECONDS
+                )
+                break
     return sent
 
 

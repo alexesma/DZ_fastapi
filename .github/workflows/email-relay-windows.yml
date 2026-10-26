@@ -38,6 +38,8 @@ jobs:
           --onefile
           --console
           --collect-all pypdfium2
+          --hidden-import socks
+          --hidden-import urllib3.contrib.socks
           --name DZEmailRelay
           scripts/email_relay/relay.py
 

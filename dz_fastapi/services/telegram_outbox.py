@@ -264,12 +264,18 @@ async def mark_telegram_outbox_error(
         raise ValueError("Telegram-сообщение не найдено")
     if row.status == TELEGRAM_OUTBOX_STATUS.SENT:
         return row
-    row.attempts = int(row.attempts or 0) + 1
+    # Недоступность api.telegram.org — не вина сообщения: не тратим попытки,
+    # иначе за время недоступности сообщения выгорают в статус «ошибка».
+    from dz_fastapi.services.email_outbox import is_network_unreachable_error
+
+    network_failure = retry and is_network_unreachable_error(error)
+    if not network_failure:
+        row.attempts = int(row.attempts or 0) + 1
     row.last_error = str(error or "")[:2000]
     row.claimed_by = None
     row.claimed_at = None
     document_path = None
-    if retry and row.attempts < MAX_SEND_ATTEMPTS:
+    if retry and (network_failure or row.attempts < MAX_SEND_ATTEMPTS):
         row.status = TELEGRAM_OUTBOX_STATUS.PENDING
     else:
         row.status = TELEGRAM_OUTBOX_STATUS.ERROR
