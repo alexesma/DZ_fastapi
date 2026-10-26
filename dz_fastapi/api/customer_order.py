@@ -87,7 +87,7 @@ from dz_fastapi.services.cross_docking import (
     sync_posted_cross_docking_labels,
     update_cross_docking_document_status,
 )
-from dz_fastapi.services.customer_assembly import list_assembly
+from dz_fastapi.services.customer_assembly import accept_receipts_for_printed_labels, list_assembly
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
@@ -2357,6 +2357,16 @@ async def print_cross_docking_labels_endpoint(
         await session.commit()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        # печать клиентской этикетки поставщика = приёмка этого количества
+        await accept_receipts_for_printed_labels(
+            session, labels=labels, user_id=current_user.id
+        )
+    except Exception:  # noqa: BLE001
+        await session.rollback()
+        logger.exception(
+            "Не удалось автоматически принять поступление %s после печати", receipt_id
+        )
     return [
         CrossDockingLabelResponse.model_validate(serialize_cross_docking_label(label))
         for label in labels

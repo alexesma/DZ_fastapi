@@ -29,6 +29,7 @@ from dz_fastapi.services.customer_assembly import (
     list_assembly,
     list_assembly_page,
     print_own_labels,
+    report_own_stock_shortage,
     update_cross_picks_bulk,
 )
 from dz_fastapi.services.customer_order_stock_switch import (
@@ -46,6 +47,12 @@ router = APIRouter(
 
 class Selection(BaseModel):
     order_ids: list[int] = Field(min_length=1, max_length=100)
+
+
+class ShortageReport(BaseModel):
+    found_quantity: int = Field(ge=0)
+    storage_location_id: int | None = None
+    comment: str | None = Field(default=None, max_length=300)
 
 
 class BulkPickRow(BaseModel):
@@ -461,3 +468,60 @@ async def delete_box(document_id: int, box_id: int,
         raise HTTPException(status_code=404, detail="Коробка не найдена")
     await session.delete(box)
     await session.commit()
+
+
+@router.post("/own-stock/{stock_item_id}/shortage")
+async def report_own_stock_shortage_endpoint(
+    stock_item_id: int,
+    payload: ShortageReport,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Недостача при сборке: остальное — в отказ, инвентаризация по месту."""
+    try:
+        result = await report_own_stock_shortage(
+            session, stock_item_id=stock_item_id,
+            found_quantity=payload.found_quantity,
+            storage_location_id=payload.storage_location_id,
+            comment=payload.comment, user_id=user.id,
+        )
+        await session.commit()
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    # После фиксации: обновить ответ клиенту и уведомить администраторов
+    from dz_fastapi.models.notification import AppNotificationLevel
+    from dz_fastapi.services.customer_orders import (
+        refresh_order_response_file,
+        try_finalize_customer_order_response,
+    )
+    from dz_fastapi.services.notifications import notify_admin_all
+
+    try:
+        if await refresh_order_response_file(session, order_id=result["order_id"]):
+            await try_finalize_customer_order_response(
+                session, order_id=result["order_id"]
+            )
+    except Exception:  # noqa: BLE001
+        await session.rollback()
+    try:
+        sent_note = (
+            " Ответ клиенту уже отправлен — согласуйте отказ с клиентом."
+            if result["response_already_sent"] else ""
+        )
+        await notify_admin_all(
+            session,
+            title=f"Недостача на месте {result['location']}",
+            message=(
+                f"Заказ {result['order_number']}: {result['brand']} {result['oem']} — "
+                f"по системе {result['system_quantity']}, найдено {result['found']}, "
+                f"в отказ {result['rejected_quantity']} шт. Создана инвентаризация "
+                f"по месту (сеанс №{result['inventory_session_id']}).{sent_note}"
+            ),
+            level=AppNotificationLevel.WARNING,
+            link="/warehouse/inventory",
+        )
+    except Exception:  # noqa: BLE001
+        await session.rollback()
+    return result

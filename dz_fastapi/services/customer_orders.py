@@ -4014,6 +4014,53 @@ async def _is_customer_order_ready_for_response(
     return True
 
 
+async def refresh_order_response_file(
+    session: AsyncSession,
+    *,
+    order_id: int,
+) -> bool:
+    """Пересобрать файл ответа клиенту по текущим строкам заказа.
+
+    Нужен, когда после обработки меняется отгружаемое/отказанное
+    количество (например, недостача при сборке). Если ответ уже отправлен
+    клиенту, файл не трогаем. Возвращает True, если файл пересобран.
+    """
+    order = (await session.execute(
+        select(CustomerOrder)
+        .options(selectinload(CustomerOrder.items))
+        .where(CustomerOrder.id == order_id, CustomerOrder.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if (
+        order is None
+        or order.status == CUSTOMER_ORDER_STATUS.SENT
+        or not order.order_config_id
+        or not order.response_file_path
+    ):
+        return False
+    config = await crud_customer_order_config.get_by_id(
+        session=session, config_id=order.order_config_id
+    )
+    source_bytes = await _load_order_source_file(order)
+    if config is None or not source_bytes:
+        return False
+    filename = order.source_filename or "order.xlsx"
+    try:
+        _, _, _, file_buffer, file_ext = _parse_order_attachment(
+            source_bytes, filename, config
+        )
+        response_buffer = _build_order_response_buffer(
+            file_ext, file_buffer, config, order.items
+        )
+        await _write_order_response_file(order, filename, file_ext, response_buffer)
+        session.add(order)
+        await session.commit()
+    except Exception:  # noqa: BLE001
+        await session.rollback()
+        logger.exception("Не удалось пересобрать ответ клиенту: order_id=%s", order_id)
+        return False
+    return True
+
+
 async def try_finalize_customer_order_response(
     session: AsyncSession,
     *,

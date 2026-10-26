@@ -14,6 +14,10 @@ from dz_fastapi.models.autopart import StorageLocation
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
+    InventoryItem,
+    InventoryScopeType,
+    InventorySession,
+    InventoryStatus,
     ReserveStatus,
     ShipmentDocument,
     ShipmentDocumentItem,
@@ -27,6 +31,7 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
+    CUSTOMER_ORDER_STATUS,
     STOCK_ORDER_STATUS,
     TYPE_PRICES,
     Client,
@@ -905,3 +910,197 @@ async def validate_assembly_packing(session: AsyncSession,
         await validate_assembly_quantity(session, item, int(item.quantity))
         if boxed.get(item.id, 0) != int(item.quantity):
             raise ValueError("Количество в коробках не совпадает с черновиком")
+
+
+async def report_own_stock_shortage(
+    session: AsyncSession,
+    *,
+    stock_item_id: int,
+    found_quantity: int,
+    storage_location_id: int | None,
+    comment: str | None,
+    user_id: int,
+) -> dict:
+    """Недостача при сборке с нашего склада.
+
+    На месте нашли меньше, чем по системе: найденное остаётся в заказе,
+    недостающее уходит клиенту в отказ, а по месту создаётся (или
+    дополняется) сеанс инвентаризации.
+    """
+    row = (await session.execute(
+        select(StockOrderItem).where(StockOrderItem.id == stock_item_id)
+        .with_for_update()
+    )).scalar_one_or_none()
+    if (row is None or row.supplier_receipt_item_id is not None
+            or row.customer_order_item_id is None or row.autopart_id is None):
+        raise ValueError("Позиция склада не найдена")
+    customer_item = await session.get(CustomerOrderItem, row.customer_order_item_id)
+    if (customer_item is None
+            or customer_item.status != CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK):
+        raise ValueError("Позиция не относится к нашему складу")
+    order = await session.get(CustomerOrder, customer_item.order_id)
+    if order is None or order.deleted_at is not None:
+        raise ValueError("Заказ клиента неактивен")
+    await session.execute(
+        select(CustomerOrder.id).where(CustomerOrder.id == order.id).with_for_update()
+    )
+
+    labeled_row = int((await session.execute(
+        select(func.coalesce(func.sum(CustomerOrderPickLabel.quantity), 0)).where(
+            CustomerOrderPickLabel.stock_order_item_id == row.id,
+            CustomerOrderPickLabel.cancelled_at.is_(None),
+        )
+    )).scalar_one())
+    remaining = int(row.quantity or 0) - labeled_row
+    found = int(found_quantity)
+    if found < 0 or found > remaining:
+        raise ValueError(f"Найдено должно быть от 0 до {remaining}")
+    shortage = remaining - found
+    if shortage <= 0:
+        raise ValueError("Недостачи нет: найдено всё количество")
+
+    labeled_total = int((await session.execute(
+        select(func.coalesce(func.sum(CustomerOrderPickLabel.quantity), 0))
+        .join(StockOrderItem,
+              StockOrderItem.id == CustomerOrderPickLabel.stock_order_item_id)
+        .where(StockOrderItem.customer_order_item_id == customer_item.id,
+               CustomerOrderPickLabel.cancelled_at.is_(None))
+    )).scalar_one())
+    committed = int((await session.execute(
+        select(func.coalesce(func.sum(ShipmentDocumentItem.quantity), 0))
+        .join(ShipmentDocument)
+        .where(ShipmentDocumentItem.customer_order_item_id == customer_item.id,
+               ShipmentDocumentItem.assembly_pick_label_id.is_(None),
+               ShipmentDocument.status != ShipmentDocumentStatus.CANCELLED)
+    )).scalar_one())
+    if shortage > int(customer_item.ship_qty or 0) - labeled_total - committed:
+        raise ValueError(
+            "Часть этого количества уже в черновике реализации: "
+            "сначала уберите её из документа"
+        )
+
+    location = None
+    if storage_location_id is not None:
+        location = await session.get(StorageLocation, storage_location_id)
+    if location is None:
+        location = (await session.execute(
+            select(StorageLocation)
+            .join(StockByLocation,
+                  StockByLocation.storage_location_id == StorageLocation.id)
+            .where(StockByLocation.autopart_id == row.autopart_id,
+                   StockByLocation.quantity > 0)
+            .order_by(StorageLocation.name, StorageLocation.id).limit(1)
+        )).scalar_one_or_none()
+    if location is None:
+        raise ValueError("Не найдено место хранения для инвентаризации")
+
+    # отказ: найденное остаётся, недостающее — отдельной строкой «отказ»
+    row.quantity = int(row.quantity or 0) - shortage
+    row.picked_quantity = min(int(row.picked_quantity or 0), int(row.quantity))
+    customer_item.ship_qty = int(customer_item.ship_qty or 0) - shortage
+    customer_item.requested_qty = max(0, int(customer_item.requested_qty or 0) - shortage)
+    reason = f"Недостача при сборке: на месте {location.name} не нашли {shortage} шт."
+    if comment:
+        reason = f"{reason} {comment.strip()}"[:500]
+    session.add(CustomerOrderItem(
+        order_id=order.id, row_index=customer_item.row_index,
+        oem=customer_item.oem, brand=customer_item.brand, name=customer_item.name,
+        requested_qty=shortage, requested_price=customer_item.requested_price,
+        ship_qty=0, reject_qty=shortage,
+        status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        autopart_id=customer_item.autopart_id,
+        actual_oem=customer_item.actual_oem, actual_brand=customer_item.actual_brand,
+        actual_name=customer_item.actual_name, match_type=customer_item.match_type,
+        reject_reason_code="OWN_STOCK_SHORTAGE", reject_reason_text=reason,
+        source_payload={"shortage": {
+            "stock_order_item_id": row.id, "location_id": location.id,
+            "found": found, "shortage": shortage, "user_id": user_id,
+            "at": now_moscow().isoformat(),
+        }},
+    ))
+
+    system_qty = int((await session.execute(
+        select(func.coalesce(func.sum(StockByLocation.quantity), 0)).where(
+            StockByLocation.autopart_id == row.autopart_id,
+            StockByLocation.storage_location_id == location.id,
+        )
+    )).scalar_one())
+    inventory = (await session.execute(
+        select(InventorySession).where(
+            InventorySession.status == InventoryStatus.ACTIVE,
+            InventorySession.scope_type == InventoryScopeType.LOCATION,
+            InventorySession.scope_value == location.name,
+        ).order_by(InventorySession.id.desc()).limit(1)
+    )).scalars().first()
+    if inventory is None:
+        inventory = InventorySession(
+            name=f"Недостача при сборке · {location.name}",
+            scope_type=InventoryScopeType.LOCATION, scope_value=location.name,
+            notes="",
+        )
+        session.add(inventory)
+        await session.flush()
+        for sbl in (await session.execute(
+            select(StockByLocation).where(
+                StockByLocation.storage_location_id == location.id,
+                StockByLocation.quantity != 0,
+            )
+        )).scalars().all():
+            session.add(InventoryItem(
+                session_id=inventory.id, autopart_id=sbl.autopart_id,
+                storage_location_id=location.id, expected_qty=sbl.quantity,
+            ))
+    elif not (await session.execute(
+        select(InventoryItem.id).where(
+            InventoryItem.session_id == inventory.id,
+            InventoryItem.autopart_id == row.autopart_id,
+            InventoryItem.storage_location_id == location.id,
+        ).limit(1)
+    )).scalar_one_or_none():
+        session.add(InventoryItem(
+            session_id=inventory.id, autopart_id=row.autopart_id,
+            storage_location_id=location.id, expected_qty=system_qty,
+        ))
+    note = (f"Заказ {order.order_number or order.id}: {customer_item.brand} "
+            f"{customer_item.oem} — по системе {system_qty}, не хватило {shortage} шт.")
+    inventory.notes = f"{inventory.notes}\n{note}".strip() if inventory.notes else note
+    await session.flush()
+    return {
+        "order_id": order.id, "order_number": order.order_number or str(order.id),
+        "brand": customer_item.brand, "oem": customer_item.oem,
+        "location": location.name, "system_quantity": system_qty,
+        "found": found, "rejected_quantity": shortage,
+        "inventory_session_id": inventory.id,
+        "response_already_sent": order.status == CUSTOMER_ORDER_STATUS.SENT,
+    }
+
+
+async def accept_receipts_for_printed_labels(
+    session: AsyncSession,
+    *,
+    labels,
+    user_id: int,
+) -> int:
+    """Печать клиентской этикетки поставщика = приёмка этого количества.
+
+    Принятое количество только растёт: если приёмка уже отмечена вручную на
+    большее число, оно не уменьшается. Возвращает число обновлённых позиций.
+    """
+    targets: dict[int, int] = {}
+    for label in labels:
+        if int(label.print_count or 0) <= 0:
+            continue
+        rows = (await session.execute(
+            select(StockOrderItem).where(
+                StockOrderItem.supplier_receipt_item_id
+                == label.supplier_receipt_item_id
+            )
+        )).scalars().all()
+        for stock_row in rows:
+            target = min(int(stock_row.quantity or 0), int(label.quantity or 0))
+            if target > int(stock_row.picked_quantity or 0):
+                targets[stock_row.id] = max(targets.get(stock_row.id, 0), target)
+    if not targets:
+        return 0
+    await update_cross_picks_bulk(session, targets, user_id=user_id)
+    return len(targets)
