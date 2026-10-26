@@ -97,6 +97,12 @@ class RelayConfig:
     def __init__(self, data: dict):
         self.api_base_url = str(data["api_base_url"]).rstrip("/")
         self.relay_api_token = str(data["relay_api_token"]).strip()
+        if not self.relay_api_token.isascii():
+            raise ValueError(
+                "relay_api_token в config.json не заменён: там остался "
+                "текст-образец из config.example.json. Вставьте значение "
+                "EMAIL_RELAY_API_TOKEN с сервера (только латиница и цифры)."
+            )
         self.poll_interval_seconds = int(data.get("poll_interval_seconds", 30))
         self.batch_limit = int(data.get("batch_limit", 25))
         self.verify_tls = bool(data.get("verify_tls", True))
@@ -136,6 +142,12 @@ class RelayConfig:
         self.telegram_proxy_url = str(
             telegram.get("proxy_url") or ""
         ).strip() or None
+        if self.telegram_enabled and not self.telegram_bot_token.isascii():
+            raise ValueError(
+                "telegram.bot_token в config.json не заменён: там остался "
+                "текст-образец. Вставьте токен бота (латиница и цифры) или "
+                'поставьте "enabled": false.'
+            )
         if self.telegram_enabled and not self.telegram_bot_token:
             raise ValueError(
                 "telegram.enabled=true, но telegram.bot_token не задан"

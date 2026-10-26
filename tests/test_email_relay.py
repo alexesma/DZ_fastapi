@@ -163,3 +163,19 @@ def test_down_smtp_host_is_tried_once_per_pass(monkeypatch):
 
 def test_worker_id_is_stable():
     assert ":" not in _config().worker_id
+
+
+def test_placeholder_tokens_from_example_config_are_rejected():
+    import pytest
+
+    with pytest.raises(ValueError, match="relay_api_token"):
+        relay.RelayConfig({
+            "api_base_url": "https://x",
+            "relay_api_token": "СОВПАДАЕТ_С_EMAIL_RELAY_API_TOKEN",
+        })
+    with pytest.raises(ValueError, match="bot_token"):
+        relay.RelayConfig({
+            "api_base_url": "https://x",
+            "relay_api_token": "abc123",
+            "telegram": {"enabled": True, "bot_token": "ТОКЕН_БОТА"},
+        })
