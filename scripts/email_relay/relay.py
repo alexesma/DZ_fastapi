@@ -32,6 +32,7 @@ import os
 import smtplib
 import socket
 import sys
+import threading
 import time
 from email.header import Header
 from email.mime.application import MIMEApplication
@@ -41,13 +42,14 @@ from email.utils import formatdate, getaddresses, make_msgid
 from pathlib import Path
 
 import requests
+
 try:
     from .printing import installed_printers, print_html_job
 except ImportError:  # запуск как скрипт / PyInstaller
     from printing import installed_printers, print_html_job
 
 logger = logging.getLogger("email_relay")
-RELAY_VERSION = "2026.10-safe-delivery"
+RELAY_VERSION = "2026.10-independent-workers"
 
 
 def configure_stdio() -> None:
@@ -484,6 +486,7 @@ class UnconfirmedSends:
 
     def __init__(self, path: Path | None = None):
         self.path = path
+        self.lock = threading.Lock()
         self.items: set[str] = set()
         if path and path.is_file():
             try:
@@ -500,16 +503,23 @@ class UnconfirmedSends:
             logger.warning("Не удалось сохранить %s", self.path)
 
     def add(self, key: str) -> None:
-        self.items.add(key)
-        self._save()
-
-    def discard(self, key: str) -> None:
-        if key in self.items:
-            self.items.discard(key)
+        with self.lock:
+            self.items.add(key)
             self._save()
 
+    def discard(self, key: str) -> None:
+        with self.lock:
+            if key in self.items:
+                self.items.discard(key)
+                self._save()
+
     def __contains__(self, key: str) -> bool:
-        return key in self.items
+        with self.lock:
+            return key in self.items
+
+    def keys(self, prefix: str = "") -> list[str]:
+        with self.lock:
+            return sorted(key for key in self.items if key.startswith(prefix))
 
 
 UNCONFIRMED = UnconfirmedSends()
@@ -537,8 +547,8 @@ def confirm_sent(mark, key: str, outbox_id: int) -> bool:
     return True
 
 
-def retry_unconfirmed(client: "ApiClient") -> None:
-    for key in sorted(UNCONFIRMED.items):
+def retry_unconfirmed(client: "ApiClient", prefix: str = "") -> None:
+    for key in UNCONFIRMED.keys(prefix):
         kind, _, raw_id = key.partition(":")
         mark = (
             client.telegram_mark_sent if kind == "tg" else client.mark_sent
@@ -854,6 +864,68 @@ def process_print_once(client: ApiClient, config: RelayConfig,
     return len(jobs)
 
 
+def run_forever(
+    config: RelayConfig,
+    mail_client: ApiClient,
+    stop_event: threading.Event | None = None,
+) -> None:
+    """Keep mail, Telegram and printing responsive to independent outages."""
+    stop = stop_event or threading.Event()
+    workers: list[threading.Thread] = []
+
+    if config.telegram_enabled:
+        def telegram_worker() -> None:
+            client = ApiClient(config)  # requests.Session is not shared across threads
+            while not stop.is_set():
+                try:
+                    retry_unconfirmed(client, prefix="tg:")
+                    process_telegram_once(client, config)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Ошибка обработки Telegram")
+                stop.wait(config.poll_interval_seconds)
+
+        workers.append(threading.Thread(
+            target=telegram_worker, name="relay-telegram", daemon=True,
+        ))
+
+    if config.print_enabled:
+        def print_worker() -> None:
+            client = ApiClient(config)
+            next_register_at = 0.0
+            while not stop.is_set():
+                now = time.monotonic()
+                try:
+                    register = now >= next_register_at
+                    process_print_once(client, config, register=register)
+                    if register:
+                        next_register_at = (
+                            time.monotonic() + config.print_register_interval
+                        )
+                except Exception:  # noqa: BLE001
+                    logger.exception("Ошибка обработки очереди печати")
+                stop.wait(config.print_poll_interval)
+
+        workers.append(threading.Thread(
+            target=print_worker, name="relay-print", daemon=True,
+        ))
+
+    for worker in workers:
+        worker.start()
+    try:
+        while not stop.is_set():
+            try:
+                retry_unconfirmed(mail_client, prefix="mail:")
+                if config.email_enabled:
+                    process_once(mail_client, config)
+            except Exception:  # noqa: BLE001
+                logger.exception("Ошибка обработки почты")
+            stop.wait(config.poll_interval_seconds)
+    finally:
+        stop.set()
+        for worker in workers:
+            worker.join(timeout=1)
+
+
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(
@@ -912,32 +984,7 @@ def main() -> int:
         "Релей запущен. Опрос каждые %d c. Ctrl+C для остановки.",
         config.poll_interval_seconds,
     )
-    next_mail_at = 0.0
-    next_print_at = 0.0
-    next_register_at = 0.0
-    while True:
-        now = time.monotonic()
-        if now >= next_mail_at:
-            next_mail_at = now + config.poll_interval_seconds
-            try:
-                retry_unconfirmed(client)
-                if config.email_enabled:
-                    process_once(client, config)
-                process_telegram_once(client, config)
-            except Exception:  # noqa: BLE001
-                logger.exception("Ошибка обработки почты или Telegram")
-        if config.print_enabled and now >= next_print_at:
-            next_print_at = now + config.print_poll_interval
-            try:
-                register = now >= next_register_at
-                process_print_once(client, config, register=register)
-                if register:
-                    next_register_at = (
-                        time.monotonic() + config.print_register_interval
-                    )
-            except Exception:  # noqa: BLE001
-                logger.exception("Ошибка обработки очереди печати")
-        time.sleep(1 if config.print_enabled else config.poll_interval_seconds)
+    run_forever(config, client)
 
 
 if __name__ == "__main__":

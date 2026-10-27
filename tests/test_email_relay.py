@@ -1,3 +1,5 @@
+import threading
+
 from scripts.email_relay import relay
 
 
@@ -179,3 +181,49 @@ def test_placeholder_tokens_from_example_config_are_rejected():
             "relay_api_token": "abc123",
             "telegram": {"enabled": True, "bot_token": "ТОКЕН_БОТА"},
         })
+
+
+def test_printing_continues_while_telegram_is_blocked(monkeypatch):
+    config = relay.RelayConfig({
+        "api_base_url": "https://x",
+        "relay_api_token": "t",
+        "printing": {"enabled": True},
+        "telegram": {"enabled": True, "bot_token": "test-token"},
+    })
+    stop = threading.Event()
+    telegram_entered = threading.Event()
+    release_telegram = threading.Event()
+    print_polled = threading.Event()
+    mail_polled = threading.Event()
+
+    def blocked_telegram(*_args, **_kwargs):
+        telegram_entered.set()
+        release_telegram.wait(2)
+
+    def poll_print(*_args, **_kwargs):
+        if telegram_entered.wait(1):
+            print_polled.set()
+
+    def poll_mail(*_args, **_kwargs):
+        if telegram_entered.wait(1):
+            mail_polled.set()
+
+    monkeypatch.setattr(relay, "ApiClient", lambda *_args: object())
+    monkeypatch.setattr(relay, "retry_unconfirmed", lambda *_args, **_kw: None)
+    monkeypatch.setattr(relay, "process_telegram_once", blocked_telegram)
+    monkeypatch.setattr(relay, "process_print_once", poll_print)
+    monkeypatch.setattr(relay, "process_once", poll_mail)
+
+    runner = threading.Thread(
+        target=relay.run_forever, args=(config, object(), stop), daemon=True,
+    )
+    runner.start()
+    try:
+        assert telegram_entered.wait(2)
+        assert print_polled.wait(2)
+        assert mail_polled.wait(2)
+    finally:
+        stop.set()
+        release_telegram.set()
+        runner.join(3)
+    assert not runner.is_alive()
