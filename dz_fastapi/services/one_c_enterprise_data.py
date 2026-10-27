@@ -46,6 +46,10 @@ EXCHANGE_PLAN = "СинхронизацияДанныхЧерезУниверс�
 OUR_NODE_CODE = "ДЗ"
 OUR_NODE_NAME = "DragonZap"
 PEER_NODE_CODE = "НФ"
+# 1С с включённой «Транслитерацией имени» использует латиницу только в
+# именах файлов. В XML коды узлов остаются кириллическими.
+OUR_NODE_FILE_CODE = "DZ"
+PEER_NODE_FILE_CODE = "NF"
 
 # Версия формата по умолчанию. Реально используем ту, которую 1С объявила
 # в рукопожатии, — эта только запасная.
@@ -117,6 +121,7 @@ class IncomingMessage:
     message_no: int
     received_no: int
     format_versions: list[str] = field(default_factory=list)
+    format_uri: Optional[str] = None
     peer_node_guid: Optional[str] = None
     peer_node_name: Optional[str] = None
     peer_node_prefix: Optional[str] = None
@@ -216,6 +221,7 @@ def parse_message(xml_bytes: bytes, *, file_name: str = "") -> IncomingMessage:
         message_no=int(conf("MessageNo") or 0),
         received_no=int(conf("ReceivedNo") or 0),
         format_versions=versions,
+        format_uri=_text(header.find(f"{{{MSG_NS}}}Format")),
         peer_node_guid=peer_guid,
         peer_node_name=peer_name,
         peer_node_prefix=peer_prefix,
@@ -308,16 +314,24 @@ def build_response_xml(
         )
 
     ET.register_namespace("msg", MSG_NS)
+    # Нельзя регистрировать DATA_NS как default namespace: ElementTree тогда
+    # превращает корневой <Message> в <Message xmlns=".../1.22">. УНФ такой
+    # корень не распознаёт и сообщает «обработано 0 объектов».
+    if body_objects:
+        ET.register_namespace("ed", DATA_NS)
     root = ET.Element("Message")
     header = ET.SubElement(root, f"{{{MSG_NS}}}Header")
-    ET.SubElement(header, f"{{{MSG_NS}}}Format").text = FORMAT_URI
+    ET.SubElement(header, f"{{{MSG_NS}}}Format").text = (
+        incoming.format_uri or f"{FORMAT_URI}/{version}"
+    )
     ET.SubElement(header, f"{{{MSG_NS}}}CreationDate").text = created.strftime("%Y-%m-%dT%H:%M:%S")
 
     confirmation = ET.SubElement(header, f"{{{MSG_NS}}}Confirmation")
     ET.SubElement(confirmation, f"{{{MSG_NS}}}ExchangePlan").text = EXCHANGE_PLAN
-    # Отвечаем тому, кто прислал
-    ET.SubElement(confirmation, f"{{{MSG_NS}}}To").text = incoming.from_code
-    ET.SubElement(confirmation, f"{{{MSG_NS}}}From").text = incoming.to_code
+    # После знакомства с узлом УНФ может адресовать входящий XML по его GUID.
+    # Коды корреспондентов в нашем исходящем заголовке остаются постоянными.
+    ET.SubElement(confirmation, f"{{{MSG_NS}}}To").text = PEER_NODE_CODE
+    ET.SubElement(confirmation, f"{{{MSG_NS}}}From").text = OUR_NODE_CODE
     ET.SubElement(confirmation, f"{{{MSG_NS}}}MessageNo").text = str(int(state.get("sent_no", 0)))
     # Подтверждаем номер принятого сообщения
     ET.SubElement(confirmation, f"{{{MSG_NS}}}ReceivedNo").text = str(incoming.message_no)
@@ -336,11 +350,12 @@ def build_response_xml(
         if name in receiving:
             recv_el.text = "*"
 
+    ET.SubElement(header, f"{{{MSG_NS}}}Prefix").text = OUR_NODE_CODE
     contour = ET.SubElement(header, f"{{{MSG_NS}}}SynchronizationContour")
     node = ET.SubElement(contour, f"{{{MSG_NS}}}Node")
     ET.SubElement(node, f"{{{MSG_NS}}}Name").text = _b64_name(OUR_NODE_NAME)
     ET.SubElement(node, f"{{{MSG_NS}}}Code").text = str(state.get("node_guid"))
-    ET.SubElement(node, f"{{{MSG_NS}}}Prefix").text = incoming.to_code
+    ET.SubElement(node, f"{{{MSG_NS}}}Prefix").text = OUR_NODE_CODE
     ET.SubElement(node, f"{{{MSG_NS}}}LastUpdate").text = created.strftime("%Y-%m-%dT%H:%M:%S")
     corr_nodes = ET.SubElement(node, f"{{{MSG_NS}}}CorrNodes")
     corr = ET.SubElement(corr_nodes, f"{{{MSG_NS}}}CorrNode")
@@ -351,7 +366,6 @@ def build_response_xml(
     ET.SubElement(corr, f"{{{MSG_NS}}}Looping").text = "false"
 
     if body_objects:
-        ET.register_namespace("", DATA_NS)
         body = ET.SubElement(root, f"{{{DATA_NS}}}Body")
         for obj in body_objects:
             if obj.tag != f"{{{DATA_NS}}}{obj.tag.rsplit('}', 1)[-1]}":
@@ -372,12 +386,21 @@ def find_incoming_files(directory: str) -> list[str]:
     """Файлы сообщений, адресованных нам (Message_<кто-то>_<наш код>)."""
     if not os.path.isdir(directory):
         return []
+    state = load_state(directory)
+    senders = {PEER_NODE_CODE.upper(), PEER_NODE_FILE_CODE}
+    receivers = {OUR_NODE_CODE.upper(), OUR_NODE_FILE_CODE}
+    if _GUID_RE.match(str(state.get("peer_node_guid") or "")):
+        senders.add(state["peer_node_guid"].upper())
+    if _GUID_RE.match(str(state.get("node_guid") or "")):
+        receivers.add(state["node_guid"].upper())
     found = []
     for name in sorted(os.listdir(directory)):
         match = _MESSAGE_RE.match(name)
         if not match:
             continue
-        if match.group("to").upper() != OUR_NODE_CODE.upper():
+        if match.group("from").upper() not in senders:
+            continue
+        if match.group("to").upper() not in receivers:
             continue
         found.append(name)
     return found
@@ -420,18 +443,27 @@ def read_incoming_archive(
     outgoing=True — наш собственный файл (Message_ДЗ_*), чтобы загрузить его
     в УНФ вручную через «Загрузка данных EnterpriseData».
     """
+    directory = directory or get_exchange_dir()
+    state = load_state(directory)
     match = _MESSAGE_RE.fullmatch(name)
-    sender, receiver = (
-        (OUR_NODE_CODE, PEER_NODE_CODE) if outgoing else (PEER_NODE_CODE, OUR_NODE_CODE)
+    senders, receivers = (
+        ({OUR_NODE_CODE, OUR_NODE_FILE_CODE}, {PEER_NODE_CODE, PEER_NODE_FILE_CODE})
+        if outgoing else
+        ({PEER_NODE_CODE, PEER_NODE_FILE_CODE}, {OUR_NODE_CODE, OUR_NODE_FILE_CODE})
     )
-    if not match or match.group("from").upper() != sender.upper():
+    guid = state.get("node_guid") if outgoing else state.get("peer_node_guid")
+    if _GUID_RE.match(str(guid or "")):
+        senders.add(guid.upper())
+    guid = state.get("peer_node_guid") if outgoing else state.get("node_guid")
+    if _GUID_RE.match(str(guid or "")):
+        receivers.add(guid.upper())
+    if not match or match.group("from").upper() not in senders:
         raise ValueError("Недопустимое имя сообщения")
     to_part = match.group("to")
-    if to_part.upper() != receiver.upper() and not (
+    if to_part.upper() not in receivers and not (
         outgoing and _GUID_RE.match(to_part)
     ):
         raise ValueError("Недопустимое имя сообщения")
-    directory = directory or get_exchange_dir()
     path = os.path.join(directory, name)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
@@ -474,6 +506,7 @@ def write_outgoing_message(
     to_code: str,
     compress: bool = True,
     receiver_guid: Optional[str] = None,
+    sender_guid: Optional[str] = None,
 ) -> str:
     """Кладёт наш ответ рядом — 1С заберёт его по FTP.
 
@@ -496,6 +529,25 @@ def write_outgoing_message(
     path = _write_zip(directory, base, xml_bytes)
     if receiver_guid and _GUID_RE.match(receiver_guid):
         _write_zip(directory, f"Message_{from_code}_{receiver_guid}", xml_bytes)
+    if from_code == OUR_NODE_CODE and to_code == PEER_NODE_CODE:
+        # FTP БСП в УНФ работает с латинскими именами после включения опции
+        # «Транслитерация имени». Для ZIP имя внутреннего XML тоже должно
+        # соответствовать имени архива.
+        _write_zip(
+            directory,
+            f"Message_{OUR_NODE_FILE_CODE}_{PEER_NODE_FILE_CODE}",
+            xml_bytes,
+        )
+        if receiver_guid and _GUID_RE.match(receiver_guid):
+            _write_zip(
+                directory,
+                f"Message_{OUR_NODE_FILE_CODE}_{receiver_guid}",
+                xml_bytes,
+            )
+        if sender_guid and _GUID_RE.match(sender_guid):
+            _write_zip(directory, f"Message_{sender_guid}_{PEER_NODE_FILE_CODE}", xml_bytes)
+            if receiver_guid and _GUID_RE.match(receiver_guid):
+                _write_zip(directory, f"Message_{sender_guid}_{receiver_guid}", xml_bytes)
     return path
 
 
@@ -545,6 +597,7 @@ def _regenerate_outgoing_message_unlocked(
         message_no=int(state.get("received_no", 0)),
         received_no=int(state.get("sent_no", 0)),
         format_versions=[DEFAULT_FORMAT_VERSION],
+        format_uri=state.get("peer_format_uri"),
         peer_node_guid=state.get("peer_node_guid"),
         peer_node_name=None,
         object_types=state.get("peer_object_types") or {},
@@ -556,6 +609,7 @@ def _regenerate_outgoing_message_unlocked(
         from_code=OUR_NODE_CODE,
         to_code=PEER_NODE_CODE,
         receiver_guid=state.get("peer_node_guid"),
+        sender_guid=state.get("node_guid"),
     )
     state["last_message_at"] = now_moscow().isoformat()
     save_state(directory, state)
@@ -626,6 +680,7 @@ def send_body_message(
             message_no=int(state.get("last_peer_message_no", 0)),
             received_no=confirmed_no,
             format_versions=[DEFAULT_FORMAT_VERSION],
+            format_uri=state.get("peer_format_uri"),
             peer_node_guid=state.get("peer_node_guid"),
             object_types=state["peer_object_types"],
         )
@@ -637,6 +692,7 @@ def send_body_message(
             from_code=OUR_NODE_CODE,
             to_code=PEER_NODE_CODE,
             receiver_guid=state.get("peer_node_guid"),
+            sender_guid=state.get("node_guid"),
         )
         state["sent_no"] = message_no
         state["pending_body"] = {
@@ -723,7 +779,9 @@ def _process_exchange_directory_unlocked(
                 "format_versions": message.format_versions,
             }
         )
-        if message.from_code != PEER_NODE_CODE or message.to_code != OUR_NODE_CODE:
+        valid_senders = {PEER_NODE_CODE, state.get("peer_node_guid")}
+        valid_receivers = {OUR_NODE_CODE, state.get("node_guid")}
+        if message.from_code not in valid_senders or message.to_code not in valid_receivers:
             result["processed"][-1]["error"] = (
                 "Коды отправителя или получателя не совпадают с узлом"
             )
@@ -742,6 +800,8 @@ def _process_exchange_directory_unlocked(
             state["peer_confirmed_our_no"] = message.received_no
         if message.peer_node_guid:
             state["peer_node_guid"] = message.peer_node_guid
+        if message.format_uri:
+            state["peer_format_uri"] = message.format_uri
         if message.object_types:
             state["peer_object_types"] = message.object_types
 
@@ -771,6 +831,7 @@ def _process_exchange_directory_unlocked(
                 from_code=OUR_NODE_CODE,
                 to_code=PEER_NODE_CODE,
                 receiver_guid=state.get("peer_node_guid"),
+                sender_guid=state.get("node_guid"),
             )
         result["note"] = "Повтор уже обработанного служебного сообщения"
         result["response_file"] = outgoing_file
@@ -801,9 +862,10 @@ def _process_exchange_directory_unlocked(
     response_path = write_outgoing_message(
         directory,
         xml_bytes,
-        from_code=latest.to_code or OUR_NODE_CODE,
-        to_code=latest.from_code or PEER_NODE_CODE,
+        from_code=OUR_NODE_CODE,
+        to_code=PEER_NODE_CODE,
         receiver_guid=state.get("peer_node_guid"),
+        sender_guid=state.get("node_guid"),
     )
     save_state(directory, state)
     result["response_file"] = os.path.basename(response_path)

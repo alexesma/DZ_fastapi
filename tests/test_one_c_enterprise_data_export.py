@@ -51,6 +51,10 @@ def test_document_references_and_stable_guid(kind: str, party_path: str):
     assert first.tag == f"{{{DATA_NS}}}{kind}"
     assert _value(first, party_path) == "Контрагент"
     assert _value(first, "КлючевыеСвойства/Дата") == "2026-10-26T00:00:00"
+    assert _value(first, "КлючевыеСвойства/Номер") == "DZ000000123"
+    assert _value(first, "ОбщиеСвойстваОбъектовФормата/Комментарий") == (
+        "Исходный номер DragonZap: ДЗ-123"
+    )
     assert _value(first, "КлючевыеСвойства/Ссылка") == _value(
         second, "КлючевыеСвойства/Ссылка"
     )
@@ -66,6 +70,7 @@ def test_directory_objects_are_stable():
     assert _value(customer, "КлючевыеСвойства/Ссылка")
     assert _value(product, "КлючевыеСвойства/Артикул") == "A-123"
     assert _value(product, "КлючевыеСвойства/Ссылка")
+    assert _value(product, "ЕдиницаИзмерения/ДанныеКлассификатора/Код") == "796"
 
 
 def test_counterparty_identity_is_shared_between_customer_and_provider_roles():

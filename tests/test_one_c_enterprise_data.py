@@ -15,6 +15,7 @@ from dz_fastapi.services.one_c_enterprise_data import (
     process_exchange_directory,
     read_incoming_archive,
     read_message_file,
+    save_state,
     write_outgoing_message,
 )
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS, serialize_object
@@ -211,7 +212,21 @@ def test_data_message_uses_the_body_namespace_seen_in_unf_archive():
     assert parsed.has_body
     assert parsed.body_types == ["Справочник.Контрагенты"]
     root = ET.fromstring(xml.decode("utf-8-sig"))
+    assert root.tag == "Message"
     assert root.find(f"{{{DATA_NS}}}Body/{{{DATA_NS}}}Справочник.Контрагенты") is not None
+
+
+def test_response_mirrors_real_unf_format_uri_and_declares_prefix():
+    real_header = HANDSHAKE.replace(
+        b"http://v8.1c.ru/edi/edi_stnd/EnterpriseData</msg:Format>",
+        b"http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.22</msg:Format>",
+    )
+    xml = build_response_xml(parse_message(real_header), {"node_guid": "g", "sent_no": 1})
+    root = ET.fromstring(xml.decode("utf-8-sig"))
+    assert root.tag == "Message"
+    header = root.find(f"{{{MSG_NS}}}Header")
+    assert header.find(f"{{{MSG_NS}}}Format").text.endswith("/1.22")
+    assert header.find(f"{{{MSG_NS}}}Prefix").text == "ДЗ"
 
 
 def test_data_message_refuses_type_not_received_by_unf():
@@ -271,6 +286,9 @@ def test_zip_round_trip(tmp_path):
     path = write_outgoing_message(str(tmp_path), b"<Message/>", from_code="ДЗ", to_code="НФ")
     assert path.endswith("Message_ДЗ_НФ.zip")
     assert read_message_file(path) == b"<Message/>"
+    assert read_message_file(str(tmp_path / "Message_DZ_NF.zip")) == b"<Message/>"
+    with zipfile.ZipFile(tmp_path / "Message_DZ_NF.zip") as archive:
+        assert archive.namelist() == ["Message_DZ_NF.xml"]
 
 
 def test_compressed_xml_is_bounded_before_parsing(tmp_path):
@@ -287,6 +305,47 @@ def test_find_incoming_ignores_our_own_outgoing(tmp_path):
 
     found = find_incoming_files(str(tmp_path))
     assert found == ["Message_НФ_ДЗ.zip"]
+
+
+def test_transliterated_unf_message_is_processed_and_answered(tmp_path):
+    _write_incoming(tmp_path, name="Message_NF_DZ.zip")
+    result = process_exchange_directory(str(tmp_path))
+
+    assert result["processed"][0]["file"] == "Message_NF_DZ.zip"
+    assert (tmp_path / "processed" / "Message_NF_DZ.zip").exists()
+    guid_path = tmp_path / "Message_DZ_91d5a7dd-2d96-4af5-b855-90ad613450b9.zip"
+    assert guid_path.exists()
+    assert read_incoming_archive(guid_path.name, str(tmp_path), outgoing=True)
+
+
+def test_guid_named_followup_is_detected_and_answered(tmp_path):
+    node_guid = "e3fc851e-50d7-4ef5-a0b0-b64a5fa61e1a"
+    peer_guid = "91d5a7dd-2d96-4af5-b855-90ad613450b9"
+    save_state(str(tmp_path), {
+        "node_guid": node_guid,
+        "peer_node_guid": peer_guid,
+        "sent_no": 1,
+        "received_no": 0,
+    })
+    name = f"Message_NF_{node_guid}.zip"
+    payload = (
+        HANDSHAKE.decode("utf-8")
+        .replace("<msg:To>ДЗ</msg:To>", f"<msg:To>{node_guid}</msg:To>")
+        .replace("<msg:MessageNo>0</msg:MessageNo>", "<msg:MessageNo>17</msg:MessageNo>")
+        .replace("<msg:ReceivedNo>0</msg:ReceivedNo>", "<msg:ReceivedNo>1</msg:ReceivedNo>")
+        .encode("utf-8")
+    )
+    _write_incoming(tmp_path, name=name, payload=payload)
+
+    assert find_incoming_files(str(tmp_path)) == [name]
+    assert read_incoming_archive(name, str(tmp_path))
+    process_exchange_directory(str(tmp_path))
+    outgoing = f"Message_{node_guid}_{peer_guid}.zip"
+    assert (tmp_path / outgoing).exists()
+    assert read_incoming_archive(outgoing, str(tmp_path), outgoing=True)
+    reply = parse_message(read_message_file(str(tmp_path / outgoing)))
+    assert (reply.from_code, reply.to_code) == ("ДЗ", "НФ")
+    assert reply.received_no == 17
 
 
 def test_admin_archive_reader_rejects_other_paths_and_large_files(tmp_path):
@@ -563,7 +622,9 @@ def test_handshake_does_not_overwrite_unread_data_message(tmp_path):
 def test_outgoing_message_is_also_placed_under_the_name_unf_searches_for(tmp_path):
     from dz_fastapi.services.one_c_enterprise_data import send_body_message
 
-    _state_with_handshake(tmp_path)
+    _state_with_handshake(
+        tmp_path, node_guid="e3fc851e-50d7-4ef5-a0b0-b64a5fa61e1a"
+    )
     send_body_message(_shipment_objects(), directory=str(tmp_path))
 
     guid = "91d5a7dd-2d96-4af5-b855-90ad613450b9"
@@ -573,6 +634,9 @@ def test_outgoing_message_is_also_placed_under_the_name_unf_searches_for(tmp_pat
     assert read_message_file(str(by_guid)) == read_message_file(
         str(tmp_path / "Message_ДЗ_НФ.zip")
     )
+    node_guid = load_state(str(tmp_path))["node_guid"]
+    assert (tmp_path / f"Message_{node_guid}_{guid}.zip").exists()
+    assert (tmp_path / f"Message_{node_guid}_NF.zip").exists()
 
 
 def test_receiver_guid_from_a_message_cannot_inject_a_path(tmp_path):
@@ -580,7 +644,9 @@ def test_receiver_guid_from_a_message_cannot_inject_a_path(tmp_path):
         str(tmp_path), b"<x/>", from_code="ДЗ", to_code="НФ",
         receiver_guid="../../evil",
     )
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["Message_ДЗ_НФ.zip"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "Message_DZ_NF.zip", "Message_ДЗ_НФ.zip"
+    ]
 
 
 def test_send_body_message_can_replace_unread_one_on_request(tmp_path):

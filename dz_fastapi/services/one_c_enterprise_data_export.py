@@ -158,6 +158,19 @@ def _warehouse(parent: ET.Element, warehouse: dict[str, Any] | None) -> None:
     _add(node, "Наименование", warehouse["name"])
 
 
+def _one_c_number(document_id: Any) -> str:
+    """UNF document number fields hold 11 characters, including the source prefix."""
+    number = str(document_id).strip()
+    if not number.isdigit() or len(number) > 9:
+        raise ValueError("ID документа DragonZap не помещается в номер УНФ")
+    return f"DZ{int(number):09d}"
+
+
+def _source_number(node: ET.Element, original_number: Any) -> None:
+    properties = _add(node, "ОбщиеСвойстваОбъектовФормата")
+    _add(properties, "Комментарий", f"Исходный номер DragonZap: {original_number}")
+
+
 def _document_key(
     parent: ET.Element,
     payload: dict[str, Any],
@@ -167,7 +180,8 @@ def _document_key(
     key = _add(parent, "КлючевыеСвойства")
     _optional(key, "Ссылка", _guid(kind, payload["document_id"]))
     _add(key, "Дата", _datetime(payload.get("document_date") or payload.get("created_at")))
-    _add(key, "Номер", _required(payload.get("document_number"), "номер документа"))
+    _required(payload.get("document_number"), "номер документа")
+    _add(key, "Номер", _one_c_number(payload["document_id"]))
     _organization(key, company)
 
 
@@ -220,6 +234,7 @@ def serialize_object(
     if object_type == "Справочник.Номенклатура":
         _product_key(_add(node, "КлючевыеСвойства"), payload)
         _add(node, "ТипНоменклатуры", "Товар")
+        _unit(node)
         return node
 
     if company is None:
@@ -276,6 +291,7 @@ def serialize_object(
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
         _add(node, "ДанныеВзаиморасчетов")
+    _source_number(node, payload["document_number"])
     return node
 
 
@@ -285,11 +301,13 @@ def object_xml(
     company: dict[str, Any] | None = None,
 ) -> bytes:
     """Expose individual objects for schema validation and test imports."""
-    ET.register_namespace("", DATA_NS)
+    # default_namespace, а не register_namespace: глобальная регистрация
+    # пустого префикса позже ломала корень <Message> в исходящем сообщении.
     return ET.tostring(
         serialize_object(object_type, payload, company),
         encoding="utf-8",
         xml_declaration=True,
+        default_namespace=DATA_NS,
     )
 
 
