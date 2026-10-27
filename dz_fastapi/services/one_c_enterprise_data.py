@@ -739,6 +739,20 @@ def _process_exchange_directory_unlocked(
             _archive_handshakes(directory, parsed_handshake_files)
         return result
 
+    pending = state.get("pending_body")
+    if pending and int(pending["message_no"]) > int(state.get("peer_confirmed_our_no", 0)):
+        # УНФ ещё не прочитала наше сообщение с данными. Служебный ответ
+        # занял бы тот же файл и стёр бы документы, поэтому не отвечаем.
+        state["last_peer_message_no"] = latest.message_no
+        save_state(directory, state)
+        if archive_incoming:
+            _archive_handshakes(directory, parsed_handshake_files)
+        result["note"] = (
+            "Ответ не создан: УНФ ещё не прочитала сообщение "
+            f"№ {pending['message_no']} с данными"
+        )
+        return result
+
     state["sent_no"] = int(state.get("sent_no", 0)) + 1
     state["last_peer_message_no"] = latest.message_no
     state["last_message_at"] = now_moscow().isoformat()
