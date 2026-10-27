@@ -293,6 +293,21 @@ def object_xml(
     )
 
 
+_EVENT_OBJECT_TYPES = {
+    "shipment": "Документ.РеализацияТоваровУслуг",
+    "supplier_receipt": "Документ.ПоступлениеТоваровУслуг",
+}
+
+
+def _event_object_type(entity_type: str, event_type: str) -> str:
+    if event_type != "posted":
+        raise ValueError("Предпросмотр EnterpriseData доступен только для проведённых документов")
+    object_type = _EVENT_OBJECT_TYPES.get(entity_type)
+    if object_type is None:
+        raise ValueError(f"Выгрузка EnterpriseData для {entity_type} пока не реализована")
+    return object_type
+
+
 def preview_outbox_event(
     entity_type: str,
     event_type: str,
@@ -300,12 +315,37 @@ def preview_outbox_event(
     company: dict[str, Any],
 ) -> bytes:
     """Render a posted accounting event for inspection without sending it."""
-    if event_type != "posted":
-        raise ValueError("Предпросмотр EnterpriseData доступен только для проведённых документов")
-    object_type = {
-        "shipment": "Документ.РеализацияТоваровУслуг",
-        "supplier_receipt": "Документ.ПоступлениеТоваровУслуг",
-    }.get(entity_type)
-    if object_type is None:
-        raise ValueError(f"Выгрузка EnterpriseData для {entity_type} пока не реализована")
-    return object_xml(object_type, payload, company)
+    return object_xml(_event_object_type(entity_type, event_type), payload, company)
+
+
+def event_body_objects(
+    entity_type: str,
+    event_type: str,
+    payload: dict[str, Any],
+    company: dict[str, Any],
+) -> list[ET.Element]:
+    """Document plus the counterparty and nomenclature it refers to.
+
+    Справочники идут перед документом, чтобы УНФ создала их раньше, чем
+    документ сошлётся на них. Повторяющиеся элементы выводятся один раз.
+    """
+    object_type = _event_object_type(entity_type, event_type)
+    party_key = "customer" if object_type == "Документ.РеализацияТоваровУслуг" else "provider"
+    party_kind = "customer" if party_key == "customer" else "provider"
+
+    objects: list[ET.Element] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add_reference(kind: str, data: dict[str, Any]) -> None:
+        node = serialize_object(kind, data, company)
+        ref = node.find(f"{_tag('КлючевыеСвойства')}/{_tag('Ссылка')}")
+        marker = (kind, ref.text if ref is not None and ref.text else str(len(objects)))
+        if marker not in seen:
+            seen.add(marker)
+            objects.append(node)
+
+    add_reference("Справочник.Контрагенты", {**payload[party_key], "kind": party_kind})
+    for item in payload.get("items") or []:
+        add_reference("Справочник.Номенклатура", item)
+    objects.append(serialize_object(object_type, payload, company))
+    return objects

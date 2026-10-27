@@ -35,8 +35,10 @@ from dz_fastapi.models.one_c import (
     OneCExchangeEventStatus,
 )
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.shipment_correction import ShipmentCorrection
 
 ENTITY_SHIPMENT = "shipment"
+ENTITY_SHIPMENT_CORRECTION = "shipment_correction"
 ENTITY_RECEIPT = "supplier_receipt"
 ENTITY_STOCK_DOCUMENT = "stock_document"
 ENTITY_PRODUCTION_WAVE = "production_wave"
@@ -150,6 +152,57 @@ async def build_shipment_snapshot(
                 ],
             }
             for item in (document.items or [])
+        ],
+    }
+
+
+async def build_shipment_correction_snapshot(
+    session: AsyncSession, correction_id: int,
+) -> dict[str, Any]:
+    correction = (
+        await session.execute(
+            select(ShipmentCorrection)
+            .where(ShipmentCorrection.id == correction_id)
+            .options(
+                selectinload(ShipmentCorrection.items),
+                selectinload(ShipmentCorrection.shipment)
+                .selectinload(ShipmentDocument.customer),
+            )
+        )
+    ).scalar_one_or_none()
+    if correction is None:
+        raise LookupError("Корректировка реализации не найдена")
+    shipment = correction.shipment
+    return {
+        "document_id": correction.id,
+        "document_number": correction.doc_number,
+        "document_date": _value(correction.doc_date),
+        "status": _value(correction.status),
+        "source_shipment_id": shipment.id,
+        "source_shipment_number": shipment.doc_number,
+        "source_shipment_date": _value(shipment.doc_date),
+        "source_shipment_external_id": shipment.external_id,
+        "customer_id": shipment.customer_id,
+        "customer_name": getattr(shipment.customer, "name", None),
+        "basis_number": correction.basis_number,
+        "basis_date": _value(correction.basis_date),
+        "basis_description": correction.basis_description,
+        "reason": correction.reason,
+        "document_function": correction.document_function,
+        "physical_stock_changed": False,
+        "items": [
+            {
+                "shipment_item_id": item.shipment_item_id,
+                "original_number": item.original_number,
+                "product_name": item.product_name,
+                "vendor_code": item.vendor_code,
+                "quantity_before": item.quantity_before,
+                "quantity_after": item.quantity_after,
+                "price_before": _value(item.price_before),
+                "price_after": _value(item.price_after),
+                "vat_rate": _value(item.vat_rate),
+            }
+            for item in correction.items
         ],
     }
 
@@ -408,6 +461,19 @@ async def enqueue_shipment_event(
     )
 
 
+async def enqueue_shipment_correction_event(
+    session: AsyncSession, correction_id: int,
+) -> OneCExchangeEvent:
+    payload = await build_shipment_correction_snapshot(session, correction_id)
+    return await enqueue_one_c_event(
+        session,
+        entity_type=ENTITY_SHIPMENT_CORRECTION,
+        entity_id=correction_id,
+        event_type=EVENT_POSTED,
+        payload=payload,
+    )
+
+
 async def enqueue_receipt_event(
     session: AsyncSession, receipt_id: int, event_type: str = EVENT_POSTED
 ) -> OneCExchangeEvent:
@@ -583,6 +649,7 @@ async def _set_source_sync_state(
 ) -> None:
     model = {
         ENTITY_SHIPMENT: ShipmentDocument,
+        ENTITY_SHIPMENT_CORRECTION: ShipmentCorrection,
         ENTITY_STOCK_DOCUMENT: StockDocument,
         ENTITY_PRODUCTION_WAVE: ProductionWave,
     }.get(event.entity_type)

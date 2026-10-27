@@ -2559,6 +2559,7 @@ async def unpost_shipment_document(
     result = await session.execute(
         select(ShipmentDocument)
         .where(ShipmentDocument.id == doc_id)
+        .with_for_update(of=ShipmentDocument)
         .options(
             selectinload(ShipmentDocument.items)
             .selectinload(ShipmentDocumentItem.allocations)
@@ -2570,6 +2571,21 @@ async def unpost_shipment_document(
         raise ValueError(f"Накладная {doc_id} не найдена")
     if doc.status != ShipmentDocumentStatus.POSTED:
         raise ValueError(f"Накладная в статусе «{doc.status}» — отменить нельзя")
+
+    from dz_fastapi.models.shipment_correction import ShipmentCorrection, ShipmentCorrectionStatus
+
+    posted_correction_id = await session.scalar(
+        select(ShipmentCorrection.id)
+        .where(
+            ShipmentCorrection.shipment_id == doc_id,
+            ShipmentCorrection.status == ShipmentCorrectionStatus.POSTED,
+        )
+        .limit(1)
+    )
+    if posted_correction_id is not None:
+        raise ValueError(
+            "Реализацию с проведённой корректировкой нельзя распровести"
+        )
 
     movements_created = 0
 

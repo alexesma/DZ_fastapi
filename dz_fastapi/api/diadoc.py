@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import date
 from typing import Any
@@ -22,6 +23,7 @@ from dz_fastapi.models.diadoc import (
 )
 from dz_fastapi.models.inventory import ReturnFromCustomer, ReturnToSupplier
 from dz_fastapi.models.partner import Customer, Provider
+from dz_fastapi.models.shipment_correction import ShipmentCorrection
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.diadoc import (
     DiadocCloudSignConfirmIn,
@@ -93,7 +95,9 @@ from dz_fastapi.services.diadoc_outgoing import (
     build_diadoc_payload_from_shipment,
     build_formalized_diadoc_payload_from_customer_return,
     build_formalized_diadoc_payload_from_shipment,
+    build_formalized_diadoc_payload_from_shipment_correction,
     build_formalized_diadoc_payload_from_supplier_return,
+    build_shipment_correction_formalized_readiness,
     build_shipment_formalized_readiness,
     build_shipments_formalized_readiness,
     build_supplier_return_formalized_readiness,
@@ -1580,6 +1584,108 @@ async def create_diadoc_outbound_document_from_shipment(
         integration.last_sync_at = now_moscow()
         integration.last_error = None
         session.add(integration)
+        await session.commit()
+        return _outgoing_document_to_out(outgoing)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.get(
+    "/outbound-readiness/shipment-correction/{correction_id}",
+)
+async def get_diadoc_outbound_readiness_for_shipment_correction(
+    correction_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        integration = await crud_diadoc_integration_settings.get_or_create(session)
+        return await build_shipment_correction_formalized_readiness(
+            session, correction_id=correction_id, integration=integration
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/outbound-documents/from-shipment-correction/{correction_id}",
+    response_model=DiadocOutgoingDocumentOut,
+)
+async def create_diadoc_outbound_document_from_shipment_correction(
+    correction_id: int,
+    payload: DiadocReturnOutboundCreateIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        doc = await session.scalar(
+            select(ShipmentCorrection)
+            .where(ShipmentCorrection.id == correction_id)
+            .with_for_update(of=ShipmentCorrection)
+            .execution_options(populate_existing=True)
+        )
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Корректировка не найдена")
+        if doc.diadoc_outgoing_document_id:
+            existing = await session.get(
+                DiadocOutgoingDocument, doc.diadoc_outgoing_document_id
+            )
+            if existing is not None:
+                return _outgoing_document_to_out(existing)
+        existing = await session.scalar(
+            select(DiadocOutgoingDocument)
+            .where(
+                DiadocOutgoingDocument.source_type == "shipment_correction",
+                DiadocOutgoingDocument.source_id == correction_id,
+            )
+            .order_by(DiadocOutgoingDocument.id.desc())
+            .limit(1)
+        )
+        if existing is not None:
+            doc.diadoc_outgoing_document_id = existing.id
+            await session.commit()
+            return _outgoing_document_to_out(existing)
+        integration, client = await get_diadoc_client_for_session(session)
+        correction_payload = await build_formalized_diadoc_payload_from_shipment_correction(
+            session,
+            client=client,
+            integration=integration,
+            correction_id=correction_id,
+        )
+        outgoing = await post_diadoc_outgoing_document(
+            session,
+            client=client,
+            environment=normalize_diadoc_environment(integration.environment),
+            from_box_id_guid=_resolve_box_id_guid(integration, None),
+            to_box_id_guid=correction_payload["to_box_id_guid"],
+            customer_id=correction_payload["customer_id"],
+            file_name=correction_payload["file_name"],
+            content_base64=correction_payload["content_base64"],
+            signature_base64=payload.signature_base64,
+            comment=payload.comment,
+            need_recipient_signature=payload.need_recipient_signature,
+            need_receipt=payload.need_receipt,
+            send_mode=payload.send_mode.value,
+            type_named_id=correction_payload["type_named_id"],
+            document_function=correction_payload["document_function"],
+            document_version=correction_payload["document_version"],
+            document_number=correction_payload["document_number"],
+            document_date=correction_payload["document_date"],
+            metadata=correction_payload["metadata"],
+            source_type=correction_payload["source_type"],
+            source_id=correction_payload["source_id"],
+            operation_id_override=(
+                hashlib.md5(
+                    f"shipment-correction-{correction_id}-{payload.send_mode.value}".encode()
+                ).hexdigest()
+            ),
+            commit=False,
+        )
+        doc.diadoc_outgoing_document_id = outgoing.id
+        integration.last_sync_at = now_moscow()
+        integration.last_error = None
         await session.commit()
         return _outgoing_document_to_out(outgoing)
     except HTTPException:

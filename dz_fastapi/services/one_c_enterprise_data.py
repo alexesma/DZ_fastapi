@@ -13,18 +13,20 @@
 не двигается.
 
 Разбор и формирование самих данных (документы, справочники) — следующий этап.
-Пока мы намеренно НЕ объявляем ни одного типа объектов: иначе 1С начнёт
-присылать данные, обработать которые мы ещё не умеем, и будет считать их
-доставленными.
+На отправку объявлены базовые типы для настройки узла, но тело исходящих
+сообщений пока не формируется. На приём типы не объявлены: неподдержанные
+сообщения с данными не подтверждаются.
 """
 
 import base64
+import fcntl
 import json
 import logging
 import os
 import re
 import uuid
 import zipfile
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
@@ -32,6 +34,7 @@ from typing import Any, Optional
 from xml.etree import ElementTree as ET
 
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -61,10 +64,12 @@ DEFAULT_FORMAT_VERSION = "1.22"
 # мере готовности разбора.
 #
 # Объявлять можно только то, что поддерживает встречная сторона: список ниже
-# сверен с рукопожатием 1С (все четыре типа она принимает).
+# сверен с реальным рукопожатием 1С; окончательное пересечение делаем в ответе.
 DEFAULT_SENDING: tuple[str, ...] = (
     "Документ.РеализацияТоваровУслуг",
     "Документ.ПоступлениеТоваровУслуг",
+    "Документ.ЗаказКлиента",
+    "Документ.ЗаказПоставщику",
     "Справочник.Контрагенты",
     "Справочник.Номенклатура",
 )
@@ -92,6 +97,7 @@ SUPPORTED_RECEIVING: tuple[str, ...] = _types_from_env(
 )
 
 STATE_FILE_NAME = ".dz_enterprise_data_state.json"
+LOCK_FILE_NAME = ".dz_enterprise_data.lock"
 _MESSAGE_RE = re.compile(
     r"^Message_(?P<from>[^_]+)_(?P<to>[^_.]+)\.(?P<ext>zip|xml)$",
     re.IGNORECASE,
@@ -116,6 +122,7 @@ class IncomingMessage:
     peer_node_prefix: Optional[str] = None
     object_types: dict[str, dict[str, bool]] = field(default_factory=dict)
     has_body: bool = False
+    body_types: list[str] = field(default_factory=list)
     file_name: str = ""
 
     @property
@@ -186,8 +193,22 @@ def parse_message(xml_bytes: bytes, *, file_name: str = "") -> IncomingMessage:
             peer_prefix = _text(node.find(f"{{{MSG_NS}}}Prefix"))
             peer_guid = _text(node.find(f"{{{MSG_NS}}}Code")) or peer_guid
 
-    # Тело — всё, что идёт после заголовка внутри Message
-    has_body = any(child.tag != f"{{{MSG_NS}}}Header" for child in list(root))
+    # Пустой <Body/> — обычное служебное сообщение. Наличие самого контейнера
+    # не означает, что 1С прислала объекты для загрузки.
+    body_types: list[str] = []
+    for child in root:
+        if child.tag == f"{{{MSG_NS}}}Header":
+            continue
+        local_name = child.tag.rsplit("}", 1)[-1]
+        if local_name == "Body":
+            body_types.extend(
+                item.tag.rsplit("}", 1)[-1]
+                for item in child
+                if isinstance(item.tag, str)
+            )
+        else:
+            body_types.append(local_name)
+    has_body = bool(body_types)
 
     return IncomingMessage(
         from_code=conf("From") or "",
@@ -200,6 +221,7 @@ def parse_message(xml_bytes: bytes, *, file_name: str = "") -> IncomingMessage:
         peer_node_prefix=peer_prefix,
         object_types=object_types,
         has_body=has_body,
+        body_types=body_types,
         file_name=file_name,
     )
 
@@ -237,6 +259,18 @@ def save_state(directory: str, state: dict[str, Any]) -> None:
     os.replace(tmp, _state_path(directory))
 
 
+@contextmanager
+def _exchange_lock(directory: str):
+    """Serialize scheduler and admin actions against the shared FTP volume."""
+    os.makedirs(directory, exist_ok=True)
+    with open(os.path.join(directory, LOCK_FILE_NAME), "a+b") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
 # ─── Формирование ответа ───────────────────────────────────────────────────
 
 
@@ -244,17 +278,34 @@ def build_response_xml(
     incoming: IncomingMessage,
     state: dict[str, Any],
     *,
-    sending: tuple[str, ...] = SUPPORTED_SENDING,
-    receiving: tuple[str, ...] = SUPPORTED_RECEIVING,
+    sending: Optional[tuple[str, ...]] = None,
+    receiving: Optional[tuple[str, ...]] = None,
+    body_objects: Optional[list[ET.Element]] = None,
     created_at: Optional[datetime] = None,
 ) -> bytes:
-    """Собирает ответное сообщение (заголовок без данных)."""
+    """Собирает сообщение 1С: заголовок и, если переданы, объекты данных."""
+    sending = SUPPORTED_SENDING if sending is None else sending
+    receiving = SUPPORTED_RECEIVING if receiving is None else receiving
     created = created_at or now_moscow()
     version = (
         DEFAULT_FORMAT_VERSION
         if DEFAULT_FORMAT_VERSION in incoming.format_versions
         else (incoming.format_versions[0] if incoming.format_versions else DEFAULT_FORMAT_VERSION)
     )
+    if body_objects and version != DEFAULT_FORMAT_VERSION:
+        raise ValueError("Объекты EnterpriseData поддерживаются только в версии 1.22")
+    # В реальном рукопожатии УНФ 3.0.14.178 некоторые типы доступны только
+    # в одном направлении (например, корректировка реализации — только от УНФ).
+    # Объявляем лишь пересечение наших возможностей и возможностей её узла.
+    if incoming.object_types:
+        sending = tuple(
+            name for name in sending
+            if incoming.object_types.get(name, {}).get("receiving", False)
+        )
+        receiving = tuple(
+            name for name in receiving
+            if incoming.object_types.get(name, {}).get("sending", False)
+        )
 
     ET.register_namespace("msg", MSG_NS)
     root = ET.Element("Message")
@@ -299,6 +350,16 @@ def build_response_xml(
     ET.SubElement(corr, f"{{{MSG_NS}}}Code").text = incoming.peer_node_guid or incoming.from_code
     ET.SubElement(corr, f"{{{MSG_NS}}}Looping").text = "false"
 
+    if body_objects:
+        ET.register_namespace("", DATA_NS)
+        body = ET.SubElement(root, f"{{{DATA_NS}}}Body")
+        for obj in body_objects:
+            if obj.tag != f"{{{DATA_NS}}}{obj.tag.rsplit('}', 1)[-1]}":
+                raise ValueError("Объект имеет неверное пространство имён EnterpriseData")
+            if obj.tag.rsplit("}", 1)[-1] not in sending:
+                raise ValueError("УНФ не объявила приём типа отправляемого объекта")
+            body.append(obj)
+
     body = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     # 1С пишет BOM — повторяем, чтобы не отличаться от привычного ей формата
     return b"\xef\xbb\xbf" + body
@@ -322,16 +383,60 @@ def find_incoming_files(directory: str) -> list[str]:
     return found
 
 
-def read_message_file(path: str) -> bytes:
+def read_message_file(path: str, *, max_xml_size: int = 32 * 1024 * 1024) -> bytes:
     """Достаёт XML из файла обмена: 1С присылает zip, но бывает и голый xml."""
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as archive:
-            names = [n for n in archive.namelist() if n.lower().endswith(".xml")]
-            if not names:
+            entries = [
+                item for item in archive.infolist()
+                if item.filename.lower().endswith(".xml")
+            ]
+            if not entries:
                 raise ValueError(f"В архиве {path} нет XML-файла")
-            return archive.read(names[0])
+            entry = entries[0]
+            if entry.file_size > max_xml_size:
+                raise ValueError("XML в архиве 1С больше разрешённого размера")
+            with archive.open(entry) as fh:
+                data = fh.read(max_xml_size + 1)
+            if len(data) > max_xml_size:
+                raise ValueError("XML в архиве 1С больше разрешённого размера")
+            return data
     with open(path, "rb") as fh:
-        return fh.read()
+        data = fh.read(max_xml_size + 1)
+    if len(data) > max_xml_size:
+        raise ValueError("XML 1С больше разрешённого размера")
+    return data
+
+
+def read_incoming_archive(
+    name: str,
+    directory: Optional[str] = None,
+    *,
+    max_size: int = 32 * 1024 * 1024,
+) -> bytes:
+    """Read one listed FTP message for an administrator to inspect offline."""
+    match = _MESSAGE_RE.fullmatch(name)
+    if (
+        not match
+        or match.group("from").upper() != PEER_NODE_CODE.upper()
+        or match.group("to").upper() != OUR_NODE_CODE.upper()
+    ):
+        raise ValueError("Недопустимое имя входящего сообщения")
+    directory = directory or get_exchange_dir()
+    path = os.path.join(directory, name)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except FileNotFoundError:
+        raise FileNotFoundError("Входящее сообщение не найдено") from None
+    with os.fdopen(fd, "rb") as fh:
+        size = os.fstat(fh.fileno()).st_size
+        if size > max_size:
+            raise ValueError("Входящее сообщение больше разрешённого размера")
+        content = fh.read(max_size + 1)
+    if len(content) > max_size:
+        raise ValueError("Входящее сообщение больше разрешённого размера")
+    return content
 
 
 def write_outgoing_message(
@@ -347,20 +452,36 @@ def write_outgoing_message(
     base = f"Message_{from_code}_{to_code}"
     if not compress:
         path = os.path.join(directory, f"{base}.xml")
-        with open(path, "wb") as fh:
+        tmp_path = f"{path}.{uuid.uuid4().hex}.tmp"
+        with open(tmp_path, "wb") as fh:
             fh.write(xml_bytes)
+        os.replace(tmp_path, path)
         return path
 
     path = os.path.join(directory, f"{base}.zip")
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(f"{base}.xml", xml_bytes)
-    with open(path, "wb") as fh:
+    tmp_path = f"{path}.{uuid.uuid4().hex}.tmp"
+    with open(tmp_path, "wb") as fh:
         fh.write(buffer.getvalue())
+    os.replace(tmp_path, path)
     return path
 
 
 def regenerate_outgoing_message(
+    directory: Optional[str] = None,
+    *,
+    bump_message_no: bool = False,
+) -> dict[str, Any]:
+    directory = directory or get_exchange_dir()
+    with _exchange_lock(directory):
+        return _regenerate_outgoing_message_unlocked(
+            directory, bump_message_no=bump_message_no
+        )
+
+
+def _regenerate_outgoing_message_unlocked(
     directory: Optional[str] = None,
     *,
     bump_message_no: bool = False,
@@ -396,6 +517,7 @@ def regenerate_outgoing_message(
         format_versions=[DEFAULT_FORMAT_VERSION],
         peer_node_guid=state.get("peer_node_guid"),
         peer_node_name=None,
+        object_types=state.get("peer_object_types") or {},
     )
     xml_bytes = build_response_xml(stub, state)
     path = write_outgoing_message(
@@ -421,7 +543,96 @@ def regenerate_outgoing_message(
     }
 
 
+def send_body_message(
+    body_objects: list[ET.Element],
+    *,
+    description: str = "",
+    directory: Optional[str] = None,
+) -> dict[str, Any]:
+    """Кладёт на FTP сообщение с данными для УНФ (ручная отправка).
+
+    Отправка допустима только после рукопожатия (мы знаем, какие типы УНФ
+    принимает) и пока УНФ прочитала предыдущее сообщение с данными: файл
+    обмена один, и замена непрочитанного сообщения потеряла бы документы.
+    Принятыми считаем только служебные сообщения УНФ, которые мы разобрали,
+    — не те, что с данными: их разбор не реализован.
+    """
+    directory = directory or get_exchange_dir()
+    with _exchange_lock(directory):
+        state = load_state(directory)
+        if not state.get("peer_object_types"):
+            raise ValueError(
+                "Рукопожатие с УНФ ещё не получено: неизвестно, какие типы она принимает"
+            )
+        # Справочники — только если узел УНФ их принимает; документ обязателен.
+        accepted = {
+            name for name, flags in state["peer_object_types"].items()
+            if flags.get("receiving")
+        }
+        body_objects = [
+            obj for obj in body_objects
+            if not obj.tag.rsplit("}", 1)[-1].startswith("Справочник.")
+            or obj.tag.rsplit("}", 1)[-1] in accepted
+        ]
+        sent_no = int(state.get("sent_no", 0))
+        confirmed_no = int(state.get("peer_confirmed_our_no", 0))
+        pending = state.get("pending_body")
+        if pending and int(pending["message_no"]) > confirmed_no:
+            raise ValueError(
+                f"УНФ ещё не прочитала сообщение № {pending['message_no']} с данными: "
+                "запустите в УНФ синхронизацию, затем повторите отправку"
+            )
+        # Непрочитанный служебный файл можно заменить, сохранив его номер;
+        # прочитанный — нельзя, следующий обязан получить новый номер.
+        message_no = sent_no if 0 < sent_no > confirmed_no else sent_no + 1
+        stub = IncomingMessage(
+            from_code=PEER_NODE_CODE,
+            to_code=OUR_NODE_CODE,
+            message_no=int(state.get("last_peer_message_no", 0)),
+            received_no=confirmed_no,
+            format_versions=[DEFAULT_FORMAT_VERSION],
+            peer_node_guid=state.get("peer_node_guid"),
+            object_types=state["peer_object_types"],
+        )
+        outgoing_state = {**state, "sent_no": message_no}
+        xml_bytes = build_response_xml(stub, outgoing_state, body_objects=body_objects)
+        path = write_outgoing_message(
+            directory, xml_bytes, from_code=OUR_NODE_CODE, to_code=PEER_NODE_CODE
+        )
+        state["sent_no"] = message_no
+        state["pending_body"] = {
+            "message_no": message_no,
+            "objects": [obj.tag.rsplit("}", 1)[-1] for obj in body_objects],
+            "description": description,
+            "sent_at": now_moscow().isoformat(),
+        }
+        state["last_message_at"] = now_moscow().isoformat()
+        save_state(directory, state)
+        logger.info(
+            "1C EnterpriseData: отправлено сообщение № %s с данными (%s объектов)",
+            message_no,
+            len(body_objects),
+        )
+        return {
+            "response_file": os.path.basename(path),
+            "message_no": message_no,
+            "objects": state["pending_body"]["objects"],
+        }
+
+
 def process_exchange_directory(
+    directory: Optional[str] = None,
+    *,
+    archive_incoming: bool = True,
+) -> dict[str, Any]:
+    directory = directory or get_exchange_dir()
+    with _exchange_lock(directory):
+        return _process_exchange_directory_unlocked(
+            directory, archive_incoming=archive_incoming
+        )
+
+
+def _process_exchange_directory_unlocked(
     directory: Optional[str] = None,
     *,
     archive_incoming: bool = True,
@@ -473,10 +684,16 @@ def process_exchange_directory(
                 "format_versions": message.format_versions,
             }
         )
+        if message.from_code != PEER_NODE_CODE or message.to_code != OUR_NODE_CODE:
+            result["processed"][-1]["error"] = (
+                "Коды отправителя или получателя не совпадают с узлом"
+            )
+            continue
         if message.has_body:
             files_with_body.append(name)
         else:
-            latest = message
+            if latest is None or message.message_no >= latest.message_no:
+                latest = message
             parsed_handshake_files.append(name)
         if message.message_no > int(state.get("received_no", 0)):
             state["received_no"] = message.message_no
@@ -486,6 +703,8 @@ def process_exchange_directory(
             state["peer_confirmed_our_no"] = message.received_no
         if message.peer_node_guid:
             state["peer_node_guid"] = message.peer_node_guid
+        if message.object_types:
+            state["peer_object_types"] = message.object_types
 
     if files_with_body:
         result["note"] = (
@@ -498,7 +717,26 @@ def process_exchange_directory(
         result["note"] = "Ни одно сообщение не удалось разобрать"
         return result
 
+    # 1С может повторно положить тот же файл, пока не увидит подтверждение.
+    # Повтор не должен увеличивать наш номер сообщения.
+    outgoing_file = f"Message_{OUR_NODE_CODE}_{PEER_NODE_CODE}.zip"
+    if state.get("last_peer_message_no") == latest.message_no:
+        if not os.path.exists(os.path.join(directory, outgoing_file)):
+            write_outgoing_message(
+                directory,
+                build_response_xml(latest, state),
+                from_code=OUR_NODE_CODE,
+                to_code=PEER_NODE_CODE,
+            )
+        result["note"] = "Повтор уже обработанного служебного сообщения"
+        result["response_file"] = outgoing_file
+        save_state(directory, state)
+        if archive_incoming:
+            _archive_handshakes(directory, parsed_handshake_files)
+        return result
+
     state["sent_no"] = int(state.get("sent_no", 0)) + 1
+    state["last_peer_message_no"] = latest.message_no
     state["last_message_at"] = now_moscow().isoformat()
 
     xml_bytes = build_response_xml(latest, state)
@@ -517,16 +755,7 @@ def process_exchange_directory(
     }
 
     if archive_incoming:
-        processed_dir = os.path.join(directory, "processed")
-        os.makedirs(processed_dir, exist_ok=True)
-        for name in parsed_handshake_files:
-            try:
-                os.replace(
-                    os.path.join(directory, name),
-                    os.path.join(processed_dir, name),
-                )
-            except OSError:
-                logger.exception("Не удалось убрать обработанный файл %s", name)
+        _archive_handshakes(directory, parsed_handshake_files)
 
     logger.info(
         "1C EnterpriseData: обработано %s, ответ %s",
@@ -536,19 +765,85 @@ def process_exchange_directory(
     return result
 
 
+def _archive_handshakes(directory: str, names: list[str]) -> None:
+    processed_dir = os.path.join(directory, "processed")
+    os.makedirs(processed_dir, exist_ok=True)
+    for name in names:
+        try:
+            os.replace(
+                os.path.join(directory, name),
+                os.path.join(processed_dir, name),
+            )
+        except OSError:
+            logger.exception("Не удалось убрать обработанный файл %s", name)
+
+
 def get_exchange_status(directory: Optional[str] = None) -> dict[str, Any]:
     directory = directory or get_exchange_dir()
     state = load_state(directory) if os.path.isdir(directory) else {}
+    peer_types = state.get("peer_object_types") or {}
+    incoming = find_incoming_files(directory)
+    incoming_messages = []
+    for name in incoming[:10]:
+        path = os.path.join(directory, name)
+        info: dict[str, Any] = {"file": name}
+        try:
+            info["modified_at"] = datetime.fromtimestamp(
+                os.path.getmtime(path)
+            ).isoformat()
+            if zipfile.is_zipfile(path):
+                with zipfile.ZipFile(path) as archive:
+                    xml_files = [
+                        entry for entry in archive.infolist()
+                        if entry.filename.lower().endswith(".xml")
+                    ]
+                    if not xml_files:
+                        raise ValueError("В архиве нет XML")
+                    size = xml_files[0].file_size
+            else:
+                size = os.path.getsize(path)
+            info["xml_size_bytes"] = size
+            if size > 4 * 1024 * 1024:
+                info["note"] = "XML больше 4 МБ; заголовок не прочитан"
+            else:
+                message = parse_message(read_message_file(path), file_name=name)
+                if message.object_types:
+                    peer_types = message.object_types
+                info.update({
+                    "message_no": message.message_no,
+                    "received_no": message.received_no,
+                    "has_body": message.has_body,
+                    "body_types": message.body_types,
+                    "format_versions": message.format_versions,
+                    "object_types": sorted(message.object_types),
+                })
+        except (OSError, ValueError, zipfile.BadZipFile, ET.ParseError) as exc:
+            info["error"] = str(exc)
+        incoming_messages.append(info)
     return {
         "directory": directory,
         "directory_exists": os.path.isdir(directory),
-        "incoming_files": find_incoming_files(directory),
+        "incoming_files": incoming,
+        "incoming_messages": incoming_messages,
         "our_node_code": OUR_NODE_CODE,
         "peer_node_code": PEER_NODE_CODE,
         "declared_sending": list(SUPPORTED_SENDING),
         "declared_receiving": list(SUPPORTED_RECEIVING),
+        "negotiated_sending": [
+            name for name in SUPPORTED_SENDING
+            if peer_types.get(name, {}).get("receiving", False)
+        ],
+        "negotiated_receiving": [
+            name for name in SUPPORTED_RECEIVING
+            if peer_types.get(name, {}).get("sending", False)
+        ],
+        "peer_receives_corrections": peer_types.get(
+            "Документ.КорректировкаРеализацииТоваров", {}
+        ).get("receiving"),
         "node_guid": state.get("node_guid"),
         "sent_no": state.get("sent_no", 0),
         "received_no": state.get("received_no", 0),
+        "peer_confirmed_our_no": state.get("peer_confirmed_our_no", 0),
+        "pending_body": state.get("pending_body"),
         "last_message_at": state.get("last_message_at"),
     }

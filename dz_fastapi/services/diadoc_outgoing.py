@@ -34,6 +34,7 @@ from dz_fastapi.models.partner import (
     ProviderExternalReference,
 )
 from dz_fastapi.models.settings import DiadocIntegrationSettings
+from dz_fastapi.models.shipment_correction import ShipmentCorrection, ShipmentCorrectionStatus
 from dz_fastapi.services.customer_return_ukd import (
     DEFAULT_WHOLESALE_VAT_RATE,
     build_customer_return_draft_status,
@@ -242,6 +243,19 @@ def _gross_price_vat_parts(
     )
     vat_total = gross_total - net_total
     return net_unit, net_total, vat_total, gross_total
+
+
+def _unsupported_formalized_shipment_vat_rates(items: list[Any]) -> list[str]:
+    """The current UTD XML builder supports only the 22% Diadoc tax enum."""
+    rates = set()
+    for item in items:
+        raw_rate = getattr(item, "vat_rate", None)
+        rate = Decimal(
+            str(DEFAULT_WHOLESALE_VAT_RATE if raw_rate is None else raw_rate)
+        )
+        if rate != Decimal("22"):
+            rates.add(str(rate))
+    return sorted(rates)
 
 
 def _split_full_name(value: str | None) -> tuple[str, str, str]:
@@ -569,6 +583,13 @@ async def build_shipment_formalized_readiness(
     ):
         missing_required_fields.append(
             "Во всех строках отгрузки должно быть положительное количество."
+        )
+    unsupported_vat_rates = _unsupported_formalized_shipment_vat_rates(items)
+    if unsupported_vat_rates:
+        missing_required_fields.append(
+            "Формализованный УПД поддерживает только НДС 22%; найдены ставки: "
+            + ", ".join(unsupported_vat_rates)
+            + "."
         )
     if _is_blank_text(getattr(integration, "box_id_guid", None)):
         missing_required_fields.append("Не выбран ящик Диадока организации.")
@@ -1183,6 +1204,7 @@ def _format_quantity_text(value: Decimal) -> str:
 def _build_return_product_name(item: ReturnItem) -> str:
     autopart = getattr(item, "autopart", None)
     for candidate in (
+        getattr(item, "product_name", None),
         getattr(item, "autopart_name", None),
         getattr(item, "oem_number", None),
         getattr(autopart, "name", None),
@@ -1191,12 +1213,13 @@ def _build_return_product_name(item: ReturnItem) -> str:
         value = str(candidate or "").strip()
         if value:
             return value
-    return f"Товар #{item.autopart_id or item.id}"
+    return f"Товар #{getattr(item, 'autopart_id', None) or item.id}"
 
 
 def _build_return_item_oem(item: ReturnItem) -> str | None:
     autopart = getattr(item, "autopart", None)
     for candidate in (
+        getattr(item, "vendor_code", None),
         getattr(item, "oem_number", None),
         getattr(autopart, "oem_number", None),
     ):
@@ -1246,7 +1269,10 @@ def _build_formalized_ukd_user_data_xml(
     correction_base_name: str,
     line_states: dict[int, dict[str, Any]] | None = None,
 ) -> bytes:
-    document_date = document.doc_date.date().strftime("%d.%m.%Y")
+    document_date_value = document.doc_date
+    if hasattr(document_date_value, "date"):
+        document_date_value = document_date_value.date()
+    document_date = document_date_value.strftime("%d.%m.%Y")
     current_document_number = str(
         document.doc_number or f"RETURN-{document.id}"
     ).strip()
@@ -1317,12 +1343,14 @@ def _build_formalized_ukd_user_data_xml(
         },
     )
     correction_number = str(
-        getattr(document, "external_document_number", None)
+        getattr(document, "basis_number", None)
+        or getattr(document, "external_document_number", None)
         or current_document_number
     ).strip()
     correction_date = (
-        getattr(document, "external_document_date", None)
-        or document.doc_date.date()
+        getattr(document, "basis_date", None)
+        or getattr(document, "external_document_date", None)
+        or document_date_value
     )
     ET.SubElement(
         event_el,
@@ -1334,38 +1362,48 @@ def _build_formalized_ukd_user_data_xml(
         },
     )
 
-    total_dec_net = Decimal("0")
-    total_dec_vat = Decimal("0")
-    total_dec_gross = Decimal("0")
+    total_dec_net = total_dec_vat = total_dec_gross = Decimal("0")
+    total_inc_net = total_inc_vat = total_inc_gross = Decimal("0")
     table_el = ET.SubElement(root, "Table")
     items_el = ET.SubElement(table_el, "Items")
     for idx, item in enumerate(items, start=1):
         state = (line_states or {}).get(int(item.id), {})
-        return_quantity = Decimal(str(item.quantity or 0))
+        return_quantity = Decimal(str(
+            getattr(item, "quantity", None)
+            if getattr(item, "quantity", None) is not None
+            else getattr(item, "quantity_before", 0)
+        ))
         quantity_before = Decimal(
             str(state.get("quantity_before", return_quantity))
         )
         quantity_after = Decimal(str(state.get("quantity_after", 0)))
-        vat_rate = Decimal(
-            str(item.vat_rate or DEFAULT_WHOLESALE_VAT_RATE)
+        vat_rate = Decimal(str(item.vat_rate or DEFAULT_WHOLESALE_VAT_RATE))
+        price_before = state.get(
+            "price_before", getattr(item, "price_before", getattr(item, "price", 0))
         )
-        net_price, original_net, original_vat, original_gross = (
-            _gross_price_vat_parts(item.price, quantity_before, vat_rate)
+        price_after = state.get(
+            "price_after", getattr(item, "price_after", getattr(item, "price", 0))
         )
-        _, corrected_net, corrected_vat, corrected_gross = (
-            _gross_price_vat_parts(item.price, quantity_after, vat_rate)
+        net_price_before, original_net, original_vat, original_gross = (
+            _gross_price_vat_parts(price_before, quantity_before, vat_rate)
+        )
+        net_price_after, corrected_net, corrected_vat, corrected_gross = (
+            _gross_price_vat_parts(price_after, quantity_after, vat_rate)
         )
         net_dec = original_net - corrected_net
         vat_dec = original_vat - corrected_vat
         gross_dec = original_gross - corrected_gross
-        total_dec_net += net_dec
-        total_dec_vat += vat_dec
-        total_dec_gross += gross_dec
+        total_dec_net += max(net_dec, Decimal("0"))
+        total_dec_vat += max(vat_dec, Decimal("0"))
+        total_dec_gross += max(gross_dec, Decimal("0"))
+        total_inc_net += max(-net_dec, Decimal("0"))
+        total_inc_vat += max(-vat_dec, Decimal("0"))
+        total_inc_gross += max(-gross_dec, Decimal("0"))
         item_el = ET.SubElement(
             items_el,
             "Item",
             {
-                "OriginalNumber": str(idx),
+                "OriginalNumber": str(getattr(item, "original_number", idx)),
                 "Product": _build_return_product_name(item),
             },
         )
@@ -1406,13 +1444,12 @@ def _build_formalized_ukd_user_data_xml(
                 "CorrectedValue": _format_quantity_text(quantity_after),
             },
         )
-        price_text = _format_decimal(net_price)
         ET.SubElement(
             item_el,
             "Price",
             {
-                "OriginalValue": price_text,
-                "CorrectedValue": price_text,
+                "OriginalValue": _format_decimal(net_price_before),
+                "CorrectedValue": _format_decimal(net_price_after),
             },
         )
         subtotal_el = ET.SubElement(
@@ -1423,9 +1460,10 @@ def _build_formalized_ukd_user_data_xml(
                 "CorrectedValue": _format_decimal(corrected_gross),
             },
         )
-        ET.SubElement(subtotal_el, "AmountsDec").text = _format_decimal(
-            gross_dec
-        )
+        if gross_dec:
+            ET.SubElement(
+                subtotal_el, "AmountsDec" if gross_dec > 0 else "AmountsInc"
+            ).text = _format_decimal(abs(gross_dec))
         subtotal_without_vat_el = ET.SubElement(
             item_el,
             "SubtotalWithVatExcluded",
@@ -1434,10 +1472,11 @@ def _build_formalized_ukd_user_data_xml(
                 "CorrectedValue": _format_decimal(corrected_net),
             },
         )
-        ET.SubElement(
-            subtotal_without_vat_el,
-            "AmountsDec",
-        ).text = _format_decimal(net_dec)
+        if net_dec:
+            ET.SubElement(
+                subtotal_without_vat_el,
+                "AmountsDec" if net_dec > 0 else "AmountsInc",
+            ).text = _format_decimal(abs(net_dec))
         vat_el = ET.SubElement(
             item_el,
             "Vat",
@@ -1446,19 +1485,22 @@ def _build_formalized_ukd_user_data_xml(
                 "CorrectedValue": _format_decimal(corrected_vat),
             },
         )
-        ET.SubElement(vat_el, "AmountsDec").text = _format_decimal(vat_dec)
+        if vat_dec:
+            ET.SubElement(
+                vat_el, "AmountsDec" if vat_dec > 0 else "AmountsInc"
+            ).text = _format_decimal(abs(vat_dec))
 
         item_lot = getattr(item, "lot", None)
         source_lot = getattr(getattr(item, "shipment_item", None), "lot", None)
         _append_customs_declaration_xml(
             item_el,
             declaration_number=(
-                item.gtd_number
+                getattr(item, "gtd_number", None)
                 or getattr(item_lot, "gtd_number", None)
                 or getattr(source_lot, "gtd_number", None)
             ),
             country_code=(
-                item.country_code
+                getattr(item, "country_code", None)
                 or getattr(item_lot, "country_code", None)
                 or getattr(source_lot, "country_code", None)
             ),
@@ -1468,9 +1510,9 @@ def _build_formalized_ukd_user_data_xml(
         table_el,
         "TotalsInc",
         {
-            "TotalWithVatExcluded": "0.00",
-            "Vat": "0.00",
-            "Total": "0.00",
+            "TotalWithVatExcluded": _format_decimal(total_inc_net),
+            "Vat": _format_decimal(total_inc_vat),
+            "Total": _format_decimal(total_inc_gross),
         },
     )
     ET.SubElement(
@@ -1781,6 +1823,13 @@ def _build_formalized_utd_user_data_xml(
     seller_name = _build_document_creator_name(integration, seller_org_payload)
     customer = getattr(document, "customer", None)
     items = list(getattr(document, "items", []) or [])
+    unsupported_vat_rates = _unsupported_formalized_shipment_vat_rates(items)
+    if unsupported_vat_rates:
+        raise ValueError(
+            "Формализованный УПД поддерживает только НДС 22%; найдены ставки: "
+            + ", ".join(unsupported_vat_rates)
+            + "."
+        )
 
     total_net = Decimal("0")
     total_vat = Decimal("0")
@@ -2041,6 +2090,181 @@ async def build_formalized_diadoc_payload_from_shipment(
         "metadata": {
             "DocumentKind": "FormalizedUniversalTransferDocument",
             "GeneratedBy": "GenerateTitleXml",
+        },
+    }
+
+
+async def _source_upd_for_correction(
+    session: AsyncSession, correction: ShipmentCorrection,
+) -> DiadocOutgoingDocument | None:
+    return (
+        await session.execute(
+            select(DiadocOutgoingDocument)
+            .where(
+                DiadocOutgoingDocument.source_type == "shipment_document",
+                DiadocOutgoingDocument.source_id == correction.shipment_id,
+                DiadocOutgoingDocument.type_named_id == _UTD_TYPE_NAMED_ID,
+                DiadocOutgoingDocument.is_draft.is_(False),
+                DiadocOutgoingDocument.message_id.is_not(None),
+                DiadocOutgoingDocument.entity_id.is_not(None),
+                DiadocOutgoingDocument.status.not_in(
+                    ("error", "rejected", "revoked")
+                ),
+            )
+            .order_by(DiadocOutgoingDocument.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def build_shipment_correction_formalized_readiness(
+    session: AsyncSession,
+    *,
+    correction_id: int,
+    integration: DiadocIntegrationSettings,
+) -> dict[str, Any]:
+    from dz_fastapi.services.shipment_corrections import get_correction
+
+    doc = await get_correction(session, correction_id)
+    if doc is None:
+        raise ValueError("Корректировка реализации не найдена")
+    missing = []
+    if doc.status != ShipmentCorrectionStatus.POSTED:
+        missing.append("Корректировка должна быть проведена")
+    if doc.shipment.status != ShipmentDocumentStatus.POSTED:
+        missing.append("Исходная реализация не проведена")
+    if not doc.items:
+        missing.append("Нет изменённых строк")
+    if not doc.basis_number or not doc.basis_date:
+        missing.append("Не указан документ согласования изменений")
+    if not integration.refresh_token or not integration.box_id_guid:
+        missing.append("Диадок не подключён или не выбран ящик")
+    customer_id = doc.shipment.customer_id
+    buyer_box = (
+        await resolve_diadoc_box_for_customer(session, customer_id=customer_id)
+        if customer_id else None
+    )
+    if not buyer_box:
+        missing.append("Клиент не привязан к ящику Диадока")
+    source_upd = await _source_upd_for_correction(session, doc)
+    if source_upd is None:
+        missing.append("Не найдена отправленная исходящая УПД этой реализации")
+    elif buyer_box and source_upd.to_box_id_guid != buyer_box:
+        missing.append("Ящик клиента отличается от ящика исходящей УПД")
+    elif _map_transfer_function_to_correction_function(
+        source_upd.document_function
+    ) != doc.document_function:
+        expected_function = _map_transfer_function_to_correction_function(
+            source_upd.document_function
+        )
+        missing.append(
+            "Функция УКД не соответствует функции исходящей УПД: "
+            f"ожидается {expected_function}"
+        )
+    if doc.diadoc_outgoing_document_id:
+        missing.append("По корректировке уже создан документ Диадока")
+    return {
+        "correction_id": doc.id,
+        "ready_formalized": not missing,
+        "missing_required_fields": missing,
+        "customer_id": customer_id,
+        "customer_name": getattr(doc.shipment.customer, "name", None),
+        "source_diadoc_document_id": getattr(source_upd, "id", None),
+    }
+
+
+async def build_formalized_diadoc_payload_from_shipment_correction(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    integration: DiadocIntegrationSettings,
+    correction_id: int,
+) -> dict[str, Any]:
+    from dz_fastapi.services.shipment_corrections import get_correction
+
+    readiness = await build_shipment_correction_formalized_readiness(
+        session, correction_id=correction_id, integration=integration
+    )
+    if not readiness["ready_formalized"]:
+        raise ValueError("; ".join(readiness["missing_required_fields"]))
+    doc = await get_correction(session, correction_id)
+    source_upd = await _source_upd_for_correction(session, doc)
+    customer_id = doc.shipment.customer_id
+    buyer_box_id = await resolve_diadoc_box_for_customer(
+        session, customer_id=customer_id
+    )
+    document_types = await client.get_document_types(
+        integration.box_id_guid or ""
+    )
+    descriptor = _find_formalized_doc_type(
+        document_types,
+        type_named_id=_UCD_TYPE_NAMED_ID,
+        preferred_functions=[doc.document_function],
+    )
+    if descriptor["document_function"] != doc.document_function:
+        raise ValueError(
+            "Диадок не поддерживает выбранную функцию УКД: "
+            + doc.document_function
+        )
+    seller_org = await client.get_organization(
+        box_id_guid=integration.box_id_guid or ""
+    )
+    buyer_org = await client.get_organization(box_id_guid=buyer_box_id)
+    customer = doc.shipment.customer
+    source_date = source_upd.document_date or doc.shipment.doc_date.date()
+    user_data_xml = _build_formalized_ukd_user_data_xml(
+        document=doc,
+        items=list(doc.items),
+        integration=integration,
+        seller_org_payload=seller_org,
+        buyer_org_payload=buyer_org,
+        document_function=doc.document_function,
+        buyer_fallback_name=getattr(customer, "name", None),
+        buyer_fallback_inn=getattr(customer, "inn", None),
+        buyer_fallback_kpp=getattr(customer, "kpp", None),
+        buyer_fallback_address=getattr(customer, "legal_address", None),
+        original_document_name="Универсальный передаточный документ",
+        original_document_number=(
+            source_upd.document_number or doc.shipment.doc_number
+        ),
+        original_document_date=source_date,
+        operation_content=doc.reason,
+        correction_base_name=doc.basis_description,
+        line_states={
+            item.id: {
+                "quantity_before": item.quantity_before,
+                "quantity_after": item.quantity_after,
+                "price_before": item.price_before,
+                "price_after": item.price_after,
+            }
+            for item in doc.items
+        },
+    )
+    generated_xml, generated_file_name = await client.generate_title_xml(
+        box_id_guid=integration.box_id_guid or "",
+        document_type_named_id=descriptor["type_named_id"],
+        document_function=descriptor["document_function"],
+        document_version=descriptor["document_version"],
+        title_index=0,
+        user_data_xml=user_data_xml,
+    )
+    return {
+        "customer_id": customer_id,
+        "to_box_id_guid": buyer_box_id,
+        "file_name": generated_file_name or f"{_safe_filename(doc.doc_number)}_ukd.xml",
+        "content_base64": base64.b64encode(generated_xml).decode("ascii"),
+        "document_number": doc.doc_number,
+        "document_date": doc.doc_date,
+        "source_type": "shipment_correction",
+        "source_id": doc.id,
+        "type_named_id": descriptor["type_named_id"],
+        "document_function": descriptor["document_function"],
+        "document_version": descriptor["document_version"],
+        "metadata": {
+            "DocumentKind": "FormalizedUniversalCorrectionDocument",
+            "GeneratedBy": "GenerateTitleXml",
+            "SourceMessageId": source_upd.message_id or "",
+            "SourceEntityId": source_upd.entity_id or "",
         },
     }
 
@@ -2367,6 +2591,8 @@ async def post_diadoc_outgoing_document(
     provider_id: int | None = None,
     source_type: str | None = None,
     source_id: int | None = None,
+    operation_id_override: str | None = None,
+    commit: bool = True,
 ) -> DiadocOutgoingDocument:
     resolved_send_mode = str(send_mode or "draft").strip().lower()
     is_draft = resolved_send_mode != "send"
@@ -2449,7 +2675,7 @@ async def post_diadoc_outgoing_document(
     if document_version:
         attachment["Version"] = str(document_version).strip()
 
-    operation_id = hashlib.md5(
+    operation_id = operation_id_override or hashlib.md5(
         (
             f"{environment}|{from_box_id_guid}|{to_box_id_guid}|"
             f"{file_name}|{hashlib.sha256(content).hexdigest()}|"
@@ -2491,6 +2717,9 @@ async def post_diadoc_outgoing_document(
         sent_at=now_moscow(),
     )
     session.add(outgoing)
-    await session.commit()
-    await session.refresh(outgoing)
+    if commit:
+        await session.commit()
+        await session.refresh(outgoing)
+    else:
+        await session.flush()
     return outgoing

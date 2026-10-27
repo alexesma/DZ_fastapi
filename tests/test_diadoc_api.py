@@ -1106,14 +1106,13 @@ async def test_diadoc_shipment_readiness_reports_formalized_status(
     )
     test_session.add(shipment)
     await test_session.flush()
-    test_session.add(
-        ShipmentDocumentItem(
-            document_id=shipment.id,
-            autopart_id=created_autopart.id,
-            quantity=1,
-            price=99.99,
-        )
+    shipment_item = ShipmentDocumentItem(
+        document_id=shipment.id,
+        autopart_id=created_autopart.id,
+        quantity=1,
+        price=99.99,
     )
+    test_session.add(shipment_item)
     await test_session.commit()
 
     await crud_diadoc_integration_settings.update(
@@ -1145,6 +1144,20 @@ async def test_diadoc_shipment_readiness_reports_formalized_status(
     assert data["ready_nonformalized"] is True
     assert data["ready_formalized"] is True
     assert data["missing_required_fields"] == []
+
+    shipment_item.vat_rate = 10
+    await test_session.commit()
+    response = await async_client.get(f"/diadoc/outbound-readiness/shipment/{shipment.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ready_formalized"] is False
+    assert any("НДС 22%" in reason for reason in data["missing_required_fields"])
+
+    shipment_item.vat_rate = 0
+    await test_session.commit()
+    response = await async_client.get(f"/diadoc/outbound-readiness/shipment/{shipment.id}")
+    assert response.status_code == 200
+    assert response.json()["ready_formalized"] is False
 
 
 @pytest.mark.asyncio

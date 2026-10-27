@@ -18,6 +18,7 @@ import os
 import time
 from datetime import date
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse, Response
@@ -35,6 +36,7 @@ from dz_fastapi.models.one_c import (
     OneCExchangeEvent,
     OneCExchangeEventStatus,
 )
+from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.one_c import (
     ONE_C_OUTBOX_CONTRACT_VERSION,
@@ -47,7 +49,13 @@ from dz_fastapi.services.one_c_enterprise_data import (
 )
 from dz_fastapi.services.one_c_enterprise_data import (
     process_exchange_directory,
+    read_incoming_archive,
     regenerate_outgoing_message,
+    send_body_message,
+)
+from dz_fastapi.services.one_c_enterprise_data_export import (
+    event_body_objects,
+    preview_outbox_event,
 )
 from dz_fastapi.services.one_c_exchange import (
     build_commerceml_sale_xml,
@@ -68,6 +76,7 @@ from dz_fastapi.services.one_c_outbox import (
     ENTITY_PRODUCTION_WAVE,
     ENTITY_RECEIPT,
     ENTITY_SHIPMENT,
+    ENTITY_SHIPMENT_CORRECTION,
     ENTITY_STOCK_DOCUMENT,
     EVENT_POSTED,
     acknowledge_delivery_batch,
@@ -265,6 +274,95 @@ async def enterprise_data_status(
     return await asyncio.to_thread(get_enterprise_data_status)
 
 
+@router.get(
+    "/enterprise-data/incoming/{file_name}",
+    summary="Скачать входящий архив EnterpriseData для проверки формата",
+)
+async def enterprise_data_incoming_file(
+    file_name: str,
+    _: User = Depends(require_admin),
+):
+    try:
+        content = await asyncio.to_thread(read_incoming_archive, file_name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    media_type = "application/zip" if file_name.lower().endswith(".zip") else "application/xml"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(file_name)}",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+async def _company_for_enterprise_data(session: AsyncSession) -> dict:
+    profile = (await session.execute(select(CompanyProfile))).scalars().first()
+    if profile is None:
+        raise HTTPException(status_code=409, detail="Не заполнены реквизиты организации")
+    return {
+        "short_name": profile.short_name,
+        "full_name": profile.full_name,
+        "inn": profile.inn,
+        "kpp": profile.kpp,
+        "is_individual_entrepreneur": profile.is_individual_entrepreneur,
+    }
+
+
+@router.get(
+    "/enterprise-data/preview/{event_id}",
+    summary="Предпросмотр XML документа для штатной синхронизации УНФ",
+)
+async def enterprise_data_preview(
+    event_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    event = await session.get(OneCExchangeEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Событие обмена не найдено")
+    company = await _company_for_enterprise_data(session)
+    try:
+        xml = preview_outbox_event(event.entity_type, event.event_type, event.payload, company)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=xml,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post(
+    "/enterprise-data/send/{event_id}",
+    summary="Положить на FTP сообщение с одним проведённым документом для УНФ",
+)
+async def enterprise_data_send(
+    event_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Ручная пробная отправка: статус события не меняется, автоматического
+    подтверждения нет — результат проверяется в УНФ."""
+    event = await session.get(OneCExchangeEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Событие обмена не найдено")
+    company = await _company_for_enterprise_data(session)
+    try:
+        objects = event_body_objects(event.entity_type, event.event_type, event.payload, company)
+        return await asyncio.to_thread(
+            send_body_message,
+            objects,
+            description=f"{event.entity_type}:{event.entity_id} event {event.id}",
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.post(
     "/enterprise-data/process",
     summary="Разобрать входящие сообщения 1С и сформировать ответ",
@@ -419,6 +517,7 @@ async def query_one_c_outbox(
         channel=CHANNEL_JSON,
         entity_types=[
             ENTITY_SHIPMENT,
+            ENTITY_SHIPMENT_CORRECTION,
             ENTITY_RECEIPT,
             ENTITY_STOCK_DOCUMENT,
             ENTITY_PRODUCTION_WAVE,

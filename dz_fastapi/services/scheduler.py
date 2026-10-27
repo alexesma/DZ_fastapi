@@ -81,6 +81,7 @@ from dz_fastapi.services.monitoring import (
     tracked_execution,
 )
 from dz_fastapi.services.notifications import create_admin_notifications, notify_admin_all
+from dz_fastapi.services.one_c_enterprise_data import process_exchange_directory
 from dz_fastapi.services.order_timing import (
     OUTSIDE_WINDOW_SLOW_SECONDS,
     get_overdue_customer_windows,
@@ -603,6 +604,17 @@ async def process_manual_customer_pricelists_task(app: FastAPI):
     await run_pricelist_jobs(app.state.session_factory)
 
 
+async def process_one_c_enterprise_handshake_task():
+    """Acknowledge only safe, header-only messages from the FTP exchange."""
+    try:
+        result = await asyncio.to_thread(process_exchange_directory)
+    except Exception:
+        logger.exception("EnterpriseData handshake poll failed")
+        return
+    if result.get("response_file") and not result.get("note"):
+        logger.info("EnterpriseData handshake response: %s", result["response_file"])
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -618,6 +630,21 @@ def start_scheduler(app: FastAPI):
             # как только event loop освободится.
         },
     )
+
+    handshake_poll_seconds = max(
+        0, int(os.getenv("ONE_C_ED_HANDSHAKE_POLL_SECONDS", "60"))
+    )
+    if handshake_poll_seconds:
+        scheduler.add_job(
+            func=process_one_c_enterprise_handshake_task,
+            trigger="interval",
+            id="one_c_enterprise_handshake",
+            name="Process 1C EnterpriseData handshake messages",
+            seconds=handshake_poll_seconds,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
     scheduler.add_job(
         func=process_manual_customer_pricelists_task,

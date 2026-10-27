@@ -2018,6 +2018,7 @@ class ShipmentDocument(Base):
         back_populates="document",
         cascade="all, delete-orphan",
         lazy="selectin",
+        order_by="ShipmentDocumentItem.id",
     )
     packages = relationship(
         "ShipmentPackage", back_populates="document", cascade="all, delete-orphan",
