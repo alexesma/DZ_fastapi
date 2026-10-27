@@ -413,15 +413,24 @@ def read_incoming_archive(
     directory: Optional[str] = None,
     *,
     max_size: int = 32 * 1024 * 1024,
+    outgoing: bool = False,
 ) -> bytes:
-    """Read one listed FTP message for an administrator to inspect offline."""
+    """Read one FTP message for an administrator to inspect offline.
+
+    outgoing=True — наш собственный файл (Message_ДЗ_*), чтобы загрузить его
+    в УНФ вручную через «Загрузка данных EnterpriseData».
+    """
     match = _MESSAGE_RE.fullmatch(name)
-    if (
-        not match
-        or match.group("from").upper() != PEER_NODE_CODE.upper()
-        or match.group("to").upper() != OUR_NODE_CODE.upper()
+    sender, receiver = (
+        (OUR_NODE_CODE, PEER_NODE_CODE) if outgoing else (PEER_NODE_CODE, OUR_NODE_CODE)
+    )
+    if not match or match.group("from").upper() != sender.upper():
+        raise ValueError("Недопустимое имя сообщения")
+    to_part = match.group("to")
+    if to_part.upper() != receiver.upper() and not (
+        outgoing and _GUID_RE.match(to_part)
     ):
-        raise ValueError("Недопустимое имя входящего сообщения")
+        raise ValueError("Недопустимое имя сообщения")
     directory = directory or get_exchange_dir()
     path = os.path.join(directory, name)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)

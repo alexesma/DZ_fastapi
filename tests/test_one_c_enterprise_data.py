@@ -592,3 +592,18 @@ def test_send_body_message_can_replace_unread_one_on_request(tmp_path):
         _shipment_objects(), directory=str(tmp_path), replace_unread=True
     )
     assert result["message_no"] == 1
+
+
+def test_admin_can_read_our_outgoing_files_only_with_the_outgoing_flag(tmp_path):
+    from dz_fastapi.services.one_c_enterprise_data import send_body_message
+
+    _state_with_handshake(tmp_path)
+    send_body_message(_shipment_objects(), directory=str(tmp_path))
+    guid_name = "Message_ДЗ_91d5a7dd-2d96-4af5-b855-90ad613450b9.zip"
+
+    assert read_incoming_archive(guid_name, str(tmp_path), outgoing=True)
+    assert read_incoming_archive("Message_ДЗ_НФ.zip", str(tmp_path), outgoing=True)
+    with pytest.raises(ValueError, match="имя"):
+        read_incoming_archive(guid_name, str(tmp_path))
+    with pytest.raises(ValueError, match="имя"):
+        read_incoming_archive("Message_ДЗ_../x.zip", str(tmp_path), outgoing=True)

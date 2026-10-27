@@ -280,10 +280,13 @@ async def enterprise_data_status(
 )
 async def enterprise_data_incoming_file(
     file_name: str,
+    outgoing: bool = Query(default=False),
     _: User = Depends(require_admin),
 ):
     try:
-        content = await asyncio.to_thread(read_incoming_archive, file_name)
+        content = await asyncio.to_thread(
+            read_incoming_archive, file_name, outgoing=outgoing
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
