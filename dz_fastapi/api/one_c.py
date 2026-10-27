@@ -343,6 +343,7 @@ async def enterprise_data_preview(
 )
 async def enterprise_data_send(
     event_id: int,
+    replace_unread: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
@@ -358,6 +359,7 @@ async def enterprise_data_send(
             send_body_message,
             objects,
             description=f"{event.entity_type}:{event.entity_id} event {event.id}",
+            replace_unread=replace_unread,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -439,6 +439,24 @@ def read_incoming_archive(
     return content
 
 
+_GUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _write_zip(directory: str, base: str, xml_bytes: bytes) -> str:
+    path = os.path.join(directory, f"{base}.zip")
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(f"{base}.xml", xml_bytes)
+    tmp_path = f"{path}.{uuid.uuid4().hex}.tmp"
+    with open(tmp_path, "wb") as fh:
+        fh.write(buffer.getvalue())
+    os.replace(tmp_path, path)
+    return path
+
+
 def write_outgoing_message(
     directory: str,
     xml_bytes: bytes,
@@ -446,8 +464,16 @@ def write_outgoing_message(
     from_code: str,
     to_code: str,
     compress: bool = True,
+    receiver_guid: Optional[str] = None,
 ) -> str:
-    """Кладёт наш ответ рядом — 1С заберёт его по FTP."""
+    """Кладёт наш ответ рядом — 1С заберёт его по FTP.
+
+    УНФ ищет входящий файл по маске ``Message*_<наш код>_<GUID её узла>.*``
+    (так написано в её журнале регистрации), а не по короткому коду ``НФ``.
+    Поэтому, когда GUID узла УНФ известен, рядом кладётся копия под этим
+    именем. GUID приходит из внешнего файла — в имя он попадает только после
+    проверки формата.
+    """
     os.makedirs(directory, exist_ok=True)
     base = f"Message_{from_code}_{to_code}"
     if not compress:
@@ -458,14 +484,9 @@ def write_outgoing_message(
         os.replace(tmp_path, path)
         return path
 
-    path = os.path.join(directory, f"{base}.zip")
-    buffer = BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(f"{base}.xml", xml_bytes)
-    tmp_path = f"{path}.{uuid.uuid4().hex}.tmp"
-    with open(tmp_path, "wb") as fh:
-        fh.write(buffer.getvalue())
-    os.replace(tmp_path, path)
+    path = _write_zip(directory, base, xml_bytes)
+    if receiver_guid and _GUID_RE.match(receiver_guid):
+        _write_zip(directory, f"Message_{from_code}_{receiver_guid}", xml_bytes)
     return path
 
 
@@ -525,6 +546,7 @@ def _regenerate_outgoing_message_unlocked(
         xml_bytes,
         from_code=OUR_NODE_CODE,
         to_code=PEER_NODE_CODE,
+        receiver_guid=state.get("peer_node_guid"),
     )
     state["last_message_at"] = now_moscow().isoformat()
     save_state(directory, state)
@@ -548,8 +570,12 @@ def send_body_message(
     *,
     description: str = "",
     directory: Optional[str] = None,
+    replace_unread: bool = False,
 ) -> dict[str, Any]:
     """Кладёт на FTP сообщение с данными для УНФ (ручная отправка).
+
+    replace_unread — осознанно заменить предыдущее непрочитанное сообщение
+    (например, если оно было затёрто или УНФ не может его найти).
 
     Отправка допустима только после рукопожатия (мы знаем, какие типы УНФ
     принимает) и пока УНФ прочитала предыдущее сообщение с данными: файл
@@ -577,7 +603,7 @@ def send_body_message(
         sent_no = int(state.get("sent_no", 0))
         confirmed_no = int(state.get("peer_confirmed_our_no", 0))
         pending = state.get("pending_body")
-        if pending and int(pending["message_no"]) > confirmed_no:
+        if pending and int(pending["message_no"]) > confirmed_no and not replace_unread:
             raise ValueError(
                 f"УНФ ещё не прочитала сообщение № {pending['message_no']} с данными: "
                 "запустите в УНФ синхронизацию, затем повторите отправку"
@@ -597,7 +623,11 @@ def send_body_message(
         outgoing_state = {**state, "sent_no": message_no}
         xml_bytes = build_response_xml(stub, outgoing_state, body_objects=body_objects)
         path = write_outgoing_message(
-            directory, xml_bytes, from_code=OUR_NODE_CODE, to_code=PEER_NODE_CODE
+            directory,
+            xml_bytes,
+            from_code=OUR_NODE_CODE,
+            to_code=PEER_NODE_CODE,
+            receiver_guid=state.get("peer_node_guid"),
         )
         state["sent_no"] = message_no
         state["pending_body"] = {
@@ -731,6 +761,7 @@ def _process_exchange_directory_unlocked(
                 build_response_xml(latest, state),
                 from_code=OUR_NODE_CODE,
                 to_code=PEER_NODE_CODE,
+                receiver_guid=state.get("peer_node_guid"),
             )
         result["note"] = "Повтор уже обработанного служебного сообщения"
         result["response_file"] = outgoing_file
@@ -763,6 +794,7 @@ def _process_exchange_directory_unlocked(
         xml_bytes,
         from_code=latest.to_code or OUR_NODE_CODE,
         to_code=latest.from_code or PEER_NODE_CODE,
+        receiver_guid=state.get("peer_node_guid"),
     )
     save_state(directory, state)
     result["response_file"] = os.path.basename(response_path)

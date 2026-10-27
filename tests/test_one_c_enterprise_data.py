@@ -558,3 +558,37 @@ def test_handshake_does_not_overwrite_unread_data_message(tmp_path):
     assert result["response_file"] is None
     assert (tmp_path / "Message_ДЗ_НФ.zip").read_bytes() == before
     assert load_state(str(tmp_path))["sent_no"] == 1
+
+
+def test_outgoing_message_is_also_placed_under_the_name_unf_searches_for(tmp_path):
+    from dz_fastapi.services.one_c_enterprise_data import send_body_message
+
+    _state_with_handshake(tmp_path)
+    send_body_message(_shipment_objects(), directory=str(tmp_path))
+
+    guid = "91d5a7dd-2d96-4af5-b855-90ad613450b9"
+    by_guid = tmp_path / f"Message_ДЗ_{guid}.zip"
+    assert by_guid.exists(), "УНФ ищет Message*_ДЗ_<GUID узла УНФ>.*"
+    assert by_guid.read_bytes() != b""
+    assert read_message_file(str(by_guid)) == read_message_file(
+        str(tmp_path / "Message_ДЗ_НФ.zip")
+    )
+
+
+def test_receiver_guid_from_a_message_cannot_inject_a_path(tmp_path):
+    write_outgoing_message(
+        str(tmp_path), b"<x/>", from_code="ДЗ", to_code="НФ",
+        receiver_guid="../../evil",
+    )
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["Message_ДЗ_НФ.zip"]
+
+
+def test_send_body_message_can_replace_unread_one_on_request(tmp_path):
+    from dz_fastapi.services.one_c_enterprise_data import send_body_message
+
+    _state_with_handshake(tmp_path)
+    send_body_message(_shipment_objects(), directory=str(tmp_path))
+    result = send_body_message(
+        _shipment_objects(), directory=str(tmp_path), replace_unread=True
+    )
+    assert result["message_no"] == 1
