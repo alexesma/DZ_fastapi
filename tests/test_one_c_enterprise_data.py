@@ -520,3 +520,26 @@ def test_send_body_message_requires_handshake(tmp_path):
 
     with pytest.raises(ValueError, match="Рукопожатие"):
         send_body_message(_shipment_objects(), directory=str(tmp_path))
+
+
+def test_data_message_header_records_what_unf_confirmed_without_acking_it(tmp_path):
+    from dz_fastapi.services.one_c_enterprise_data import send_body_message
+
+    _state_with_handshake(tmp_path)
+    send_body_message(_shipment_objects(), directory=str(tmp_path))
+    # УНФ ответила сообщением с данными и подтвердила наше № 1
+    with_body = (
+        HANDSHAKE.replace(b"<msg:ReceivedNo>0<", b"<msg:ReceivedNo>1<")
+        .replace(
+            b"</msg:Header>\n</Message>",
+            b"</msg:Header>\n  <Document/>\n</Message>",
+        )
+    )
+    _write_incoming(tmp_path, payload=with_body)
+
+    result = process_exchange_directory(str(tmp_path))
+
+    assert result["response_file"] is None
+    assert (tmp_path / "Message_НФ_ДЗ.zip").exists()
+    assert load_state(str(tmp_path))["peer_confirmed_our_no"] == 1
+    assert send_body_message(_shipment_objects(), directory=str(tmp_path))["message_no"] == 2
