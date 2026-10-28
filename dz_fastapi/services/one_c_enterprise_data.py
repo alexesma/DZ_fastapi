@@ -317,8 +317,7 @@ def build_response_xml(
     # Нельзя регистрировать DATA_NS как default namespace: ElementTree тогда
     # превращает корневой <Message> в <Message xmlns=".../1.22">. УНФ такой
     # корень не распознаёт и сообщает «обработано 0 объектов».
-    if body_objects:
-        ET.register_namespace("ed", DATA_NS)
+    ET.register_namespace("ed", DATA_NS)
     root = ET.Element("Message")
     header = ET.SubElement(root, f"{{{MSG_NS}}}Header")
     ET.SubElement(header, f"{{{MSG_NS}}}Format").text = (
@@ -365,8 +364,8 @@ def build_response_xml(
     ET.SubElement(corr, f"{{{MSG_NS}}}Code").text = incoming.peer_node_guid or incoming.from_code
     ET.SubElement(corr, f"{{{MSG_NS}}}Looping").text = "false"
 
+    body = ET.SubElement(root, f"{{{DATA_NS}}}Body")
     if body_objects:
-        body = ET.SubElement(root, f"{{{DATA_NS}}}Body")
         for obj in body_objects:
             if obj.tag != f"{{{DATA_NS}}}{obj.tag.rsplit('}', 1)[-1]}":
                 raise ValueError("Объект имеет неверное пространство имён EnterpriseData")

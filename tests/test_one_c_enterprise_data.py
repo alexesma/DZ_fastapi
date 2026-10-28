@@ -134,6 +134,9 @@ def test_response_swaps_nodes_and_confirms_number():
 
     assert xml.startswith(b"\xef\xbb\xbf"), "1С ожидает BOM"
     root = ET.fromstring(xml.decode("utf-8-sig"))
+    assert root.tag == "Message"
+    body = root.find(f"{{{DATA_NS}}}Body")
+    assert body is not None and len(body) == 0
     conf = root.find(f"{{{MSG_NS}}}Header/{{{MSG_NS}}}Confirmation")
 
     def val(tag):
