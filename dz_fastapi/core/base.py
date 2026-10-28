@@ -82,6 +82,7 @@ from dz_fastapi.models.nomenclature import (
 )
 from dz_fastapi.models.notification import AppNotification  # noqa
 from dz_fastapi.models.one_c import (  # noqa
+    OneCEnterpriseConfig,
     OneCExchangeBatch,
     OneCExchangeBatchItem,
     OneCExchangeEvent,

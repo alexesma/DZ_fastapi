@@ -381,6 +381,7 @@ async def enqueue_one_c_event(
     entity_id: int,
     event_type: str,
     payload: dict[str, Any],
+    ed_only: bool = False,
 ) -> OneCExchangeEvent:
     # A business transition is immutable. Its snapshot may nevertheless gain
     # derived values after first enqueue (for example FIFO allocations after
@@ -430,6 +431,7 @@ async def enqueue_one_c_event(
         entity_id=entity_id,
         event_type=event_type,
         payload=payload,
+        ed_only=ed_only,
         payload_version=1,
         idempotency_key=idempotency_key,
         status=OneCExchangeEventStatus.PENDING,
@@ -601,6 +603,7 @@ async def get_or_create_delivery_batch(
         .where(
             OneCExchangeEvent.status == OneCExchangeEventStatus.PENDING,
             OneCExchangeEvent.entity_type.in_(list(entity_types)),
+            OneCExchangeEvent.ed_only.is_(False),
             or_(
                 OneCExchangeEvent.next_attempt_at.is_(None),
                 OneCExchangeEvent.next_attempt_at <= now,
@@ -872,12 +875,17 @@ def serialize_one_c_event(
         "event_type": event.event_type,
         "payload_version": event.payload_version,
         "idempotency_key": event.idempotency_key,
+        "ed_only": event.ed_only,
         "status": _value(event.status),
         "attempt_count": event.attempt_count,
         "last_attempt_at": event.last_attempt_at,
         "confirmed_at": event.confirmed_at,
         "external_id": event.external_id,
         "last_error": event.last_error,
+        "ed_message_no": event.ed_message_no,
+        "ed_sent_at": event.ed_sent_at,
+        "ed_transport_confirmed_at": event.ed_transport_confirmed_at,
+        "ed_last_error": event.ed_last_error,
         "created_at": event.created_at,
         "updated_at": event.updated_at,
     }

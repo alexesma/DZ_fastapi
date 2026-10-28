@@ -3,7 +3,7 @@
 from enum import StrEnum, unique
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -45,6 +45,7 @@ class OneCExchangeEvent(Base):
     payload_version = Column(Integer, nullable=False, default=1)
     payload = Column(JSON, nullable=False)
     idempotency_key = Column(String(160), nullable=False, unique=True, index=True)
+    ed_only = Column(Boolean, nullable=False, default=False)
     status = Column(
         SAEnum(
             OneCExchangeEventStatus,
@@ -61,6 +62,12 @@ class OneCExchangeEvent(Base):
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
     external_id = Column(String(100), nullable=True, index=True)
     last_error = Column(Text, nullable=True)
+    # EnterpriseData is a separate transport from CommerceML/JSON.  A read
+    # receipt from UNF is not proof that the document was posted there.
+    ed_message_no = Column(Integer, nullable=True, index=True)
+    ed_sent_at = Column(DateTime(timezone=True), nullable=True)
+    ed_transport_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ed_last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow, index=True)
     updated_at = Column(
         DateTime(timezone=True),
@@ -90,6 +97,18 @@ class OneCExchangeEvent(Base):
             "created_at",
         ),
     )
+
+
+class OneCEnterpriseConfig(Base):
+    """Activation boundary for the native UNF FTP exchange."""
+
+    __tablename__ = "oncenterpriseconfig"
+
+    enabled = Column(Boolean, nullable=False, default=False)
+    send_receipts = Column(Boolean, nullable=False, default=True)
+    send_shipments = Column(Boolean, nullable=False, default=False)
+    first_event_id = Column(Integer, nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
 
 
 class OneCExchangeBatch(Base):

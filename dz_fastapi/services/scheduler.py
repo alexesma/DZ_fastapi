@@ -82,6 +82,7 @@ from dz_fastapi.services.monitoring import (
 )
 from dz_fastapi.services.notifications import create_admin_notifications, notify_admin_all
 from dz_fastapi.services.one_c_enterprise_data import process_exchange_directory
+from dz_fastapi.services.one_c_enterprise_dispatch import dispatch_next
 from dz_fastapi.services.order_timing import (
     OUTSIDE_WINDOW_SLOW_SECONDS,
     get_overdue_customer_windows,
@@ -604,8 +605,8 @@ async def process_manual_customer_pricelists_task(app: FastAPI):
     await run_pricelist_jobs(app.state.session_factory)
 
 
-async def process_one_c_enterprise_handshake_task():
-    """Acknowledge only safe, header-only messages from the FTP exchange."""
+async def process_one_c_enterprise_handshake_task(app: FastAPI):
+    """Handle UNF headers, then advance one configured outgoing document."""
     try:
         result = await asyncio.to_thread(process_exchange_directory)
     except Exception:
@@ -613,6 +614,16 @@ async def process_one_c_enterprise_handshake_task():
         return
     if result.get("response_file") and not result.get("note"):
         logger.info("EnterpriseData handshake response: %s", result["response_file"])
+    try:
+        async with app.state.session_factory() as session:
+            outcome = await dispatch_next(session)
+            await session.commit()
+            if outcome.get("sent_event_id"):
+                logger.info("EnterpriseData auto-send: %s", outcome)
+            elif outcome.get("error_event_id"):
+                logger.warning("EnterpriseData auto-send: %s", outcome)
+    except Exception:
+        logger.exception("EnterpriseData auto-send failed")
 
 
 def start_scheduler(app: FastAPI):
@@ -638,6 +649,7 @@ def start_scheduler(app: FastAPI):
         scheduler.add_job(
             func=process_one_c_enterprise_handshake_task,
             trigger="interval",
+            args=[app],
             id="one_c_enterprise_handshake",
             name="Process 1C EnterpriseData handshake messages",
             seconds=handshake_poll_seconds,

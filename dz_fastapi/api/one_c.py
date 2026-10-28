@@ -22,6 +22,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse, Response
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -32,6 +33,7 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import ShipmentDocument, ShipmentDocumentStatus
 from dz_fastapi.models.one_c import (
+    OneCEnterpriseConfig,
     OneCExchangeBatch,
     OneCExchangeBatchItem,
     OneCExchangeEvent,
@@ -58,6 +60,13 @@ from dz_fastapi.services.one_c_enterprise_data import (
 from dz_fastapi.services.one_c_enterprise_data_export import (
     event_body_objects,
     preview_outbox_event,
+)
+from dz_fastapi.services.one_c_enterprise_dispatch import (
+    backfill_history_step,
+    config_data,
+    history_audit,
+    reconcile_transport,
+    set_config,
 )
 from dz_fastapi.services.one_c_exchange import (
     build_commerceml_sale_xml,
@@ -99,6 +108,13 @@ router = APIRouter(prefix="/1c", tags=["1c"])
 ONE_C_COOKIE_NAME = "dz1c"
 ONE_C_COOKIE_TTL_SECONDS = 24 * 3600
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+class EnterpriseAutoSettingsUpdate(BaseModel):
+    enabled: bool
+    send_receipts: bool = True
+    send_shipments: bool = False
+    include_history: bool = False
 
 
 def _one_c_credentials() -> tuple[str, str]:
@@ -277,6 +293,95 @@ async def enterprise_data_status(
     return await asyncio.to_thread(get_enterprise_data_status)
 
 
+@router.get("/enterprise-data/auto", summary="Автоотправка EnterpriseData")
+async def enterprise_data_auto_status(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await session.get(OneCEnterpriseConfig, 1)
+    transport = await asyncio.to_thread(get_enterprise_data_status)
+    return {"config": config_data(config), "transport": transport}
+
+
+@router.get(
+    "/enterprise-data/history/audit",
+    summary="Проверить полноту исторических документов и договоров перед переносом",
+)
+async def enterprise_data_history_audit(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    return await history_audit(session)
+
+
+@router.post(
+    "/enterprise-data/history/backfill",
+    summary="Подготовить исторические документы для EnterpriseData",
+)
+async def enterprise_data_history_backfill(
+    limit: int = Query(default=50, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        result = await backfill_history_step(session, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
+@router.put("/enterprise-data/auto", summary="Настроить автоотправку EnterpriseData")
+async def enterprise_data_auto_update(
+    data: EnterpriseAutoSettingsUpdate,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await set_config(
+        session,
+        enabled=data.enabled,
+        send_receipts=data.send_receipts,
+        send_shipments=data.send_shipments,
+        include_history=data.include_history,
+    )
+    await session.commit()
+    return config_data(config)
+
+
+@router.post(
+    "/enterprise-data/reconcile", summary="Сверить подтверждения чтения УНФ с очередью"
+)
+async def enterprise_data_reconcile(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    transport = await asyncio.to_thread(get_enterprise_data_status)
+    changed = await reconcile_transport(session, transport)
+    await session.commit()
+    return {"event_ids": changed}
+
+
+@router.post(
+    "/enterprise-data/retry/{event_id}", summary="Повторить подготовку документа EnterpriseData"
+)
+async def enterprise_data_retry(
+    event_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    event = await session.get(OneCExchangeEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Событие не найдено")
+    if event.ed_message_no is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Сообщение уже отправлено; сначала проверьте его в УНФ",
+        )
+    event.ed_last_error = None
+    await session.commit()
+    return serialize_one_c_event(event, include_payload=False)
+
+
 @router.get(
     "/enterprise-data/incoming/{file_name}",
     summary="Скачать входящий архив EnterpriseData для проверки формата",
@@ -396,12 +501,18 @@ async def enterprise_data_send(
     try:
         payload = await _payload_for_enterprise_data(event, session)
         objects = event_body_objects(event.entity_type, event.event_type, payload, company)
-        return await asyncio.to_thread(
+        sent = await asyncio.to_thread(
             send_body_message,
             objects,
             description=f"{event.entity_type}:{event.entity_id} event {event.id}",
             replace_unread=replace_unread,
         )
+        event.ed_message_no = sent["message_no"]
+        event.ed_sent_at = now_moscow()
+        event.ed_transport_confirmed_at = None
+        event.ed_last_error = None
+        await session.commit()
+        return sent
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

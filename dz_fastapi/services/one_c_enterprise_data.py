@@ -658,6 +658,14 @@ def send_body_message(
             name for name, flags in state["peer_object_types"].items()
             if flags.get("receiving")
         }
+        documents = {
+            obj.tag.rsplit("}", 1)[-1]
+            for obj in body_objects
+            if obj.tag.rsplit("}", 1)[-1].startswith("Документ.")
+        }
+        if not documents or not documents.issubset(accepted):
+            unsupported = ", ".join(sorted(documents - accepted)) or "документ отсутствует"
+            raise ValueError(f"УНФ не объявила приём: {unsupported}")
         body_objects = [
             obj for obj in body_objects
             if not obj.tag.rsplit("}", 1)[-1].startswith("Справочник.")
