@@ -236,6 +236,11 @@ class Provider(Client):
     bank_city = Column(String(255), nullable=True)
     bank_account = Column(String(64), nullable=True)
     correspondent_account = Column(String(64), nullable=True)
+    # Один основной договор поставщика для штатного обмена с УНФ.
+    one_c_contract_name = Column(String(255), nullable=True)
+    one_c_contract_number = Column(String(100), nullable=True)
+    one_c_contract_date = Column(Date, nullable=True)
+    one_c_contract_guid = Column(String(36), nullable=True)
     credit_limit = Column(DECIMAL(12, 2), nullable=True)
     price_lists = relationship("PriceList", back_populates="provider")
     pricelist_configs = relationship(

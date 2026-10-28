@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -95,6 +96,10 @@ class ProviderBase(ClientBase):
     bank_account: Optional[str] = Field(default=None, max_length=64)
     correspondent_account: Optional[str] = Field(default=None, max_length=64)
     credit_limit: Optional[Decimal] = None
+    one_c_contract_name: Optional[str] = Field(default=None, max_length=255)
+    one_c_contract_number: Optional[str] = Field(default=None, max_length=100)
+    one_c_contract_date: Optional[date] = None
+    one_c_contract_guid: Optional[str] = Field(default=None, max_length=36)
     is_own_price: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
     autopurchase_blocked: Optional[bool] = False
@@ -130,6 +135,11 @@ class ProviderBase(ClientBase):
             return None
         value = str(v).strip()
         return value or None
+
+    @field_validator("one_c_contract_guid", mode="before")
+    @classmethod
+    def normalize_one_c_contract_guid(cls, v):
+        return str(UUID(str(v))) if v else None
 
     @field_validator("email_incoming_price", mode="before")
     def validate_email_incoming_price(cls, v):
@@ -185,6 +195,15 @@ class ProviderUpdate(BaseModel):
     bank_account: Optional[str] = Field(default=None, max_length=64)
     correspondent_account: Optional[str] = Field(default=None, max_length=64)
     credit_limit: Optional[Decimal] = None
+    one_c_contract_name: Optional[str] = Field(default=None, max_length=255)
+    one_c_contract_number: Optional[str] = Field(default=None, max_length=100)
+    one_c_contract_date: Optional[date] = None
+    one_c_contract_guid: Optional[str] = Field(default=None, max_length=36)
+
+    @field_validator("one_c_contract_guid", mode="before")
+    @classmethod
+    def normalize_one_c_contract_guid(cls, v):
+        return str(UUID(str(v))) if v else None
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
     is_vat_payer: Optional[bool] = None

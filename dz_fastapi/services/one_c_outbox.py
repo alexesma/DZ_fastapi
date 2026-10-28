@@ -236,6 +236,12 @@ async def build_receipt_snapshot(
             "name": getattr(receipt.provider, "name", None),
             "inn": getattr(receipt.provider, "inn", None),
             "kpp": getattr(receipt.provider, "kpp", None),
+            "one_c_contract": {
+                "name": getattr(receipt.provider, "one_c_contract_name", None),
+                "number": getattr(receipt.provider, "one_c_contract_number", None),
+                "date": _value(getattr(receipt.provider, "one_c_contract_date", None)),
+                "guid": getattr(receipt.provider, "one_c_contract_guid", None),
+            },
         },
         "warehouse": {
             "id": getattr(receipt.warehouse, "id", None),

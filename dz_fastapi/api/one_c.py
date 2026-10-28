@@ -37,7 +37,7 @@ from dz_fastapi.models.one_c import (
     OneCExchangeEvent,
     OneCExchangeEventStatus,
 )
-from dz_fastapi.models.partner import SupplierReceipt
+from dz_fastapi.models.partner import Provider, SupplierReceipt
 from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.one_c import (
@@ -319,6 +319,31 @@ async def _company_for_enterprise_data(session: AsyncSession) -> dict:
     }
 
 
+async def _payload_for_enterprise_data(
+    event: OneCExchangeEvent, session: AsyncSession,
+) -> dict:
+    """Use the current contract mapping for old and newly queued receipts."""
+    payload = event.payload
+    if event.entity_type != ENTITY_RECEIPT:
+        return payload
+    party = payload.get("provider") or {}
+    provider = await session.get(Provider, party.get("id")) if party.get("id") else None
+    if provider is None:
+        raise ValueError("Поставщик поступления не найден")
+    return {
+        **payload,
+        "provider": {
+            **party,
+            "one_c_contract": {
+                "name": provider.one_c_contract_name,
+                "number": provider.one_c_contract_number,
+                "date": provider.one_c_contract_date,
+                "guid": provider.one_c_contract_guid,
+            },
+        },
+    }
+
+
 @router.get(
     "/enterprise-data/preview/{event_id}",
     summary="Предпросмотр XML документа для штатной синхронизации УНФ",
@@ -333,7 +358,8 @@ async def enterprise_data_preview(
         raise HTTPException(status_code=404, detail="Событие обмена не найдено")
     company = await _company_for_enterprise_data(session)
     try:
-        xml = preview_outbox_event(event.entity_type, event.event_type, event.payload, company)
+        payload = await _payload_for_enterprise_data(event, session)
+        xml = preview_outbox_event(event.entity_type, event.event_type, payload, company)
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return Response(
@@ -368,7 +394,8 @@ async def enterprise_data_send(
             raise HTTPException(status_code=409, detail="Реализация больше не проведена")
     company = await _company_for_enterprise_data(session)
     try:
-        objects = event_body_objects(event.entity_type, event.event_type, event.payload, company)
+        payload = await _payload_for_enterprise_data(event, session)
+        objects = event_body_objects(event.entity_type, event.event_type, payload, company)
         return await asyncio.to_thread(
             send_body_message,
             objects,

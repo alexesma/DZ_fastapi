@@ -555,6 +555,15 @@ async def create_provider(
 ):
     if provider_in.order_schedule_enabled and not provider_in.order_schedule_times:
         raise HTTPException(status_code=400, detail="Укажите время отправки поставщику")
+    if any((
+        provider_in.one_c_contract_name,
+        provider_in.one_c_contract_number,
+        provider_in.one_c_contract_date,
+        provider_in.one_c_contract_guid,
+    )) and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403, detail="Договор 1С может задавать только администратор"
+        )
     if (
         provider_in.inventory_policy.value != "original_goods" or provider_in.inventory_policy_note
     ) and current_user.role != UserRole.ADMIN:
@@ -939,6 +948,14 @@ async def update_provider(
             )
             if enabled and not times:
                 raise HTTPException(status_code=400, detail="Укажите время отправки поставщику")
+    one_c_contract_fields = {
+        "one_c_contract_name", "one_c_contract_number",
+        "one_c_contract_date", "one_c_contract_guid",
+    }
+    if one_c_contract_fields & provider_in.model_fields_set and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403, detail="Договор 1С может задавать только администратор"
+        )
     inventory_policy_fields = {
         "inventory_policy",
         "inventory_policy_note",

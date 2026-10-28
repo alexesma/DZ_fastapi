@@ -16,6 +16,7 @@ from xml.etree import ElementTree as ET
 DATA_NS = "http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.22"
 SUPPORTED_OBJECTS = frozenset({
     "Справочник.Контрагенты",
+    "Справочник.Договоры",
     "Справочник.Номенклатура",
     "Документ.ЗаказКлиента",
     "Документ.ЗаказПоставщику",
@@ -127,11 +128,42 @@ def _product_key(parent: ET.Element, item: dict[str, Any]) -> None:
     _add(parent, "Наименование", _required(name, "наименование номенклатуры"))
 
 
-def _currency(parent: ET.Element) -> None:
-    currency = _add(parent, "Валюта")
-    classifier = _add(currency, "ДанныеКлассификатора")
+def _currency_key(parent: ET.Element) -> None:
+    classifier = _add(parent, "ДанныеКлассификатора")
     _add(classifier, "Код", "643")
     _add(classifier, "Наименование", "Российский рубль")
+
+
+def _currency(parent: ET.Element) -> None:
+    _currency_key(_add(parent, "Валюта"))
+
+
+def _supplier_contract_key(
+    parent: ET.Element,
+    provider: dict[str, Any],
+    company: dict[str, Any],
+) -> None:
+    contract = provider.get("one_c_contract") or {}
+    name = _required(contract.get("name"), "договор 1С у поставщика")
+    provider_id = _required(provider.get("id"), "ID поставщика для договора 1С")
+    _add(parent, "Ссылка", contract.get("guid") or _guid("supplier-contract", provider_id))
+    _add(parent, "ВидДоговора", "СПоставщиком")
+    _organization(parent, company)
+    _counterparty_key(_add(parent, "Контрагент"), provider, "provider")
+    _currency_key(_add(parent, "ВалютаВзаиморасчетов"))
+    _add(parent, "Наименование", name)
+    _optional(parent, "Дата", contract.get("date"))
+    _optional(parent, "Номер", contract.get("number"))
+
+
+def _supplier_settlements(
+    parent: ET.Element,
+    provider: dict[str, Any],
+    company: dict[str, Any],
+) -> None:
+    data = _add(parent, "ДанныеВзаиморасчетов")
+    _supplier_contract_key(_add(data, "Договор"), provider, company)
+    _currency_key(_add(data, "ВалютаВзаиморасчетов"))
 
 
 def _unit(parent: ET.Element) -> None:
@@ -231,6 +263,11 @@ def serialize_object(
     if object_type == "Справочник.Контрагенты":
         _counterparty_key(_add(node, "КлючевыеСвойства"), payload, payload.get("kind", "customer"))
         return node
+    if object_type == "Справочник.Договоры":
+        if company is None:
+            raise ValueError("Для договора EnterpriseData нужны реквизиты организации")
+        _supplier_contract_key(_add(node, "КлючевыеСвойства"), payload, company)
+        return node
     if object_type == "Справочник.Номенклатура":
         _product_key(_add(node, "КлючевыеСвойства"), payload)
         _add(node, "ТипНоменклатуры", "Товар")
@@ -263,7 +300,7 @@ def serialize_object(
         _currency(node)
         _add(node, "Сумма", _decimal(_amount(payload.get("items") or [])))
         _warehouse(node, payload.get("warehouse"))
-        _add(node, "ДанныеВзаиморасчетов")
+        _supplier_settlements(node, payload["provider"], company)
         _add(node, "СуммаВключаетНДС", "true")
         rows = _add(node, "Товары")
         for item in payload.get("items") or []:
@@ -290,7 +327,7 @@ def serialize_object(
         _add(node, "Сумма", _decimal(_amount(payload.get("items") or [])))
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
-        _add(node, "ДанныеВзаиморасчетов")
+        _supplier_settlements(node, payload["provider"], company)
     _source_number(node, payload["document_number"])
     return node
 
@@ -363,6 +400,8 @@ def event_body_objects(
             objects.append(node)
 
     add_reference("Справочник.Контрагенты", {**payload[party_key], "kind": party_kind})
+    if party_key == "provider" and not (payload[party_key].get("one_c_contract") or {}).get("guid"):
+        add_reference("Справочник.Договоры", payload[party_key])
     for item in payload.get("items") or []:
         add_reference("Справочник.Номенклатура", item)
     objects.append(serialize_object(object_type, payload, company))

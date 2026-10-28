@@ -6,6 +6,7 @@ import pytest
 
 from dz_fastapi.services.one_c_enterprise_data_export import (
     DATA_NS,
+    event_body_objects,
     object_xml,
     preview_outbox_event,
 )
@@ -19,13 +20,21 @@ ITEM = {
     "price": "100.00",
     "vat_rate": "22",
 }
+PROVIDER = {
+    **PARTY,
+    "one_c_contract": {
+        "name": "Договор поставки 42",
+        "number": "42/26",
+        "date": "2026-01-01",
+    },
+}
 DOCUMENT = {
     "document_id": 123,
     "document_number": "ДЗ-123",
     "document_date": "2026-10-26",
     "items": [ITEM],
     "customer": PARTY,
-    "provider": PARTY,
+    "provider": PROVIDER,
     "warehouse": {"name": "Основной"},
 }
 
@@ -105,3 +114,45 @@ def test_outbox_preview_maps_only_supported_posted_events():
         preview_outbox_event("shipment", "cancelled", DOCUMENT, COMPANY)
     with pytest.raises(ValueError, match="пока не реализована"):
         preview_outbox_event("shipment_correction", "posted", DOCUMENT, COMPANY)
+
+
+def test_supplier_receipt_sends_contract_before_document():
+    objects = event_body_objects("supplier_receipt", "posted", DOCUMENT, COMPANY)
+    kinds = [node.tag.rsplit("}", 1)[-1] for node in objects]
+    assert kinds == [
+        "Справочник.Контрагенты",
+        "Справочник.Договоры",
+        "Справочник.Номенклатура",
+        "Документ.ПоступлениеТоваровУслуг",
+    ]
+    contract = objects[1]
+    receipt = objects[-1]
+    assert _value(contract, "КлючевыеСвойства/ВидДоговора") == "СПоставщиком"
+    assert _value(contract, "КлючевыеСвойства/Номер") == "42/26"
+    assert _value(receipt, "ДанныеВзаиморасчетов/Договор/Ссылка") == _value(
+        contract, "КлючевыеСвойства/Ссылка"
+    )
+
+
+def test_existing_one_c_contract_is_referenced_without_rewriting_it():
+    provider = {
+        **PROVIDER,
+        "one_c_contract": {
+            **PROVIDER["one_c_contract"],
+            "guid": "5bd6a8b9-642b-4b56-94ef-a40cfcc96467",
+        },
+    }
+    objects = event_body_objects(
+        "supplier_receipt", "posted", {**DOCUMENT, "provider": provider}, COMPANY
+    )
+    assert "Справочник.Договоры" not in [node.tag.rsplit("}", 1)[-1] for node in objects]
+    assert _value(objects[-1], "ДанныеВзаиморасчетов/Договор/Ссылка") == (
+        "5bd6a8b9-642b-4b56-94ef-a40cfcc96467"
+    )
+
+
+def test_supplier_receipt_without_contract_fails_before_send():
+    with pytest.raises(ValueError, match="договор 1С"):
+        event_body_objects(
+            "supplier_receipt", "posted", {**DOCUMENT, "provider": PARTY}, COMPANY
+        )

@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import func, select
 
-from dz_fastapi.api.one_c import enterprise_data_prepare_receipt
+from dz_fastapi.api.one_c import _payload_for_enterprise_data, enterprise_data_prepare_receipt
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import (
     ShipmentDocument,
@@ -99,6 +99,16 @@ async def test_prepare_historical_receipt_for_enterprise_data_is_idempotent(
     assert first["id"] == second["id"]
     assert first["entity_type"] == "supplier_receipt"
     assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 1
+
+    # Старое событие создано до заполнения договора, но повторная отправка
+    # должна взять актуальную привязку из карточки поставщика.
+    created_providers[0].one_c_contract_name = "Договор поставки"
+    created_providers[0].one_c_contract_number = "42/26"
+    await test_session.commit()
+    event = await test_session.get(OneCExchangeEvent, first["id"])
+    payload = await _payload_for_enterprise_data(event, test_session)
+    assert payload["provider"]["one_c_contract"]["name"] == "Договор поставки"
+    assert payload["provider"]["one_c_contract"]["number"] == "42/26"
 
 
 @pytest.mark.asyncio
