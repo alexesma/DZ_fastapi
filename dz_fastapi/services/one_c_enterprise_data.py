@@ -12,10 +12,10 @@
 таким же заголовком, иначе 1С считает, что корреспондент не отвечает, и обмен
 не двигается.
 
-Разбор и формирование самих данных (документы, справочники) — следующий этап.
-На отправку объявлены базовые типы для настройки узла, но тело исходящих
-сообщений пока не формируется. На приём типы не объявлены: неподдержанные
-сообщения с данными не подтверждаются.
+Ручная пробная отправка реализации и поступления формирует тело исходящего
+сообщения. Автоматическая выгрузка очереди и разбор входящих данных пока не
+включены. На приём типы не объявлены: неподдержанные сообщения с данными не
+подтверждаются.
 """
 
 import base64
@@ -791,12 +791,25 @@ def _process_exchange_directory_unlocked(
             if latest is None or message.message_no >= latest.message_no:
                 latest = message
             parsed_handshake_files.append(name)
-        if message.message_no > int(state.get("received_no", 0)):
-            state["received_no"] = message.message_no
+            # ReceivedNo в нашем следующем ответе означает, что мы успешно
+            # приняли сообщение УНФ. Пока содержимое Body не разбирается,
+            # его номер нельзя сохранять как принятый: поздний служебный
+            # ответ иначе подтвердит и удалит неимпортированные данные.
+            if message.message_no > int(state.get("received_no", 0)):
+                state["received_no"] = message.message_no
         # В поле ReceivedNo 1С сообщает, какое НАШЕ сообщение она приняла.
         # По нему понимаем, нужно ли увеличивать номер следующего исходящего.
         if message.received_no > int(state.get("peer_confirmed_our_no", 0)):
             state["peer_confirmed_our_no"] = message.received_no
+        pending = state.get("pending_body")
+        if pending and int(pending["message_no"]) <= int(
+            state.get("peer_confirmed_our_no", 0)
+        ):
+            state["last_confirmed_body"] = {
+                **pending,
+                "transport_confirmed_at": now_moscow().isoformat(),
+            }
+            state["pending_body"] = None
         if message.peer_node_guid:
             state["peer_node_guid"] = message.peer_node_guid
         if message.format_uri:
@@ -965,5 +978,6 @@ def get_exchange_status(directory: Optional[str] = None) -> dict[str, Any]:
         "received_no": state.get("received_no", 0),
         "peer_confirmed_our_no": state.get("peer_confirmed_our_no", 0),
         "pending_body": state.get("pending_body"),
+        "last_confirmed_body": state.get("last_confirmed_body"),
         "last_message_at": state.get("last_message_at"),
     }

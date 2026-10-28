@@ -2,8 +2,10 @@ import base64
 from decimal import Decimal
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import func, select
 
+from dz_fastapi.api.one_c import enterprise_data_prepare_receipt
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import (
     ShipmentDocument,
@@ -17,6 +19,7 @@ from dz_fastapi.models.one_c import (
     OneCExchangeEvent,
     OneCExchangeEventStatus,
 )
+from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.services.one_c_outbox import (
     CHANNEL_COMMERCEML,
     CHANNEL_JSON,
@@ -62,6 +65,40 @@ async def _create_posted_shipment(
     )
     await session.commit()
     return shipment
+
+
+@pytest.mark.asyncio
+async def test_prepare_historical_receipt_for_enterprise_data_is_idempotent(
+    test_session,
+    created_autopart,
+    created_providers,
+):
+    receipt = SupplierReceipt(
+        provider_id=created_providers[0].id,
+        document_number="TEST-RECEIPT-1",
+        document_date=now_moscow().date(),
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+    test_session.add(SupplierReceiptItem(
+        receipt_id=receipt.id,
+        autopart_id=created_autopart.id,
+        received_quantity=2,
+        price=Decimal("100.00"),
+    ))
+    await test_session.commit()
+
+    with pytest.raises(HTTPException) as error:
+        await enterprise_data_prepare_receipt(receipt.id, test_session, None)
+    assert error.value.status_code == 409
+
+    receipt.posted_at = now_moscow()
+    await test_session.commit()
+    first = await enterprise_data_prepare_receipt(receipt.id, test_session, None)
+    second = await enterprise_data_prepare_receipt(receipt.id, test_session, None)
+    assert first["id"] == second["id"]
+    assert first["entity_type"] == "supplier_receipt"
+    assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 1
 
 
 @pytest.mark.asyncio

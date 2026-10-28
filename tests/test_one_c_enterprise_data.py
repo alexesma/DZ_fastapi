@@ -473,7 +473,7 @@ def test_message_with_body_is_flagged_not_silently_acked(tmp_path):
     with_body = HANDSHAKE.replace(
         b"</msg:Header>\n</Message>",
         b"</msg:Header>\n  <Document/>\n</Message>",
-    )
+    ).replace(b"<msg:MessageNo>0<", b"<msg:MessageNo>7<")
     _write_incoming(tmp_path, payload=with_body)
     result = process_exchange_directory(str(tmp_path))
 
@@ -483,6 +483,7 @@ def test_message_with_body_is_flagged_not_silently_acked(tmp_path):
     assert result["response_file"] is None
     assert (tmp_path / "Message_НФ_ДЗ.zip").exists()
     assert not (tmp_path / "processed" / "Message_НФ_ДЗ.zip").exists()
+    assert load_state(str(tmp_path))["received_no"] == 0
 
 
 def test_status_inspects_incoming_header_without_acknowledging_it(tmp_path):
@@ -603,7 +604,10 @@ def test_data_message_header_records_what_unf_confirmed_without_acking_it(tmp_pa
 
     assert result["response_file"] is None
     assert (tmp_path / "Message_НФ_ДЗ.zip").exists()
-    assert load_state(str(tmp_path))["peer_confirmed_our_no"] == 1
+    state = load_state(str(tmp_path))
+    assert state["peer_confirmed_our_no"] == 1
+    assert state["pending_body"] is None
+    assert state["last_confirmed_body"]["message_no"] == 1
     assert send_body_message(_shipment_objects(), directory=str(tmp_path))["message_no"] == 2
 
 

@@ -30,12 +30,14 @@ from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.inventory import ShipmentDocument, ShipmentDocumentStatus
 from dz_fastapi.models.one_c import (
     OneCExchangeBatch,
     OneCExchangeBatchItem,
     OneCExchangeEvent,
     OneCExchangeEventStatus,
 )
+from dz_fastapi.models.partner import SupplierReceipt
 from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.one_c import (
@@ -82,6 +84,7 @@ from dz_fastapi.services.one_c_outbox import (
     acknowledge_delivery_batch,
     acknowledge_latest_batch,
     backfill_pending_shipment_events,
+    enqueue_receipt_event,
     get_one_c_outbox_status,
     get_or_create_delivery_batch,
     retry_one_c_event,
@@ -355,6 +358,14 @@ async def enterprise_data_send(
     event = await session.get(OneCExchangeEvent, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Событие обмена не найдено")
+    if event.entity_type == ENTITY_RECEIPT:
+        receipt = await session.get(SupplierReceipt, event.entity_id)
+        if receipt is None or receipt.posted_at is None:
+            raise HTTPException(status_code=409, detail="Поступление больше не проведено")
+    elif event.entity_type == ENTITY_SHIPMENT:
+        shipment = await session.get(ShipmentDocument, event.entity_id)
+        if shipment is None or shipment.status != ShipmentDocumentStatus.POSTED:
+            raise HTTPException(status_code=409, detail="Реализация больше не проведена")
     company = await _company_for_enterprise_data(session)
     try:
         objects = event_body_objects(event.entity_type, event.event_type, event.payload, company)
@@ -366,6 +377,25 @@ async def enterprise_data_send(
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/enterprise-data/prepare-receipt/{receipt_id}",
+    summary="Добавить проведённое поступление в очередь пробной отправки УНФ",
+)
+async def enterprise_data_prepare_receipt(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    receipt = await session.get(SupplierReceipt, receipt_id)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Поступление не найдено")
+    if receipt.posted_at is None:
+        raise HTTPException(status_code=409, detail="Сначала проведите поступление")
+    event = await enqueue_receipt_event(session, receipt_id)
+    await session.commit()
+    return serialize_one_c_event(event, include_payload=False)
 
 
 @router.post(
