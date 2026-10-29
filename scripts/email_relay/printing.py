@@ -1,5 +1,6 @@
 """Windows printer discovery and HTML-to-printer delivery for DZEmailRelay."""
 
+import logging
 import os
 import re
 import shutil
@@ -7,6 +8,8 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def installed_printers() -> list[str]:
@@ -174,8 +177,20 @@ def spool_pdf(pdf_path: Path, printer_name: str, title: str) -> None:
         pdf.close()
 
 
+def _cleanup_dir(directory: Path) -> None:
+    """Edge ещё какое-то время держит файлы профиля: повторяем, не падаем."""
+    for _ in range(10):
+        shutil.rmtree(directory, ignore_errors=True)
+        if not directory.exists():
+            return
+        time.sleep(0.5)
+    logger.warning("Не удалось удалить временную папку печати %s", directory)
+
+
 def print_html_job(job: dict, edge_path: str | None = None) -> None:
-    with tempfile.TemporaryDirectory(prefix="dz-print-") as temp:
-        directory = Path(temp)
+    directory = Path(tempfile.mkdtemp(prefix="dz-print-"))
+    try:
         pdf_path = render_html_to_pdf(job["html"], directory, edge_path)
         spool_pdf(pdf_path, job["printer_name"], job["title"])
+    finally:
+        _cleanup_dir(directory)
