@@ -106,3 +106,41 @@ async def test_scan_resolve_location(async_client, test_session, created_storage
     assert found.status_code == 200, found.text
     assert found.json()["kind"] == "location"
     assert found.json()["storage_location_id"] == created_storage.id
+
+
+@pytest.mark.asyncio
+async def test_scan_log_and_catalog(async_client, test_session, created_autopart,
+                                    created_storage):
+    admin = User(
+        email="scan-admin@example.com",
+        password_hash=get_password_hash("secret123"),
+        role=UserRole.ADMIN,
+        status=UserStatus.ACTIVE,
+    )
+    test_session.add(admin)
+    await test_session.commit()
+    login = await async_client.post(
+        "/auth/login", json={"email": admin.email, "password": "secret123"}
+    )
+    assert login.status_code == 200
+
+    await async_client.get("/scan/resolve",
+                           params={"code": created_autopart.barcode})
+    await async_client.get("/scan/resolve", params={"code": "MISS-1234"})
+    sent = await async_client.post("/scan/log", json={"events": [
+        {"code": "LOCAL-1", "found": True, "kind": "autopart"}]})
+    assert sent.status_code == 204
+    log = await async_client.get("/scan/log")
+    assert log.status_code == 200, log.text
+    codes = {row["code"]: row for row in log.json()}
+    assert codes[created_autopart.barcode]["found"] is True
+    assert codes["MISS-1234"]["found"] is False
+    assert codes["LOCAL-1"]["source"] == "local"
+    missed = await async_client.get("/scan/log", params={"only_missed": True})
+    assert [row["code"] for row in missed.json()] == ["MISS-1234"]
+
+    catalog = await async_client.get("/scan/catalog")
+    assert catalog.status_code == 200, catalog.text
+    ids = [row[0] for row in catalog.json()["parts"]]
+    assert created_autopart.id in ids
+    assert [created_storage.id, created_storage.name] in catalog.json()["locations"]

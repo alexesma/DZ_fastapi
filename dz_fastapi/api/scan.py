@@ -8,9 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias, StorageLocation
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.autopart import AutoPart, ScanLog, ScannedCodeAlias, StorageLocation
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
@@ -35,9 +37,7 @@ def _found(kind: str, title: str, route: str, **extra) -> dict:
     return {"kind": kind, "title": title, "route": route, **extra}
 
 
-@router.get("/resolve")
-async def resolve_scan(code: str,
-                       session: AsyncSession = Depends(get_session)):
+async def _resolve(session: AsyncSession, code: str) -> dict:
     code = code.strip()
     if not code or len(code) > 128:
         raise HTTPException(status_code=400, detail="Пустой или слишком длинный код")
@@ -134,6 +134,85 @@ async def resolve_scan(code: str,
 class AliasPayload(BaseModel):
     code: str = Field(min_length=1, max_length=128)
     autopart_id: int
+
+
+@router.get("/resolve")
+async def resolve_scan(code: str, context: str | None = None,
+                       session: AsyncSession = Depends(get_session),
+                       user: User = Depends(get_current_user)):
+    try:
+        result = await _resolve(session, code)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            session.add(ScanLog(code=code.strip()[:128], found=False,
+                                source="server", context=context,
+                                user_id=user.id))
+            await session.commit()
+        raise
+    session.add(ScanLog(code=code.strip()[:128], found=True,
+                        kind=result.get("kind"), source="server",
+                        context=context, user_id=user.id))
+    await session.commit()
+    return result
+
+
+class ScanEvent(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
+    kind: str | None = Field(default=None, max_length=40)
+    found: bool
+    context: str | None = Field(default=None, max_length=60)
+
+
+class ScanEvents(BaseModel):
+    events: list[ScanEvent] = Field(max_length=200)
+
+
+@router.post("/log", status_code=204)
+async def log_local_scans(payload: ScanEvents,
+                          session: AsyncSession = Depends(get_session),
+                          user: User = Depends(get_current_user)):
+    """Сканы, распознанные на устройстве по локальному кешу."""
+    for event in payload.events:
+        session.add(ScanLog(code=event.code, kind=event.kind,
+                            found=event.found, source="local",
+                            context=event.context, user_id=user.id))
+    await session.commit()
+
+
+@router.get("/log")
+async def list_scan_log(limit: int = 200, only_missed: bool = False,
+                        session: AsyncSession = Depends(get_session),
+                        _admin: User = Depends(require_admin)):
+    query = select(ScanLog).order_by(ScanLog.id.desc()).limit(
+        max(1, min(limit, 1000)))
+    if only_missed:
+        query = query.where(ScanLog.found.is_(False))
+    rows = (await session.execute(query)).scalars().all()
+    return [{"id": r.id, "code": r.code, "kind": r.kind, "found": r.found,
+             "source": r.source, "context": r.context, "user_id": r.user_id,
+             "created_at": r.created_at} for r in rows]
+
+
+@router.get("/catalog")
+async def scan_catalog(session: AsyncSession = Depends(get_session)):
+    """Компактный каталог для распознавания кодов на устройстве без сервера."""
+    parts = (await session.execute(
+        select(AutoPart.id, AutoPart.oem_number, AutoPart.barcode,
+               Brand.name, AutoPart.name)
+        .join(Brand, Brand.id == AutoPart.brand_id, isouter=True)
+    )).all()
+    aliases = (await session.execute(
+        select(ScannedCodeAlias.code, ScannedCodeAlias.autopart_id)
+    )).all()
+    locations = (await session.execute(
+        select(StorageLocation.id, StorageLocation.name)
+    )).all()
+    return {
+        "generated_at": now_moscow().isoformat(),
+        "parts": [list(row) for row in parts],
+        "aliases": [list(row) for row in aliases],
+        "locations": [list(row) for row in locations],
+    }
 
 
 @router.post("/alias", status_code=201)

@@ -858,3 +858,20 @@ class ScannedCodeAlias(Base):
     )
 
     autopart = relationship("AutoPart")
+
+
+class ScanLog(Base):
+    """Журнал сканов: что сканировали и нашлось ли (для настройки разбора кодов)."""
+
+    code = Column(String(128), nullable=False, index=True)
+    kind = Column(String(40), nullable=True)
+    found = Column(Boolean, nullable=False, default=False)
+    source = Column(String(20), nullable=False, default="server")
+    context = Column(String(60), nullable=True)
+    user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=now_moscow, index=True,
+    )
