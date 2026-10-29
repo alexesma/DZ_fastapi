@@ -2634,3 +2634,25 @@ class AdHocLabelPrintEvent(Base):
             name="ck_adhoc_label_print_event_kind",
         ),
     )
+
+
+class ReceiptScanCount(Base):
+    """Сколько реально принято и разложено по строке поступления (по сканам)."""
+
+    __tablename__ = "receiptscancount"
+
+    receipt_item_id = Column(
+        Integer, ForeignKey("supplierreceiptitem.id", ondelete="CASCADE"),
+        nullable=False, unique=True,
+    )
+    accepted_qty = Column(Integer, nullable=False, default=0)
+    placed_qty = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    __table_args__ = (
+        CheckConstraint("accepted_qty >= 0", name="ck_receipt_scan_accepted"),
+        CheckConstraint("placed_qty >= 0", name="ck_receipt_scan_placed"),
+    )
