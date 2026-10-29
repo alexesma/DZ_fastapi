@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -67,28 +68,53 @@ def find_edge(configured_path: str | None = None) -> str:
     raise RuntimeError("Microsoft Edge не найден для подготовки печатной формы")
 
 
+def _pdf_ready(pdf_path: Path) -> bool:
+    return pdf_path.is_file() and pdf_path.stat().st_size >= 100
+
+
+def _wait_for_pdf(pdf_path: Path, timeout: float = 20.0) -> bool:
+    """Edge нередко возвращает управление раньше, чем дописан PDF."""
+    deadline = time.monotonic() + timeout
+    last_size = -1
+    while time.monotonic() < deadline:
+        if _pdf_ready(pdf_path):
+            size = pdf_path.stat().st_size
+            if size == last_size:
+                return True
+            last_size = size
+        time.sleep(0.3)
+    return _pdf_ready(pdf_path)
+
+
 def render_html_to_pdf(html: str, directory: Path,
                        edge_path: str | None = None) -> Path:
     html_path = directory / "label.html"
     pdf_path = directory / "print.pdf"
     html_path.write_text(safe_print_html(html), encoding="utf-8")
     edge = find_edge(edge_path)
-    result = subprocess.run(
-        [
-            edge, "--headless=new", "--disable-gpu",
-            "--disable-extensions", "--disable-background-networking",
-            "--disable-javascript", "--no-pdf-header-footer",
-            f"--user-data-dir={directory / 'edge-profile'}",
-            f"--print-to-pdf={pdf_path}", html_path.as_uri(),
-        ],
-        capture_output=True, text=True, timeout=90, check=False,
-    )
-    if result.returncode or not pdf_path.is_file() or pdf_path.stat().st_size < 100:
-        raise RuntimeError(
-            "Edge не смог подготовить PDF: "
-            + (result.stderr or result.stdout or str(result.returncode))[-500:]
+    last_result = None
+    # новый headless первым; если PDF не появился — классический режим
+    for attempt, headless in enumerate(("--headless=new", "--headless")):
+        pdf_path.unlink(missing_ok=True)
+        last_result = subprocess.run(
+            [
+                edge, headless, "--disable-gpu",
+                "--disable-extensions", "--disable-background-networking",
+                "--disable-javascript", "--no-pdf-header-footer",
+                "--no-first-run", "--no-default-browser-check",
+                f"--user-data-dir={directory / f'edge-profile-{attempt}'}",
+                f"--print-to-pdf={pdf_path}", html_path.as_uri(),
+            ],
+            capture_output=True, text=True, timeout=90, check=False,
         )
-    return pdf_path
+        if _wait_for_pdf(pdf_path):
+            return pdf_path
+    details = (last_result.stderr or last_result.stdout or "").strip()[-500:]
+    raise RuntimeError(
+        "Edge не смог подготовить PDF: код возврата "
+        f"{last_result.returncode}, файл не создан"
+        + (f" ({details})" if details else "")
+    )
 
 
 def spool_pdf(pdf_path: Path, printer_name: str, title: str) -> None:

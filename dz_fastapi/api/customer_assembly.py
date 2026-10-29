@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
@@ -508,8 +509,17 @@ async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
     await session.flush()
     await session.refresh(box, ["items"])
     await session.commit()
+    title = " ".join(part for part in (target.customer_brand,
+                                       target.customer_oem) if part)
+    if target.autopart_id:
+        part = (await session.execute(
+            select(AutoPart).where(AutoPart.id == target.autopart_id)
+            .options(selectinload(AutoPart.brand))
+        )).scalar_one_or_none()
+        if part is not None:
+            title = f"{part.brand.name if part.brand else ''} {part.oem_number}".strip()
     return {"box": _box_out(box), "shipment_item_id": target.id, "added": add,
-            "label": by_label}
+            "label": by_label, "title": title}
 
 
 @router.post("/realizations/{document_id}/boxes/{box_id}/seal")

@@ -251,6 +251,7 @@ async def test_assembly_partial_realizations_and_box_limits(
         scan_url, json={"code": created_autopart.barcode})
     assert scanned.status_code == 200, scanned.text
     assert scanned.json()["added"] == 1
+    assert created_autopart.oem_number in scanned.json()["title"]
     assert scanned.json()["box"]["items"][0]["quantity"] == 1
     contents = await async_client.put(
         f"/customer-orders/assembly/realizations/{shipment_id}/boxes/{box.json()['id']}",
