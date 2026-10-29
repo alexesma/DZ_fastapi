@@ -124,7 +124,7 @@ async def resolve_scan(code: str,
         return _found(
             "autopart" if len(parts) == 1 else "autopart_choice",
             f"{options[0]['brand']} {part.oem_number} · {part.name}".strip(),
-            f"/autoparts/nomenclature?q={part.oem_number}",
+            f"/autoparts/nomenclature?autopart_id={part.id}&edit=1",
             autopart_id=part.id, options=options,
         )
 

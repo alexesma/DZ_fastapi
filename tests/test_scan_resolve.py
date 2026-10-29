@@ -45,6 +45,7 @@ def test_code_keys_handle_original_part_formats():
     keys = code_keys("90916-03107\t  3")
     assert "9091603107" in keys
     assert code_keys("90916-03107   X")[-1] == "9091603107"
+    assert code_keys("1310175200  A") == ["1310175200A", "1310175200"]
     assert code_keys("12\t") == []
     assert code_keys("A\x1dB5678-9012")[-1] == "B56789012"
 
