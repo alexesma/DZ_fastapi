@@ -242,6 +242,16 @@ async def test_assembly_partial_realizations_and_box_limits(
         f"/customer-orders/assembly/realizations/{shipment_id}/boxes"
     )
     assert box.status_code == 201, box.text
+    scan_url = (f"/customer-orders/assembly/realizations/{shipment_id}"
+                f"/boxes/{box.json()['id']}/scan")
+    unknown = await async_client.post(scan_url, json={"code": "NO-SUCH-CODE"})
+    assert unknown.status_code == 404, unknown.text
+    assert created_autopart.barcode
+    scanned = await async_client.post(
+        scan_url, json={"code": created_autopart.barcode})
+    assert scanned.status_code == 200, scanned.text
+    assert scanned.json()["added"] == 1
+    assert scanned.json()["box"]["items"][0]["quantity"] == 1
     contents = await async_client.put(
         f"/customer-orders/assembly/realizations/{shipment_id}/boxes/{box.json()['id']}",
         json={"items": [

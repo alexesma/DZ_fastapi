@@ -12,7 +12,9 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.inventory import (
+    CrossDockingLabel,
     CustomerOrderPickLabel,
     ReserveStatus,
     ShipmentDocument,
@@ -72,6 +74,10 @@ class LabelSelection(BaseModel):
 class BoxItem(BaseModel):
     shipment_item_id: int
     quantity: int = Field(gt=0)
+
+
+class BoxScan(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
 
 
 class BoxContents(BaseModel):
@@ -427,6 +433,85 @@ async def update_box(document_id: int, box_id: int, payload: BoxContents,
     await session.refresh(box, ["items"])
     await session.commit()
     return _box_out(box)
+
+
+@router.post("/realizations/{document_id}/boxes/{box_id}/scan")
+async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
+                        session: AsyncSession = Depends(get_session)):
+    """Скан этикетки позиции кладёт её свободное количество в коробку.
+
+    Скан штрихкода товара добавляет одну штуку позиции с этим товаром.
+    """
+    await _draft(session, document_id)
+    code = payload.code.strip()
+    box = (await session.execute(
+        select(ShipmentPackage).where(ShipmentPackage.id == box_id,
+                                      ShipmentPackage.document_id == document_id)
+        .options(selectinload(ShipmentPackage.items))
+        .with_for_update()
+    )).scalar_one_or_none()
+    if box is None:
+        raise HTTPException(status_code=404, detail="Коробка не найдена")
+    if box.sealed_at is not None:
+        raise HTTPException(status_code=409, detail="Откройте коробку для изменения")
+    items = (await session.execute(
+        select(ShipmentDocumentItem).where(ShipmentDocumentItem.document_id == document_id)
+        .order_by(ShipmentDocumentItem.id)
+    )).scalars().all()
+    pick_ids = set((await session.execute(
+        select(CustomerOrderPickLabel.id).where(CustomerOrderPickLabel.barcode == code)
+    )).scalars().all())
+    cross_ids = set((await session.execute(
+        select(CrossDockingLabel.id).where(CrossDockingLabel.barcode == code)
+    )).scalars().all())
+    by_label = bool(pick_ids or cross_ids)
+    if by_label:
+        matches = [row for row in items
+                   if row.assembly_pick_label_id in pick_ids
+                   or row.cross_docking_label_id in cross_ids]
+    else:
+        part_ids = set((await session.execute(
+            select(AutoPart.id).where(AutoPart.barcode == code)
+        )).scalars().all())
+        matches = [row for row in items if row.autopart_id in part_ids]
+    if not matches:
+        raise HTTPException(
+            status_code=404,
+            detail="Код не относится к позициям этой реализации",
+        )
+    placed_rows = (await session.execute(
+        select(ShipmentPackageItem.shipment_item_id, ShipmentPackage.number,
+               ShipmentPackageItem.package_id, ShipmentPackageItem.quantity)
+        .join(ShipmentPackage)
+        .where(ShipmentPackage.document_id == document_id)
+    )).all()
+    placed: dict[int, int] = {}
+    for item_id, _number, _pkg, qty in placed_rows:
+        placed[item_id] = placed.get(item_id, 0) + int(qty)
+    target = next((row for row in matches
+                   if placed.get(row.id, 0) < row.quantity), None)
+    if target is None:
+        elsewhere = sorted({number for item_id, number, pkg, _q in placed_rows
+                            if item_id in {row.id for row in matches}
+                            and pkg != box.id})
+        where = (f" (коробка {', '.join(map(str, elsewhere))})"
+                 if elsewhere else "")
+        raise HTTPException(status_code=409,
+                            detail=f"Позиция уже полностью разложена{where}")
+    free = target.quantity - placed.get(target.id, 0)
+    add = free if by_label else 1
+    current = next((row for row in box.items
+                    if row.shipment_item_id == target.id), None)
+    if current is None:
+        session.add(ShipmentPackageItem(package_id=box.id,
+                                        shipment_item_id=target.id, quantity=add))
+    else:
+        current.quantity += add
+    await session.flush()
+    await session.refresh(box, ["items"])
+    await session.commit()
+    return {"box": _box_out(box), "shipment_item_id": target.id, "added": add,
+            "label": by_label}
 
 
 @router.post("/realizations/{document_id}/boxes/{box_id}/seal")

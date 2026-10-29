@@ -38,6 +38,7 @@ from dz_fastapi.api.print_jobs import router as print_jobs_router
 from dz_fastapi.api.process_architecture import router as process_architecture_router
 from dz_fastapi.api.reclamation import router as reclamation_router
 from dz_fastapi.api.regulatory import router as regulatory_router
+from dz_fastapi.api.scan import router as scan_router
 from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.shipment_corrections import router as shipment_corrections_router
 from dz_fastapi.api.telegram_outbox import router as telegram_outbox_router
@@ -217,6 +218,7 @@ app.include_router(dashboard_router, dependencies=AUTH_REQUIRED)
 app.include_router(price_control_router, dependencies=AUTH_REQUIRED)
 app.include_router(print_jobs_router)
 app.include_router(print_forms_router)
+app.include_router(scan_router, dependencies=AUTH_REQUIRED)
 app.include_router(process_architecture_router)
 app.include_router(settings_router, dependencies=AUTH_REQUIRED)
 app.include_router(watchlist_router, dependencies=AUTH_REQUIRED)
