@@ -204,6 +204,8 @@ def _one_c_number(document_id: Any) -> str:
 
 
 def _source_number(node: ET.Element, original_number: Any) -> None:
+    if original_number is None or not str(original_number).strip():
+        return
     properties = _add(node, "ОбщиеСвойстваОбъектовФормата")
     _add(properties, "Комментарий", f"Исходный номер DragonZap: {original_number}")
 
@@ -217,7 +219,8 @@ def _document_key(
     key = _add(parent, "КлючевыеСвойства")
     _optional(key, "Ссылка", _guid(kind, payload["document_id"]))
     _add(key, "Дата", _datetime(payload.get("document_date") or payload.get("created_at")))
-    _required(payload.get("document_number"), "номер документа")
+    # The UNF number is generated from the stable DragonZap ID below. Historical
+    # supplier receipts may legitimately have no number on the source document.
     _add(key, "Номер", _one_c_number(payload["document_id"]))
     _organization(key, company)
 

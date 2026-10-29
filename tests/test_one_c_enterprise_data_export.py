@@ -78,6 +78,13 @@ def test_logical_order_warehouse_uses_the_physical_unf_warehouse():
     assert _value(root, "Склад/Наименование") == "Основной склад"
 
 
+def test_unnumbered_supplier_receipt_keeps_stable_unf_number():
+    document = {**DOCUMENT, "document_number": None}
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY))
+    assert _value(root, "КлючевыеСвойства/Номер") == "DZ000000123"
+    assert _value(root, "ОбщиеСвойстваОбъектовФормата/Комментарий") is None
+
+
 def test_directory_objects_are_stable():
     customer = ET.fromstring(object_xml("Справочник.Контрагенты", PARTY))
     product = ET.fromstring(object_xml("Справочник.Номенклатура", ITEM["autopart"]))

@@ -592,6 +592,7 @@ async def enterprise_data_announce(
 async def list_one_c_events(
     event_status: Optional[OneCExchangeEventStatus] = Query(default=None, alias="status"),
     entity_type: Optional[str] = Query(default=None),
+    enterprise_error: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
@@ -603,6 +604,8 @@ async def list_one_c_events(
         stmt = stmt.where(OneCExchangeEvent.status == event_status)
     if entity_type:
         stmt = stmt.where(OneCExchangeEvent.entity_type == entity_type)
+    if enterprise_error:
+        stmt = stmt.where(OneCExchangeEvent.ed_last_error.is_not(None))
     rows = (await session.execute(stmt.limit(limit))).scalars().all()
     return {"items": [serialize_one_c_event(row, include_payload=False) for row in rows]}
 
