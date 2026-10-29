@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
@@ -39,6 +38,7 @@ from dz_fastapi.services.customer_order_stock_switch import (
     SWITCH_KEY,
     switch_unpicked_crosses_after_receipt,
 )
+from dz_fastapi.services.scan_codes import find_autoparts
 
 router = APIRouter(
     prefix="/customer-orders/assembly",
@@ -470,9 +470,7 @@ async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
                    if row.assembly_pick_label_id in pick_ids
                    or row.cross_docking_label_id in cross_ids]
     else:
-        part_ids = set((await session.execute(
-            select(AutoPart.id).where(AutoPart.barcode == code)
-        )).scalars().all())
+        part_ids = {part.id for part in await find_autoparts(session, code)}
         matches = [row for row in items if row.autopart_id in part_ids]
     if not matches:
         raise HTTPException(

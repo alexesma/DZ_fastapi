@@ -842,3 +842,19 @@ class AutoPartTurnoverSummary(Base):
             name="uq_autopartturnoversummary_autopart_id",
         ),
     )
+
+
+class ScannedCodeAlias(Base):
+    """Штрихкод, привязанный вручную к товару (оригинальные коды запчастей)."""
+
+    code = Column(String(128), nullable=False, unique=True, index=True)
+    autopart_id = Column(
+        Integer, ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    created_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True,
+    )
+
+    autopart = relationship("AutoPart")

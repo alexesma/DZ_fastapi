@@ -3,13 +3,14 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
@@ -18,6 +19,8 @@ from dz_fastapi.models.inventory import (
     StockOrderPackage,
 )
 from dz_fastapi.models.partner import StockOrderItem
+from dz_fastapi.models.user import User
+from dz_fastapi.services.scan_codes import find_autoparts
 
 router = APIRouter(
     prefix="/scan",
@@ -100,16 +103,46 @@ async def resolve_scan(code: str,
             status=str(package.status),
         )
 
-    part = (await session.execute(
-        select(AutoPart).where(AutoPart.barcode == code)
-        .options(selectinload(AutoPart.brand))
-    )).scalar_one_or_none()
-    if part is not None:
-        brand = part.brand.name if part.brand else ""
+    parts = await find_autoparts(session, code)
+    if parts:
+        options = [{
+            "autopart_id": part.id,
+            "brand": part.brand.name if part.brand else "",
+            "oem": part.oem_number, "name": part.name,
+        } for part in parts]
+        part = parts[0]
         return _found(
-            "autopart", f"{brand} {part.oem_number} · {part.name}".strip(),
+            "autopart" if len(parts) == 1 else "autopart_choice",
+            f"{options[0]['brand']} {part.oem_number} · {part.name}".strip(),
             f"/autoparts/nomenclature?q={part.oem_number}",
-            autopart_id=part.id,
+            autopart_id=part.id, options=options,
         )
 
     raise HTTPException(status_code=404, detail="Штрихкод не найден")
+
+
+class AliasPayload(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
+    autopart_id: int
+
+
+@router.post("/alias", status_code=201)
+async def bind_code(payload: AliasPayload,
+                    session: AsyncSession = Depends(get_session),
+                    user: User = Depends(get_current_user)):
+    """Запомнить, что этот код относится к товару (для неузнанных кодов)."""
+    code = payload.code.strip()
+    if await session.get(AutoPart, payload.autopart_id) is None:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    existing = (await session.execute(
+        select(ScannedCodeAlias).where(ScannedCodeAlias.code == code)
+    )).scalar_one_or_none()
+    if existing is None:
+        session.add(ScannedCodeAlias(
+            code=code, autopart_id=payload.autopart_id,
+            created_by_user_id=user.id,
+        ))
+    else:
+        existing.autopart_id = payload.autopart_id
+    await session.commit()
+    return {"code": code, "autopart_id": payload.autopart_id}
