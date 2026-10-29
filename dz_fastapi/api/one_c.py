@@ -64,6 +64,7 @@ from dz_fastapi.services.one_c_enterprise_data_export import (
 from dz_fastapi.services.one_c_enterprise_dispatch import (
     backfill_history_step,
     config_data,
+    dispatch_next,
     history_audit,
     reconcile_transport,
     set_config,
@@ -348,6 +349,21 @@ async def enterprise_data_auto_update(
     )
     await session.commit()
     return config_data(config)
+
+
+@router.post(
+    "/enterprise-data/dispatch-next",
+    summary="Отправить следующую настроенную партию EnterpriseData сейчас",
+)
+async def enterprise_data_dispatch_next(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Run the same guarded dispatch as the scheduler for diagnosis and recovery."""
+    await asyncio.to_thread(process_exchange_directory)
+    result = await dispatch_next(session)
+    await session.commit()
+    return result
 
 
 @router.post(
