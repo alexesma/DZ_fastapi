@@ -11,14 +11,18 @@ import logging
 import re
 from datetime import datetime
 from typing import Any
+from xml.etree import ElementTree as ET
 
 from sqlalchemy import and_, case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import (
+    LotSourceType,
     ShipmentDocument,
     ShipmentDocumentStatus,
+    StockDocument,
+    StockDocumentItem,
     StockLot,
     StockMovement,
 )
@@ -26,7 +30,7 @@ from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
 from dz_fastapi.models.partner import Provider, SupplierReceipt
 from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.services.one_c_enterprise_data import get_exchange_status, send_body_message
-from dz_fastapi.services.one_c_enterprise_data_export import event_body_objects
+from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS, event_body_objects
 from dz_fastapi.services.one_c_outbox import (
     ENTITY_RECEIPT,
     ENTITY_SHIPMENT,
@@ -38,7 +42,9 @@ from dz_fastapi.services.one_c_outbox import (
 
 logger = logging.getLogger("dz_fastapi")
 _EVENT_ID_RE = re.compile(r"\bevent(?:\s+|:)(\d+)\s*$")
+_EVENT_IDS_RE = re.compile(r"\bevents:([0-9,]+)\s*$")
 _DISPATCH_LOCK_KEY = 148_271_002
+_MAX_BATCH_SIZE = 50
 
 
 def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
@@ -46,6 +52,7 @@ def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
         "enabled": bool(config.enabled) if config else False,
         "send_receipts": bool(config.send_receipts) if config else True,
         "send_shipments": bool(config.send_shipments) if config else False,
+        "batch_size": config.batch_size if config else 1,
         "first_event_id": config.first_event_id if config else None,
     }
 
@@ -57,8 +64,11 @@ async def set_config(
     send_receipts: bool,
     send_shipments: bool,
     include_history: bool = False,
+    batch_size: int | None = None,
 ) -> OneCEnterpriseConfig:
     """A new activation starts at the current queue tail unless history is chosen."""
+    if batch_size is not None and not 1 <= batch_size <= _MAX_BATCH_SIZE:
+        raise ValueError("Размер партии EnterpriseData должен быть от 1 до 50")
     config = await session.get(OneCEnterpriseConfig, 1, with_for_update=True)
     if config is None:
         config = OneCEnterpriseConfig(id=1)
@@ -72,16 +82,22 @@ async def set_config(
     config.enabled = enabled
     config.send_receipts = send_receipts
     config.send_shipments = send_shipments
+    if batch_size is not None:
+        config.batch_size = batch_size
     config.updated_at = now_moscow()
     await session.flush()
     return config
 
 
-def _event_id(body: dict[str, Any] | None) -> int | None:
+def _event_ids(body: dict[str, Any] | None) -> list[int]:
     if not body:
-        return None
-    match = _EVENT_ID_RE.search(str(body.get("description") or ""))
-    return int(match.group(1)) if match else None
+        return []
+    description = str(body.get("description") or "")
+    batch = _EVENT_IDS_RE.search(description)
+    if batch:
+        return [int(value) for value in batch.group(1).split(",") if value]
+    match = _EVENT_ID_RE.search(description)
+    return [int(match.group(1))] if match else []
 
 
 async def reconcile_transport(
@@ -91,29 +107,31 @@ async def reconcile_transport(
     changed: list[int] = []
     for field_name, confirmed in (("pending_body", False), ("last_confirmed_body", True)):
         body = transport.get(field_name)
-        event_id = _event_id(body)
-        if event_id is None:
-            continue
-        event = await session.get(OneCExchangeEvent, event_id)
-        if event is None:
-            logger.error("EnterpriseData message refers to missing event %s", event_id)
+        event_ids = _event_ids(body)
+        if not event_ids:
             continue
         message_no = int(body["message_no"])
-        if event.ed_message_no is not None and event.ed_message_no != message_no:
-            logger.error(
-                "EnterpriseData event %s has message %s, FTP says %s",
-                event_id, event.ed_message_no, message_no,
-            )
-            continue
-        event.ed_message_no = message_no
-        if event.ed_sent_at is None and body.get("sent_at"):
-            event.ed_sent_at = datetime.fromisoformat(body["sent_at"])
-        if confirmed and event.ed_transport_confirmed_at is None:
-            event.ed_transport_confirmed_at = datetime.fromisoformat(
-                body.get("transport_confirmed_at") or now_moscow().isoformat()
-            )
-        event.ed_last_error = None
-        changed.append(event_id)
+        for event_id in event_ids:
+            event = await session.get(OneCExchangeEvent, event_id)
+            if event is None:
+                logger.error("EnterpriseData message refers to missing event %s", event_id)
+                continue
+            if event.ed_message_no is not None and event.ed_message_no != message_no:
+                logger.error(
+                    "EnterpriseData event %s has message %s, FTP says %s",
+                    event_id, event.ed_message_no, message_no,
+                )
+                continue
+            event.ed_message_no = message_no
+            if event.ed_sent_at is None and body.get("sent_at"):
+                event.ed_sent_at = datetime.fromisoformat(body["sent_at"])
+            if confirmed and event.ed_transport_confirmed_at is None:
+                event.ed_transport_confirmed_at = datetime.fromisoformat(
+                    body.get("transport_confirmed_at") or now_moscow().isoformat()
+                )
+            event.ed_last_error = None
+            if event_id not in changed:
+                changed.append(event_id)
     await session.flush()
     return changed
 
@@ -166,7 +184,7 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
 
 
 async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
-    """Send at most one document, after reconciling any prior FTP confirmation."""
+    """Send one bounded message, after reconciling any prior FTP confirmation."""
     if session.get_bind().dialect.name == "postgresql":
         await session.execute(
             text("SELECT pg_advisory_xact_lock(:key)"), {"key": _DISPATCH_LOCK_KEY}
@@ -174,7 +192,9 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
     transport = await asyncio.to_thread(get_exchange_status)
     reconciled = await reconcile_transport(session, transport)
     config = await session.get(OneCEnterpriseConfig, 1)
-    result: dict[str, Any] = {"reconciled": reconciled, "sent_event_id": None}
+    result: dict[str, Any] = {
+        "reconciled": reconciled, "sent_event_id": None, "sent_event_ids": [],
+    }
     if config is None or not config.enabled:
         result["note"] = "Автоотправка выключена"
         return result
@@ -193,7 +213,7 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
         result["note"] = "Не выбран ни один тип документа"
         return result
 
-    event = (
+    events = (
         await session.execute(
             select(OneCExchangeEvent)
             .where(
@@ -208,32 +228,65 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
                 case((OneCExchangeEvent.entity_type == ENTITY_RECEIPT, 0), else_=1),
                 OneCExchangeEvent.id,
             )
-            .limit(1)
+            .limit(min(max(config.batch_size or 1, 1), _MAX_BATCH_SIZE))
         )
-    ).scalar_one_or_none()
-    if event is None:
+    ).scalars().all()
+    if not events:
         result["note"] = "Документов для отправки нет"
         return result
     try:
-        payload = await _current_payload(session, event)
-        objects = event_body_objects(
-            event.entity_type, event.event_type, payload, await _company(session)
-        )
+        company = await _company(session)
+    except ValueError as exc:
+        result["note"] = str(exc)
+        return result
+    references: list[ET.Element] = []
+    documents: list[ET.Element] = []
+    seen_references: set[tuple[str, str | bytes]] = set()
+    for event in events:
+        try:
+            payload = await _current_payload(session, event)
+            body_objects = event_body_objects(
+                event.entity_type, event.event_type, payload, company
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            event.ed_last_error = str(exc)
+            await session.flush()
+            result.update({"error_event_id": event.id, "note": str(exc)})
+            return result
+        for obj in body_objects:
+            if obj.tag.rsplit("}", 1)[-1].startswith("Справочник."):
+                ref = obj.find(f"{{{DATA_NS}}}КлючевыеСвойства/{{{DATA_NS}}}Ссылка")
+                identity = ref.text if ref is not None and ref.text else ET.tostring(obj)
+                marker = (obj.tag, identity)
+                if marker not in seen_references:
+                    seen_references.add(marker)
+                    references.append(obj)
+            else:
+                documents.append(obj)
+    event_ids = [event.id for event in events]
+    description = (
+        f"{events[0].entity_type}:{events[0].entity_id} event:{event_ids[0]}"
+        if len(events) == 1 else "batch events:" + ",".join(map(str, event_ids))
+    )
+    try:
         sent = await asyncio.to_thread(
             send_body_message,
-            objects,
-            description=f"{event.entity_type}:{event.entity_id} event:{event.id}",
+            references + documents,
+            description=description,
         )
     except (KeyError, TypeError, ValueError) as exc:
-        event.ed_last_error = str(exc)
-        await session.flush()
-        result.update({"error_event_id": event.id, "note": str(exc)})
+        result["note"] = str(exc)
         return result
-    event.ed_message_no = sent["message_no"]
-    event.ed_sent_at = now_moscow()
-    event.ed_last_error = None
+    sent_at = now_moscow()
+    for event in events:
+        event.ed_message_no = sent["message_no"]
+        event.ed_sent_at = sent_at
+        event.ed_last_error = None
     await session.flush()
-    result.update({"sent_event_id": event.id, "message_no": sent["message_no"]})
+    result.update({
+        "sent_event_id": event_ids[0], "sent_event_ids": event_ids,
+        "message_no": sent["message_no"],
+    })
     return result
 
 
@@ -321,6 +374,29 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             .group_by(StockMovement.movement_type)
         )
     ).all()
+    other_lots = (
+        await session.execute(
+            select(
+                StockLot.id,
+                StockLot.autopart_id,
+                StockLot.source_type,
+                StockLot.initial_quantity,
+                StockLot.remaining_quantity,
+                StockLot.cost_price,
+                StockLot.received_at,
+                StockDocument.id,
+                StockDocument.status,
+            )
+            .outerjoin(
+                StockDocumentItem,
+                StockDocumentItem.id == StockLot.source_document_item_id,
+            )
+            .outerjoin(StockDocument, StockDocument.id == StockDocumentItem.document_id)
+            .where(StockLot.source_type != LotSourceType.RECEIPT)
+            .order_by(StockLot.received_at, StockLot.id)
+            .limit(100)
+        )
+    ).all()
     return {
         "posted_receipts": {
             "count": receipts[0], "first_date": receipts[1], "last_date": receipts[2],
@@ -346,6 +422,16 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
                 "initial_quantity": row[2], "remaining_quantity": row[3],
             }
             for row in lots
+        ],
+        "non_receipt_lots": [
+            {
+                "id": row[0], "autopart_id": row[1], "source": str(row[2]),
+                "initial_quantity": row[3], "remaining_quantity": row[4],
+                "cost_price": row[5], "received_at": row[6],
+                "stock_document_id": row[7],
+                "stock_document_status": str(row[8]) if row[8] is not None else None,
+            }
+            for row in other_lots
         ],
         "movements_by_type": [
             {"type": str(row[0]), "count": row[1]} for row in movements

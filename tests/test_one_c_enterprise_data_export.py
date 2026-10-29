@@ -69,6 +69,13 @@ def test_document_references_and_stable_guid(kind: str, party_path: str):
     )
     assert _value(first, "Товары/Строка/ДанныеНоменклатуры/Номенклатура/Артикул") == "A-123"
     assert _value(first, "Товары/Строка/Количество") == "2"
+    assert _value(first, "Склад/Наименование") == "Основной склад"
+
+
+def test_logical_order_warehouse_uses_the_physical_unf_warehouse():
+    document = {**DOCUMENT, "warehouse": {"name": "Склад Заказа"}}
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY))
+    assert _value(root, "Склад/Наименование") == "Основной склад"
 
 
 def test_directory_objects_are_stable():

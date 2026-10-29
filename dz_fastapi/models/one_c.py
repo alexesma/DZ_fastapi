@@ -107,6 +107,7 @@ class OneCEnterpriseConfig(Base):
     enabled = Column(Boolean, nullable=False, default=False)
     send_receipts = Column(Boolean, nullable=False, default=True)
     send_shipments = Column(Boolean, nullable=False, default=False)
+    batch_size = Column(Integer, nullable=False, default=1)
     first_event_id = Column(Integer, nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
 

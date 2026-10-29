@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from os import getenv
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 from xml.etree import ElementTree as ET
@@ -184,10 +185,14 @@ def _vat(parent: ET.Element, rate: Any = "22") -> None:
 
 
 def _warehouse(parent: ET.Element, warehouse: dict[str, Any] | None) -> None:
-    if not warehouse or not warehouse.get("name"):
-        return
+    # DragonZap's logical warehouses (for example, "Склад Заказа") belong to
+    # the same physical warehouse.  Sending them literally makes UNF create
+    # incomplete warehouse cards and splits the accounting stock.
+    name = getenv("ONE_C_PHYSICAL_WAREHOUSE_NAME", "Основной склад").strip()
+    if not name:
+        raise ValueError("Не задан физический склад для обмена с УНФ")
     node = _add(parent, "Склад")
-    _add(node, "Наименование", warehouse["name"])
+    _add(node, "Наименование", name)
 
 
 def _one_c_number(document_id: Any) -> str:

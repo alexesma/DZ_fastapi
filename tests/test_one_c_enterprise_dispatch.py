@@ -9,6 +9,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.services import one_c_enterprise_dispatch as dispatch
+from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS
 from dz_fastapi.services.one_c_outbox import CHANNEL_JSON, get_or_create_delivery_batch
 
 
@@ -85,6 +86,66 @@ async def test_auto_dispatch_waits_for_read_and_does_not_mark_event_succeeded(
 
 
 @pytest.mark.asyncio
+async def test_batch_dispatch_deduplicates_references_and_recovers_all_events(
+    test_session, monkeypatch,
+):
+    events = [_event(30), _event(31)]
+    test_session.add_all(events)
+    await test_session.flush()
+    await dispatch.set_config(
+        test_session, enabled=True, send_receipts=True,
+        send_shipments=False, include_history=True, batch_size=2,
+    )
+    await test_session.commit()
+
+    transport = {"incoming_files": [], "pending_body": None, "last_confirmed_body": None}
+    sent = []
+
+    async def payload(_session, event):
+        return {"document_id": event.entity_id}
+
+    async def company(_session):
+        return {"short_name": "Test"}
+
+    def body_objects(_entity_type, _event_type, data, _company):
+        reference = ET.Element(f"{{{DATA_NS}}}Справочник.Номенклатура")
+        key = ET.SubElement(reference, f"{{{DATA_NS}}}КлючевыеСвойства")
+        ET.SubElement(key, f"{{{DATA_NS}}}Ссылка").text = "same-product"
+        document = ET.Element(f"{{{DATA_NS}}}Документ.ПоступлениеТоваровУслуг")
+        document.set("source", str(data["document_id"]))
+        return [reference, document]
+
+    def send(objects, *, description):
+        sent.append((objects, description))
+        return {"message_no": 12}
+
+    monkeypatch.setattr(dispatch, "get_exchange_status", lambda: transport)
+    monkeypatch.setattr(dispatch, "_current_payload", payload)
+    monkeypatch.setattr(dispatch, "_company", company)
+    monkeypatch.setattr(dispatch, "event_body_objects", body_objects)
+    monkeypatch.setattr(dispatch, "send_body_message", send)
+
+    result = await dispatch.dispatch_next(test_session)
+    await test_session.commit()
+    assert result["sent_event_ids"] == [event.id for event in events]
+    assert len(sent) == 1
+    assert len(sent[0][0]) == 3  # one product, two documents
+    assert sent[0][1] == f"batch events:{events[0].id},{events[1].id}"
+    assert all(event.ed_message_no == 12 for event in events)
+
+    transport["last_confirmed_body"] = {
+        "message_no": 12,
+        "description": sent[0][1],
+        "sent_at": "2026-10-29T12:00:00+03:00",
+        "transport_confirmed_at": "2026-10-29T12:05:00+03:00",
+    }
+    confirmed = await dispatch.reconcile_transport(test_session, transport)
+    assert confirmed == [event.id for event in events]
+    assert all(event.ed_transport_confirmed_at is not None for event in events)
+    assert all(event.status == OneCExchangeEventStatus.PENDING for event in events)
+
+
+@pytest.mark.asyncio
 async def test_activation_skips_old_events_unless_history_requested(test_session):
     old = _event(10)
     test_session.add(old)
@@ -120,6 +181,7 @@ async def test_history_audit_returns_empty_counts(test_session):
     assert audit["posted_receipts"]["count"] == 0
     assert audit["posted_shipments"]["count"] == 0
     assert audit["providers_missing_contract"] == []
+    assert audit["non_receipt_lots"] == []
 
 
 @pytest.mark.asyncio

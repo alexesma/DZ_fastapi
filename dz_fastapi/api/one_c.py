@@ -22,7 +22,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -115,6 +115,7 @@ class EnterpriseAutoSettingsUpdate(BaseModel):
     send_receipts: bool = True
     send_shipments: bool = False
     include_history: bool = False
+    batch_size: int | None = Field(default=None, ge=1, le=50)
 
 
 def _one_c_credentials() -> tuple[str, str]:
@@ -343,6 +344,7 @@ async def enterprise_data_auto_update(
         send_receipts=data.send_receipts,
         send_shipments=data.send_shipments,
         include_history=data.include_history,
+        batch_size=data.batch_size,
     )
     await session.commit()
     return config_data(config)
