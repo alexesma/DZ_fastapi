@@ -83,3 +83,25 @@ async def test_scan_resolve_by_original_code_and_alias(
         "/scan/resolve", params={"code": "ZZ-UNKNOWN-ORIG-1"})
     assert again.status_code == 200
     assert again.json()["autopart_id"] == created_autopart.id
+
+
+@pytest.mark.asyncio
+async def test_scan_resolve_location(async_client, test_session, created_storage):
+    user = User(
+        email="scan-loc@example.com",
+        password_hash=get_password_hash("secret123"),
+        role=UserRole.MANAGER,
+        status=UserStatus.ACTIVE,
+    )
+    test_session.add(user)
+    await test_session.commit()
+    login = await async_client.post(
+        "/auth/login", json={"email": user.email, "password": "secret123"}
+    )
+    assert login.status_code == 200
+    found = await async_client.get(
+        "/scan/resolve", params={"code": created_storage.name.lower()}
+    )
+    assert found.status_code == 200, found.text
+    assert found.json()["kind"] == "location"
+    assert found.json()["storage_location_id"] == created_storage.id

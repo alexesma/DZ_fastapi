@@ -81,6 +81,7 @@ from dz_fastapi.schemas.inventory import (
     DragonzapProductionMaterialUpdate,
     InventoryItemCountUpdate,
     InventoryItemOut,
+    InventoryScanCount,
     InventorySessionCreate,
     InventorySessionListItem,
     InventorySessionOut,
@@ -785,6 +786,72 @@ async def count_inventory_item(
     item.counted_at = now_moscow()
     await session.commit()
     return _item_to_out(item)
+
+
+@router.post(
+    "/sessions/{session_id}/scan-count/",
+    response_model=InventoryItemOut,
+    summary="Посчитать товар в месте (по сканированию), позиция создаётся при необходимости",
+)
+async def scan_count_inventory_item(
+    session_id: int,
+    data: InventoryScanCount,
+    session: AsyncSession = Depends(get_session),
+):
+    inv_session = await session.get(InventorySession, session_id)
+    if inv_session is None:
+        raise HTTPException(status_code=404, detail="Сеанс не найден")
+    if inv_session.status != InventoryStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400, detail="Сеанс завершён или отменён"
+        )
+    if await session.get(AutoPart, data.autopart_id) is None:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    if await session.get(StorageLocation, data.storage_location_id) is None:
+        raise HTTPException(status_code=404, detail="Место не найдено")
+    item = (
+        await session.execute(
+            select(InventoryItem)
+            .where(
+                InventoryItem.session_id == session_id,
+                InventoryItem.autopart_id == data.autopart_id,
+                InventoryItem.storage_location_id == data.storage_location_id,
+            )
+            .with_for_update(of=InventoryItem)
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        # товар нашли там, где система его не ждала: ожидаем текущий остаток
+        expected = (
+            await session.execute(
+                select(StockByLocation.quantity).where(
+                    StockByLocation.autopart_id == data.autopart_id,
+                    StockByLocation.storage_location_id
+                    == data.storage_location_id,
+                )
+            )
+        ).scalar_one_or_none()
+        item = InventoryItem(
+            session_id=session_id,
+            autopart_id=data.autopart_id,
+            storage_location_id=data.storage_location_id,
+            expected_qty=int(expected or 0),
+        )
+        session.add(item)
+    base = (item.actual_qty or 0) if data.mode == "add" else 0
+    item.actual_qty = base + data.quantity
+    item.discrepancy = item.actual_qty - item.expected_qty
+    item.counted_at = now_moscow()
+    await session.commit()
+    result = await session.execute(
+        select(InventoryItem)
+        .where(InventoryItem.id == item.id)
+        .options(
+            selectinload(InventoryItem.autopart).selectinload(AutoPart.brand),
+            selectinload(InventoryItem.storage_location),
+        )
+    )
+    return _item_to_out(result.scalar_one())
 
 
 @router.post(

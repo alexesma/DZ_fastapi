@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, condecimal
 
@@ -99,6 +99,13 @@ class InventorySessionUpdate(BaseModel):
 
 class InventoryItemCountUpdate(BaseModel):
     actual_qty: int = Field(..., ge=0)
+
+
+class InventoryScanCount(BaseModel):
+    autopart_id: int
+    storage_location_id: int
+    quantity: int = Field(..., ge=0)
+    mode: Literal["set", "add"] = "set"
 
 
 class InventoryItemOut(BaseModel):

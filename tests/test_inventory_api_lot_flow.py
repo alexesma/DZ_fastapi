@@ -241,3 +241,40 @@ async def test_api_inventory_complete_surplus_creates_correction_lot_trace(
         )
         == 4
     )
+
+
+@pytest.mark.asyncio
+async def test_api_inventory_scan_count_creates_item_and_adds(
+    async_client: AsyncClient,
+    created_autopart: AutoPart,
+    created_storage: StorageLocation,
+):
+    start_resp = await async_client.post(
+        "/inventory/sessions/",
+        json={"name": "INV scan", "scope_type": "full"},
+    )
+    assert start_resp.status_code == 201, start_resp.text
+    session_id = start_resp.json()["id"]
+    payload = {
+        "autopart_id": created_autopart.id,
+        "storage_location_id": created_storage.id,
+        "quantity": 2,
+        "mode": "add",
+    }
+    first = await async_client.post(
+        f"/inventory/sessions/{session_id}/scan-count/", json=payload
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["actual_qty"] == 2
+    assert first.json()["expected_qty"] == 0
+    second = await async_client.post(
+        f"/inventory/sessions/{session_id}/scan-count/", json=payload
+    )
+    assert second.json()["actual_qty"] == 4
+    assert second.json()["id"] == first.json()["id"]
+    reset = await async_client.post(
+        f"/inventory/sessions/{session_id}/scan-count/",
+        json={**payload, "quantity": 1, "mode": "set"},
+    )
+    assert reset.json()["actual_qty"] == 1
+    assert reset.json()["discrepancy"] == 1

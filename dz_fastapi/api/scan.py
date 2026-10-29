@@ -4,13 +4,13 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias
+from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias, StorageLocation
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
@@ -101,6 +101,16 @@ async def resolve_scan(code: str,
             "/customer-orders/stock/scan",
             package_id=package.id, stock_order_id=package.stock_order_id,
             status=str(package.status),
+        )
+
+    location = (await session.execute(
+        select(StorageLocation).where(
+            func.upper(StorageLocation.name) == code.upper())
+    )).scalars().first()
+    if location is not None:
+        return _found(
+            "location", f"Место {location.name}", "/warehouse/storage",
+            storage_location_id=location.id, name=location.name,
         )
 
     parts = await find_autoparts(session, code)
