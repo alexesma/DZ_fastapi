@@ -892,8 +892,10 @@ def run_forever(
         def print_worker() -> None:
             client = ApiClient(config)
             next_register_at = 0.0
+            failures = 0
             while not stop.is_set():
                 now = time.monotonic()
+                delay = config.print_poll_interval
                 try:
                     register = now >= next_register_at
                     process_print_once(client, config, register=register)
@@ -901,9 +903,19 @@ def run_forever(
                         next_register_at = (
                             time.monotonic() + config.print_register_interval
                         )
+                    failures = 0
+                except requests.RequestException as exc:
+                    failures += 1
+                    delay = min(
+                        config.print_poll_interval * 2 ** min(failures, 5), 120
+                    )
+                    logger.warning(
+                        "Сервер печати недоступен (%s), повтор через %d с",
+                        exc, delay,
+                    )
                 except Exception:  # noqa: BLE001
                     logger.exception("Ошибка обработки очереди печати")
-                stop.wait(config.print_poll_interval)
+                stop.wait(delay)
 
         workers.append(threading.Thread(
             target=print_worker, name="relay-print", daemon=True,
