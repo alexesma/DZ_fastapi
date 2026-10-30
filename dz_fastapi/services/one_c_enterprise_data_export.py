@@ -192,6 +192,11 @@ def _warehouse(parent: ET.Element, warehouse: dict[str, Any] | None) -> None:
     if not name:
         raise ValueError("Не задан физический склад для обмена с УНФ")
     node = _add(parent, "Склад")
+    # Без GUID УНФ заводит по имени новую неполную карточку склада (без типа и
+    # вида цен). GUID существующего склада УНФ берём из настроек.
+    guid = getenv("ONE_C_PHYSICAL_WAREHOUSE_GUID", "").strip()
+    if guid:
+        _add(node, "Ссылка", guid)
     _add(node, "Наименование", name)
 
 
@@ -225,6 +230,20 @@ def _document_key(
     _organization(key, company)
 
 
+def item_price(item: dict[str, Any]) -> Decimal | None:
+    """Цена строки; если её нет, а сумма и количество есть — сумма на количество."""
+    price = item.get("price") if item.get("price") is not None else item.get("requested_price")
+    if price is not None:
+        return Decimal(str(price))
+    quantity = item.get("quantity") if item.get("quantity") is not None else item.get(
+        "requested_qty"
+    )
+    amount = item.get("total_price_with_vat")
+    if amount is None or not quantity or Decimal(str(quantity)) <= 0:
+        return None
+    return (Decimal(str(amount)) / Decimal(str(quantity))).quantize(Decimal("0.01"))
+
+
 def _goods_row(
     parent: ET.Element,
     item: dict[str, Any],
@@ -245,7 +264,7 @@ def _goods_row(
         raise ValueError("В строке EnterpriseData нет количества")
     _add(row, "Количество", _decimal(quantity))
     amount = item.get("total_price_with_vat")
-    price = item.get("price") if item.get("price") is not None else item.get("requested_price")
+    price = item_price(item)
     if amount is None and price is not None:
         amount = Decimal(str(quantity)) * Decimal(str(price))
     _optional(row, "Сумма", _decimal(amount) if amount is not None else None)
@@ -329,8 +348,8 @@ def serialize_object(
         _counterparty_key(_add(key, "Контрагент"), payload["provider"], "provider")
         rows = _add(node, "Товары")
         for item in payload.get("items") or []:
-            price = item.get("price")
-            if price is None or Decimal(str(price)) <= 0:
+            price = item_price(item)
+            if price is None or price <= 0:
                 raise ValueError(
                     f"Поступление №{payload['document_id']}, строка "
                     f"№{item.get('item_id') or '?'}: не указана положительная цена "

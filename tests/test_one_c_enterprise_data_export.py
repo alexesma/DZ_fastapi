@@ -91,6 +91,30 @@ def test_supplier_receipt_with_zero_price_is_rejected_before_transfer():
         object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY)
 
 
+def test_supplier_receipt_price_is_derived_from_total_when_missing():
+    item = {**ITEM, "price": None, "total_price_with_vat": "250.00"}
+    document = {**DOCUMENT, "items": [item]}
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY))
+    assert _value(root, "Товары/Строка/Цена") == "125.00"
+    assert _value(root, "Товары/Строка/Сумма") == "250.00"
+
+    nothing = {**DOCUMENT, "items": [{**ITEM, "price": None}]}
+    with pytest.raises(ValueError, match="не указана положительная цена"):
+        object_xml("Документ.ПоступлениеТоваровУслуг", nothing, COMPANY)
+
+
+def test_warehouse_reference_carries_unf_guid_when_configured(monkeypatch):
+    guid = "6f1c6a0e-4d5b-4c58-9a0b-1f2e3d4c5b6a"
+    monkeypatch.setenv("ONE_C_PHYSICAL_WAREHOUSE_GUID", guid)
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", DOCUMENT, COMPANY))
+    assert _value(root, "Склад/Ссылка") == guid
+    assert _value(root, "Склад/Наименование") == "Основной склад"
+
+    monkeypatch.delenv("ONE_C_PHYSICAL_WAREHOUSE_GUID")
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", DOCUMENT, COMPANY))
+    assert _value(root, "Склад/Ссылка") is None
+
+
 def test_directory_objects_are_stable():
     customer = ET.fromstring(object_xml("Справочник.Контрагенты", PARTY))
     product = ET.fromstring(object_xml("Справочник.Номенклатура", ITEM["autopart"]))
