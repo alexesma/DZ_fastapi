@@ -50,6 +50,18 @@ def test_code_keys_handle_original_part_formats():
     assert code_keys("A\x1dB5678-9012")[-1] == "B56789012"
 
 
+def test_code_keys_split_semicolon_label_and_keep_marking_code_first():
+    from dz_fastapi.services.scan_codes import code_keys
+
+    keys = code_keys("00HB;;75722-TL0-G01;1;HB5M19;CHINA;CN;156;;;;")
+    assert keys.index("75722TL0G01") < keys.index("HB5M19")
+    assert "1" not in keys and "CN" not in keys and "156" not in keys
+
+    marking = "0104610014828864215hnn7i3eekru3\x1d91ee1o\x1d92abcd;efgh12="
+    keys = code_keys(marking)
+    assert keys[0].startswith("010461001482886421")
+
+
 @pytest.mark.asyncio
 async def test_scan_resolve_by_original_code_and_alias(
     async_client, test_session, created_autopart,

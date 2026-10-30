@@ -2,7 +2,8 @@
 
 Оригинальные коды приходят в разном виде: ``52245-SBA-A21`` (Honda, с
 дефисами), артикул, за которым через Tab/пробелы идёт ещё символ (Toyota),
-или с разделителем GS из GS1. Ключ поиска — артикул без всего, кроме
+или с разделителем GS из GS1, либо этикетка с полями через ``;``
+(``00HB;;75722-TL0-G01;1;HB5M19;CHINA;CN;156``). Ключ поиска — артикул без всего, кроме
 латиницы и цифр, в верхнем регистре, как хранится ``AutoPart.oem_number``.
 """
 
@@ -14,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias, preprocess_oem_number
 
-_SEPARATORS = re.compile(r"[\s\x1d]+")
+_SEPARATORS = re.compile(r"[\s\x1d;]+")
 MIN_OEM_LENGTH = 5
 
 
