@@ -22,7 +22,7 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.partner import StockOrderItem
 from dz_fastapi.models.user import User
-from dz_fastapi.services.scan_codes import find_autoparts
+from dz_fastapi.services.scan_codes import alias_code, find_autoparts
 
 router = APIRouter(
     prefix="/scan",
@@ -220,7 +220,7 @@ async def bind_code(payload: AliasPayload,
                     session: AsyncSession = Depends(get_session),
                     user: User = Depends(get_current_user)):
     """Запомнить, что этот код относится к товару (для неузнанных кодов)."""
-    code = payload.code.strip()
+    code = alias_code(payload.code)
     if await session.get(AutoPart, payload.autopart_id) is None:
         raise HTTPException(status_code=404, detail="Товар не найден")
     existing = (await session.execute(

@@ -99,6 +99,37 @@ async def test_scan_resolve_by_original_code_and_alias(
 
 
 @pytest.mark.asyncio
+async def test_marking_code_resolves_by_bound_gtin(
+    async_client, test_session, created_autopart,
+):
+    user = User(
+        email="scan-gtin@example.com",
+        password_hash=get_password_hash("secret123"),
+        role=UserRole.MANAGER,
+        status=UserStatus.ACTIVE,
+    )
+    test_session.add(user)
+    await test_session.commit()
+    login = await async_client.post(
+        "/auth/login", json={"email": user.email, "password": "secret123"}
+    )
+    assert login.status_code == 200
+    first = "0104610014828864215HNN7I3EEKRU3\x1d91EE10\x1d92abcdefgh12="
+    other = "0104610014828864215JLS9UNW414V2"
+    assert (await async_client.get("/scan/resolve", params={"code": first})
+            ).status_code == 404
+
+    bound = await async_client.post("/scan/alias", json={
+        "code": first, "autopart_id": created_autopart.id})
+    assert bound.status_code == 201, bound.text
+    assert bound.json()["code"] == "GTIN:04610014828864"
+    for code in (first, other):
+        found = await async_client.get("/scan/resolve", params={"code": code})
+        assert found.status_code == 200, found.text
+        assert found.json()["autopart_id"] == created_autopart.id
+
+
+@pytest.mark.asyncio
 async def test_scan_resolve_location(async_client, test_session, created_storage):
     user = User(
         email="scan-loc@example.com",

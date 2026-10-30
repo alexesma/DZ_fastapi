@@ -14,9 +14,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.models.autopart import AutoPart, ScannedCodeAlias, preprocess_oem_number
+from dz_fastapi.services.marking_code_parse import parse_marking_code
 
 _SEPARATORS = re.compile(r"[\s\x1d;]+")
 MIN_OEM_LENGTH = 5
+
+
+def alias_code(raw: str) -> str:
+    """Ключ привязки: у кода маркировки это GTIN (серийный номер у каждой штуки свой)."""
+    raw = (raw or "").strip()
+    parsed = parse_marking_code(raw)
+    return f"GTIN:{parsed.gtin}" if parsed else raw
 
 
 def code_keys(raw: str) -> list[str]:
@@ -41,15 +49,18 @@ async def find_autoparts(session: AsyncSession, raw: str) -> list[AutoPart]:
     if not raw:
         return []
     options = (selectinload(AutoPart.brand),)
+    alias = alias_code(raw)
     for query in (
         select(AutoPart).where(AutoPart.barcode == raw),
         select(AutoPart).join(
             ScannedCodeAlias, ScannedCodeAlias.autopart_id == AutoPart.id
-        ).where(ScannedCodeAlias.code == raw),
+        ).where(ScannedCodeAlias.code.in_({raw, alias})),
     ):
         rows = (await session.execute(query.options(*options))).scalars().all()
         if rows:
             return list(rows)
+    if alias != raw:  # код маркировки без привязки: артикула в нём нет
+        return []
     for key in code_keys(raw):
         rows = (await session.execute(
             select(AutoPart).where(AutoPart.oem_number == key)
