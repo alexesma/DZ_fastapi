@@ -68,6 +68,13 @@ class OneCExchangeEvent(Base):
     ed_sent_at = Column(DateTime(timezone=True), nullable=True)
     ed_transport_confirmed_at = Column(DateTime(timezone=True), nullable=True)
     ed_last_error = Column(Text, nullable=True)
+    # Что УНФ прислала обратно о нашем документе: её номер, дата и признак
+    # проведения (None — в сообщении этого признака не было).
+    ed_unf_ref = Column(String(36), nullable=True)
+    ed_unf_number = Column(String(50), nullable=True, index=True)
+    ed_unf_date = Column(DateTime(timezone=True), nullable=True)
+    ed_unf_posted = Column(Boolean, nullable=True)
+    ed_unf_received_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow, index=True)
     updated_at = Column(
         DateTime(timezone=True),

@@ -35,6 +35,7 @@ from xml.etree import ElementTree as ET
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS
+from dz_fastapi.services.one_c_enterprise_data_import import importable_documents
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -742,8 +743,10 @@ def _process_exchange_directory_unlocked(
 ) -> dict[str, Any]:
     """Разбирает входящие сообщения от 1С и формирует ответ.
 
-    На этом этапе обрабатывается только рукопожатие: сообщения с данными
-    сохраняются, но не разбираются — об этом сообщается в результате.
+    Служебные сообщения подтверждаются сразу. Сообщения с реализациями и
+    поступлениями складываются в очередь ``inbox`` внутри состояния и
+    подтверждаются; остальные данные не разбираются и остаются в каталоге
+    без подтверждения — об этом сообщается в результате.
     """
     directory = directory or get_exchange_dir()
     result: dict[str, Any] = {
@@ -769,7 +772,11 @@ def _process_exchange_directory_unlocked(
     for name in incoming_files:
         path = os.path.join(directory, name)
         try:
-            message = parse_message(read_message_file(path), file_name=name)
+            xml_bytes = read_message_file(path)
+            message = parse_message(xml_bytes, file_name=name)
+            body_documents = (
+                importable_documents(xml_bytes) if message.has_body else None
+            )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Не удалось разобрать сообщение %s", name)
             result["processed"].append({"file": name, "error": str(exc)})
@@ -794,17 +801,25 @@ def _process_exchange_directory_unlocked(
                 "Коды отправителя или получателя не совпадают с узлом"
             )
             continue
-        if message.has_body:
+        if message.has_body and body_documents is None:
             files_with_body.append(name)
         else:
             if latest is None or message.message_no >= latest.message_no:
                 latest = message
             parsed_handshake_files.append(name)
             # ReceivedNo в нашем следующем ответе означает, что мы успешно
-            # приняли сообщение УНФ. Пока содержимое Body не разбирается,
-            # его номер нельзя сохранять как принятый: поздний служебный
-            # ответ иначе подтвердит и удалит неимпортированные данные.
+            # приняли сообщение УНФ. Тело с неизвестными нам объектами
+            # подтверждать нельзя (его номер сюда не попадает): поздний
+            # служебный ответ иначе удалил бы неимпортированные данные.
+            # Документы, которые мы умеем сопоставить, сначала кладём в
+            # очередь внутри состояния, и только потом подтверждаем.
             if message.message_no > int(state.get("received_no", 0)):
+                if body_documents:
+                    state.setdefault("inbox", []).append({
+                        "message_no": message.message_no,
+                        "received_at": now_moscow().isoformat(),
+                        "documents": [item.as_dict() for item in body_documents],
+                    })
                 state["received_no"] = message.message_no
         # В поле ReceivedNo 1С сообщает, какое НАШЕ сообщение она приняла.
         # По нему понимаем, нужно ли увеличивать номер следующего исходящего.
@@ -905,6 +920,24 @@ def _process_exchange_directory_unlocked(
         result["response_file"],
     )
     return result
+
+
+def read_inbox(directory: Optional[str] = None) -> list[dict[str, Any]]:
+    """Документы УНФ, принятые из FTP, но ещё не сопоставленные с базой."""
+    directory = directory or get_exchange_dir()
+    if not os.path.isdir(directory):
+        return []
+    with _exchange_lock(directory):
+        return list(load_state(directory).get("inbox") or [])
+
+
+def drop_inbox(count: int, directory: Optional[str] = None) -> None:
+    """Убирает первые ``count`` записей очереди после успешного сохранения в БД."""
+    directory = directory or get_exchange_dir()
+    with _exchange_lock(directory):
+        state = load_state(directory)
+        state["inbox"] = list(state.get("inbox") or [])[count:]
+        save_state(directory, state)
 
 
 def _archive_handshakes(directory: str, names: list[str]) -> None:

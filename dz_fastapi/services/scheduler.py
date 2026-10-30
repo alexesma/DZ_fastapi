@@ -81,7 +81,8 @@ from dz_fastapi.services.monitoring import (
     tracked_execution,
 )
 from dz_fastapi.services.notifications import create_admin_notifications, notify_admin_all
-from dz_fastapi.services.one_c_enterprise_data import process_exchange_directory
+from dz_fastapi.services.one_c_enterprise_data import drop_inbox, process_exchange_directory
+from dz_fastapi.services.one_c_enterprise_data_apply import apply_inbox
 from dz_fastapi.services.one_c_enterprise_dispatch import dispatch_next
 from dz_fastapi.services.order_timing import (
     OUTSIDE_WINDOW_SLOW_SECONDS,
@@ -614,6 +615,15 @@ async def process_one_c_enterprise_handshake_task(app: FastAPI):
         return
     if result.get("response_file") and not result.get("note"):
         logger.info("EnterpriseData handshake response: %s", result["response_file"])
+    try:
+        async with app.state.session_factory() as session:
+            received = await apply_inbox(session)
+            await session.commit()
+        if received["messages"]:
+            await asyncio.to_thread(drop_inbox, received["messages"])
+            logger.info("EnterpriseData numbers received from UNF: %s", received)
+    except Exception:
+        logger.exception("EnterpriseData receive failed")
     try:
         async with app.state.session_factory() as session:
             outcome = await dispatch_next(session)

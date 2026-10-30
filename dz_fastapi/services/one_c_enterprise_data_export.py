@@ -369,6 +369,16 @@ _EVENT_OBJECT_TYPES = {
 }
 
 
+def event_document_ref(entity_type: str, document_id: Any) -> str:
+    """Ссылка (GUID), под которой мы отправили документ события в УНФ."""
+    kind = {"shipment": "shipment", "supplier_receipt": "receipt"}[entity_type]
+    return _guid(kind, document_id)
+
+
+def event_document_number(document_id: Any) -> str:
+    return _one_c_number(document_id)
+
+
 def _event_object_type(entity_type: str, event_type: str) -> str:
     if event_type != "posted":
         raise ValueError("Предпросмотр EnterpriseData доступен только для проведённых документов")

@@ -886,6 +886,11 @@ def serialize_one_c_event(
         "ed_sent_at": event.ed_sent_at,
         "ed_transport_confirmed_at": event.ed_transport_confirmed_at,
         "ed_last_error": event.ed_last_error,
+        "ed_unf_ref": event.ed_unf_ref,
+        "ed_unf_number": event.ed_unf_number,
+        "ed_unf_date": event.ed_unf_date,
+        "ed_unf_posted": event.ed_unf_posted,
+        "ed_unf_received_at": event.ed_unf_received_at,
         "created_at": event.created_at,
         "updated_at": event.updated_at,
     }
