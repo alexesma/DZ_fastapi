@@ -329,6 +329,13 @@ def serialize_object(
         _counterparty_key(_add(key, "Контрагент"), payload["provider"], "provider")
         rows = _add(node, "Товары")
         for item in payload.get("items") or []:
+            price = item.get("price")
+            if price is None or Decimal(str(price)) <= 0:
+                raise ValueError(
+                    f"Поступление №{payload['document_id']}, строка "
+                    f"№{item.get('item_id') or '?'}: не указана положительная цена "
+                    "поставщика; УНФ не проведёт документ"
+                )
             _goods_row(rows, item, require_unit=True, document_identity=document_identity)
         _currency(node)
         _add(node, "ВидОперации", "ПокупкаУПоставщика")

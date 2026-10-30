@@ -10,6 +10,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -27,7 +28,12 @@ from dz_fastapi.models.inventory import (
     StockMovement,
 )
 from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
-from dz_fastapi.models.partner import Provider, SupplierReceipt
+from dz_fastapi.models.partner import (
+    Provider,
+    SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.services.one_c_enterprise_data import get_exchange_status, send_body_message
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS, event_body_objects
@@ -154,6 +160,25 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
         receipt = await session.get(SupplierReceipt, event.entity_id)
         if receipt is None or receipt.posted_at is None:
             raise ValueError("Поступление отменено или удалено")
+        if (
+            receipt.supplier_order_id
+            and (receipt.comment or "").startswith("Авто-черновик поступления из ответа поставщика")
+        ):
+            ordered_qty = await session.scalar(
+                select(func.sum(SupplierOrderItem.quantity)).where(
+                    SupplierOrderItem.supplier_order_id == receipt.supplier_order_id
+                )
+            )
+            received_qty = sum(
+                Decimal(str(item.get("quantity") or 0))
+                for item in event.payload.get("items") or []
+            )
+            if ordered_qty and received_qty > 10 * ordered_qty:
+                raise ValueError(
+                    f"Поступление №{receipt.id}: {received_qty} шт. против "
+                    f"{ordered_qty} шт. в заказе поставщику №{receipt.supplier_order_id}; "
+                    "проверьте авто-черновик и исходное письмо"
+                )
         party = event.payload.get("provider") or {}
         provider = await session.get(Provider, party.get("id")) if party.get("id") else None
         if provider is None:
@@ -397,6 +422,65 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             .limit(100)
         )
     ).all()
+    ordered_quantities = (
+        select(
+            SupplierOrderItem.supplier_order_id.label("order_id"),
+            func.sum(SupplierOrderItem.quantity).label("quantity"),
+        )
+        .group_by(SupplierOrderItem.supplier_order_id)
+        .subquery()
+    )
+    receipt_quantities = (
+        select(
+            SupplierReceiptItem.receipt_id.label("receipt_id"),
+            func.sum(SupplierReceiptItem.received_quantity).label("quantity"),
+        )
+        .group_by(SupplierReceiptItem.receipt_id)
+        .subquery()
+    )
+    suspicious_auto_receipts = (
+        await session.execute(
+            select(
+                SupplierReceipt.id,
+                Provider.name,
+                SupplierReceipt.supplier_order_id,
+                receipt_quantities.c.quantity,
+                ordered_quantities.c.quantity,
+            )
+            .join(Provider, Provider.id == SupplierReceipt.provider_id)
+            .join(receipt_quantities, receipt_quantities.c.receipt_id == SupplierReceipt.id)
+            .join(
+                ordered_quantities,
+                ordered_quantities.c.order_id == SupplierReceipt.supplier_order_id,
+            )
+            .where(
+                SupplierReceipt.posted_at.is_not(None),
+                SupplierReceipt.comment.like("Авто-черновик поступления из ответа поставщика%"),
+                ordered_quantities.c.quantity > 0,
+                receipt_quantities.c.quantity > 10 * ordered_quantities.c.quantity,
+            )
+            .order_by(SupplierReceipt.id)
+            .limit(100)
+        )
+    ).all()
+    missing_price_receipts = (
+        await session.execute(
+            select(SupplierReceipt.id, Provider.name, func.count(SupplierReceiptItem.id))
+            .join(Provider, Provider.id == SupplierReceipt.provider_id)
+            .join(SupplierReceiptItem, SupplierReceiptItem.receipt_id == SupplierReceipt.id)
+            .where(
+                SupplierReceipt.posted_at.is_not(None),
+                SupplierReceiptItem.received_quantity > 0,
+                (
+                    SupplierReceiptItem.price.is_(None)
+                    | (SupplierReceiptItem.price <= 0)
+                ),
+            )
+            .group_by(SupplierReceipt.id, Provider.name)
+            .order_by(SupplierReceipt.id)
+            .limit(100)
+        )
+    ).all()
     return {
         "posted_receipts": {
             "count": receipts[0], "first_date": receipts[1], "last_date": receipts[2],
@@ -415,6 +499,18 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         "providers_missing_contract": [
             {"id": row[0], "name": row[1], "posted_receipts": row[2]}
             for row in missing_contracts
+        ],
+        "suspicious_auto_receipts": [
+            {
+                "receipt_id": row[0], "provider": row[1],
+                "supplier_order_id": row[2], "received_quantity": row[3],
+                "ordered_quantity": row[4],
+            }
+            for row in suspicious_auto_receipts
+        ],
+        "missing_price_receipts": [
+            {"receipt_id": row[0], "provider": row[1], "items": row[2]}
+            for row in missing_price_receipts
         ],
         "stock_lots_by_source": [
             {

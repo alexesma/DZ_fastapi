@@ -85,6 +85,12 @@ def test_unnumbered_supplier_receipt_keeps_stable_unf_number():
     assert _value(root, "ОбщиеСвойстваОбъектовФормата/Комментарий") is None
 
 
+def test_supplier_receipt_with_zero_price_is_rejected_before_transfer():
+    document = {**DOCUMENT, "items": [{**ITEM, "price": "0.00"}]}
+    with pytest.raises(ValueError, match="не указана положительная цена"):
+        object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY)
+
+
 def test_directory_objects_are_stable():
     customer = ET.fromstring(object_xml("Справочник.Контрагенты", PARTY))
     product = ET.fromstring(object_xml("Справочник.Номенклатура", ITEM["autopart"]))

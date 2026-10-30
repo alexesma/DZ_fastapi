@@ -7,7 +7,12 @@ import pytest
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus
-from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    SupplierOrder,
+    SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.services import one_c_enterprise_dispatch as dispatch
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS
 from dz_fastapi.services.one_c_outbox import CHANNEL_JSON, get_or_create_delivery_batch
@@ -181,7 +186,39 @@ async def test_history_audit_returns_empty_counts(test_session):
     assert audit["posted_receipts"]["count"] == 0
     assert audit["posted_shipments"]["count"] == 0
     assert audit["providers_missing_contract"] == []
+    assert audit["suspicious_auto_receipts"] == []
+    assert audit["missing_price_receipts"] == []
     assert audit["non_receipt_lots"] == []
+
+
+@pytest.mark.asyncio
+async def test_misparsed_email_receipt_is_blocked_before_transfer(
+    test_session, created_providers,
+):
+    order = SupplierOrder(provider_id=created_providers[0].id)
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(SupplierOrderItem(supplier_order_id=order.id, quantity=2))
+    receipt = SupplierReceipt(
+        provider_id=created_providers[0].id,
+        supplier_order_id=order.id,
+        comment="Авто-черновик поступления из ответа поставщика",
+        posted_at=now_moscow(),
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+    test_session.add(SupplierReceiptItem(
+        receipt_id=receipt.id, received_quantity=36933, price=Decimal("0"),
+    ))
+    await test_session.flush()
+    event = _event(receipt.id)
+    event.payload = {"items": [{"quantity": 36933}]}
+
+    with pytest.raises(ValueError, match="36933 шт. против 2 шт."):
+        await dispatch._current_payload(test_session, event)
+    audit = await dispatch.history_audit(test_session)
+    assert audit["suspicious_auto_receipts"][0]["receipt_id"] == receipt.id
+    assert audit["missing_price_receipts"][0]["receipt_id"] == receipt.id
 
 
 @pytest.mark.asyncio
