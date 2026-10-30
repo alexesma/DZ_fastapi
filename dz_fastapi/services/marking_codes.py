@@ -20,14 +20,23 @@ from dz_fastapi.models.inventory import (
     StockLot,
 )
 from dz_fastapi.models.partner import SupplierReceiptItem
+from dz_fastapi.services.marking_code_parse import parse_marking_code
 
 logger = logging.getLogger(__name__)
 
 _MARKING_CODE_WHITESPACE_RE = re.compile(r"[\r\n\t ]+")
 
 
-def normalize_marking_codes(values: Iterable[object] | object | None) -> list[str]:
-    """Нормализует список КИЗ без потери значимых GS1-символов."""
+def normalize_marking_codes_with_full(
+    values: Iterable[object] | object | None,
+) -> list[tuple[str, Optional[str]]]:
+    """Пары ``(код учёта, полный код со скана)`` без дублей, порядок сохранён.
+
+    Код учёта — КИ (``01``+GTIN+``21``+серийный номер), как в личном кабинете
+    «Честного знака» и в УПД. Полный код с криптохвостом возвращается рядом,
+    только если он пришёл. Всё, что не похоже на код маркировки, остаётся как
+    есть, без потери значимых GS1-символов.
+    """
     if values is None:
         return []
     if isinstance(values, str):
@@ -38,17 +47,30 @@ def normalize_marking_codes(values: Iterable[object] | object | None) -> list[st
         except TypeError:
             raw_values = [values]
 
-    result: list[str] = []
-    seen: set[str] = set()
+    result: list[tuple[str, Optional[str]]] = []
+    index: dict[str, int] = {}
     for value in raw_values:
         text = str(value or "").strip()
         if not text:
             continue
-        code = _MARKING_CODE_WHITESPACE_RE.sub("", text)
-        if code and code not in seen:
-            seen.add(code)
-            result.append(code)
+        collapsed = _MARKING_CODE_WHITESPACE_RE.sub("", text)
+        parsed = parse_marking_code(text) or parse_marking_code(collapsed)
+        code = parsed.ki if parsed else collapsed
+        full = text if parsed is not None and parsed.has_crypto_tail else None
+        if not code:
+            continue
+        if code in index:
+            if full and result[index[code]][1] is None:
+                result[index[code]] = (code, full)
+            continue
+        index[code] = len(result)
+        result.append((code, full))
     return result
+
+
+def normalize_marking_codes(values: Iterable[object] | object | None) -> list[str]:
+    """Нормализует список КИЗ до КИ без потери значимых GS1-символов."""
+    return [code for code, _ in normalize_marking_codes_with_full(values)]
 
 
 async def register_receipt_marking_codes(
@@ -58,7 +80,9 @@ async def register_receipt_marking_codes(
     stock_lot: StockLot,
     codes: Iterable[object] | object | None,
 ) -> list[str]:
-    normalized_codes = normalize_marking_codes(codes)
+    pairs = normalize_marking_codes_with_full(codes)
+    normalized_codes = [code for code, _ in pairs]
+    full_codes = {code: full for code, full in pairs if full}
     if not normalized_codes:
         return []
 
@@ -114,6 +138,8 @@ async def register_receipt_marking_codes(
             "receipt_item_id": receipt_item.id,
             "stock_lot_id": stock_lot.id,
         }
+        if code in full_codes:
+            row.raw_payload["full_code"] = full_codes[code]
         session.add(
             ProductMarkingCodeMovement(
                 marking_code_id=row.id,

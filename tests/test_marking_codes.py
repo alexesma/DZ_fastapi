@@ -29,11 +29,20 @@ def test_normalize_none_and_empty():
     assert normalize_marking_codes(["", "  ", None]) == []
 
 
-def test_normalize_preserves_gs1_symbols():
-    # GS-разделитель (\x1d) — значимый символ GS1 DataMatrix,
-    # он не должен вырезаться.
-    code = "0104601234567890215abc\x1d93test"
+def test_normalize_preserves_gs1_symbols_outside_marking_codes():
+    # GS-разделитель (\x1d) значим в GS1, поэтому из прочих кодов не вырезается.
+    code = "AB\x1dCD"
     assert normalize_marking_codes([code]) == [code]
+
+
+def test_normalize_cuts_scanned_code_to_ki_and_keeps_full_code():
+    from dz_fastapi.services.marking_codes import normalize_marking_codes_with_full
+
+    ki = "0104610014828864215HNN7I3EEKRU3"
+    full = f"{ki}\x1d91EE10\x1d92aNj6j3V+Xe/9h0Az9sUuaCxOqo64CCYJAI="
+    assert normalize_marking_codes([full, ki]) == [ki]
+    assert normalize_marking_codes_with_full([ki, full]) == [(ki, full)]
+    assert normalize_marking_codes_with_full([ki]) == [(ki, None)]
 
 
 def test_withdrawal_document_builder():
