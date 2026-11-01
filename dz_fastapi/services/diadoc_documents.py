@@ -5,12 +5,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import aiofiles
-from sqlalchemy import or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
+from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.partner import (
     ProviderExternalReference,
@@ -161,8 +162,8 @@ async def resolve_provider_by_diadoc_counteragent_box(
     *,
     counteragent_box_id: str | None,
 ) -> int | None:
-    value = str(counteragent_box_id or "").strip()
-    if not value:
+    variants = diadoc_box_variants(counteragent_box_id)
+    if not variants:
         return None
     stmt = (
         select(ProviderExternalReference)
@@ -171,12 +172,8 @@ async def resolve_provider_by_diadoc_counteragent_box(
             ProviderExternalReference.source_system.in_(
                 DIADOC_PROVIDER_SOURCE_SYSTEMS
             ),
-            or_(
-                ProviderExternalReference.external_supplier_name == value,
-                ProviderExternalReference.external_supplier_name
-                == value.lower(),
-                ProviderExternalReference.external_supplier_name
-                == value.upper(),
+            func.lower(ProviderExternalReference.external_supplier_name).in_(
+                variants
             ),
         )
         .order_by(ProviderExternalReference.id.asc())

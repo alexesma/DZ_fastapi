@@ -70,6 +70,7 @@ from dz_fastapi.services.diadoc_cloud_sign import (
     start_revoke_outgoing_task,
     start_send_outgoing_task,
 )
+from dz_fastapi.services.diadoc_boxes import flatten_counteragent
 from dz_fastapi.services.diadoc_documents import (
     ensure_diadoc_document_content,
     get_diadoc_incoming_document,
@@ -630,7 +631,8 @@ async def list_diadoc_counteragents(
             page_size=page_size,
         )
         items: list[DiadocCounteragentOut] = []
-        for row in payload.get("Counteragents") or []:
+        for raw_row in payload.get("Counteragents") or []:
+            row = flatten_counteragent(raw_row)
             box_ref = _extract_counteragent_box_id(row)
             provider_id = None
             provider_name = None
@@ -720,7 +722,7 @@ async def list_diadoc_counteragents(
                     mapped_provider_name=provider_name,
                     mapped_customer_id=customer_id,
                     mapped_customer_name=customer_name,
-                    raw=row,
+                    raw=raw_row,
                 )
             )
         await _fill_counteragent_inn_suggestions(session, items)

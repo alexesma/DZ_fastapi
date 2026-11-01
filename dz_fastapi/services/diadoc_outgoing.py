@@ -9,12 +9,13 @@ from typing import Any
 from uuid import uuid4
 
 import aiofiles
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
+from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.inventory import (
@@ -187,8 +188,8 @@ async def resolve_customer_by_diadoc_counteragent_box(
     session: AsyncSession,
     counteragent_box_id: str | None,
 ) -> Customer | None:
-    value = str(counteragent_box_id or "").strip()
-    if not value:
+    variants = diadoc_box_variants(counteragent_box_id)
+    if not variants:
         return None
 
     stmt = (
@@ -199,7 +200,9 @@ async def resolve_customer_by_diadoc_counteragent_box(
             CustomerExternalReference.source_system.in_(
                 _DIADOC_CUSTOMER_SOURCE_SYSTEMS
             ),
-            CustomerExternalReference.external_customer_name == value,
+            func.lower(CustomerExternalReference.external_customer_name).in_(
+                variants
+            ),
         )
         .order_by(CustomerExternalReference.id.asc())
     )
