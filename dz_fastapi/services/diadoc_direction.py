@@ -93,3 +93,12 @@ async def detect_document_direction(
     )
     session.add(document)
     return direction
+
+
+async def has_customer_binding(
+    session: AsyncSession, document: DiadocIncomingDocument
+) -> bool:
+    customer = await resolve_customer_by_diadoc_counteragent_box(
+        session, document.counteragent_box_id
+    )
+    return customer is not None

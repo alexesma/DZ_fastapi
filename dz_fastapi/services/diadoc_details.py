@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import xml.etree.ElementTree as ET
 from typing import Any, Optional
 
@@ -49,7 +50,73 @@ def collect_details(document: DiadocIncomingDocument, category: str) -> dict[str
         details["seller_inn"] = parties.seller_inn
         details["buyer_inn"] = parties.buyer_inn
     total = _act_total(payload)
+    if total is None:
+        for block in _metadata_blocks(document):
+            try:
+                total = float(str(block.get("Total")).replace(",", "."))
+                break
+            except (TypeError, ValueError):
+                continue
     if total is not None:
         details["total"] = total
         document.total_amount = total
+    works, basis = [], None
+    try:
+        root = ET.fromstring(payload)
+        for element in root.iter():
+            tag = element.tag.rsplit("}", 1)[-1]
+            if tag == "Работа" and element.get("Описание"):
+                works.append(element.get("Описание"))
+            elif tag == "Основание" and basis is None:
+                basis = (
+                    " ".join(str(v) for v in element.attrib.values())
+                    or (element.text or "").strip()
+                    or None
+                )
+    except ET.ParseError:
+        pass
+    if works:
+        details["works"] = works[:20]
+    if basis:
+        details["basis"] = basis
+    for block in _metadata_blocks(document):
+        details["grounds"] = block.get("Grounds") or details.get("basis")
+        details["diadoc_status"] = block.get("DocumentStatus")
+        break
     return details
+
+
+_RETURN_RE = re.compile(r"возврат|возвр\.", re.I)
+_RETURN_TAGS = ("ПередатДокум", "ИнфПолФХЖ", "СодФХЖ", "Основание", "ТекстИнф")
+
+
+def _metadata_blocks(document: DiadocIncomingDocument) -> list[dict]:
+    meta = document.raw_metadata or {}
+    return [v for k, v in meta.items() if str(k).endswith("Metadata") and isinstance(v, dict)]
+
+
+def detect_return_marker(document: DiadocIncomingDocument) -> Optional[str]:
+    """Текст основания, говорящий о возврате товара («возврат», «возвр.»).
+
+    Смотрим основание в метаданных Диадока (Grounds) и в XML: ПередатДокум,
+    ИнфПолФХЖ, СодФХЖ*, Основание, ТекстИнф.
+    """
+    for block in _metadata_blocks(document):
+        grounds = str(block.get("Grounds") or "")
+        if _RETURN_RE.search(grounds):
+            return grounds
+    payload = _read(document)
+    if payload is None:
+        return None
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return None
+    for element in root.iter():
+        tag = element.tag.rsplit("}", 1)[-1]
+        if not tag.startswith(_RETURN_TAGS):
+            continue
+        for value in [*element.attrib.values(), element.text or ""]:
+            if _RETURN_RE.search(str(value)):
+                return str(value).strip()
+    return None

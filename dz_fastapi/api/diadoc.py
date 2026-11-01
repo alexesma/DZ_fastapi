@@ -175,6 +175,7 @@ _DECISION_STATUSES = {
     "service_act",
     "discrepancy_act",
     "other_doc",
+    "possible_return",
 }
 
 

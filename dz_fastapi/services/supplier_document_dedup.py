@@ -118,7 +118,7 @@ def totals_differ(a: object, b: object) -> bool:
 
 
 _TRANSPORT_FILE_PREFIXES = ("on_trn", "on_epl", "on_zayavka", "on_zayav")
-_ACT_FILE_PREFIXES = ("on_akt",)
+_ACT_FILE_PREFIXES = ("on_akt", "dp_rezruisp", "dp_akt")
 _TORG12_FILE_PREFIXES = ("on_naklpost",)
 _DISCREPANCY_FILE_PREFIXES = ("dp_prirasx", "dp_rasx")
 _UKD_FILE_PREFIXES = ("on_korschfdop", "on_nkorschfdop")
@@ -141,22 +141,26 @@ def classify_diadoc_document(
     """
     type_key = str(type_named_id or "").strip().lower()
     name = str(filename or "").strip().lower()
-    if type_key in _DIADOC_KIND_BY_TYPE:
-        return _DIADOC_KIND_BY_TYPE[type_key]
+    # Имя файла Диадока надёжнее TypeNamedId: XmlTorg12/XmlAcceptanceCertificate
+    # часто содержат обычный УПД (ON_NSCHFDOPPR_…).
     if name.startswith(_DISCREPANCY_FILE_PREFIXES):
         return "discrepancy_act"
-    if "waybill" in type_key or type_key in {"orderrequest"}:
-        return "transport"
     if name.startswith(_TRANSPORT_FILE_PREFIXES):
         return "transport"
-    if type_key in _ACT_TYPES or name.startswith(_ACT_FILE_PREFIXES):
-        return "act"
     if name.startswith(_UKD_FILE_PREFIXES):
         return "ukd"
     if name.startswith(_UPD_FILE_PREFIXES):
         return "upd"
+    if name.startswith(_ACT_FILE_PREFIXES):
+        return "act"
     if name.startswith(_TORG12_FILE_PREFIXES):
         return "torg12"
+    if type_key in _DIADOC_KIND_BY_TYPE:
+        return _DIADOC_KIND_BY_TYPE[type_key]
+    if "waybill" in type_key or type_key in {"orderrequest"}:
+        return "transport"
+    if type_key in _ACT_TYPES:
+        return "act"
     if type_key in {"invoice", "invoicerevision"} or name.startswith(
         "on_sfakt"
     ):
@@ -267,6 +271,28 @@ def apply_diadoc_metadata_identity(document: DiadocIncomingDocument) -> None:
     document.dedup_key = build_dedup_key(document.provider_id, identity)
 
 
+def effective_category(document: DiadocIncomingDocument) -> str:
+    """Категория с учётом содержимого: любой тип Диадока с УПД внутри — УПД."""
+    meta = document.raw_metadata or {}
+    category = classify_diadoc_document(
+        meta.get("TypeNamedId"), document.file_name
+    )
+    path = document.local_file_path
+    name = str(document.file_name or "").lower()
+    if (
+        category in {"act", "torg12", "other"}
+        and name.endswith(".xml")
+        and path
+        and os.path.exists(os.path.abspath(path))
+    ):
+        from dz_fastapi.services.upd_xml import looks_like_upd_xml
+
+        with open(os.path.abspath(path), "rb") as fh:
+            if looks_like_upd_xml(fh.read(), name):
+                return "upd"
+    return category
+
+
 def _is_processable_other(document: DiadocIncomingDocument) -> bool:
     """Неклассифицированный файл, который всё же можно разбирать как документ.
 
@@ -294,10 +320,7 @@ def apply_category_status(document: DiadocIncomingDocument) -> Optional[str]:
     Ставится при синхронизации, даже когда автообработка выключена, чтобы
     в списке входящих сразу было видно «ЭТрН» / «Акт». Возвращает категорию.
     """
-    meta = document.raw_metadata or {}
-    category = classify_diadoc_document(
-        meta.get("TypeNamedId"), document.file_name
-    )
+    category = effective_category(document)
     if category not in {"transport", "act", "discrepancy_act"}:
         return category
     document.document_kind = category
@@ -633,9 +656,7 @@ async def evaluate_diadoc_document(
             return {"action": "proceed"}
 
     meta = document.raw_metadata or {}
-    category = classify_diadoc_document(
-        meta.get("TypeNamedId"), document.file_name
-    )
+    category = effective_category(document)
     if category == "transport":
         document.document_kind = "transport"
         document.status = "transport"
@@ -681,6 +702,7 @@ async def evaluate_diadoc_document(
         DIRECTION_CUSTOMER,
         DIRECTION_UNKNOWN,
         detect_document_direction,
+        has_customer_binding,
     )
 
     direction = await detect_document_direction(session, document)
@@ -703,7 +725,37 @@ async def evaluate_diadoc_document(
         await session.commit()
         return {"action": "unknown"}
 
-    if not is_receipt_document(meta.get("TypeNamedId"), document.file_name):
+    # Контрагент одновременно клиент и документ про возврат товара: это
+    # возможный возврат от клиента, а не обычная закупка.
+    from dz_fastapi.services.diadoc_details import detect_return_marker
+
+    return_text = detect_return_marker(document)
+    if return_text and (
+        document.customer_id
+        or await has_customer_binding(session, document)
+    ):
+        document.status = "possible_return"
+        document.parsed_details = {
+            **(document.parsed_details or {}),
+            "possible_return": True,
+            "return_text": return_text[:300],
+        }
+        document.import_error_details = (
+            "Возможный возврат товара от клиента (в основании: "
+            f"«{return_text[:120]}»): в закупку автоматически не берём, "
+            "нужно решение (возврат от клиента)"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "possible_return"}
+
+    if category in {
+        "invoice",
+        "payment_invoice",
+        "other_non_receipt",
+    } and not is_correction_document(
+        meta.get("TypeNamedId"), document.file_name
+    ):
         document.status = "skipped"
         document.import_error_details = (
             "Не поступление (счёт на оплату или другой документ): "
