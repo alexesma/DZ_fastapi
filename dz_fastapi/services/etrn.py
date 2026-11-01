@@ -33,6 +33,7 @@ from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.services.diadoc_transport import (
     TRANSPORT_TYPE_NAMED_IDS,
     extract_custom_data,
+    extract_driver_confirm,
     extract_kl_status,
     extract_mt_id,
     extract_transport_status,
@@ -49,9 +50,12 @@ from dz_fastapi.services.etrn_xml import (
     T3_INDEX,
     T3_RESULT_LABELS,
     T3_RESULTS,
+    T6_FUNCTION,
+    T6_INDEX,
     EtrnDataError,
     build_t1_user_data,
     build_t3_user_data,
+    build_t6_user_data,
     parse_t1_summary,
 )
 
@@ -59,6 +63,7 @@ logger = logging.getLogger("dz_fastapi")
 
 OPERATION_ETRN_T1 = "etrn_t1_send"
 OPERATION_ETRN_T3 = "etrn_t3_send"
+OPERATION_ETRN_T6 = "etrn_t6_send"
 
 ADDRESS_FIELDS = (
     "label", "zip_code", "region_code", "city", "locality", "street",
@@ -511,6 +516,12 @@ async def apply_remote_payload(
     if transport:
         waybill.gis_status_type = transport.get("status_type")
         waybill.gis_status_text = transport.get("status_text")
+    driver_confirm = extract_driver_confirm(payload)
+    if driver_confirm:
+        waybill.payload = {
+            **(waybill.payload or {}),
+            "driver_confirm": driver_confirm,
+        }
     problem = find_transport_problem(payload)
     new_status = _status_from_kl(waybill.kl_status, problem)
     if new_status and waybill.status not in ("draft", "sign_pending"):
@@ -574,6 +585,14 @@ async def refresh_waybill(
     return problem
 
 
+def _is_cost_title(raw: dict[str, Any]) -> bool:
+    custom = extract_custom_data(raw)
+    return (
+        str(raw.get("Function") or "").lower() == "cost"
+        or custom.get("kl-func") == "cost"
+    )
+
+
 def _is_delivery_title(raw: dict[str, Any]) -> bool:
     custom = extract_custom_data(raw)
     return (
@@ -609,7 +628,7 @@ async def sync_etrn(
                 TRANSPORT_TYPE_NAMED_IDS
             ):
                 continue
-            if _is_delivery_title(raw):
+            if _is_cost_title(raw) or _is_delivery_title(raw):
                 deliveries.append({**raw, "_direction": direction})
                 continue
             message_id = str(raw.get("MessageId") or "")
@@ -678,6 +697,16 @@ async def sync_etrn(
                 )
             )
         ).scalars().first()
+        if target is not None and _is_cost_title(raw):
+            cost = dict((target.payload or {}).get("cost") or {})
+            if raw["_direction"] == "incoming":
+                if not cost.get("t5_entity_id"):
+                    cost["t5_message_id"] = raw.get("MessageId")
+                    cost["t5_entity_id"] = raw.get("EntityId")
+                    cost.setdefault("t6_state", "none")
+                    target.payload = {**(target.payload or {}), "cost": cost}
+                    session.add(target)
+            continue
         if target is None or target.t3_message_id:
             continue
         target.t3_message_id = raw.get("MessageId")
@@ -897,3 +926,125 @@ async def apply_t3_sign(
         "message_id": waybill.t3_message_id,
         "result": T3_RESULT_LABELS.get(waybill.t3_result or "", ""),
     }
+
+
+# ---------------------------------------------------------------- Т6
+
+
+def _cost(waybill: EtrnWaybill) -> dict[str, Any]:
+    return dict((waybill.payload or {}).get("cost") or {})
+
+
+def _set_cost(waybill: EtrnWaybill, **changes: Any) -> None:
+    cost = {**_cost(waybill), **changes}
+    waybill.payload = {**(waybill.payload or {}), "cost": cost}
+
+
+async def start_t6_sign(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    integration: DiadocIntegrationSettings,
+    waybill: EtrnWaybill,
+    form: dict[str, Any],
+) -> DiadocCloudSignTask:
+    """Т6 — ответ грузоотправителя на Т5 (стоимость), только по флагу."""
+    ensure_enabled(integration)
+    if not integration.etrn_t6_enabled:
+        raise EtrnError("Т6 (стоимость) выключен в настройках Диадока")
+    if waybill.direction != "outgoing":
+        raise EtrnError("Т6 подписывает грузоотправитель по своей перевозке")
+    cost = _cost(waybill)
+    if not cost.get("t5_entity_id"):
+        raise EtrnError("Перевозчик ещё не прислал Т5 (стоимость)")
+    if cost.get("t6_state") in ("signed_here",):
+        raise EtrnError("Т6 по этой перевозке уже подписан")
+    user_data = build_t6_user_data(
+        signer_full_name=str(integration.signer_full_name or ""),
+        signer_position=str(integration.signer_position or ""),
+        department=form.get("department"),
+        okpo=form.get("okpo"),
+        info=form.get("info"),
+        bank=form.get("bank"),
+        warrant=form.get("warrant"),
+    )
+    content, file_name = await client.generate_title_xml(
+        box_id_guid=waybill.box_id_guid or integration.box_id_guid or "",
+        document_type_named_id=ETRN_TYPE,
+        document_function=T6_FUNCTION,
+        document_version=ETRN_VERSION,
+        title_index=T6_INDEX,
+        user_data_xml=user_data,
+        letter_id=cost["t5_message_id"],
+        document_id=cost["t5_entity_id"],
+    )
+    from dz_fastapi.services.diadoc_cloud_sign import _encode_file
+
+    files = [
+        {
+            "file_name": file_name or f"etrn_t6_{waybill.id}.xml",
+            "content_b64": _encode_file(content),
+            "kind": "etrn_t6",
+            "parent_entity_id": cost["t5_entity_id"],
+        }
+    ]
+    token = await client.cloud_sign(
+        files=[
+            {
+                "FileName": files[0]["file_name"],
+                "Content": {"Content": files[0]["content_b64"]},
+            }
+        ]
+    )
+    await _cancel_waiting_tasks(session, OPERATION_ETRN_T6, int(waybill.id))
+    task = DiadocCloudSignTask(
+        environment=waybill.environment,
+        operation=OPERATION_ETRN_T6,
+        state="waiting_code",
+        box_id_guid=waybill.box_id_guid or integration.box_id_guid,
+        message_id=cost["t5_message_id"],
+        entity_id=cost["t5_entity_id"],
+        cloud_sign_token=token,
+        files=files,
+        params={"etrn_id": int(waybill.id)},
+    )
+    session.add(task)
+    _set_cost(waybill, t6_state="pending_sign")
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def apply_t6_sign(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    task: DiadocCloudSignTask,
+    signatures: list[str],
+) -> dict[str, Any]:
+    waybill = await _locked(session, (task.params or {}).get("etrn_id"))
+    cost = _cost(waybill)
+    if cost.get("t6_state") != "pending_sign":
+        raise EtrnError(
+            "Т6 уже подписан или попытка отменена — повторно не отправляем"
+        )
+    item = task.files[0]
+    await client.post_message_patch(
+        patch={
+            "BoxId": task.box_id_guid,
+            "MessageId": cost["t5_message_id"],
+            "RecipientTitles": [
+                {
+                    "ParentEntityId": cost["t5_entity_id"],
+                    "SignedContent": {
+                        "Content": item["content_b64"],
+                        "Signature": signatures[0],
+                    },
+                }
+            ],
+        },
+        operation_id=f"etrn-t6-{waybill.id}",
+    )
+    _set_cost(waybill, t6_state="signed_here")
+    session.add(waybill)
+    return {"t6": "signed"}

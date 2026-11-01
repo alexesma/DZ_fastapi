@@ -23,6 +23,7 @@ from dz_fastapi.schemas.etrn import (
     CarrierIn,
     DriverIn,
     T3AcceptIn,
+    T6SignIn,
     VehicleIn,
     WaybillDraftIn,
 )
@@ -35,6 +36,7 @@ from dz_fastapi.services.etrn import (
     refresh_waybill,
     start_t1_sign,
     start_t3_sign,
+    start_t6_sign,
     sync_etrn,
     upsert_outgoing_draft,
 )
@@ -108,6 +110,8 @@ def waybill_out(item: EtrnWaybill) -> dict[str, Any]:
         "summary": summary or None,
         "payload": payload if item.direction == "outgoing" else None,
         "t1_message_id": item.t1_message_id,
+        "driver_confirm": payload.get("driver_confirm"),
+        "cost": payload.get("cost"),
         "last_synced_at": item.last_synced_at.isoformat()
         if item.last_synced_at
         else None,
@@ -345,6 +349,33 @@ async def accept_t3(
             integration=integration,
             waybill=waybill,
             form=form,
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _http(exc)
+
+
+@router.post(
+    "/waybills/{waybill_id}/t6", response_model=DiadocCloudSignTaskOut
+)
+async def sign_t6(
+    waybill_id: int,
+    body: T6SignIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Т6 (стоимость) — только при включённом флаге Т6."""
+    try:
+        integration, client = await _integration(session)
+        waybill = await _waybill(session, waybill_id)
+        task = await start_t6_sign(
+            session,
+            client=client,
+            integration=integration,
+            waybill=waybill,
+            form=json.loads(body.model_dump_json()),
         )
         return DiadocCloudSignTaskOut.model_validate(task)
     except HTTPException:

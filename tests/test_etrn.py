@@ -475,3 +475,82 @@ async def test_sync_creates_waybill_and_notifies_once(test_session):
     assert second["created"] == 0 and second["problems"] == 0
     notes = (await test_session.execute(select(AppNotification))).scalars().all()
     assert len(notes) == 1 and "ЭТрН" in notes[0].title
+
+
+def test_driver_confirm_and_t6_xml():
+    from dz_fastapi.services.diadoc_transport import extract_driver_confirm
+    from dz_fastapi.services.etrn_xml import build_t6_user_data
+
+    payload = {"OuterDocflowInfo": [{
+        "DocflowNamedId": "KlDriverConfirm",
+        "Status": {"NamedId": "Confirm", "FriendlyName": "Водитель согласовал"},
+    }]}
+    assert extract_driver_confirm(payload)["confirmed"] is True
+    assert extract_driver_confirm({}) is None
+    xml = build_t6_user_data(
+        signer_full_name="Иванов Иван", signer_position="Директор",
+        info="Договор 1", bank={"account": "407", "bik": "044"},
+    )
+    root = ET.fromstring(xml)
+    assert root.tag == "LogisticsWaybillConsignorCostTitle"
+    assert root.find("ConsignorInfo").get("Info") == "Договор 1"
+    assert root.find("ConsignorInfo/BankRequisites").get("BankId") == "044"
+    bare = ET.fromstring(build_t6_user_data(
+        signer_full_name="Иванов Иван", signer_position="Директор"))
+    assert bare.find("ConsignorInfo") is None
+
+
+@pytest.mark.asyncio
+async def test_t5_linked_and_t6_flow(test_session):
+    from dz_fastapi.services.etrn import start_t6_sign
+
+    integration = _integration(etrn_t6_enabled=True)
+    waybill = EtrnWaybill(
+        environment="staging", direction="outgoing", status="in_transit",
+        box_id_guid=BOX, t1_message_id="OM-1", t1_entity_id="OE-1",
+        mt_id="UID-5", payload={},
+    )
+    test_session.add(waybill)
+    await test_session.commit()
+    client = FakeClient(
+        documents=[{
+            "_cat": "Any.InboundNotRecycled",
+            "TypeNamedId": "LogisticsWaybill", "Function": "cost",
+            "MessageId": "C-1", "EntityId": "CE-1",
+            "CustomData": [{"Key": "mt-id", "Value": "UID-5"}],
+        }],
+        document={},
+    )
+    client.patches = []
+
+    async def post_patch(patch, operation_id=None):
+        client.patches.append((patch, operation_id))
+        return {}
+
+    client.post_message_patch = post_patch
+    await sync_etrn(test_session, client=client, integration=integration)
+    await test_session.refresh(waybill)
+    assert waybill.payload["cost"]["t5_entity_id"] == "CE-1"
+    # флаг Т6 выключен — нельзя
+    with pytest.raises(EtrnError):
+        await start_t6_sign(
+            test_session, client=client, form={},
+            integration=_integration(etrn_t6_enabled=False), waybill=waybill,
+        )
+    task = await start_t6_sign(
+        test_session, client=client, integration=integration,
+        waybill=waybill, form={"info": "Договор"},
+    )
+    assert client.generated[0]["title_index"] == 5
+    await confirm_cloud_sign_task(
+        test_session, client=client, task=task, confirmation_code="1")
+    patch, op = client.patches[0]
+    assert patch["RecipientTitles"][0]["ParentEntityId"] == "CE-1"
+    assert op == f"etrn-t6-{waybill.id}"
+    await test_session.refresh(waybill)
+    assert waybill.payload["cost"]["t6_state"] == "signed_here"
+    with pytest.raises(EtrnError):
+        await start_t6_sign(
+            test_session, client=client, integration=integration,
+            waybill=waybill, form={},
+        )

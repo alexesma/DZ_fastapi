@@ -448,6 +448,48 @@ def build_t3_user_data(
     return xml.encode("utf-8")
 
 
+def build_t6_user_data(
+    *,
+    signer_full_name: str,
+    signer_position: str,
+    department: Optional[str] = None,
+    okpo: Optional[str] = None,
+    info: Optional[str] = None,
+    bank: Optional[dict[str, Any]] = None,
+    warrant: Optional[dict[str, Any]] = None,
+) -> bytes:
+    """UserDataXml Т6 (LogisticsWaybillConsignorCostTitle): ответ
+    грузоотправителя на стоимость перевозки (Т5 перевозчика)."""
+    consignor = ""
+    if any([department, okpo, info, bank]):
+        bank_xml = ""
+        if bank and bank.get("account"):
+            bank_xml = (
+                "    <BankRequisites"
+                + _attrs(
+                    BankAccount=bank.get("account"),
+                    BankName=bank.get("name"),
+                    BankId=bank.get("bik"),
+                    CorrespondentAccount=bank.get("corr_account"),
+                )
+                + " />\n"
+            )
+        consignor = (
+            "  <ConsignorInfo"
+            + _attrs(Department=department, Okpo=okpo, Info=info)
+            + (">\n" + bank_xml + "  </ConsignorInfo>\n" if bank_xml else " />\n")
+        )
+    xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<LogisticsWaybillConsignorCostTitle>\n"
+        + consignor
+        + signer_xml(signer_full_name, signer_position, warrant)
+        + "</LogisticsWaybillConsignorCostTitle>\n"
+    )
+    ET.fromstring(xml.encode("utf-8"))
+    return xml.encode("utf-8")
+
+
 # ----------------------------------------------------------- разбор Т1
 
 

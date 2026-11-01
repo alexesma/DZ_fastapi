@@ -124,3 +124,18 @@ class T3AcceptIn(BaseModel):
     departure_at: Optional[datetime] = None
     carrier_box_id: Optional[str] = None
     warrant: Optional[WarrantIn] = None
+
+
+class BankIn(BaseModel):
+    account: Optional[str] = None
+    name: Optional[str] = None
+    bik: Optional[str] = None
+    corr_account: Optional[str] = None
+
+
+class T6SignIn(BaseModel):
+    department: Optional[str] = Field(default=None, max_length=255)
+    okpo: Optional[str] = Field(default=None, max_length=20)
+    info: Optional[str] = Field(default=None, max_length=1000)
+    bank: Optional[BankIn] = None
+    warrant: Optional[WarrantIn] = None

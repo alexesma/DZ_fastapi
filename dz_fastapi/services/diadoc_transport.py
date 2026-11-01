@@ -256,3 +256,23 @@ def find_transport_problem(payload: dict[str, Any]) -> Optional[str]:
     if kl == "revoked":
         return "Перевозка аннулирована"
     return None
+
+
+def extract_driver_confirm(payload: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Согласование водителя (OuterDocflow KlDriverConfirm), если есть."""
+    for docflow in _as_list((payload or {}).get("OuterDocflowInfo")):
+        if not isinstance(docflow, dict):
+            continue
+        if str(docflow.get("DocflowNamedId") or "").lower() != "kldriverconfirm":
+            continue
+        item = docflow.get("Status")
+        item = item if isinstance(item, dict) else {}
+        named_id = str(item.get("NamedId") or "").strip() or None
+        text = str(item.get("FriendlyName") or "").strip() or named_id
+        return {
+            "named_id": named_id,
+            "type": str(item.get("Type") or "").strip() or None,
+            "text": text,
+            "confirmed": (named_id or "").lower() == "confirm",
+        }
+    return None
