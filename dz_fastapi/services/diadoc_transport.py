@@ -129,3 +129,130 @@ def summarize_transport_status(status: Optional[dict[str, Any]]) -> str:
         return "—"
     mintrans_id = status.get("mintrans_id")
     return f"{text} (ГИС ЭПД {mintrans_id})" if mintrans_id else str(text)
+
+
+# --- ЭТрН (LogisticsWaybill): стадия, УИД, ошибки ------------------------
+
+# Стадия перевозки — тег kl-status в CustomData документа (ставится
+# Диадоком автоматически, пишется только на Т1/Т2).
+KL_STAGE_LABELS = {
+    "new": "Новая перевозка",
+    "wait-mintrans-api": "Ожидает УИД ГИС ЭПД",
+    "on-the-way": "В пути",
+    "completed": "Перевозка завершена",
+    "revoked": "Аннулирована",
+    "r-wait-storekeeper": "Погрузка: ждёт кладовщика",
+    "r-wait-consignor-sign": "Т1: ждёт подписи грузоотправителя",
+    "r-consignor-signed": "Т1 подписан, доставка перевозчику",
+    "r-wait-driver-approve": "Т1: ждёт согласия водителя",
+    "r-wait-carrier-sign": "Ждёт подписи Т2 перевозчиком",
+    "r-carrier-signed": "Т2 подписан перевозчиком",
+    "r-rejected": "Перевозчик отказался от груза",
+    "d-wait-storekeeper": "Выгрузка: ждёт кладовщика",
+    "d-wait-consignee-sign": "Ждёт подписи Т3 грузополучателем",
+    "d-consingee-singed": "Т3 подписан, доставка перевозчику",
+    "d-wait-driver-approve": "Т3: ждёт согласия водителя",
+    "d-wait-carrier-sign": "Ждёт подписи Т4 перевозчиком",
+    "d-carrier-signed": "Т4 подписан перевозчиком",
+    "pd-carrier-signed": "Т4 подписан (частичная выгрузка)",
+    "pd-wait-carrier-readdress-sign": "Ждёт Т7 перевозчика (переадресация)",
+    "pd-on-the-way": "Остаток груза в пути",
+    "pd-wait-storekeeper": "Новый получатель готовит Т3",
+    "pd-wait-consignee-sign": "Ждёт подписи Т3 (частичная выгрузка)",
+    "pd-consingee-singed": "Т3 подписан (частичная выгрузка)",
+    "pd-wait-driver-approve": "Т3: ждёт согласия водителя (частичная)",
+    "pd-wait-carrier-sign": "Ждёт подписи Т4 (частичная выгрузка)",
+}
+
+# Стадии, в которых титул получателя (Т3) уже подписан — повторно
+# подписывать нельзя (например, если его уже подписали в 1С).
+_T3_DONE_STAGES = frozenset(
+    {"completed", "revoked", "d-consingee-singed", "d-wait-driver-approve",
+     "d-wait-carrier-sign", "d-carrier-signed", "pd-carrier-signed",
+     "pd-consingee-singed", "pd-wait-driver-approve", "pd-wait-carrier-sign"}
+)
+# Стадии, в которых Т1 уже подписан/отправлен.
+_T1_DONE_PREFIXES = ("r-consignor-signed", "r-wait-driver-approve",
+                     "r-wait-carrier-sign", "r-carrier-signed",
+                     "d-", "pd-", "on-the-way", "completed",
+                     "wait-mintrans-api")
+
+
+def extract_custom_data(payload: dict[str, Any]) -> dict[str, str]:
+    """CustomData документа (список Key/Value) в словарь."""
+    result: dict[str, str] = {}
+    for entry in _as_list((payload or {}).get("CustomData")):
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("Key") or entry.get("key")
+        value = entry.get("Value") or entry.get("value")
+        if key is None or value is None:
+            continue
+        result[str(key).strip().lower()] = str(value).strip()
+    return result
+
+
+def extract_kl_status(payload: dict[str, Any]) -> Optional[str]:
+    return extract_custom_data(payload).get("kl-status") or None
+
+
+def kl_status_label(kl_status: Optional[str]) -> Optional[str]:
+    if not kl_status:
+        return None
+    return KL_STAGE_LABELS.get(kl_status, kl_status)
+
+
+def extract_mt_id(payload: dict[str, Any]) -> Optional[str]:
+    """УИД ГИС ЭПД: из статуса KlMt, CustomData или Status.Details."""
+    status = extract_transport_status(payload) or {}
+    if status.get("mintrans_id"):
+        return status["mintrans_id"]
+    custom = extract_custom_data(payload).get(_MINTRANS_ID_KEY)
+    if custom:
+        return custom
+    docflow = _find_gis_epd_docflow(payload) or {}
+    detail_status = docflow.get("Status")
+    if isinstance(detail_status, dict):
+        for item in _as_list(detail_status.get("Details")):
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("Code") or item.get("Key") or "").strip()
+            if code.lower() == _MINTRANS_ID_KEY:
+                value = item.get("Value") or item.get("Text")
+                if value:
+                    return str(value).strip()
+    return None
+
+
+def t3_already_signed(kl_status: Optional[str]) -> bool:
+    return bool(kl_status) and kl_status in _T3_DONE_STAGES
+
+
+def t1_already_sent(kl_status: Optional[str]) -> bool:
+    return bool(kl_status) and kl_status.startswith(_T1_DONE_PREFIXES)
+
+
+def find_transport_problem(payload: dict[str, Any]) -> Optional[str]:
+    """Текст проблемы перевозки или None.
+
+    Проблема — ошибка во внешнем документообороте (Status.Type = Error),
+    отказ перевозчика (r-rejected) или аннулирование.
+    """
+    for docflow in _as_list((payload or {}).get("OuterDocflowInfo")):
+        if not isinstance(docflow, dict):
+            continue
+        item = docflow.get("Status")
+        if isinstance(item, dict) and (
+            str(item.get("Type") or "").lower() == "error"
+        ):
+            return (
+                str(item.get("FriendlyName") or "").strip()
+                or str(item.get("NamedId") or "").strip()
+                or "Ошибка обмена с ГИС ЭПД"
+            )
+    kl = extract_kl_status(payload)
+    if kl == "r-rejected":
+        return "Перевозчик отказался от груза"
+    if kl == "revoked":
+        return "Перевозка аннулирована"
+    return None

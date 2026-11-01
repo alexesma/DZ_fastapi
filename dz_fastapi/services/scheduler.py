@@ -1915,6 +1915,15 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                     environment=str(integration.environment or "staging"),
                 )
                 trace.details["summary"] = result
+                try:
+                    from dz_fastapi.services.etrn import sync_etrn
+
+                    trace.details["etrn"] = await sync_etrn(
+                        session, client=client, integration=integration
+                    )
+                except Exception as etrn_exc:
+                    logger.warning("ETrN sync failed: %s", etrn_exc)
+                    await session.rollback()
                 logger.info(
                     "Completed sync_diadoc_outbound_status_task summary=%s",
                     result,

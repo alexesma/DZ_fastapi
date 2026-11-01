@@ -27,6 +27,13 @@ from dz_fastapi.models.cross import (  # noqa
 from dz_fastapi.models.diadoc import DiadocIncomingDocument  # noqa
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.email_account import EmailAccount  # noqa
+from dz_fastapi.models.etrn import (  # noqa
+    EtrnWaybill,
+    TransportAddress,
+    TransportCarrier,
+    TransportDriver,
+    TransportVehicle,
+)
 from dz_fastapi.models.finance import (  # noqa
     BankAccount,
     BankStatement,

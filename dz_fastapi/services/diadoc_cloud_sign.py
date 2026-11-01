@@ -667,6 +667,18 @@ async def confirm_cloud_sign_task(
             details = await _apply_reject_incoming(
                 session, client=client, task=task, signatures=signatures
             )
+        elif task.operation == "etrn_t1_send":
+            from dz_fastapi.services.etrn import apply_t1_sign
+
+            details = await apply_t1_sign(
+                session, client=client, task=task, signatures=signatures
+            )
+        elif task.operation == "etrn_t3_send":
+            from dz_fastapi.services.etrn import apply_t3_sign
+
+            details = await apply_t3_sign(
+                session, client=client, task=task, signatures=signatures
+            )
         elif task.operation == "gis_mt_auth":
             from dz_fastapi.services.gis_mt import apply_gis_mt_auth
 

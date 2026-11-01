@@ -161,6 +161,8 @@ def _integration_to_status(
         inbound_sync_count=int(integration.inbound_sync_count or 50),
         inbound_download_content=bool(integration.inbound_download_content),
         inbound_process_enabled=bool(integration.inbound_process_enabled),
+        etrn_enabled=bool(integration.etrn_enabled),
+        etrn_t6_enabled=bool(integration.etrn_t6_enabled),
         access_token_expires_at=integration.access_token_expires_at,
         last_sync_at=integration.last_sync_at,
         last_error=integration.last_error,

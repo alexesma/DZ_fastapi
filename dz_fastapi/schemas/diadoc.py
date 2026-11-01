@@ -75,6 +75,8 @@ class DiadocStatusOut(BaseModel):
     inbound_sync_count: int = 50
     inbound_download_content: bool = True
     inbound_process_enabled: bool = True
+    etrn_enabled: bool = False
+    etrn_t6_enabled: bool = False
     access_token_expires_at: datetime | None = None
     last_sync_at: datetime | None = None
     last_error: str | None = None
@@ -101,6 +103,8 @@ class DiadocSettingsUpdate(BaseModel):
     inbound_sync_count: int | None = Field(default=None, ge=1, le=200)
     inbound_download_content: bool | None = None
     inbound_process_enabled: bool | None = None
+    etrn_enabled: bool | None = None
+    etrn_t6_enabled: bool | None = None
 
 
 class DiadocInboundSyncRequest(BaseModel):
