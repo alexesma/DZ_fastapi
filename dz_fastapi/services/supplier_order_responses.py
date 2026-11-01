@@ -86,6 +86,7 @@ from dz_fastapi.services.supplier_workflow import (
     _match_site_order_item_for_receipt,
     _refresh_receipt_links,
 )
+from dz_fastapi.services.upd_xml import UPD_FILENAME_PREFIXES
 
 try:
     from imap_tools.errors import MailboxFolderSelectError
@@ -1041,6 +1042,12 @@ def _classify_attachment_kind(
     if any(keyword in lower_name for keyword in _DOCUMENT_KEYWORDS):
         return "SHIPPING_DOC"
     return None
+
+
+def _is_shipping_xml(extension: str, attachment_kind: Optional[str]) -> bool:
+    """Формализованный документ (УПД из Диадока) в XML, отнесённый к
+    отгрузочным: разбирается отдельным XML-парсером, колонки Excel не нужны."""
+    return extension == "xml" and attachment_kind == "SHIPPING_DOC"
 
 
 def _normalize_response_header(value: object) -> str:
@@ -5447,12 +5454,17 @@ async def process_supplier_response_messages(
                 parsed_rows: list[ParsedSupplierResponseRow] = []
                 extension = _attachment_extension(attachment.filename)
                 is_spreadsheet = extension in {"xlsx", "xls", "csv"}
+                shipping_xml = _is_shipping_xml(extension, attachment_kind)
                 if response_filename_pattern is None:
                     response_candidate = (
-                        attachment_kind == "RESPONSE_FILE" or is_spreadsheet
+                        attachment_kind == "RESPONSE_FILE"
+                        or is_spreadsheet
+                        or shipping_xml
                     )
                 else:
-                    response_candidate = attachment_kind == "RESPONSE_FILE"
+                    response_candidate = (
+                        attachment_kind == "RESPONSE_FILE" or shipping_xml
+                    )
                     if not response_candidate and is_spreadsheet:
                         import_error_reasons.append(
                             (
@@ -6499,6 +6511,9 @@ async def process_stored_supplier_document_message(
             ),
         )
         .where(SupplierOrderMessage.id == message_id)
+        # Повторная обработка в той же сессии должна видеть уже созданные
+        # поступления, а не закэшированный пустой список.
+        .execution_options(populate_existing=True)
     )
     message_row = (await session.execute(message_stmt)).scalar_one_or_none()
     if message_row is None or int(message_row.provider_id or 0) != int(
@@ -6692,12 +6707,29 @@ async def process_stored_supplier_document_message(
 
         extension = _attachment_extension(filename)
         is_spreadsheet = extension in {"xlsx", "xls", "csv"}
+        if (
+            attachment_kind is None
+            and allow_shipping_docs
+            and extension == "xml"
+            and str(filename or "").lower().startswith(UPD_FILENAME_PREFIXES)
+        ):
+            # Диадок отдаёт УПД/УКД файлами ON_NSCHFDOP*/ON_KORSCHFDOP*:
+            # в сохранённом сообщении это однозначно документ.
+            attachment_kind = "SHIPPING_DOC"
+            has_shipping_doc = True
+            if filename:
+                shipping_doc_filenames.append(filename)
+        shipping_xml = _is_shipping_xml(extension, attachment_kind)
         if response_filename_pattern is None:
             response_candidate = (
-                attachment_kind == "RESPONSE_FILE" or is_spreadsheet
+                attachment_kind == "RESPONSE_FILE"
+                or is_spreadsheet
+                or shipping_xml
             )
         else:
-            response_candidate = attachment_kind == "RESPONSE_FILE"
+            response_candidate = (
+                attachment_kind == "RESPONSE_FILE" or shipping_xml
+            )
             if not response_candidate and is_spreadsheet:
                 import_error_reasons.append(
                     (
