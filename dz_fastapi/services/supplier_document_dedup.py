@@ -22,6 +22,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
+from types import SimpleNamespace
 from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
@@ -323,6 +324,7 @@ async def _notify_mismatch(
     other_total: Optional[Decimal],
     other_source: str,
     auto: bool = False,
+    note: Optional[str] = None,
 ) -> None:
     from dz_fastapi.models.notification import AppNotificationLevel
     from dz_fastapi.services.notifications import create_admin_notifications
@@ -335,8 +337,8 @@ async def _notify_mismatch(
             f"{document.document_date or '—'}: Диадок "
             f"{document.total_amount} ₽, {other_source} {other_total} ₽. "
             + (
-                "Данные Диадока главнее — применены автоматически, "
-                "версия из письма не использована."
+                (note or "Данные Диадока главнее — применены автоматически.")
+                + " Версия из письма не использована."
                 if auto
                 else "Нужно решение администратора: Диадок → Входящие."
             )
@@ -578,8 +580,22 @@ async def _flag_mismatch(
             session, document_id=int(document.id), action="apply_diadoc",
             automatic=True,
         )
+        notes = {
+            "reposted": (
+                "Проведённое поступление распроведено и проведено заново "
+                "по данным Диадока."
+            ),
+            "draft_replaced": (
+                "Непроведённое поступление заменено данными Диадока."
+            ),
+            "correction_required": (
+                "Поступление не удалось перепровести (товар уже расходован "
+                "или есть КСФ) — создана КСФ для ручной корректировки."
+            ),
+        }
         await _notify_mismatch(
-            session, document, other_total, source, auto=True
+            session, document, other_total, source, auto=True,
+            note=notes.get(str(outcome.get("result") or outcome.get("status"))),
         )
         await session.commit()
         return {"action": "applied", "outcome": outcome.get("status")}
@@ -653,43 +669,85 @@ async def resolve_amount_mismatch(
         }
 
     posted = [r for r in receipts if r.posted_at is not None]
+    reposted = False
     if posted:
-        diadoc_msg = await register_diadoc_document_as_supplier_message(
-            session, document=document, provider_id=document.provider_id
+        # Диадок главнее: распроводим (остатки откатываются штатным
+        # unpost), заменяем строки и проводим заново по данным Диадока.
+        from dz_fastapi.services.supplier_workflow import (
+            unpost_supplier_receipt,
         )
-        diadoc_msg.message_type = "CORRECTION_DOC"
-        correction = await register_incoming_correction(
-            session,
-            provider_id=int(document.provider_id),
-            message_id=int(diadoc_msg.id),
-            source_kind="diadoc",
-            document_number=document.document_number,
-            document_date=document.document_date,
-        )
-        document.amount_mismatch_status = "correction_required"
-        document.status = "registered"
-        document.import_error_details = (
-            "Поступление уже проведено; остатки не менялись, требуется "
-            f"корректировка (КСФ #{correction.id})"
-        )
-        _log(
-            document,
-            action=action,
-            automatic=automatic,
-            user_id=user_id,
-            result="correction_required",
-            correction_id=int(correction.id),
-            receipt_ids=[int(r.id) for r in posted],
-            old_total=str(email_msg.document_total),
-            new_total=str(document.total_amount),
-        )
-        session.add(document)
-        await session.commit()
-        return {
-            "status": "correction_required",
-            "correction_id": int(correction.id),
-            "receipt_ids": [int(r.id) for r in posted],
-        }
+
+        email_msg_id = int(email_msg.id)
+        posted_ids = [int(r.id) for r in posted]
+        try:
+            for receipt_id in posted_ids:
+                await unpost_supplier_receipt(
+                    session,
+                    receipt_id=receipt_id,
+                    user=SimpleNamespace(id=user_id),
+                )
+            reposted = True
+        except (ValueError, LookupError) as exc:
+            # товар уже расходован / есть проведённая КСФ и т.п.
+            await session.rollback()
+            reason = str(exc)
+            document = await get_diadoc_incoming_document(
+                session, document_id=document_id
+            )
+            email_msg = await session.get(SupplierOrderMessage, email_msg_id)
+            diadoc_msg = await register_diadoc_document_as_supplier_message(
+                session, document=document, provider_id=document.provider_id
+            )
+            diadoc_msg.message_type = "CORRECTION_DOC"
+            correction = await register_incoming_correction(
+                session,
+                provider_id=int(document.provider_id),
+                message_id=int(diadoc_msg.id),
+                source_kind="diadoc",
+                document_number=document.document_number,
+                document_date=document.document_date,
+            )
+            document.amount_mismatch_status = "correction_required"
+            document.status = "registered"
+            document.import_error_details = (
+                f"Не удалось перепровести ({reason}); остатки не менялись, "
+                f"требуется корректировка (КСФ #{correction.id})"
+            )[:2000]
+            _log(
+                document,
+                action=action,
+                automatic=automatic,
+                user_id=user_id,
+                result="correction_required",
+                reason=reason,
+                correction_id=int(correction.id),
+                receipt_ids=posted_ids,
+                old_total=str(email_msg.document_total),
+                new_total=str(document.total_amount),
+            )
+            session.add(document)
+            await session.commit()
+            return {
+                "status": "correction_required",
+                "correction_id": int(correction.id),
+                "receipt_ids": posted_ids,
+                "reason": reason,
+            }
+        # после unpost поступления снова черновики — заменяются ниже
+        email_msg = (
+            await session.execute(
+                select(SupplierOrderMessage)
+                .options(
+                    selectinload(SupplierOrderMessage.receipts).selectinload(
+                        SupplierReceipt.items
+                    )
+                )
+                .where(SupplierOrderMessage.id == email_msg_id)
+            )
+        ).scalar_one()
+        receipts = list(email_msg.receipts)
+
+    from dz_fastapi.services.supplier_workflow import delete_supplier_receipt
 
     removed: list[dict[str, Any]] = []
     for receipt in receipts:
@@ -706,14 +764,14 @@ async def resolve_amount_mismatch(
                 ],
             }
         )
-        await session.delete(receipt)  # черновик: на остатки не влияет
+        # черновик: на остатки не влияет; связи заказов пересчитываются
+        await delete_supplier_receipt(session, receipt_id=int(receipt.id))
     if email_msg is not None:
         email_msg.message_type = MESSAGE_TYPE_DUPLICATE
         email_msg.duplicate_of_diadoc_id = int(document.id)
         email_msg.import_error_details = (
             "Строки заменены данными Диадок после расхождения по сумме"
         )
-        session.add(email_msg)
     document.amount_mismatch_status = "applied"
     document.mismatch_resolved_at = now_moscow()
     document.status = "synced"
@@ -723,7 +781,7 @@ async def resolve_amount_mismatch(
         action=action,
         automatic=automatic,
         user_id=user_id,
-        result="draft_replaced",
+        result="reposted" if reposted else "draft_replaced",
         old_total=str(email_msg.document_total) if email_msg else None,
         removed_receipts=removed,
     )
@@ -736,4 +794,8 @@ async def resolve_amount_mismatch(
         download_content_if_missing=False,
         register_if_needed=True,
     )
-    return {"status": "applied", **result}
+    return {
+        "status": "applied",
+        "result": "reposted" if reposted else "draft_replaced",
+        **result,
+    }

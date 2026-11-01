@@ -225,26 +225,71 @@ async def test_diadoc_wins_over_unposted_email_receipt(
 
 
 @pytest.mark.asyncio
-async def test_diadoc_vs_posted_email_receipt_creates_correction_only(
-    test_session, created_providers, tmp_path
+async def test_diadoc_reposts_posted_email_receipt(
+    test_session, created_providers, tmp_path, monkeypatch
 ):
     provider = created_providers[0]
     message, receipt = await make_email_with_receipt(
         test_session, provider, total="1806.00", posted=True
     )
     doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
+    unposted = []
+
+    async def fake_unpost(session, *, receipt_id, user):
+        unposted.append(receipt_id)
+        row = await session.get(SupplierReceipt, receipt_id)
+        row.posted_at = None
+        await session.commit()
+
+    async def fake_process(session, *, document, **kwargs):
+        return {"receipt_ids": []}
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_workflow.unpost_supplier_receipt", fake_unpost
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.diadoc_documents.process_diadoc_incoming_document",
+        fake_process,
+    )
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, download_content_if_missing=False
+    )
+    assert result["dedup_action"] == "applied"
+    assert unposted == [receipt.id]
+    assert await receipts(test_session) == []
+    await test_session.refresh(doc)
+    assert doc.amount_mismatch_status == "applied"
+    assert doc.mismatch_log[0]["result"] == "reposted"
+    assert doc.mismatch_log[0]["old_total"] == "1806.00"
+
+
+@pytest.mark.asyncio
+async def test_unpostable_receipt_falls_back_to_correction(
+    test_session, created_providers, tmp_path, monkeypatch
+):
+    provider = created_providers[0]
+    message, receipt = await make_email_with_receipt(
+        test_session, provider, total="1806.00", posted=True
+    )
+    doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
+
+    async def failing_unpost(session, *, receipt_id, user):
+        raise ValueError("Товар уже расходован")
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_workflow.unpost_supplier_receipt", failing_unpost
+    )
     result = await process_diadoc_incoming_document(
         test_session, document=doc, download_content_if_missing=False
     )
     assert result["dedup_action"] == "applied"
     receipt_after = (await receipts(test_session))[0]
     assert receipt_after.id == receipt.id and receipt_after.posted_at is not None
-    items = (await test_session.execute(select(SupplierReceiptItem))).scalars().all()
-    assert [i.received_quantity for i in items] == [10]
     correction = (await test_session.execute(select(SupplierReceiptCorrection))).scalar_one()
     assert correction.status == "draft"
     await test_session.refresh(doc)
     assert doc.amount_mismatch_status == "correction_required"
+    assert "расходован" in doc.import_error_details
 
 
 @pytest.mark.asyncio
