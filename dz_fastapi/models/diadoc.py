@@ -52,6 +52,14 @@ class DiadocIncomingDocument(Base):
     # Защита от дублей документа поставщика между почтой и Диадоком.
     # dedup_key = "<provider>|<kind>|<номер>|<дата>"; total_amount — итог
     # документа (с НДС) из XML. См. services/supplier_document_dedup.py.
+    # supplier | customer | unknown (см. services/diadoc_direction.py)
+    direction = Column(String(16), nullable=True, index=True)
+    customer_id = Column(
+        Integer,
+        ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     document_kind = Column(String(32), nullable=True)
     dedup_key = Column(String(255), nullable=True, index=True)
     total_amount = Column(Numeric(14, 2), nullable=True)
@@ -96,6 +104,7 @@ class DiadocIncomingDocument(Base):
     )
 
     provider = relationship("Provider", lazy="selectin")
+    customer = relationship("Customer", lazy="selectin", foreign_keys=[customer_id])
     supplier_order_message = relationship(
         "SupplierOrderMessage",
         lazy="selectin",

@@ -304,3 +304,45 @@ def parse_upd_xml(payload: bytes) -> UpdXmlDocument:
         document.items_without_article,
     )
     return document
+
+
+@dataclass(slots=True)
+class DocumentParties:
+    seller_inn: Optional[str] = None
+    seller_kpp: Optional[str] = None
+    buyer_inn: Optional[str] = None
+    buyer_kpp: Optional[str] = None
+
+
+def _party_requisites(
+    root: ET.Element, tag: str
+) -> tuple[Optional[str], Optional[str]]:
+    for element in root.iter():
+        if _local_name(element.tag) != tag:
+            continue
+        for child in element.iter():
+            child_tag = _local_name(child.tag)
+            if child_tag == "СвЮЛУч":
+                return _first_attr(child, "ИННЮЛ"), _first_attr(child, "КПП")
+            if child_tag == "СвИП":
+                return _first_attr(child, "ИННФЛ"), None
+        return None, None
+    return None, None
+
+
+def extract_document_parties(payload: bytes) -> Optional[DocumentParties]:
+    """Продавец и покупатель из УПД/УКД/КСЧФ (СвПрод/СвПокуп).
+
+    В отличие от parse_upd_xml не требует блока СвСчФакт, поэтому подходит и
+    для корректировочных документов (УКД, КСЧФ), у которых другая шапка.
+    None — если это не XML или реквизитов сторон нет.
+    """
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return None
+    seller_inn, seller_kpp = _party_requisites(root, "СвПрод")
+    buyer_inn, buyer_kpp = _party_requisites(root, "СвПокуп")
+    if not (seller_inn or buyer_inn):
+        return None
+    return DocumentParties(seller_inn, seller_kpp, buyer_inn, buyer_kpp)

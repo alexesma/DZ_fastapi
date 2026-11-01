@@ -479,7 +479,8 @@ async def evaluate_diadoc_document(
 ) -> dict[str, Any]:
     """Решает, можно ли обрабатывать Диадок-документ как новое поступление.
 
-    action: proceed | skipped | linked | duplicate | mismatch.
+    action: proceed | skipped | linked | duplicate | mismatch |
+    customer | unknown.
     """
     if document.duplicate_kind == "email" and document.matched_message_id:
         return {"action": "linked", "message_id": document.matched_message_id}
@@ -503,6 +504,33 @@ async def evaluate_diadoc_document(
         ).first()
         if own is not None:
             return {"action": "proceed"}
+
+    # Направление: документ по нашей продаже клиенту поступлением не станет.
+    from dz_fastapi.services.diadoc_direction import (
+        DIRECTION_CUSTOMER,
+        DIRECTION_UNKNOWN,
+        detect_document_direction,
+    )
+
+    direction = await detect_document_direction(session, document)
+    if direction == DIRECTION_CUSTOMER:
+        document.status = "customer_doc"
+        document.import_error_details = (
+            "Документ по нашей продаже клиенту: поступление не создаётся"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "customer"}
+    if direction == DIRECTION_UNKNOWN:
+        document.status = "direction_unknown"
+        document.import_error_details = (
+            "Направление документа (поставщик/клиент) определить не удалось: "
+            "контрагент привязан и к поставщику, и к клиенту. "
+            "Нужно решение вручную"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "unknown"}
 
     meta = document.raw_metadata or {}
     if not is_receipt_document(meta.get("TypeNamedId"), document.file_name):

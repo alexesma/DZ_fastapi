@@ -19,6 +19,7 @@ from dz_fastapi.models.partner import (
     SupplierResponseConfig,
 )
 from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
+from dz_fastapi.services.diadoc_direction import detect_document_direction
 from dz_fastapi.services.supplier_document_dedup import (
     apply_diadoc_metadata_identity,
     evaluate_diadoc_document,
@@ -250,6 +251,11 @@ async def register_diadoc_document_as_supplier_message(
         raise ValueError(
             "Provider is not resolved. "
             "Bind provider via external reference or pass provider_id."
+        )
+    if document.direction == "customer":
+        raise ValueError(
+            "Документ по нашей продаже клиенту: как поставщиковый "
+            "не регистрируется"
         )
     if not document.local_file_path:
         raise ValueError(
@@ -588,6 +594,11 @@ async def sync_diadoc_incoming_documents(
                 )
                 if not before_path and document.local_file_path:
                     result["downloaded"] += 1
+            if document.local_file_path and document.direction in (
+                None,
+                "unknown",
+            ):
+                await detect_document_direction(session, document)
             if (
                 (register_supplier_message or process_supplier_message)
                 and document.provider_id is not None

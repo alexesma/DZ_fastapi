@@ -206,6 +206,9 @@ class DiadocInboundDocumentOut(BaseModel):
     can_register_supplier_message: bool = False
     can_process_supplier_message: bool = False
     supplier_receipt_ids: list[int] = Field(default_factory=list)
+    direction: str | None = None
+    customer_id: int | None = None
+    customer_name: str | None = None
     document_kind: str | None = None
     total_amount: float | None = None
     # email | diadoc — тот же документ уже получен другим путём

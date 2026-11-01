@@ -212,9 +212,18 @@ def _incoming_document_to_out(
             (document.provider_id or 0) > 0 and document.local_file_path
         ),
         can_process_supplier_message=bool(
-            (document.provider_id or 0) > 0 and document.local_file_path
+            (document.provider_id or 0) > 0
+            and document.local_file_path
+            and document.direction != "customer"
         ),
         supplier_receipt_ids=receipt_ids,
+        direction=document.direction,
+        customer_id=document.customer_id,
+        customer_name=(
+            str(getattr(document.customer, "name", "") or "").strip() or None
+            if document.customer is not None
+            else None
+        ),
         document_kind=document.document_kind,
         total_amount=(
             float(document.total_amount)
@@ -1098,6 +1107,10 @@ async def process_diadoc_inbound_document_endpoint(
             "applied": "Сумма отличалась от письма — применены данные "
             "Диадока (Диадок главнее)",
             "mismatch": "Расхождение по сумме — нужно решение администратора",
+            "customer": "Документ по нашей продаже клиенту — поступление "
+            "не создаётся",
+            "unknown": "Направление документа не определено — нужно "
+            "решение вручную",
             "skipped": "Не поступление (счёт на оплату и т.п.) — пропущено",
         }
         detail = (
