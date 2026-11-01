@@ -173,7 +173,6 @@ _DECISION_STATUSES = {
     "amount_mismatch",
     "direction_unknown",
     "service_act",
-    "discrepancy_act",
     "other_doc",
     "possible_return",
 }
@@ -184,13 +183,21 @@ def _needs_decision(
 ) -> bool:
     if document.status in _DECISION_STATUSES:
         return True
+    details = document.parsed_details or {}
+    if document.status == "discrepancy_act":
+        reclamation_id = details.get("reclamation_id")
+        if reclamation_id is None:
+            return True
+        # рекламация пока не принята/отклонена/закрыта
+        return correction_statuses.get(f"r{int(reclamation_id)}", "recognized") in {
+            "new", "recognized", "checked", "waiting_docs", "waiting_supplier",
+        }
     mismatch = document.amount_mismatch_status
     if mismatch == "pending":
         return True
     if mismatch in {"applied", "correction_required", "dismissed"}:
         if document.mismatch_acknowledged_at is None:
             return True
-    details = document.parsed_details or {}
     correction_id = details.get("correction_id")
     if correction_id is not None:
         return correction_statuses.get(int(correction_id), "draft") == "draft"
@@ -199,21 +206,39 @@ def _needs_decision(
 
 async def _correction_statuses(
     session: AsyncSession, rows: list[DiadocIncomingDocument]
-) -> dict[int, str]:
+) -> dict:
     ids = {
         int(row.parsed_details["correction_id"])
         for row in rows
         if isinstance(row.parsed_details, dict)
         and row.parsed_details.get("correction_id") is not None
     }
-    if not ids:
-        return {}
-    found = await session.execute(
-        select(SupplierReceiptCorrection.id, SupplierReceiptCorrection.status).where(
-            SupplierReceiptCorrection.id.in_(ids)
+    result: dict = {}
+    if ids:
+        found = await session.execute(
+            select(SupplierReceiptCorrection.id, SupplierReceiptCorrection.status).where(
+                SupplierReceiptCorrection.id.in_(ids)
+            )
         )
-    )
-    return {int(i): str(st) for i, st in found.all()}
+        result.update({int(i): str(st) for i, st in found.all()})
+    reclamation_ids = {
+        int(row.parsed_details["reclamation_id"])
+        for row in rows
+        if isinstance(row.parsed_details, dict)
+        and row.parsed_details.get("reclamation_id") is not None
+    }
+    if reclamation_ids:
+        from dz_fastapi.models.partner import Reclamation
+
+        found = await session.execute(
+            select(Reclamation.id, Reclamation.status).where(
+                Reclamation.id.in_(reclamation_ids)
+            )
+        )
+        result.update(
+            {f"r{int(i)}": str(getattr(st, "value", st)) for i, st in found.all()}
+        )
+    return result
 
 
 def _incoming_document_to_out(

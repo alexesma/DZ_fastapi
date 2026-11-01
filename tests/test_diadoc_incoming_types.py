@@ -386,3 +386,147 @@ def test_return_marker_detects_text_in_xml_and_metadata(tmp_path):
     assert detect_return_marker(doc) is None
     doc.raw_metadata = {"XmlTorg12Metadata": {"Grounds": "Возвр. по накладной"}}
     assert detect_return_marker(doc) == "Возвр. по накладной"
+
+
+def discrepancy_act() -> bytes:
+    xml = (
+        '<?xml version="1.0" encoding="windows-1251"?><Файл ВерсФорм="5.01"><СвУчДокОбор/>'
+        '<Документ><ИдентДокПР НомДокПР="00000936410" ДатаДокПР="29.10.2026"/>'
+        '<СодФХЖ1><Продавец><ИдСв><СвЮЛУч НаимОрг="АВТОПАРТС" ИННЮЛ="9731061118" '
+        'КПП="773101001"/></ИдСв></Продавец>'
+        '<Покупатель><ИдСв><СвЮЛУч НаимОрг="РМС" ИННЮЛ="3662217593" КПП="366201001"/>'
+        "</ИдСв></Покупатель>"
+        '<СвОсмГруз><СопрДок НаимСопрДок="УПД" НомСопрДок="5288" ДатаСопрДок="27.10.2026"/>'
+        "</СвОсмГруз>"
+        '<ИнфПолФХЖ1><ТекстИнф Идентиф="ДоговорНаПоставку_Номер" Значен="№ 2025/09/24-06"/>'
+        '<ТекстИнф Идентиф="ДоговорНаПоставку_Дата" Значен="24.09.2025"/></ИнфПолФХЖ1>'
+        "</СодФХЖ1>"
+        '<СодФХЖ2 СодСоб="При приемке установлены расхождения" '
+        'Заключение="Вышеуказанный товар подлежит возврату поставщику"/>'
+        '<РезПрием ОКЕИ_Тов="796" НаимЕдИзм="шт" РасхРабУслПрав="Отказ поставщика">'
+        '<Ценности НаимТов="DZ1016001399 РЕЗИНКА" АртикулТов="DZ1016001399" КодТов="DZ1016001399"/>'
+        '<ПоДокум КолТовПрин="8.00" СтоимТовНДСПрин="384.00"/>'
+        '<ПоФакту КолТовПрин="8.00" СтоимТовНДСПрин="384.00"/>'
+        '<Брак КолТовРасх="8" СтоимТовНДСРасх="384.00"/></РезПрием>'
+        '<РезПрием ОКЕИ_Тов="796" НаимЕдИзм="шт" РасхРабУслПрав="Отказ поставщика">'
+        '<Ценности НаимТов="FORTLUFT КОЛЬЦО" АртикулТов="256436" КодТов="256436"/>'
+        '<ПоДокум КолТовПрин="2.00" СтоимТовНДСПрин="174.00"/>'
+        '<ПоФакту КолТовПрин="2.00" СтоимТовНДСПрин="174.00"/>'
+        '<Брак КолТовРасх="2" СтоимТовНДСРасх="174.00"/></РезПрием>'
+        "</Документ></Файл>"
+    )
+    return xml.encode("windows-1251")
+
+
+def test_discrepancy_act_parser_reads_real_structure():
+    details = parse_discrepancy_act_xml(discrepancy_act())
+    assert (details["number"], details["date"]) == ("00000936410", "2026-10-29")
+    assert (details["basis_number"], details["basis_date"]) == ("5288", "2026-10-27")
+    assert details["contract_number"] == "№ 2025/09/24-06"
+    assert details["conclusion"].startswith("Вышеуказанный товар")
+    assert (details["seller_inn"], details["buyer_inn"]) == (OUR_INN, "3662217593")
+    first, second = details["rows"]
+    assert first["article"] == "DZ1016001399" and first["qty_defect"] == 8
+    assert first["sum_defect"] == 384.0 and first["decision"] == "Отказ поставщика"
+    assert (second["qty_document"], second["qty_actual"], second["sum_defect"]) == (2, 2, 174.0)
+
+
+async def make_shipment(session, customer, part):
+    from dz_fastapi.models.inventory import ShipmentDocument, ShipmentDocumentItem
+
+    shipment = ShipmentDocument(
+        doc_number="5288", doc_date=datetime(2026, 10, 27, 12, tzinfo=timezone.utc),
+        customer_id=customer.id,
+    )
+    session.add(shipment)
+    await session.flush()
+    session.add(ShipmentDocumentItem(
+        document_id=shipment.id, autopart_id=part.id, quantity=8, price=48,
+    ))
+    await session.commit()
+    return shipment
+
+
+async def bind_customer(session, customer, box="rms-box"):
+    from dz_fastapi.models.partner import CustomerExternalReference
+
+    session.add(CustomerExternalReference(
+        customer_id=customer.id, source_system="DIADOC_COUNTERAGENT_BOX",
+        external_customer_name=box,
+    ))
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_discrepancy_act_creates_draft_reclamation_once(
+    test_session, created_providers, created_customers, created_autopart, tmp_path
+):
+    from dz_fastapi.models.partner import Reclamation, ReclamationItem
+
+    provider, customer = created_providers[0], created_customers[0]
+    created_autopart.oem_number = "DZ1016001399"
+    await test_session.commit()
+    shipment = await make_shipment(test_session, customer, created_autopart)
+    await bind_customer(test_session, customer)
+    doc = await make_doc(
+        test_session, provider, tmp_path, "DP_PRIRASXPRIN_x.xml", None,
+        discrepancy_act(), number="00000936410",
+    )
+    doc.counteragent_box_id = "rms-box"
+    await test_session.commit()
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, download_content_if_missing=False
+    )
+    assert result["dedup_action"] == "discrepancy_act"
+    await test_session.refresh(doc)
+    assert doc.parsed_details["state"] == "reclamation_created"
+    recl = await test_session.get(Reclamation, doc.parsed_details["reclamation_id"])
+    assert recl.customer_id == customer.id
+    assert recl.stated_document_number == "5288"
+    assert str(recl.stated_document_date) == "2026-10-27"
+    assert recl.status.value == "recognized"
+    items = (await test_session.execute(select(ReclamationItem))).scalars().all()
+    assert sorted((i.oem_number, i.quantity) for i in items) == [
+        ("256436", 2), ("DZ1016001399", 8),
+    ]
+    linked = [i for i in items if i.oem_number == "DZ1016001399"][0]
+    assert linked.autopart_id == created_autopart.id and linked.shipment_item_id is not None
+    assert doc.parsed_details["shipment_id"] == shipment.id
+    # открытая рекламация требует решения; принятая - нет
+    assert _needs_decision(doc, {f"r{recl.id}": "recognized"}) is True
+    assert _needs_decision(doc, {f"r{recl.id}": "approved"}) is False
+    # повторный акт не создаёт вторую рекламацию
+    doc.status = "synced"
+    doc.parsed_details = {}
+    await test_session.commit()
+    again = await process_diadoc_incoming_document(
+        test_session, document=doc, download_content_if_missing=False
+    )
+    assert again["dedup_action"] == "discrepancy_act"
+    await test_session.refresh(doc)
+    assert doc.parsed_details["state"] == "reclamation_exists"
+    assert len((await test_session.execute(select(Reclamation))).scalars().all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_discrepancy_act_without_shipment_asks_for_manual_binding(
+    test_session, created_providers, created_customers, tmp_path
+):
+    from dz_fastapi.models.partner import Reclamation
+
+    provider, customer = created_providers[0], created_customers[0]
+    await bind_customer(test_session, customer)
+    doc = await make_doc(
+        test_session, provider, tmp_path, "DP_PRIRASXPRIN_y.xml", None,
+        discrepancy_act(), number="1",
+    )
+    doc.counteragent_box_id = "rms-box"
+    await test_session.commit()
+    await process_diadoc_incoming_document(
+        test_session, document=doc, download_content_if_missing=False
+    )
+    await test_session.refresh(doc)
+    assert doc.parsed_details["state"] == "shipment_not_found"
+    assert "привяжите вручную" in doc.import_error_details
+    assert (await test_session.execute(select(Reclamation))).scalars().all() == []
+    assert _needs_decision(doc, {}) is True

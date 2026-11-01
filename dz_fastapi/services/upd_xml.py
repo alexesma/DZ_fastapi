@@ -567,33 +567,78 @@ def parse_torg12_xml(payload: bytes) -> UpdXmlDocument:
 
 
 def parse_discrepancy_act_xml(payload: bytes) -> Optional[dict]:
-    """Акт о расхождениях при приёмке (DP_PRIRASXPRIN…): сырой разбор.
+    """Акт о расхождениях при приёмке (DP_PRIRASXPRIN…, ВерсФорм 5.01).
 
-    Точные имена атрибутов в блоках РезПрием/СопрДок заранее неизвестны,
-    поэтому сохраняем их как есть (по блокам ПоДокум/ПоФакту/Брак), чтобы
-    человек видел расхождения, и ничего не проводим автоматически.
+    Структура (по реальному документу): Документ/ИдентДокПР (номер и дата
+    акта), СодФХЖ1 (Продавец, Покупатель, СвОсмГруз/СопрДок — наш УПД,
+    ИнфПолФХЖ1/ТекстИнф — договор), СодФХЖ2 (СодСоб, Заключение), строки
+    РезПрием (РасхРабУслПрав; Ценности; ПоДокум; ПоФакту; Брак). Кроме
+    структурированных полей отдаём «сырые» блоки (result/basis/document).
+    Ничего не проводится: данные нужны для рекламации.
     """
     try:
         root = ET.fromstring(payload)
     except ET.ParseError:
         return None
-    details: dict = {"result": [], "basis": [], "document": {}}
+    details: dict = {"result": [], "basis": [], "document": {}, "rows": []}
+    contract: dict = {}
     for element in root.iter():
         tag = _local_name(element.tag)
+        attrs = dict(element.attrib)
         if tag == "ИдентДокПР":
-            details["document"] = {k: v for k, v in element.attrib.items()}
+            details["document"] = attrs
+            details["number"] = _first_attr(element, "НомДокПР", "НомерДок")
+            details["date"] = _parse_upd_date(
+                _first_attr(element, "ДатаДокПР", "ДатаДок")
+            )
         elif tag == "СопрДок":
-            details["basis"].append({k: v for k, v in element.attrib.items()})
+            details["basis"].append(attrs)
+            if "basis_number" not in details:
+                details["basis_number"] = _first_attr(element, "НомСопрДок", "НомОсн")
+                details["basis_date"] = _parse_upd_date(
+                    _first_attr(element, "ДатаСопрДок", "ДатаОсн")
+                )
+                details["basis_name"] = _first_attr(element, "НаимСопрДок")
+        elif tag == "ТекстИнф":
+            ident = str(attrs.get("Идентиф") or "")
+            if ident:
+                contract[ident] = attrs.get("Значен")
+        elif tag == "СодФХЖ2":
+            details["event"] = attrs.get("СодСоб")
+            details["conclusion"] = attrs.get("Заключение")
         elif tag == "РезПрием":
             block: dict = {}
+            row: dict = {"decision": attrs.get("РасхРабУслПрав")}
             for child in element.iter():
                 child_tag = _local_name(child.tag)
-                if child_tag in {"ПоДокум", "ПоФакту", "Брак"} and child.attrib:
-                    block.setdefault(child_tag, []).append(dict(child.attrib))
+                child_attrs = dict(child.attrib)
+                if child_tag in {"ПоДокум", "ПоФакту", "Брак"} and child_attrs:
+                    block.setdefault(child_tag, []).append(child_attrs)
+                if child_tag == "Ценности":
+                    row["name"] = child_attrs.get("НаимТов")
+                    row["article"] = child_attrs.get("АртикулТов") or child_attrs.get("КодТов")
+                elif child_tag == "ПоДокум":
+                    row["qty_document"] = _to_int(child_attrs.get("КолТовПрин"))
+                    row["sum_document"] = _to_float(child_attrs.get("СтоимТовНДСПрин"))
+                elif child_tag == "ПоФакту":
+                    row["qty_actual"] = _to_int(child_attrs.get("КолТовПрин"))
+                    row["sum_actual"] = _to_float(child_attrs.get("СтоимТовНДСПрин"))
+                elif child_tag == "Брак":
+                    row["qty_defect"] = _to_int(child_attrs.get("КолТовРасх"))
+                    row["sum_defect"] = _to_float(child_attrs.get("СтоимТовНДСРасх"))
             if block:
                 details["result"].append(block)
+            details["rows"].append(row)
+    if contract:
+        details["contract_number"] = contract.get("ДоговорНаПоставку_Номер")
+        details["contract_date"] = contract.get("ДоговорНаПоставку_Дата")
+    for key in ("date", "basis_date"):
+        if isinstance(details.get(key), date):
+            details[key] = details[key].isoformat()
     parties = extract_document_parties(payload)
     if parties is not None:
         details["seller_inn"] = parties.seller_inn
+        details["seller_kpp"] = parties.seller_kpp
         details["buyer_inn"] = parties.buyer_inn
+        details["buyer_kpp"] = parties.buyer_kpp
     return details

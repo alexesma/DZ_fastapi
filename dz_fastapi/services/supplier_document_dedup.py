@@ -671,7 +671,14 @@ async def evaluate_diadoc_document(
         from dz_fastapi.services.diadoc_details import collect_details
 
         document.document_kind = category
-        document.parsed_details = collect_details(document, category)
+        if category == "discrepancy_act":
+            from dz_fastapi.services.diadoc_discrepancy import process_discrepancy_act
+
+            document.parsed_details = await process_discrepancy_act(
+                session, document=document
+            )
+        else:
+            document.parsed_details = collect_details(document, category)
         if category == "act":
             document.status = "service_act"
             document.import_error_details = (
@@ -681,7 +688,8 @@ async def evaluate_diadoc_document(
         else:
             document.status = "discrepancy_act"
             document.import_error_details = (
-                "Акт о расхождениях при приёмке: ничего не проводится "
+                document.parsed_details.get("hint")
+                or "Акт о расхождениях при приёмке: ничего не проводится "
                 "автоматически, нужно решение (рекламация)"
             )
         session.add(document)
