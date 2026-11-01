@@ -83,11 +83,24 @@ class DocumentIdentity:
         return bool(self.kind and self.number and self.date)
 
 
+_TRAILING_DIGITS_RE = re.compile(r"(\d+)$")
+
+
 def normalize_document_number(value: object) -> Optional[str]:
+    """Сравнимая форма номера.
+
+    1С печатает «0К00-005846», а в Диадок тот же документ уходит как «5846»,
+    поэтому сравниваем порядковую часть: хвост из цифр без ведущих нулей.
+    Префикс не теряется бесследно только благодаря остальным частям ключа
+    (поставщик, тип, дата). Номера без цифр на конце сравниваются целиком.
+    """
     text = _NUMBER_CLEAN_RE.sub("", str(value or "")).upper()
-    # «0012» и «12» — один и тот же номер
-    text = text.lstrip("0") or ("0" if text else "")
-    return text or None
+    if not text:
+        return None
+    match = _TRAILING_DIGITS_RE.search(text)
+    if match:
+        return match.group(1).lstrip("0") or "0"
+    return text
 
 
 def _to_decimal(value: object) -> Optional[Decimal]:

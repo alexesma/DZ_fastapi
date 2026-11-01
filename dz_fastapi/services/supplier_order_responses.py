@@ -165,6 +165,11 @@ _DOCUMENT_NUMBER_FALLBACK_RE = re.compile(
     r"([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)",
     re.I,
 )
+# «Реализация товаров и услуг 0К00-005846 от 28.10.2026 6:59:45» (1С)
+_DOCUMENT_NUMBER_BEFORE_DATE_RE = re.compile(
+    r"([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)\s+от\s+\d{1,2}\.\d{1,2}\.\d{2,4}",
+    re.I,
+)
 _RUS_MONTHS = {
     "январ": 1,
     "феврал": 2,
@@ -1165,6 +1170,11 @@ def _parse_document_number_from_text(
     fallback = _DOCUMENT_NUMBER_FALLBACK_RE.search(text)
     if fallback is not None:
         cleaned = _clean_text_value(fallback.group(1))
+        if cleaned:
+            return cleaned[:120]
+    before_date = _DOCUMENT_NUMBER_BEFORE_DATE_RE.search(text)
+    if before_date is not None:
+        cleaned = _clean_text_value(before_date.group(1))
         if cleaned:
             return cleaned[:120]
     return None

@@ -361,3 +361,20 @@ async def test_email_pipeline_skips_duplicate_of_diadoc(
     assert message.message_type == "DUPLICATE_DOC"
     assert message.duplicate_of_diadoc_id == doc.id
     assert await receipts(test_session) == []
+
+
+def test_1c_number_matches_diadoc_serial_and_subject_is_parsed():
+    from dz_fastapi.services.supplier_order_responses import (
+        _parse_document_number_from_text,
+    )
+
+    subject = "Реализация товаров и услуг 0К00-005846 от 28.10.2026 6:59:45"
+    assert _parse_document_number_from_text(subject) == "0К00-005846"
+    assert _parse_document_number_from_text("УПД № 77 от 01.02.2026") == "77"
+    assert (
+        dedup.normalize_document_number("0К00-005846")
+        == dedup.normalize_document_number("5846")
+        == "5846"
+    )
+    assert dedup.normalize_document_number("УТ-1042") == "1042"
+    assert dedup.normalize_document_number("ABC") == "ABC"
