@@ -7,18 +7,16 @@ from sqlalchemy import select
 
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.notification import AppNotification
-from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.models.partner import (
     SupplierOrderMessage,
     SupplierReceipt,
     SupplierReceiptCorrection,
     SupplierReceiptItem,
 )
+from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services import supplier_document_dedup as dedup
 from dz_fastapi.services.diadoc_documents import process_diadoc_incoming_document
-from dz_fastapi.services.supplier_order_responses import (
-    process_supplier_response_messages,
-)
+from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 
 NOW = datetime(2026, 6, 15, tzinfo=timezone.utc)
 
@@ -384,9 +382,7 @@ async def test_email_pipeline_skips_duplicate_of_diadoc(
 
 
 def test_1c_number_matches_diadoc_serial_and_subject_is_parsed():
-    from dz_fastapi.services.supplier_order_responses import (
-        _parse_document_number_from_text,
-    )
+    from dz_fastapi.services.supplier_order_responses import _parse_document_number_from_text
 
     subject = "Реализация товаров и услуг 0К00-005846 от 28.10.2026 6:59:45"
     assert _parse_document_number_from_text(subject) == "0К00-005846"
@@ -406,13 +402,11 @@ async def test_mismatch_window_returns_until_admin_decides(
 ):
     from datetime import timedelta
 
-    from dz_fastapi.api.notifications import (
-        handle_document_mismatch_action,
-        mark_notification_read,
-    )
+    from fastapi import HTTPException
+
+    from dz_fastapi.api.notifications import handle_document_mismatch_action, mark_notification_read
     from dz_fastapi.core.time import now_moscow
     from dz_fastapi.schemas.notification import DocumentMismatchActionRequest
-    from fastapi import HTTPException
 
     admin = User(
         name="A", email="mm-admin@example.com", password_hash="x",
@@ -489,14 +483,8 @@ async def test_price_over_order_by_more_than_one_ruble_is_flagged(
 async def test_linked_item_priced_over_order_is_flagged_and_serialized(
     test_session, created_providers
 ):
-    from dz_fastapi.models.partner import (
-        SUPPLIER_ORDER_STATUS,
-        SupplierOrder,
-        SupplierOrderItem,
-    )
-    from dz_fastapi.services.supplier_receipt_prices import (
-        mark_receipt_price_discrepancies,
-    )
+    from dz_fastapi.models.partner import SUPPLIER_ORDER_STATUS, SupplierOrder, SupplierOrderItem
+    from dz_fastapi.services.supplier_receipt_prices import mark_receipt_price_discrepancies
     from dz_fastapi.services.supplier_workflow import (
         get_supplier_receipt_detail,
         serialize_supplier_receipt,

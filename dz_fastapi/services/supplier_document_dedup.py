@@ -18,13 +18,13 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 import os
 import re
 from dataclasses import dataclass
-from types import SimpleNamespace
-from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, Optional
 
 from sqlalchemy import select
@@ -33,14 +33,8 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
-from dz_fastapi.models.partner import (
-    SupplierOrderAttachment,
-    SupplierOrderMessage,
-    SupplierReceipt,
-)
-from dz_fastapi.services.supplier_receipt_corrections import (
-    is_correction_document,
-)
+from dz_fastapi.models.partner import SupplierOrderAttachment, SupplierOrderMessage, SupplierReceipt
+from dz_fastapi.services.supplier_receipt_corrections import is_correction_document
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -78,7 +72,7 @@ _NON_RECEIPT_TYPES = {
 class DocumentIdentity:
     kind: Optional[str]
     number: Optional[str]
-    date: Optional[date]
+    date: Optional[dt.date]
     total: Optional[Decimal]
 
     @property
@@ -695,9 +689,7 @@ async def _resolve_amount_mismatch(
         process_diadoc_incoming_document,
         register_diadoc_document_as_supplier_message,
     )
-    from dz_fastapi.services.supplier_receipt_corrections import (
-        register_incoming_correction,
-    )
+    from dz_fastapi.services.supplier_receipt_corrections import register_incoming_correction
 
     document = await get_diadoc_incoming_document(
         session, document_id=document_id
@@ -745,9 +737,7 @@ async def _resolve_amount_mismatch(
     if posted:
         # Диадок главнее: распроводим (остатки откатываются штатным
         # unpost), заменяем строки и проводим заново по данным Диадока.
-        from dz_fastapi.services.supplier_workflow import (
-            unpost_supplier_receipt,
-        )
+        from dz_fastapi.services.supplier_workflow import unpost_supplier_receipt
 
         email_msg_id = int(email_msg.id)
         posted_ids = [int(r.id) for r in posted]

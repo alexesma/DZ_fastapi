@@ -15,20 +15,16 @@ from dz_fastapi.schemas.notification import (
     AppNotificationListResponse,
     AppNotificationReadResponse,
     AppNotificationResponse,
+    DocumentMismatchActionRequest,
+    DocumentMismatchActionResponse,
     PricelistStaleActionRequest,
     PricelistStaleActionResponse,
     RelayOfflineActionRequest,
     RelayOfflineActionResponse,
 )
-from dz_fastapi.schemas.notification import (
-    DocumentMismatchActionRequest,
-    DocumentMismatchActionResponse,
-)
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.relay_health import RELAY_OFFLINE_NOTIFICATION_TYPE
-from dz_fastapi.services.supplier_document_dedup import (
-    MISMATCH_NOTIFICATION_TYPE,
-)
+from dz_fastapi.services.supplier_document_dedup import MISMATCH_NOTIFICATION_TYPE
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 

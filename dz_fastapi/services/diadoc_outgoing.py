@@ -15,7 +15,6 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
-from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.inventory import (
@@ -40,6 +39,7 @@ from dz_fastapi.services.customer_return_ukd import (
     DEFAULT_WHOLESALE_VAT_RATE,
     build_customer_return_draft_status,
 )
+from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 
 DIADOC_OUTGOING_DIR = os.getenv(
     "DIADOC_OUTGOING_DIR",

@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
-from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.partner import (
     ProviderExternalReference,
@@ -19,6 +18,7 @@ from dz_fastapi.models.partner import (
     SupplierOrderMessage,
     SupplierResponseConfig,
 )
+from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.services.supplier_document_dedup import (
     apply_diadoc_metadata_identity,
     evaluate_diadoc_document,

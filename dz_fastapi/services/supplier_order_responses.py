@@ -72,9 +72,6 @@ from dz_fastapi.services.inventory_stock import (
     resolve_warehouse_for_provider,
 )
 from dz_fastapi.services.notifications import create_admin_notifications
-from dz_fastapi.services.supplier_receipt_prices import (
-    mark_receipt_price_discrepancies,
-)
 from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
     apply_supplier_response_action_to_order,
@@ -84,6 +81,7 @@ from dz_fastapi.services.order_status_mapping import (
     select_best_mapping,
 )
 from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
+from dz_fastapi.services.supplier_receipt_prices import mark_receipt_price_discrepancies
 from dz_fastapi.services.supplier_workflow import (
     _match_site_order_item_for_receipt,
     _refresh_receipt_links,
@@ -5359,9 +5357,7 @@ async def process_supplier_response_messages(
             # Тот же документ мог прийти через Диадок (он главнее почты):
             # дубль/расхождение по сумме не разбираем и не проводим.
             if attachments:
-                from dz_fastapi.services.supplier_document_dedup import (
-                    apply_email_dedup,
-                )
+                from dz_fastapi.services.supplier_document_dedup import apply_email_dedup
 
                 dedup_verdict = await apply_email_dedup(
                     session,
