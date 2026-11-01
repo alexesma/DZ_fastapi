@@ -1603,6 +1603,11 @@ class SupplierReceiptItem(Base):
         nullable=True,
         comment="КИЗ/СИЗ из входящего УПД для маркированных товаров",
     )
+    marking_check = Column(
+        JSON,
+        nullable=True,
+        comment="Результат сверки КИЗ при приёмке (локальные проверки и ГИС МТ)",
+    )
     gtd_code = Column(String(64), nullable=True)
     country_code = Column(String(16), nullable=True)
     country_name = Column(String(120), nullable=True)

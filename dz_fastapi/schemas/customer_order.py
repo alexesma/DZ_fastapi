@@ -846,6 +846,7 @@ class SupplierReceiptItemResponse(BaseModel):
     order_price: Optional[Decimal] = None
     price_exceeds_order: bool = False
     marking_codes: Optional[List[str]] = None
+    marking_check: Optional[dict] = None
     gtd_code: Optional[str] = None
     country_code: Optional[str] = None
     country_name: Optional[str] = None
@@ -882,6 +883,10 @@ class SupplierReceiptResponse(BaseModel):
     posted_at: Optional[datetime] = None
     comment: Optional[str] = None
     has_price_alert: bool = False
+    marking_status: str = "none"
+    marking_error_count: int = 0
+    marking_warning_count: int = 0
+    marking_gis_checked: bool = False
     items: List[SupplierReceiptItemResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

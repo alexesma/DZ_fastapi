@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -47,7 +48,13 @@ from dz_fastapi.services.inventory_stock import (
     apply_receipt_to_stock_by_id,
     resolve_warehouse_for_provider,
 )
+from dz_fastapi.services.marking_receipt_check import (
+    check_receipt_marking,
+    summarize_receipt_marking,
+)
 from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -1066,6 +1073,11 @@ async def post_supplier_receipt(
                 if item.order_item_id is not None
             },
         )
+        try:
+            # Расхождения КИЗ проведение не блокируют: показываем в документе.
+            await check_receipt_marking(session, receipt, use_gis=True)
+        except Exception:  # noqa: BLE001
+            logger.exception("Receipt %s marking check failed", receipt.id)
         await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
         await ensure_cross_docking_labels(
             session,
@@ -1321,6 +1333,8 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
         "total_price_with_vat": item.total_price_with_vat,
         "order_price": item.order_price,
         "price_exceeds_order": bool(item.price_exceeds_order),
+        "marking_codes": list(item.marking_codes or []),
+        "marking_check": item.marking_check,
         "gtd_code": item.gtd_code,
         "country_code": item.country_code,
         "country_name": item.country_name,
@@ -1358,6 +1372,7 @@ def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
         "posted_at": receipt.posted_at,
         "comment": receipt.comment,
         "has_price_alert": any(item.price_exceeds_order for item in receipt.items),
+        **summarize_receipt_marking(receipt),
         "items": [_serialize_receipt_item(item) for item in receipt.items],
     }
 

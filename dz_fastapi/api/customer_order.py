@@ -112,6 +112,10 @@ from dz_fastapi.services.inventory_stock import (
     dispatch_stock_order,
     sync_posted_cross_docking_assemblies,
 )
+from dz_fastapi.services.marking_receipt_check import (
+    check_receipt_marking,
+    check_receipts_marking_local,
+)
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.stock_order_packages import (
     create_stock_order_package,
@@ -2281,6 +2285,7 @@ async def list_supplier_receipts_endpoint(
         date_from=date_from,
         date_to=date_to,
     )
+    await check_receipts_marking_local(session, receipts)
     return [
         SupplierReceiptResponse.model_validate(serialize_supplier_receipt(receipt))
         for receipt in receipts
@@ -2301,6 +2306,27 @@ async def get_supplier_receipt_endpoint(
         receipt = await get_supplier_receipt_detail(session=session, receipt_id=receipt_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await check_receipts_marking_local(session, [receipt])
+    return SupplierReceiptResponse.model_validate(serialize_supplier_receipt(receipt))
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/marking-check",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Перепроверить КИЗ документа (в т.ч. по ГИС МТ, если выполнен вход)",
+)
+async def check_supplier_receipt_marking_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await get_supplier_receipt_detail(session=session, receipt_id=receipt_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await check_receipt_marking(session, receipt, use_gis=True, force=True)
+    await session.commit()
     return SupplierReceiptResponse.model_validate(serialize_supplier_receipt(receipt))
 
 
