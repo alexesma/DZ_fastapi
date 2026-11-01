@@ -189,32 +189,12 @@ async def test_diadoc_then_email_with_other_total_is_mismatch(
     )
     assert verdict == "mismatch"
     assert message.message_type == "DOCUMENT_MISMATCH"
-    assert doc.amount_mismatch_status == "pending"
+    assert doc.amount_mismatch_status == "applied"  # Диадок главнее
     assert doc.mismatch_other_total == Decimal("1900.00")
 
 
 @pytest.mark.asyncio
-async def test_email_then_diadoc_other_total_flags_mismatch(
-    test_session, created_providers, tmp_path
-):
-    provider = created_providers[0]
-    await make_email_with_receipt(test_session, provider, total="1806.00")
-    doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
-    result = await process_diadoc_incoming_document(
-        test_session, document=doc, download_content_if_missing=False
-    )
-    assert result["dedup_action"] == "mismatch"
-    await test_session.refresh(doc)
-    assert doc.status == "amount_mismatch"
-    assert doc.amount_mismatch_status == "pending"
-    assert doc.total_amount == Decimal("2000.00")
-    assert doc.mismatch_other_total == Decimal("1806.00")
-    assert doc.supplier_order_message_id is None
-    assert len(await receipts(test_session)) == 1
-
-
-@pytest.mark.asyncio
-async def test_mismatch_apply_replaces_unposted_receipt(
+async def test_diadoc_wins_over_unposted_email_receipt(
     test_session, created_providers, tmp_path, monkeypatch
 ):
     provider = created_providers[0]
@@ -222,9 +202,6 @@ async def test_mismatch_apply_replaces_unposted_receipt(
         test_session, provider, total="1806.00", posted=False
     )
     doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
-    await process_diadoc_incoming_document(
-        test_session, document=doc, download_content_if_missing=False
-    )
     processed = []
 
     async def fake_process(session, *, document, **kwargs):
@@ -235,21 +212,20 @@ async def test_mismatch_apply_replaces_unposted_receipt(
         "dz_fastapi.services.diadoc_documents.process_diadoc_incoming_document",
         fake_process,
     )
-    result = await dedup.resolve_amount_mismatch(
-        test_session, document_id=doc.id, action="apply_diadoc", user_id=1
-    )
-    assert result["status"] == "applied"
+    result = await dedup.evaluate_diadoc_document(test_session, document=doc)
+    assert result["action"] == "applied"
     assert processed == [doc.id]
     assert await receipts(test_session) == []
     await test_session.refresh(doc)
     assert doc.amount_mismatch_status == "applied"
+    assert doc.mismatch_log[0]["automatic"] is True
     assert doc.mismatch_log[0]["removed_receipts"][0]["receipt_id"] == receipt.id
     await test_session.refresh(message)
     assert message.message_type == "DUPLICATE_DOC"
 
 
 @pytest.mark.asyncio
-async def test_mismatch_with_posted_receipt_requires_correction(
+async def test_diadoc_vs_posted_email_receipt_creates_correction_only(
     test_session, created_providers, tmp_path
 ):
     provider = created_providers[0]
@@ -257,13 +233,10 @@ async def test_mismatch_with_posted_receipt_requires_correction(
         test_session, provider, total="1806.00", posted=True
     )
     doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
-    await process_diadoc_incoming_document(
+    result = await process_diadoc_incoming_document(
         test_session, document=doc, download_content_if_missing=False
     )
-    result = await dedup.resolve_amount_mismatch(
-        test_session, document_id=doc.id, action="apply_diadoc"
-    )
-    assert result["status"] == "correction_required"
+    assert result["dedup_action"] == "applied"
     receipt_after = (await receipts(test_session))[0]
     assert receipt_after.id == receipt.id and receipt_after.posted_at is not None
     items = (await test_session.execute(select(SupplierReceiptItem))).scalars().all()
@@ -281,9 +254,9 @@ async def test_mismatch_keep_existing_links_to_email_receipt(
     provider = created_providers[0]
     message, _ = await make_email_with_receipt(test_session, provider)
     doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
-    await process_diadoc_incoming_document(
-        test_session, document=doc, download_content_if_missing=False
-    )
+    doc.amount_mismatch_status = "pending"
+    doc.mismatch_message_id = message.id
+    await test_session.commit()
     result = await dedup.resolve_amount_mismatch(
         test_session, document_id=doc.id, action="keep_existing"
     )

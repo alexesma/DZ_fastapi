@@ -290,10 +290,21 @@ async def apply_email_dedup(
             f"Диадок {original.total_amount} ₽"
         )[:500]
         if original.amount_mismatch_status is None:
-            original.amount_mismatch_status = "pending"
+            # Диадок главнее: версия из письма игнорируется, админу — инфо.
+            original.amount_mismatch_status = "applied"
             original.mismatch_message_id = int(message_row.id)
             original.mismatch_other_total = identity.total
-            await _notify_mismatch(session, original, identity.total, "письмо")
+            original.mismatch_resolved_at = now_moscow()
+            _log(
+                original,
+                action="auto_keep_diadoc",
+                result="email_ignored",
+                email_total=str(identity.total),
+                diadoc_total=str(original.total_amount),
+            )
+            await _notify_mismatch(
+                session, original, identity.total, "письмо", auto=True
+            )
         session.add(original)
         return "mismatch"
     message_row.message_type = MESSAGE_TYPE_DUPLICATE
@@ -311,6 +322,7 @@ async def _notify_mismatch(
     document: DiadocIncomingDocument,
     other_total: Optional[Decimal],
     other_source: str,
+    auto: bool = False,
 ) -> None:
     from dz_fastapi.models.notification import AppNotificationLevel
     from dz_fastapi.services.notifications import create_admin_notifications
@@ -322,8 +334,12 @@ async def _notify_mismatch(
             f"Документ №{document.document_number or '—'} от "
             f"{document.document_date or '—'}: Диадок "
             f"{document.total_amount} ₽, {other_source} {other_total} ₽. "
-            "Документ не обработан автоматически — откройте Диадок → "
-            "Входящие и примите решение."
+            + (
+                "Данные Диадока главнее — применены автоматически, "
+                "версия из письма не использована."
+                if auto
+                else "Нужно решение администратора: Диадок → Входящие."
+            )
         ),
         level=AppNotificationLevel.WARNING,
         link="/diadoc",
@@ -554,6 +570,19 @@ async def _flag_mismatch(
         f"{source} {other_total} ₽ — нужно решение администратора"
     )
     session.add(document)
+    await session.commit()
+    if source == "письмо" and other_message_id:
+        # Диадок главнее почты: заменяем черновик или заводим КСФ
+        # для проведённого поступления; админа только уведомляем.
+        outcome = await resolve_amount_mismatch(
+            session, document_id=int(document.id), action="apply_diadoc",
+            automatic=True,
+        )
+        await _notify_mismatch(
+            session, document, other_total, source, auto=True
+        )
+        await session.commit()
+        return {"action": "applied", "outcome": outcome.get("status")}
     await _notify_mismatch(session, document, other_total, source)
     await session.commit()
     return {"action": "mismatch"}
@@ -570,6 +599,7 @@ async def resolve_amount_mismatch(
     document_id: int,
     action: str,
     user_id: Optional[int] = None,
+    automatic: bool = False,
 ) -> dict[str, Any]:
     """action: apply_diadoc | keep_existing."""
     from dz_fastapi.services.diadoc_documents import (
@@ -609,7 +639,7 @@ async def resolve_amount_mismatch(
     if action == "keep_existing":
         document.amount_mismatch_status = "dismissed"
         document.mismatch_resolved_at = now_moscow()
-        _log(document, action=action, user_id=user_id)
+        _log(document, action=action, user_id=user_id, automatic=automatic)
         if receipts:
             _link_to_message(document, email_msg)
         else:
@@ -645,6 +675,7 @@ async def resolve_amount_mismatch(
         _log(
             document,
             action=action,
+            automatic=automatic,
             user_id=user_id,
             result="correction_required",
             correction_id=int(correction.id),
@@ -690,6 +721,7 @@ async def resolve_amount_mismatch(
     _log(
         document,
         action=action,
+        automatic=automatic,
         user_id=user_id,
         result="draft_replaced",
         old_total=str(email_msg.document_total) if email_msg else None,
