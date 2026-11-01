@@ -86,7 +86,7 @@ from dz_fastapi.services.supplier_workflow import (
     _match_site_order_item_for_receipt,
     _refresh_receipt_links,
 )
-from dz_fastapi.services.upd_xml import UPD_FILENAME_PREFIXES
+from dz_fastapi.services.upd_xml import TORG12_FILENAME_PREFIXES, UPD_FILENAME_PREFIXES
 
 try:
     from imap_tools.errors import MailboxFolderSelectError
@@ -1976,15 +1976,21 @@ def _parse_upd_xml_attachment(
     поставщика. Строки без артикула пропускаем (сматчить их не по чему),
     но логируем, чтобы проблему было видно.
     """
-    from dz_fastapi.services.upd_xml import looks_like_upd_xml, parse_upd_xml
+    from dz_fastapi.services.upd_xml import looks_like_upd_xml, parse_torg12_xml, parse_upd_xml
 
-    if not looks_like_upd_xml(payload, filename):
+    if str(filename or "").lower().startswith(TORG12_FILENAME_PREFIXES):
+        try:
+            document = parse_torg12_xml(payload)
+        except ValueError:
+            return []
+    elif not looks_like_upd_xml(payload, filename):
         logger.warning(
             "XML вложение %s не похоже на УПД ФНС — пропускаем",
             filename,
         )
         return []
-    document = parse_upd_xml(payload)
+    else:
+        document = parse_upd_xml(payload)
     if document.items_without_article:
         logger.warning(
             "УПД %s: %s строк без артикула пропущено (файл %s)",
@@ -6772,7 +6778,9 @@ async def process_stored_supplier_document_message(
             attachment_kind is None
             and allow_shipping_docs
             and extension == "xml"
-            and str(filename or "").lower().startswith(UPD_FILENAME_PREFIXES)
+            and str(filename or "").lower().startswith(
+                UPD_FILENAME_PREFIXES + TORG12_FILENAME_PREFIXES
+            )
         ):
             # Диадок отдаёт УПД/УКД файлами ON_NSCHFDOP*/ON_KORSCHFDOP*:
             # в сохранённом сообщении это однозначно документ.

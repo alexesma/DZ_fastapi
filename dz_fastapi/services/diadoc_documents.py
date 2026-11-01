@@ -19,6 +19,7 @@ from dz_fastapi.models.partner import (
     SupplierResponseConfig,
 )
 from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
+from dz_fastapi.services.diadoc_corrections import fill_correction_from_document
 from dz_fastapi.services.diadoc_direction import detect_document_direction
 from dz_fastapi.services.supplier_document_dedup import (
     apply_category_status,
@@ -27,6 +28,7 @@ from dz_fastapi.services.supplier_document_dedup import (
 )
 from dz_fastapi.services.supplier_order_responses import process_stored_supplier_document_message
 from dz_fastapi.services.supplier_receipt_corrections import (
+    get_correction,
     is_correction_document,
     register_incoming_correction,
 )
@@ -421,8 +423,17 @@ async def process_diadoc_incoming_document(
             document_number=document.document_number,
             document_date=document.document_date,
         )
+        await session.flush()
+        correction = await get_correction(session, int(correction.id))
+        if correction.status == "draft" and not correction.items:
+            summary = await fill_correction_from_document(
+                session, correction=correction, document=document
+            )
+            document.parsed_details = summary
+            document.import_error_details = summary.get("hint")
+        else:
+            document.import_error_details = None
         document.status = "registered"
-        document.import_error_details = None
         await session.commit()
         return {
             "message_id": int(message_row.id),

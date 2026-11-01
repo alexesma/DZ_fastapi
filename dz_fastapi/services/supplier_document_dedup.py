@@ -120,6 +120,7 @@ def totals_differ(a: object, b: object) -> bool:
 _TRANSPORT_FILE_PREFIXES = ("on_trn", "on_epl", "on_zayavka", "on_zayav")
 _ACT_FILE_PREFIXES = ("on_akt",)
 _TORG12_FILE_PREFIXES = ("on_naklpost",)
+_DISCREPANCY_FILE_PREFIXES = ("dp_prirasx", "dp_rasx")
 _UKD_FILE_PREFIXES = ("on_korschfdop", "on_nkorschfdop")
 _UPD_FILE_PREFIXES = ("on_nschfdop",)
 _ACT_TYPES = {
@@ -135,13 +136,15 @@ def classify_diadoc_document(
 ) -> str:
     """Категория документа по TypeNamedId и префиксу имени файла Диадока.
 
-    upd | ukd | kschf | torg12 | act | transport | invoice |
-    payment_invoice | other. Настройки по каждому поставщику не нужны.
+    upd | ukd | kschf | torg12 | act | discrepancy_act | transport |
+    invoice | payment_invoice | other. Настройки по каждому поставщику не нужны.
     """
     type_key = str(type_named_id or "").strip().lower()
     name = str(filename or "").strip().lower()
     if type_key in _DIADOC_KIND_BY_TYPE:
         return _DIADOC_KIND_BY_TYPE[type_key]
+    if name.startswith(_DISCREPANCY_FILE_PREFIXES):
+        return "discrepancy_act"
     if "waybill" in type_key or type_key in {"orderrequest"}:
         return "transport"
     if name.startswith(_TRANSPORT_FILE_PREFIXES):
@@ -178,6 +181,7 @@ def is_receipt_document(type_named_id: object, filename: object) -> bool:
     return classify_diadoc_document(type_named_id, filename) not in {
         "transport",
         "act",
+        "discrepancy_act",
         "invoice",
         "payment_invoice",
         "other_non_receipt",
@@ -187,14 +191,27 @@ def is_receipt_document(type_named_id: object, filename: object) -> bool:
 def identity_from_xml(payload: bytes, filename: str = "") -> Optional[DocumentIdentity]:
     """Идентичность документа из XML УПД/УКД; None, если файл не опознан."""
     from dz_fastapi.services.upd_xml import (
+        TORG12_FILENAME_PREFIXES,
         looks_like_upd_xml,
         parse_correction_header,
+        parse_torg12_xml,
         parse_upd_xml,
     )
 
     if not payload or not str(filename or "").lower().endswith(".xml"):
         return None
     name = str(filename or "").lower()
+    if name.startswith(TORG12_FILENAME_PREFIXES):
+        try:
+            torg = parse_torg12_xml(payload)
+        except ValueError:
+            return None
+        return DocumentIdentity(
+            kind="torg12",
+            number=normalize_document_number(torg.document_number),
+            date=torg.document_date,
+            total=_to_decimal(torg.total_with_vat),
+        )
     try:
         if looks_like_upd_xml(payload, filename):
             parsed = parse_upd_xml(payload)
@@ -250,6 +267,27 @@ def apply_diadoc_metadata_identity(document: DiadocIncomingDocument) -> None:
     document.dedup_key = build_dedup_key(document.provider_id, identity)
 
 
+def _is_processable_other(document: DiadocIncomingDocument) -> bool:
+    """Неклассифицированный файл, который всё же можно разбирать как документ.
+
+    Таблицы (xlsx/xls/csv) идут по настройкам поставщика; XML — только если
+    по содержимому это УПД. Остальное (pdf, архивы…) — «прочее».
+    """
+    name = str(document.file_name or "").lower()
+    ext = name.rsplit(".", 1)[-1] if "." in name else ""
+    if ext in {"xlsx", "xls", "csv"}:
+        return True
+    if ext == "xml":
+        path = document.local_file_path
+        if path and os.path.exists(os.path.abspath(path)):
+            from dz_fastapi.services.upd_xml import looks_like_upd_xml
+
+            with open(os.path.abspath(path), "rb") as fh:
+                return looks_like_upd_xml(fh.read(), name)
+        return True  # файла ещё нет: решим после скачивания
+    return False
+
+
 def apply_category_status(document: DiadocIncomingDocument) -> Optional[str]:
     """Статус для документов, которые никогда не станут поступлением.
 
@@ -260,17 +298,25 @@ def apply_category_status(document: DiadocIncomingDocument) -> Optional[str]:
     category = classify_diadoc_document(
         meta.get("TypeNamedId"), document.file_name
     )
-    if category not in {"transport", "act"}:
+    if category not in {"transport", "act", "discrepancy_act"}:
         return category
     document.document_kind = category
     if str(document.status or "synced").lower() == "synced":
-        document.status = "transport" if category == "transport" else "service_act"
-        document.import_error_details = (
-            "Перевозочный документ (ЭТрН): поступление не создаётся, "
-            "ведётся во вкладке «Перевозки (ЭТрН)»"
-            if category == "transport"
-            else "Акт (работы/услуги): в товарные поступления не передаётся"
-        )
+        document.status = {
+            "transport": "transport",
+            "act": "service_act",
+            "discrepancy_act": "discrepancy_act",
+        }[category]
+        document.import_error_details = {
+            "transport": (
+                "Перевозочный документ (ЭТрН): поступление не создаётся, "
+                "ведётся во вкладке «Перевозки (ЭТрН)»"
+            ),
+            "act": "Акт (работы/услуги): в товарные поступления не передаётся",
+            "discrepancy_act": (
+                "Акт о расхождениях при приёмке: нужно решение (рекламация)"
+            ),
+        }[category]
     return category
 
 
@@ -600,15 +646,35 @@ async def evaluate_diadoc_document(
         session.add(document)
         await session.commit()
         return {"action": "transport"}
-    if category == "act":
-        document.document_kind = "act"
-        document.status = "service_act"
+    if category in {"act", "discrepancy_act"}:
+        from dz_fastapi.services.diadoc_details import collect_details
+
+        document.document_kind = category
+        document.parsed_details = collect_details(document, category)
+        if category == "act":
+            document.status = "service_act"
+            document.import_error_details = (
+                "Акт (работы/услуги): в товарные поступления не передаётся, "
+                "обработка вручную"
+            )
+        else:
+            document.status = "discrepancy_act"
+            document.import_error_details = (
+                "Акт о расхождениях при приёмке: ничего не проводится "
+                "автоматически, нужно решение (рекламация)"
+            )
+        session.add(document)
+        await session.commit()
+        return {"action": document.status}
+    if category == "other" and not _is_processable_other(document):
+        document.document_kind = "other"
+        document.status = "other_doc"
         document.import_error_details = (
-            "Акт (работы/услуги): в товарные поступления не передаётся"
+            "Тип документа не распознан: сохранён в списке, обработка вручную"
         )
         session.add(document)
         await session.commit()
-        return {"action": "service_act"}
+        return {"action": "other_doc"}
 
     # Направление: документ по нашей продаже клиенту поступлением не станет.
     from dz_fastapi.services.diadoc_direction import (

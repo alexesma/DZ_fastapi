@@ -22,7 +22,7 @@ from dz_fastapi.models.diadoc import (
     DiadocOutgoingDocument,
 )
 from dz_fastapi.models.inventory import ReturnFromCustomer, ReturnToSupplier
-from dz_fastapi.models.partner import Customer, Provider
+from dz_fastapi.models.partner import Customer, Provider, SupplierReceiptCorrection
 from dz_fastapi.models.shipment_correction import ShipmentCorrection
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.diadoc import (
@@ -169,8 +169,55 @@ def _integration_to_status(
     )
 
 
+_DECISION_STATUSES = {
+    "amount_mismatch",
+    "direction_unknown",
+    "service_act",
+    "discrepancy_act",
+    "other_doc",
+}
+
+
+def _needs_decision(
+    document: DiadocIncomingDocument, correction_statuses: dict[int, str]
+) -> bool:
+    if document.status in _DECISION_STATUSES:
+        return True
+    mismatch = document.amount_mismatch_status
+    if mismatch == "pending":
+        return True
+    if mismatch in {"applied", "correction_required", "dismissed"}:
+        if document.mismatch_acknowledged_at is None:
+            return True
+    details = document.parsed_details or {}
+    correction_id = details.get("correction_id")
+    if correction_id is not None:
+        return correction_statuses.get(int(correction_id), "draft") == "draft"
+    return False
+
+
+async def _correction_statuses(
+    session: AsyncSession, rows: list[DiadocIncomingDocument]
+) -> dict[int, str]:
+    ids = {
+        int(row.parsed_details["correction_id"])
+        for row in rows
+        if isinstance(row.parsed_details, dict)
+        and row.parsed_details.get("correction_id") is not None
+    }
+    if not ids:
+        return {}
+    found = await session.execute(
+        select(SupplierReceiptCorrection.id, SupplierReceiptCorrection.status).where(
+            SupplierReceiptCorrection.id.in_(ids)
+        )
+    )
+    return {int(i): str(st) for i, st in found.all()}
+
+
 def _incoming_document_to_out(
     document: DiadocIncomingDocument,
+    correction_statuses: dict[int, str] | None = None,
 ) -> DiadocInboundDocumentOut:
     provider = getattr(document, "provider", None)
     supplier_message = getattr(document, "supplier_order_message", None)
@@ -218,6 +265,8 @@ def _incoming_document_to_out(
         ),
         supplier_receipt_ids=receipt_ids,
         direction=document.direction,
+        parsed_details=dict(document.parsed_details or {}),
+        needs_decision=_needs_decision(document, correction_statuses or {}),
         customer_id=document.customer_id,
         customer_name=(
             str(getattr(document.customer, "name", "") or "").strip() or None
@@ -932,7 +981,8 @@ async def list_diadoc_inbound_documents_endpoint(
         registered_only=registered_only,
         limit=limit,
     )
-    return [_incoming_document_to_out(row) for row in rows]
+    statuses = await _correction_statuses(session, rows)
+    return [_incoming_document_to_out(row, statuses) for row in rows]
 
 
 @router.post(
@@ -1054,7 +1104,9 @@ async def acknowledge_diadoc_inbound_mismatch_endpoint(
     document = await get_diadoc_incoming_document(
         session, document_id=document_id
     )
-    return _incoming_document_to_out(document)
+    return _incoming_document_to_out(
+        document, await _correction_statuses(session, [document])
+    )
 
 
 @router.post(

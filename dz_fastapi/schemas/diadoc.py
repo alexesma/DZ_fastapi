@@ -207,6 +207,8 @@ class DiadocInboundDocumentOut(BaseModel):
     can_process_supplier_message: bool = False
     supplier_receipt_ids: list[int] = Field(default_factory=list)
     direction: str | None = None
+    parsed_details: dict[str, Any] = Field(default_factory=dict)
+    needs_decision: bool = False
     customer_id: int | None = None
     customer_name: str | None = None
     document_kind: str | None = None

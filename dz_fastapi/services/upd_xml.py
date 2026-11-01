@@ -24,6 +24,8 @@ UPD_FILENAME_PREFIXES = (
     "on_korschfdop",
 )
 
+TORG12_FILENAME_PREFIXES = ("on_naklpost",)
+
 _UPD_MARKERS = ("СвСчФакт", "ТаблСчФакт")
 _MARKING_CODE_ATTRS = (
     "КИЗ",
@@ -334,19 +336,28 @@ class DocumentParties:
     buyer_kpp: Optional[str] = None
 
 
+_SELLER_TAGS = ("СвПрод", "Продавец", "Поставщик", "Исполнитель")
+_BUYER_TAGS = ("СвПокуп", "Покупатель", "Плательщик", "Заказчик")
+
+
 def _party_requisites(
-    root: ET.Element, tag: str
+    root: ET.Element, tags: tuple[str, ...]
 ) -> tuple[Optional[str], Optional[str]]:
-    for element in root.iter():
-        if _local_name(element.tag) != tag:
-            continue
-        for child in element.iter():
-            child_tag = _local_name(child.tag)
-            if child_tag == "СвЮЛУч":
-                return _first_attr(child, "ИННЮЛ"), _first_attr(child, "КПП")
-            if child_tag == "СвИП":
-                return _first_attr(child, "ИННФЛ"), None
-        return None, None
+    for tag in tags:
+        for element in root.iter():
+            if _local_name(element.tag) != tag:
+                continue
+            for child in element.iter():
+                child_tag = _local_name(child.tag)
+                if child_tag == "СвЮЛУч":
+                    return _first_attr(child, "ИННЮЛ"), _first_attr(child, "КПП")
+                if child_tag == "СвИП":
+                    return _first_attr(child, "ИННФЛ"), None
+            # акты и ТОРГ-12: ИНН может лежать прямо в атрибутах
+            for child in element.iter():
+                inn = _first_attr(child, "ИННЮЛ", "ИННФЛ", "ИНН")
+                if inn:
+                    return inn, _first_attr(child, "КПП")
     return None, None
 
 
@@ -361,8 +372,8 @@ def extract_document_parties(payload: bytes) -> Optional[DocumentParties]:
         root = ET.fromstring(payload)
     except ET.ParseError:
         return None
-    seller_inn, seller_kpp = _party_requisites(root, "СвПрод")
-    buyer_inn, buyer_kpp = _party_requisites(root, "СвПокуп")
+    seller_inn, seller_kpp = _party_requisites(root, _SELLER_TAGS)
+    buyer_inn, buyer_kpp = _party_requisites(root, _BUYER_TAGS)
     if not (seller_inn or buyer_inn):
         return None
     return DocumentParties(seller_inn, seller_kpp, buyer_inn, buyer_kpp)
@@ -390,3 +401,199 @@ def parse_correction_header(
         if number or header_date:
             return number, header_date
     return None
+
+
+# --------------------------------------------------------------------------
+# Корректировки (УКД/КСЧФ), ТОРГ-12, акты, акты о расхождениях при приёмке
+# --------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class CorrectionRow:
+    line_number: Optional[int]
+    original_line_number: Optional[int]
+    name: Optional[str]
+    article: Optional[str]
+    quantity_before: Optional[int]
+    quantity_after: Optional[int]
+    price_before: Optional[float]
+    price_after: Optional[float]
+    total_before: Optional[float]
+    total_after: Optional[float]
+    total_delta: Optional[float]
+
+
+@dataclass(slots=True)
+class CorrectionDocument:
+    number: Optional[str] = None
+    date: Optional[date] = None
+    original_number: Optional[str] = None
+    original_date: Optional[date] = None
+    total_delta: Optional[float] = None
+    parties: Optional[DocumentParties] = None
+    rows: list[CorrectionRow] = field(default_factory=list)
+
+
+def _child(element: ET.Element, name: str) -> Optional[ET.Element]:
+    for child in element:
+        if _local_name(child.tag) == name:
+            return child
+    return None
+
+
+def _num_attrs(element: Optional[ET.Element], *names: str) -> Optional[float]:
+    if element is None:
+        return None
+    return _to_float(_first_attr(element, *names))
+
+
+def parse_correction_xml(payload: bytes) -> Optional[CorrectionDocument]:
+    """УКД/КСЧФ (ON_NKORSCHFDOPPR): строки «до/после» и исходный документ.
+
+    Исходный УПД берётся из СчФ (НомерСчФ/ДатаСчФ), запасной вариант —
+    основание СодФХЖ3/ПередатДокум (НомОсн/ДатаОсн). Количество, цена и
+    стоимость «до/после» читаются из СведТов/ТаблКСчФ.
+    """
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return None
+    header = None
+    for element in root.iter():
+        if _local_name(element.tag) in {"СвКСчФ", "СвКСчФакт"}:
+            header = element
+            break
+    if header is None:
+        return None
+    doc = CorrectionDocument(
+        number=_first_attr(header, "НомерКСчФ", "НомерДок"),
+        date=_parse_upd_date(_first_attr(header, "ДатаКСчФ", "ДатаДок")),
+        parties=extract_document_parties(payload),
+    )
+    for element in root.iter():
+        tag = _local_name(element.tag)
+        if tag == "СчФ" and doc.original_number is None:
+            doc.original_number = _first_attr(element, "НомерСчФ", "НомерДок")
+            doc.original_date = _parse_upd_date(
+                _first_attr(element, "ДатаСчФ", "ДатаДок")
+            )
+        elif tag == "ПередатДокум" and doc.original_number is None:
+            doc.original_number = _first_attr(element, "НомОсн")
+            doc.original_date = _parse_upd_date(_first_attr(element, "ДатаОсн"))
+        elif tag == "ВсегоУм" and doc.total_delta is None:
+            doc.total_delta = _num_attrs(
+                element, "СтТовУчНалВсего", "СтоимУм", "СтТовУчНал"
+            )
+    for item_el in root.iter():
+        if _local_name(item_el.tag) != "СведТов":
+            continue
+        total_el = _child(item_el, "СтТовУчНал")
+        article = None
+        for dop in item_el.iter():
+            if _local_name(dop.tag) == "ДопСведТов":
+                article = _first_attr(dop, "КодТов", "АртикулТов")
+                if article:
+                    break
+        doc.rows.append(
+            CorrectionRow(
+                line_number=_to_int(_first_attr(item_el, "НомСтр")),
+                original_line_number=_to_int(
+                    _first_attr(item_el, "ПорНомТовВСЧФ")
+                ),
+                name=_first_attr(item_el, "НаимТов"),
+                article=article,
+                quantity_before=_to_int(_first_attr(item_el, "КолТовДо")),
+                quantity_after=_to_int(_first_attr(item_el, "КолТовПосле")),
+                price_before=_to_float(_first_attr(item_el, "ЦенаТовДо")),
+                price_after=_to_float(_first_attr(item_el, "ЦенаТовПосле")),
+                total_before=_num_attrs(total_el, "СтоимДоИзм"),
+                total_after=_num_attrs(total_el, "СтоимПослеИзм"),
+                total_delta=_num_attrs(total_el, "СтоимУм"),
+            )
+        )
+    return doc
+
+
+# ТОРГ-12 (ON_NAKLPOST…): без реальных образцов схема читается терпимо — по
+# набору возможных имён атрибутов; не распознанное даёт пустой результат.
+_TORG12_NUMBER_ATTRS = ("НомерДок", "НомТН", "НомерТН", "НомТТН", "НомНакл")
+_TORG12_DATE_ATTRS = ("ДатаДок", "ДатаТН", "ДатаТТН", "ДатаНакл")
+_TORG12_ROW_QTY = ("КолТов", "КолТовар", "Количество")
+_TORG12_ROW_TOTAL = ("СтТовУчНал", "СтоимУчНал", "СтоимостьВсего", "СуммаСНДС")
+
+
+def parse_torg12_xml(payload: bytes) -> UpdXmlDocument:
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError as exc:
+        raise ValueError(f"Некорректный XML ТОРГ-12: {exc}") from exc
+    doc = UpdXmlDocument()
+    for element in root.iter():
+        number = _first_attr(element, *_TORG12_NUMBER_ATTRS)
+        header_date = _parse_upd_date(_first_attr(element, *_TORG12_DATE_ATTRS))
+        if number and header_date:
+            doc.document_number, doc.document_date = number, header_date
+            break
+    parties = extract_document_parties(payload)
+    if parties is not None:
+        doc.seller_inn = parties.seller_inn
+    for item_el in root.iter():
+        quantity = _to_int(_first_attr(item_el, *_TORG12_ROW_QTY))
+        if quantity is None or not _first_attr(item_el, "НаимТов", "НаимТовар"):
+            continue
+        article = _extract_article(item_el) or _first_attr(
+            item_el, "Артикул", "КодТовара"
+        )
+        total = _to_float(_first_attr(item_el, *_TORG12_ROW_TOTAL))
+        price = _to_float(_first_attr(item_el, "ЦенаТов", "Цена"))
+        if price is None and total is not None and quantity:
+            price = round(total / quantity, 2)
+        if not article:
+            doc.items_without_article += 1
+        doc.items.append(
+            UpdXmlItem(
+                line_number=_to_int(_first_attr(item_el, "НомСтр", "НомПП")),
+                name=_first_attr(item_el, "НаимТов", "НаимТовар"),
+                oem_number=article,
+                quantity=quantity,
+                price=price,
+                total_with_vat=total,
+                gtd_code=_extract_customs_info(item_el)[0],
+            )
+        )
+    totals = [i.total_with_vat for i in doc.items if i.total_with_vat is not None]
+    doc.total_with_vat = round(sum(totals), 2) if totals else None
+    return doc
+
+
+def parse_discrepancy_act_xml(payload: bytes) -> Optional[dict]:
+    """Акт о расхождениях при приёмке (DP_PRIRASXPRIN…): сырой разбор.
+
+    Точные имена атрибутов в блоках РезПрием/СопрДок заранее неизвестны,
+    поэтому сохраняем их как есть (по блокам ПоДокум/ПоФакту/Брак), чтобы
+    человек видел расхождения, и ничего не проводим автоматически.
+    """
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return None
+    details: dict = {"result": [], "basis": [], "document": {}}
+    for element in root.iter():
+        tag = _local_name(element.tag)
+        if tag == "ИдентДокПР":
+            details["document"] = {k: v for k, v in element.attrib.items()}
+        elif tag == "СопрДок":
+            details["basis"].append({k: v for k, v in element.attrib.items()})
+        elif tag == "РезПрием":
+            block: dict = {}
+            for child in element.iter():
+                child_tag = _local_name(child.tag)
+                if child_tag in {"ПоДокум", "ПоФакту", "Брак"} and child.attrib:
+                    block.setdefault(child_tag, []).append(dict(child.attrib))
+            if block:
+                details["result"].append(block)
+    parties = extract_document_parties(payload)
+    if parties is not None:
+        details["seller_inn"] = parties.seller_inn
+        details["buyer_inn"] = parties.buyer_inn
+    return details
