@@ -2012,7 +2012,8 @@ def _parse_upd_xml_attachment(
                 response_comment=None,
                 response_status_raw=None,
                 document_number=document.document_number,
-                document_date=document.document_date,
+                # дата отгрузки/передачи, иначе дата счёта-фактуры
+                document_date=document.shipment_date or document.document_date,
                 gtd_code=item.gtd_code,
                 country_code=item.country_code,
                 country_name=item.country_name,
@@ -5339,6 +5340,46 @@ async def process_supplier_response_messages(
             if is_correction_document(
                 subject, *(attachment.filename for attachment in attachments)
             ):
+                correction_dedup = None
+                if attachments:
+                    from dz_fastapi.services.supplier_document_dedup import apply_email_dedup
+
+                    correction_dedup = await apply_email_dedup(
+                        session,
+                        message_row=message_row,
+                        provider_id=provider.id,
+                        attachments=[
+                            (
+                                str(a.filename or ""),
+                                a.payload,
+                                hashlib.sha256(a.payload).hexdigest(),
+                            )
+                            for a in attachments
+                        ],
+                    )
+                if correction_dedup is not None:
+                    # Диадок главнее: та же корректировка уже пришла там.
+                    for attachment in attachments:
+                        (
+                            file_path,
+                            digest,
+                        ) = await _store_supplier_message_attachment(
+                            message_id=message_row.id, attachment=attachment,
+                        )
+                        session.add(SupplierOrderAttachment(
+                            message_id=message_row.id,
+                            filename=str(
+                                attachment.filename or "attachment.bin"
+                            )[:255],
+                            mime_type=None,
+                            file_path=file_path,
+                            sha256=digest,
+                            parsed_kind="duplicate_document",
+                        ))
+                        stats.stored_attachments += 1
+                    await session.commit()
+                    stats.processed_messages += 1
+                    continue
                 for attachment in attachments:
                     file_path, digest = await _store_supplier_message_attachment(
                         message_id=message_row.id, attachment=attachment,
@@ -6128,6 +6169,26 @@ async def process_supplier_response_messages(
                     ),
                     None,
                 )
+                # Все строки документа без сопоставления с заказом не попадают в
+                # applied-строки: номер и дату берём из них, а не из времени обработки.
+                if row_document_date is None:
+                    row_document_date = next(
+                        (
+                            r.document_date
+                            for r in document_all_unmatched_rows
+                            if r.document_date
+                        ),
+                        None,
+                    )
+                if not row_document_number:
+                    row_document_number = next(
+                        (
+                            str(r.document_number).strip()
+                            for r in document_all_unmatched_rows
+                            if r.document_number
+                        ),
+                        "",
+                    )
                 receipt_document_number = (
                     row_document_number
                     or _extract_shipping_document_number(
@@ -6987,6 +7048,26 @@ async def process_stored_supplier_document_message(
             (ap.document_date for ap in all_applied_flat if ap.document_date),
             None,
         )
+        # Все строки документа без сопоставления с заказом не попадают в
+        # applied-строки: номер и дату берём из них, а не из времени обработки.
+        if row_document_date is None:
+            row_document_date = next(
+                (
+                    r.document_date
+                    for r in document_all_unmatched_rows
+                    if r.document_date
+                ),
+                None,
+            )
+        if not row_document_number:
+            row_document_number = next(
+                (
+                    str(r.document_number).strip()
+                    for r in document_all_unmatched_rows
+                    if r.document_number
+                ),
+                "",
+            )
         receipt_document_number = (
             row_document_number
             or _parse_document_number_from_text(message_row.subject)

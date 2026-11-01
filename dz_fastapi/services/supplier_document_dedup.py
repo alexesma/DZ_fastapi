@@ -117,54 +117,111 @@ def totals_differ(a: object, b: object) -> bool:
     return abs(left - right) > AMOUNT_TOLERANCE
 
 
-def kind_from_diadoc_type(type_named_id: object, filename: object) -> Optional[str]:
+_TRANSPORT_FILE_PREFIXES = ("on_trn", "on_epl", "on_zayavka", "on_zayav")
+_ACT_FILE_PREFIXES = ("on_akt",)
+_TORG12_FILE_PREFIXES = ("on_naklpost",)
+_UKD_FILE_PREFIXES = ("on_korschfdop", "on_nkorschfdop")
+_UPD_FILE_PREFIXES = ("on_nschfdop",)
+_ACT_TYPES = {
+    "xmlacceptancecertificate",
+    "acceptancecertificate",
+    "servicedetails",
+    "reconciliationact",
+}
+
+
+def classify_diadoc_document(
+    type_named_id: object, filename: object
+) -> str:
+    """Категория документа по TypeNamedId и префиксу имени файла Диадока.
+
+    upd | ukd | kschf | torg12 | act | transport | invoice |
+    payment_invoice | other. Настройки по каждому поставщику не нужны.
+    """
     type_key = str(type_named_id or "").strip().lower()
+    name = str(filename or "").strip().lower()
     if type_key in _DIADOC_KIND_BY_TYPE:
         return _DIADOC_KIND_BY_TYPE[type_key]
-    name = str(filename or "").strip().lower()
-    if name.startswith("on_korschfdop"):
+    if "waybill" in type_key or type_key in {"orderrequest"}:
+        return "transport"
+    if name.startswith(_TRANSPORT_FILE_PREFIXES):
+        return "transport"
+    if type_key in _ACT_TYPES or name.startswith(_ACT_FILE_PREFIXES):
+        return "act"
+    if name.startswith(_UKD_FILE_PREFIXES):
         return "ukd"
-    if name.startswith("on_nschfdop"):
+    if name.startswith(_UPD_FILE_PREFIXES):
         return "upd"
-    return None
+    if name.startswith(_TORG12_FILE_PREFIXES):
+        return "torg12"
+    if type_key in {"invoice", "invoicerevision"} or name.startswith(
+        "on_sfakt"
+    ):
+        return "invoice"
+    if type_key == "nonformalized" and name.endswith(".pdf"):
+        return "payment_invoice"
+    if type_key in _NON_RECEIPT_TYPES:
+        return "other_non_receipt"
+    return "other"
+
+
+def kind_from_diadoc_type(type_named_id: object, filename: object) -> Optional[str]:
+    """Вид документа для ключа дедупа (None — дедуплицировать нечем)."""
+    category = classify_diadoc_document(type_named_id, filename)
+    return category if category in {"upd", "ukd", "kschf", "torg12"} else None
 
 
 def is_receipt_document(type_named_id: object, filename: object) -> bool:
     """Может ли документ из Диадока стать поступлением/корректировкой."""
-    type_key = str(type_named_id or "").strip().lower()
-    name = str(filename or "").strip().lower()
     if is_correction_document(type_named_id, filename):
         return True
-    if kind_from_diadoc_type(type_named_id, filename):
-        return True
-    if type_key in _NON_RECEIPT_TYPES:
-        return False
-    if type_key == "nonformalized" and name.endswith(".pdf"):
-        # счёт на оплату и прочие неформализованные PDF
-        return False
-    return True
+    return classify_diadoc_document(type_named_id, filename) not in {
+        "transport",
+        "act",
+        "invoice",
+        "payment_invoice",
+        "other_non_receipt",
+    }
 
 
 def identity_from_xml(payload: bytes, filename: str = "") -> Optional[DocumentIdentity]:
-    """Идентичность документа из XML УПД; None, если файл не УПД/XML."""
-    from dz_fastapi.services.upd_xml import looks_like_upd_xml, parse_upd_xml
+    """Идентичность документа из XML УПД/УКД; None, если файл не опознан."""
+    from dz_fastapi.services.upd_xml import (
+        looks_like_upd_xml,
+        parse_correction_header,
+        parse_upd_xml,
+    )
 
     if not payload or not str(filename or "").lower().endswith(".xml"):
         return None
+    name = str(filename or "").lower()
     try:
-        if not looks_like_upd_xml(payload, filename):
-            return None
-        parsed = parse_upd_xml(payload)
+        if looks_like_upd_xml(payload, filename):
+            parsed = parse_upd_xml(payload)
+            kind = (
+                "ukd"
+                if parsed.knd in {"1115127", "1115132"}
+                or name.startswith(_UKD_FILE_PREFIXES)
+                else "upd"
+            )
+            return DocumentIdentity(
+                kind=kind,
+                number=normalize_document_number(parsed.document_number),
+                date=parsed.document_date,
+                total=_to_decimal(parsed.total_with_vat),
+            )
     except Exception:
+        pass
+    # УКД/КСЧФ: шапка СвКСчФ вместо СвСчФакт
+    header = parse_correction_header(payload)
+    if header is None:
         return None
-    kind = "ukd" if parsed.knd == "1115125" else "upd"
-    if str(filename or "").lower().startswith("on_korschfdop"):
-        kind = "ukd"
+    number, header_date = header
     return DocumentIdentity(
-        kind=kind,
-        number=normalize_document_number(parsed.document_number),
-        date=parsed.document_date,
-        total=_to_decimal(parsed.total_with_vat),
+        kind="ukd",
+        number=normalize_document_number(number),
+        date=header_date,
+        total=None,
     )
 
 
@@ -191,6 +248,30 @@ def apply_diadoc_metadata_identity(document: DiadocIncomingDocument) -> None:
         total=_to_decimal(document.total_amount),
     )
     document.dedup_key = build_dedup_key(document.provider_id, identity)
+
+
+def apply_category_status(document: DiadocIncomingDocument) -> Optional[str]:
+    """Статус для документов, которые никогда не станут поступлением.
+
+    Ставится при синхронизации, даже когда автообработка выключена, чтобы
+    в списке входящих сразу было видно «ЭТрН» / «Акт». Возвращает категорию.
+    """
+    meta = document.raw_metadata or {}
+    category = classify_diadoc_document(
+        meta.get("TypeNamedId"), document.file_name
+    )
+    if category not in {"transport", "act"}:
+        return category
+    document.document_kind = category
+    if str(document.status or "synced").lower() == "synced":
+        document.status = "transport" if category == "transport" else "service_act"
+        document.import_error_details = (
+            "Перевозочный документ (ЭТрН): поступление не создаётся, "
+            "ведётся во вкладке «Перевозки (ЭТрН)»"
+            if category == "transport"
+            else "Акт (работы/услуги): в товарные поступления не передаётся"
+        )
+    return category
 
 
 def refresh_diadoc_identity_from_file(document: DiadocIncomingDocument) -> None:
@@ -505,6 +586,30 @@ async def evaluate_diadoc_document(
         if own is not None:
             return {"action": "proceed"}
 
+    meta = document.raw_metadata or {}
+    category = classify_diadoc_document(
+        meta.get("TypeNamedId"), document.file_name
+    )
+    if category == "transport":
+        document.document_kind = "transport"
+        document.status = "transport"
+        document.import_error_details = (
+            "Перевозочный документ (ЭТрН): поступление не создаётся, "
+            "ведётся во вкладке «Перевозки (ЭТрН)»"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "transport"}
+    if category == "act":
+        document.document_kind = "act"
+        document.status = "service_act"
+        document.import_error_details = (
+            "Акт (работы/услуги): в товарные поступления не передаётся"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "service_act"}
+
     # Направление: документ по нашей продаже клиенту поступлением не станет.
     from dz_fastapi.services.diadoc_direction import (
         DIRECTION_CUSTOMER,
@@ -532,7 +637,6 @@ async def evaluate_diadoc_document(
         await session.commit()
         return {"action": "unknown"}
 
-    meta = document.raw_metadata or {}
     if not is_receipt_document(meta.get("TypeNamedId"), document.file_name):
         document.status = "skipped"
         document.import_error_details = (
@@ -542,8 +646,9 @@ async def evaluate_diadoc_document(
         session.add(document)
         await session.commit()
         return {"action": "skipped"}
-    if is_correction_document(meta.get("TypeNamedId"), document.file_name):
-        return {"action": "proceed"}
+    is_correction = is_correction_document(
+        meta.get("TypeNamedId"), document.file_name
+    )
 
     refresh_diadoc_identity_from_file(document)
     if not document.provider_id or not (
@@ -593,6 +698,12 @@ async def evaluate_diadoc_document(
     email_msg = await _email_message_for_key(session, document)
     if email_msg is None:
         return {"action": "proceed"}
+    if is_correction:
+        # корректировка уже получена письмом: вторую не заводим
+        _link_to_message(document, email_msg)
+        session.add(document)
+        await session.commit()
+        return {"action": "linked", "message_id": int(email_msg.id)}
     if not email_msg.receipts:
         # письмо не дало поступления — главным остаётся Диадок
         email_msg.duplicate_of_diadoc_id = int(document.id)

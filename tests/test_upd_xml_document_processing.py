@@ -177,3 +177,88 @@ async def test_non_upd_xml_does_not_break_processing(
     assert result["receipt_ids"] == []
     assert "ни одна товарная строка" in (result.get("import_error_details") or "")
     assert now_moscow()
+
+
+def upd_with_shipment(article: str, invoice_date="09.04.2026", ship_date=None) -> bytes:
+    ship = (
+        f'<ДокПодтвОтгр НаимДокОтгр="УПД" НомДокОтгр="1" ДатаДокОтгр="{ship_date}"/>'
+        if ship_date
+        else ""
+    )
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<Файл ВерсФорм="5.03"><Документ КНД="1115131">
+<СвСчФакт НомерДок="55" ДатаДок="{invoice_date}">{ship}</СвСчФакт>
+<ТаблСчФакт><СведТов НомСтр="1" НаимТов="Ф" КолТов="2" ЦенаТов="100.00" СтТовУчНал="240.00">
+<ДопСведТов КодТов="{article}"/></СведТов><ВсегоОпл СтТовУчНалВсего="240.00"/></ТаблСчФакт>
+</Документ></Файл>""".encode()
+
+
+def test_shipment_date_preferred_over_invoice_date():
+    from dz_fastapi.services.supplier_order_responses import _parse_upd_xml_attachment
+
+    with_ship = _parse_upd_xml_attachment(upd_with_shipment("A1", ship_date="05.04.2026"), "a.xml")
+    assert with_ship[0].document_date == date(2026, 4, 5)
+    without = _parse_upd_xml_attachment(upd_with_shipment("A1"), "a.xml")
+    assert without[0].document_date == date(2026, 4, 9)
+
+
+@pytest.mark.asyncio
+async def test_receipt_date_is_document_date_not_processing_date(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    """Строки без заказа (нет совпадения) раньше теряли дату документа."""
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    path = tmp_path / "ON_NSCHFDOPPR_unmatched.xml"
+    path.write_bytes(upd_with_shipment("NO-SUCH-ARTICLE-1", invoice_date="29.10.2026"))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="m9", entity_id="e9",
+        provider_id=provider.id, file_name=path.name, document_number="55",
+        document_date=date(2026, 10, 29), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    receipt = (await receipts(test_session))[0]
+    assert receipt.document_date == date(2026, 10, 29)
+    assert receipt.document_number == "55"
+
+
+@pytest.mark.asyncio
+async def test_fix_script_service_corrects_date_and_logs_in_comment(
+    test_session, created_providers, tmp_path
+):
+    from dz_fastapi.models.partner import SupplierOrderAttachment, SupplierOrderMessage
+    from dz_fastapi.services.supplier_receipt_fixes import fix_receipt_document_date
+
+    provider = created_providers[0]
+    path = tmp_path / "ON_NSCHFDOPPR_x.xml"
+    path.write_bytes(upd_with_shipment("A1", invoice_date="29.10.2026"))
+    message = SupplierOrderMessage(
+        provider_id=provider.id, message_type="SHIPPING_DOC", received_at=now_moscow()
+    )
+    test_session.add(message)
+    await test_session.flush()
+    test_session.add(SupplierOrderAttachment(
+        message_id=message.id, filename=path.name, file_path=str(path),
+    ))
+    receipt = SupplierReceipt(
+        provider_id=provider.id, source_message_id=message.id,
+        document_date=date(2026, 11, 1), posted_at=now_moscow(), comment="Авто",
+    )
+    test_session.add(receipt)
+    await test_session.commit()
+    dry = await fix_receipt_document_date(test_session, receipt_id=receipt.id)
+    assert dry["status"] == "needs_fix" and dry["xml_date"] == date(2026, 10, 29)
+    await test_session.refresh(receipt)
+    assert receipt.document_date == date(2026, 11, 1)  # отчёт ничего не меняет
+    done = await fix_receipt_document_date(test_session, receipt_id=receipt.id, apply=True)
+    assert done["status"] == "fixed"
+    await test_session.refresh(receipt)
+    assert receipt.document_date == date(2026, 10, 29)
+    assert receipt.posted_at is not None
+    assert "Дата документа исправлена" in receipt.comment

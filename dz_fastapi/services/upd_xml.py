@@ -57,6 +57,8 @@ class UpdXmlDocument:
     seller_name: Optional[str] = None
     seller_inn: Optional[str] = None
     total_with_vat: Optional[float] = None
+    # Дата отгрузки/передачи (ДокПодтвОтгр*, ДатаПер): предпочтительнее даты СФ
+    shipment_date: Optional[date] = None
     # КНД формы: 1115131 — УПД, 1115125 — УКД
     knd: Optional[str] = None
     items: list[UpdXmlItem] = field(default_factory=list)
@@ -219,6 +221,23 @@ def _extract_seller(root: ET.Element) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+def _extract_shipment_date(root: ET.Element) -> Optional[date]:
+    """Дата отгрузки: документ-подтверждение отгрузки, затем дата передачи."""
+    for element in root.iter():
+        if _local_name(element.tag).startswith("ДокПодтвОтгр"):
+            value = _parse_upd_date(
+                _first_attr(element, "ДатаДокПодтвОтгр", "ДатаДокОтгр")
+            )
+            if value:
+                return value
+    for element in root.iter():
+        if _local_name(element.tag) == "СвПер":
+            value = _parse_upd_date(_first_attr(element, "ДатаПер"))
+            if value:
+                return value
+    return None
+
+
 def parse_upd_xml(payload: bytes) -> UpdXmlDocument:
     """Разбирает УПД XML в структуру документа с позициями.
 
@@ -251,6 +270,7 @@ def parse_upd_xml(payload: bytes) -> UpdXmlDocument:
         if _local_name(element.tag) == "Документ":
             document.knd = _first_attr(element, "КНД")
             break
+    document.shipment_date = _extract_shipment_date(root)
     header_total = None
     for element in root.iter():
         if _local_name(element.tag) == "ВсегоОпл":
@@ -346,3 +366,27 @@ def extract_document_parties(payload: bytes) -> Optional[DocumentParties]:
     if not (seller_inn or buyer_inn):
         return None
     return DocumentParties(seller_inn, seller_kpp, buyer_inn, buyer_kpp)
+
+
+def parse_correction_header(
+    payload: bytes,
+) -> Optional[tuple[Optional[str], Optional[date]]]:
+    """Номер и дата УКД/КСЧФ из шапки СвКСчФ (5.01–5.03).
+
+    В 5.03 атрибуты называются НомерДок/ДатаДок, в более ранних —
+    НомерКСчФ/ДатаКСчФ. None — если шапки нет.
+    """
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return None
+    for element in root.iter():
+        if _local_name(element.tag) not in {"СвКСчФ", "СвКСчФакт"}:
+            continue
+        number = _first_attr(element, "НомерДок", "НомерКСчФ")
+        header_date = _parse_upd_date(
+            _first_attr(element, "ДатаДок", "ДатаКСчФ")
+        )
+        if number or header_date:
+            return number, header_date
+    return None

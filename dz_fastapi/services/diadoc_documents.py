@@ -21,6 +21,7 @@ from dz_fastapi.models.partner import (
 from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.services.diadoc_direction import detect_document_direction
 from dz_fastapi.services.supplier_document_dedup import (
+    apply_category_status,
     apply_diadoc_metadata_identity,
     evaluate_diadoc_document,
 )
@@ -577,6 +578,7 @@ async def sync_diadoc_incoming_documents(
         document.provider_id = resolved_provider_id
         document.raw_metadata = raw
         apply_diadoc_metadata_identity(document)
+        apply_category_status(document)
         if existing_status in (None, "", "synced"):
             document.status = "synced"
         document.synced_at = now_moscow()
