@@ -139,3 +139,9 @@ def test_status_fields_leave_transport_empty_for_utd():
     assert fields["transport_status_named_id"] is None
     assert fields["transport_status_text"] is None
     assert fields["transport_mintrans_id"] is None
+
+
+def test_logistics_waybill_is_transport_document_without_docflow():
+    """ЭТрН (LogisticsWaybill) опознаётся по типу, даже без KlMt."""
+    for type_named_id in ("LogisticsWaybill", "RoadTransportWaybill"):
+        assert is_transport_document({"TypeNamedId": type_named_id}) is True

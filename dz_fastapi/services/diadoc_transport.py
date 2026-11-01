@@ -20,7 +20,8 @@ GIS_EPD_DOCFLOW_NAMED_ID = "KlMt"
 # набор держим отдельно, чтобы не считать перевозочным обычный УПД.
 TRANSPORT_TYPE_NAMED_IDS = frozenset(
     {
-        "RoadTransportWaybill",  # ЭТрН — электронная транспортная накладная
+        "LogisticsWaybill",  # ЭТрН по документации Диадока (kl_trn_mt_05_01)
+        "RoadTransportWaybill",  # прежнее значение, оставлено для совместимости
         "Waybill",  # ЭПЛ — электронный путевой лист
         "OrderRequest",  # Э33 — заказ-заявка
     }
