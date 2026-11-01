@@ -693,6 +693,17 @@ async def build_shipment_formalized_readiness(
             "Заполните профиль формализованного УПД в разделе Документы → Диадок."
         )
 
+    from dz_fastapi.services.marking_shipment_check import check_shipment_marking
+
+    marking = await check_shipment_marking(session, document, use_gis=False)
+    for issue in marking["issues"]:
+        warnings.append(f"КИЗ: {issue['message']}")
+    if marking["issues"]:
+        recommended_actions.append(
+            "Проверьте коды маркировки отгрузки (кнопка «Проверить КИЗ» "
+            "в блоке готовности УПД)."
+        )
+
     ready_nonformalized = not any(
         item
         for item in missing_required_fields
@@ -1662,12 +1673,14 @@ def _collect_shipment_item_marking_codes(item: ShipmentDocumentItem) -> list[str
             )
         )
     if not codes:
+        # Коды всей партии подставляем, только если они точно относятся к
+        # этой строке: иначе в УПД попали бы КИЗ чужих штук из партии.
         lot = getattr(item, "lot", None)
-        codes.extend(
-            _normalize_marking_codes_for_xml(
-                getattr(lot, "marking_codes", None)
-            )
+        lot_codes = _normalize_marking_codes_for_xml(
+            getattr(lot, "marking_codes", None)
         )
+        if lot_codes and len(lot_codes) == int(item.quantity or 0):
+            codes.extend(lot_codes)
     return list(dict.fromkeys(codes))
 
 

@@ -1561,6 +1561,25 @@ async def get_diadoc_outbound_readiness_for_shipment(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.post(
+    "/outbound-readiness/shipment/{shipment_id}/marking-check",
+    status_code=status.HTTP_200_OK,
+    summary="Проверить КИЗ отгрузки (в т.ч. по ГИС МТ, если выполнен вход)",
+)
+async def check_diadoc_shipment_marking(
+    shipment_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.diadoc_outgoing import _load_shipment_document
+    from dz_fastapi.services.marking_shipment_check import check_shipment_marking
+
+    document = await _load_shipment_document(session, shipment_id=shipment_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Shipment document not found")
+    return await check_shipment_marking(session, document, use_gis=True)
+
+
 @router.get(
     "/outbound-readiness/shipments",
     response_model=list[DiadocShipmentFormalizedReadinessOut],
