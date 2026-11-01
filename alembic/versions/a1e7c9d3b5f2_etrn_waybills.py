@@ -1,7 +1,7 @@
 """ETrN via Diadoc: directories and waybills.
 
 Revision ID: a1e7c9d3b5f2
-Revises: 9b2d4f6a8c13
+Revises: 4c8e1a7b9d20
 """
 
 import sqlalchemy as sa
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "a1e7c9d3b5f2"
-down_revision = "9b2d4f6a8c13"
+down_revision = "4c8e1a7b9d20"
 branch_labels = None
 depends_on = None
 
