@@ -202,6 +202,30 @@ class DiadocInboundDocumentOut(BaseModel):
     can_register_supplier_message: bool = False
     can_process_supplier_message: bool = False
     supplier_receipt_ids: list[int] = Field(default_factory=list)
+    document_kind: str | None = None
+    total_amount: float | None = None
+    # email | diadoc — тот же документ уже получен другим путём
+    duplicate_kind: str | None = None
+    matched_message_id: int | None = None
+    duplicate_of_document_id: int | None = None
+    # pending | applied | correction_required | dismissed
+    amount_mismatch_status: str | None = None
+    mismatch_message_id: int | None = None
+    mismatch_other_total: float | None = None
+    mismatch_resolved_at: datetime | None = None
+    mismatch_log: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiadocMismatchResolveIn(BaseModel):
+    action: str = Field(pattern="^(apply_diadoc|keep_existing)$")
+
+
+class DiadocMismatchResolveOut(BaseModel):
+    document_id: int
+    status: str
+    receipt_ids: list[int] = Field(default_factory=list)
+    correction_id: int | None = None
+    detail: str
 
 
 class DiadocShipmentFormalizedReadinessOut(BaseModel):

@@ -1472,6 +1472,14 @@ class SupplierOrderMessage(Base):
         nullable=True,
         index=True,
     )
+    # Идентичность документа (УПД/накладная) для защиты от дублей между
+    # почтой и Диадоком: см. services/supplier_document_dedup.py.
+    document_kind = Column(String(32), nullable=True)
+    document_key = Column(String(255), nullable=True, index=True)
+    document_total = Column(DECIMAL(14, 2), nullable=True)
+    # id DiadocIncomingDocument, дублем которого является это письмо
+    # (без FK: модели Диадока ссылаются на сообщение в обратную сторону).
+    duplicate_of_diadoc_id = Column(Integer, nullable=True, index=True)
 
     supplier_order = relationship(
         "SupplierOrder",

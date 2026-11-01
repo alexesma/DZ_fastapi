@@ -38,6 +38,8 @@ from dz_fastapi.schemas.diadoc import (
     DiadocInboundDocumentProcessIn,
     DiadocInboundDocumentProcessResult,
     DiadocInboundDocumentRegisterIn,
+    DiadocMismatchResolveIn,
+    DiadocMismatchResolveOut,
     DiadocInboundDocumentRegisterResult,
     DiadocInboundSignStartIn,
     DiadocInboundSyncRequest,
@@ -71,6 +73,9 @@ from dz_fastapi.services.diadoc_cloud_sign import (
     start_send_outgoing_task,
 )
 from dz_fastapi.services.diadoc_boxes import flatten_counteragent
+from dz_fastapi.services.supplier_document_dedup import (
+    resolve_amount_mismatch,
+)
 from dz_fastapi.services.diadoc_documents import (
     ensure_diadoc_document_content,
     get_diadoc_incoming_document,
@@ -207,6 +212,24 @@ def _incoming_document_to_out(
             (document.provider_id or 0) > 0 and document.local_file_path
         ),
         supplier_receipt_ids=receipt_ids,
+        document_kind=document.document_kind,
+        total_amount=(
+            float(document.total_amount)
+            if document.total_amount is not None
+            else None
+        ),
+        duplicate_kind=document.duplicate_kind,
+        matched_message_id=document.matched_message_id,
+        duplicate_of_document_id=document.duplicate_of_document_id,
+        amount_mismatch_status=document.amount_mismatch_status,
+        mismatch_message_id=document.mismatch_message_id,
+        mismatch_other_total=(
+            float(document.mismatch_other_total)
+            if document.mismatch_other_total is not None
+            else None
+        ),
+        mismatch_resolved_at=document.mismatch_resolved_at,
+        mismatch_log=list(document.mismatch_log or []),
     )
 
 
@@ -960,6 +983,46 @@ async def register_diadoc_inbound_document(
 
 
 @router.post(
+    "/inbound-documents/{document_id}/resolve-mismatch",
+    response_model=DiadocMismatchResolveOut,
+    status_code=status.HTTP_200_OK,
+)
+async def resolve_diadoc_inbound_mismatch_endpoint(
+    document_id: int,
+    payload: DiadocMismatchResolveIn,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_admin),
+):
+    try:
+        result = await resolve_amount_mismatch(
+            session,
+            document_id=document_id,
+            action=payload.action,
+            user_id=getattr(user, "id", None),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    outcome = result.get("status")
+    details = {
+        "applied": "Данные Диадок применены, поступление пересоздано",
+        "dismissed": "Оставлена версия из письма; Диадок-документ привязан",
+        "correction_required": (
+            "Поступление уже проведено: остатки не менялись, создана КСФ "
+            "для корректировки"
+        ),
+    }
+    return DiadocMismatchResolveOut(
+        document_id=document_id,
+        status=str(outcome),
+        receipt_ids=[int(i) for i in (result.get("receipt_ids") or [])],
+        correction_id=result.get("correction_id"),
+        detail=details.get(str(outcome), str(outcome)),
+    )
+
+
+@router.post(
     "/inbound-documents/{document_id}/process",
     response_model=DiadocInboundDocumentProcessResult,
     status_code=status.HTTP_200_OK,
@@ -1002,8 +1065,17 @@ async def process_diadoc_inbound_document_endpoint(
             register_if_needed=payload.register_if_needed,
             client=client,
         )
+        dedup_details = {
+            "linked": "Тот же документ уже получен по почте — привязан к "
+            "существующему поступлению, дубль не создан",
+            "duplicate": "Дубль уже загруженного документа — не обработан",
+            "mismatch": "Расхождение по сумме — нужно решение администратора",
+            "skipped": "Не поступление (счёт на оплату и т.п.) — пропущено",
+        }
         detail = (
-            "КСФ зарегистрирована; сопоставьте строки с исходным приходом"
+            dedup_details[result["dedup_action"]]
+            if result.get("dedup_action") in dedup_details
+            else "КСФ зарегистрирована; сопоставьте строки с исходным приходом"
             if result.get("correction_id")
             else (
                 "Диадок-документ уже был обработан ранее"

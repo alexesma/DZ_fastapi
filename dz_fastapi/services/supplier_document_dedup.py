@@ -1,0 +1,694 @@
+"""Защита от дублей документов поставщиков между почтой и Диадоком.
+
+Ключ документа: поставщик + тип + нормализованный номер + дата. Номер и дату
+берём из XML (формализованный УПД ФНС); из PDF/Excel не извлекаем — там
+дедуплицировать не пытаемся (кроме совпадения sha256 файла).
+
+Правила:
+* Диадок главнее почты: письмо с документом, который уже есть в Диадоке,
+  не обрабатывается и помечается дублем (DUPLICATE_DOC).
+* Письмо обработано раньше — Диадок-документ привязывается к существующему
+  поступлению («тот же документ»), второе поступление не создаётся.
+* Ключ совпал, но итоговая сумма отличается больше чем на 0.01 ₽ —
+  не склеиваем и не обрабатываем: «расхождение по сумме», решение за
+  администратором (resolve_amount_mismatch).
+* Поступлениями становятся только УПД, накладные и корректировки; счета на
+  оплату и т.п. из Диадока пропускаются.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
+from typing import Any, Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.diadoc import DiadocIncomingDocument
+from dz_fastapi.models.partner import (
+    SupplierOrderAttachment,
+    SupplierOrderMessage,
+    SupplierReceipt,
+)
+from dz_fastapi.services.supplier_receipt_corrections import (
+    is_correction_document,
+)
+
+logger = logging.getLogger("dz_fastapi")
+
+AMOUNT_TOLERANCE = Decimal("0.01")
+MESSAGE_TYPE_DUPLICATE = "DUPLICATE_DOC"
+MESSAGE_TYPE_MISMATCH = "DOCUMENT_MISMATCH"
+
+_NUMBER_CLEAN_RE = re.compile(r"[^0-9A-Za-zА-Яа-яЁё]+")
+
+_DIADOC_KIND_BY_TYPE = {
+    "universaltransferdocument": "upd",
+    "universaltransferdocumentrevision": "upd",
+    "xmltorg12": "torg12",
+    "torg12": "torg12",
+    "universalcorrectiondocument": "ukd",
+    "universalcorrectiondocumentrevision": "ukd",
+    "invoicecorrection": "kschf",
+}
+# Типы, которые точно не являются поступлением.
+_NON_RECEIPT_TYPES = {
+    "invoice",
+    "invoicerevision",
+    "xmlacceptancecertificate",
+    "acceptancecertificate",
+    "contract",
+    "pricelist",
+    "proformainvoice",
+    "reconciliationact",
+}
+
+
+@dataclass(slots=True)
+class DocumentIdentity:
+    kind: Optional[str]
+    number: Optional[str]
+    date: Optional[date]
+    total: Optional[Decimal]
+
+    @property
+    def usable(self) -> bool:
+        return bool(self.kind and self.number and self.date)
+
+
+def normalize_document_number(value: object) -> Optional[str]:
+    text = _NUMBER_CLEAN_RE.sub("", str(value or "")).upper()
+    # «0012» и «12» — один и тот же номер
+    text = text.lstrip("0") or ("0" if text else "")
+    return text or None
+
+
+def _to_decimal(value: object) -> Optional[Decimal]:
+    if value in (None, ""):
+        return None
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except Exception:
+        return None
+
+
+def totals_differ(a: object, b: object) -> bool:
+    """True только если обе суммы известны и различаются больше 0.01 ₽."""
+    left, right = _to_decimal(a), _to_decimal(b)
+    if left is None or right is None:
+        return False
+    return abs(left - right) > AMOUNT_TOLERANCE
+
+
+def kind_from_diadoc_type(type_named_id: object, filename: object) -> Optional[str]:
+    type_key = str(type_named_id or "").strip().lower()
+    if type_key in _DIADOC_KIND_BY_TYPE:
+        return _DIADOC_KIND_BY_TYPE[type_key]
+    name = str(filename or "").strip().lower()
+    if name.startswith("on_korschfdop"):
+        return "ukd"
+    if name.startswith("on_nschfdop"):
+        return "upd"
+    return None
+
+
+def is_receipt_document(type_named_id: object, filename: object) -> bool:
+    """Может ли документ из Диадока стать поступлением/корректировкой."""
+    type_key = str(type_named_id or "").strip().lower()
+    name = str(filename or "").strip().lower()
+    if is_correction_document(type_named_id, filename):
+        return True
+    if kind_from_diadoc_type(type_named_id, filename):
+        return True
+    if type_key in _NON_RECEIPT_TYPES:
+        return False
+    if type_key == "nonformalized" and name.endswith(".pdf"):
+        # счёт на оплату и прочие неформализованные PDF
+        return False
+    return True
+
+
+def identity_from_xml(payload: bytes, filename: str = "") -> Optional[DocumentIdentity]:
+    """Идентичность документа из XML УПД; None, если файл не УПД/XML."""
+    from dz_fastapi.services.upd_xml import looks_like_upd_xml, parse_upd_xml
+
+    if not payload or not str(filename or "").lower().endswith(".xml"):
+        return None
+    try:
+        if not looks_like_upd_xml(payload, filename):
+            return None
+        parsed = parse_upd_xml(payload)
+    except Exception:
+        return None
+    kind = "ukd" if parsed.knd == "1115125" else "upd"
+    if str(filename or "").lower().startswith("on_korschfdop"):
+        kind = "ukd"
+    return DocumentIdentity(
+        kind=kind,
+        number=normalize_document_number(parsed.document_number),
+        date=parsed.document_date,
+        total=_to_decimal(parsed.total_with_vat),
+    )
+
+
+def build_dedup_key(
+    provider_id: Optional[int], identity: Optional[DocumentIdentity]
+) -> Optional[str]:
+    if not provider_id or identity is None or not identity.usable:
+        return None
+    return (
+        f"{int(provider_id)}|{identity.kind}|{identity.number}|"
+        f"{identity.date.isoformat()}"
+    )
+
+
+def apply_diadoc_metadata_identity(document: DiadocIncomingDocument) -> None:
+    """Ключ из метаданных списка Диадока (до скачивания файла)."""
+    meta = document.raw_metadata or {}
+    kind = kind_from_diadoc_type(meta.get("TypeNamedId"), document.file_name)
+    document.document_kind = kind
+    identity = DocumentIdentity(
+        kind=kind,
+        number=normalize_document_number(document.document_number),
+        date=document.document_date,
+        total=_to_decimal(document.total_amount),
+    )
+    document.dedup_key = build_dedup_key(document.provider_id, identity)
+
+
+def refresh_diadoc_identity_from_file(document: DiadocIncomingDocument) -> None:
+    """Уточняет ключ и сумму по скачанному XML (если это УПД)."""
+    apply_diadoc_metadata_identity(document)
+    path = document.local_file_path
+    if not path or not os.path.exists(os.path.abspath(path)):
+        return
+    if not str(document.file_name or path).lower().endswith(".xml"):
+        return
+    with open(os.path.abspath(path), "rb") as fh:
+        identity = identity_from_xml(fh.read(), document.file_name or path)
+    if identity is None:
+        return
+    document.total_amount = identity.total
+    if identity.usable:
+        document.document_kind = identity.kind
+        document.dedup_key = build_dedup_key(document.provider_id, identity)
+
+
+# ---------------------------------------------------------------- почта
+
+
+async def apply_email_dedup(
+    session: AsyncSession,
+    *,
+    message_row: SupplierOrderMessage,
+    provider_id: int,
+    attachments: list[tuple[str, bytes, str]],
+) -> Optional[str]:
+    """Проверка письма до разбора. attachments: (имя, содержимое, sha256).
+
+    Возвращает None (обрабатывать как обычно), "duplicate" или "mismatch".
+    Для необработанных писем сохраняет ключ в message_row.
+    """
+    identity: Optional[DocumentIdentity] = None
+    for filename, payload, _digest in attachments:
+        identity = identity_from_xml(payload, filename)
+        if identity is not None:
+            break
+    key = build_dedup_key(provider_id, identity)
+    if identity is not None:
+        message_row.document_kind = identity.kind
+        message_row.document_total = identity.total
+    if key:
+        message_row.document_key = key
+
+    digests = [d for _f, _p, d in attachments if d]
+    candidates: list[DiadocIncomingDocument] = []
+    if key:
+        candidates = list(
+            (
+                await session.execute(
+                    select(DiadocIncomingDocument)
+                    .where(
+                        DiadocIncomingDocument.dedup_key == key,
+                        DiadocIncomingDocument.status != "skipped",
+                    )
+                    .order_by(DiadocIncomingDocument.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if not candidates and digests:
+        candidates = list(
+            (
+                await session.execute(
+                    select(DiadocIncomingDocument)
+                    .where(
+                        DiadocIncomingDocument.provider_id == provider_id,
+                        DiadocIncomingDocument.content_sha256.in_(digests),
+                    )
+                    .order_by(DiadocIncomingDocument.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if not candidates:
+        return None
+    original = candidates[0]
+    same_file = bool(digests and original.content_sha256 in digests)
+    if (
+        not same_file
+        and identity is not None
+        and totals_differ(original.total_amount, identity.total)
+    ):
+        message_row.message_type = MESSAGE_TYPE_MISMATCH
+        message_row.duplicate_of_diadoc_id = int(original.id)
+        message_row.import_error_details = (
+            f"Расхождение по сумме с документом из Диадок "
+            f"№{original.document_number}: письмо {identity.total} ₽, "
+            f"Диадок {original.total_amount} ₽"
+        )[:500]
+        if original.amount_mismatch_status is None:
+            original.amount_mismatch_status = "pending"
+            original.mismatch_message_id = int(message_row.id)
+            original.mismatch_other_total = identity.total
+            await _notify_mismatch(session, original, identity.total, "письмо")
+        session.add(original)
+        return "mismatch"
+    message_row.message_type = MESSAGE_TYPE_DUPLICATE
+    message_row.duplicate_of_diadoc_id = int(original.id)
+    message_row.import_error_details = (
+        f"Дубль документа из Диадок №{original.document_number or '—'}"
+        f" от {original.document_date or '—'} (id {original.id}); "
+        "письмо не обрабатывалось"
+    )[:500]
+    return "duplicate"
+
+
+async def _notify_mismatch(
+    session: AsyncSession,
+    document: DiadocIncomingDocument,
+    other_total: Optional[Decimal],
+    other_source: str,
+) -> None:
+    from dz_fastapi.models.notification import AppNotificationLevel
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    await create_admin_notifications(
+        session=session,
+        title="Расхождение по сумме документа поставщика",
+        message=(
+            f"Документ №{document.document_number or '—'} от "
+            f"{document.document_date or '—'}: Диадок "
+            f"{document.total_amount} ₽, {other_source} {other_total} ₽. "
+            "Документ не обработан автоматически — откройте Диадок → "
+            "Входящие и примите решение."
+        ),
+        level=AppNotificationLevel.WARNING,
+        link="/diadoc",
+        commit=False,
+    )
+
+
+# --------------------------------------------------------------- Диадок
+
+
+async def _email_message_for_key(
+    session: AsyncSession, document: DiadocIncomingDocument
+) -> Optional[SupplierOrderMessage]:
+    """Письмо с тем же документом (по ключу или по sha256 файла)."""
+    base = (
+        select(SupplierOrderMessage)
+        .options(selectinload(SupplierOrderMessage.receipts))
+        .where(
+            SupplierOrderMessage.provider_id == document.provider_id,
+            SupplierOrderMessage.duplicate_of_diadoc_id.is_(None),
+        )
+        .order_by(SupplierOrderMessage.id.asc())
+    )
+    if document.supplier_order_message_id is not None:
+        base = base.where(
+            SupplierOrderMessage.id != document.supplier_order_message_id
+        )
+    if document.dedup_key:
+        rows = list(
+            (
+                await session.execute(
+                    base.where(
+                        SupplierOrderMessage.document_key == document.dedup_key
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if rows:
+            # предпочитаем письмо, по которому уже есть поступление
+            rows.sort(key=lambda m: (not m.receipts, m.id))
+            return rows[0]
+    if document.content_sha256:
+        rows = list(
+            (
+                await session.execute(
+                    base.join(
+                        SupplierOrderAttachment,
+                        SupplierOrderAttachment.message_id
+                        == SupplierOrderMessage.id,
+                    ).where(
+                        SupplierOrderAttachment.sha256
+                        == document.content_sha256,
+                        SupplierOrderMessage.source_uid.is_not(None),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if rows:
+            return rows[0]
+    return None
+
+
+async def evaluate_diadoc_document(
+    session: AsyncSession, *, document: DiadocIncomingDocument
+) -> dict[str, Any]:
+    """Решает, можно ли обрабатывать Диадок-документ как новое поступление.
+
+    action: proceed | skipped | linked | duplicate | mismatch.
+    """
+    if document.duplicate_kind == "email" and document.matched_message_id:
+        return {"action": "linked", "message_id": document.matched_message_id}
+    if document.duplicate_kind == "diadoc":
+        return {"action": "duplicate"}
+    if document.amount_mismatch_status in ("pending", "correction_required"):
+        return {"action": "mismatch"}
+    if document.amount_mismatch_status in ("applied", "dismissed"):
+        return {"action": "proceed"}
+
+    if document.supplier_order_message_id is not None:
+        own = (
+            await session.execute(
+                select(SupplierReceipt.id)
+                .where(
+                    SupplierReceipt.source_message_id
+                    == document.supplier_order_message_id
+                )
+                .limit(1)
+            )
+        ).first()
+        if own is not None:
+            return {"action": "proceed"}
+
+    meta = document.raw_metadata or {}
+    if not is_receipt_document(meta.get("TypeNamedId"), document.file_name):
+        document.status = "skipped"
+        document.import_error_details = (
+            "Не поступление (счёт на оплату или другой документ): "
+            "в поступления не передаётся"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "skipped"}
+    if is_correction_document(meta.get("TypeNamedId"), document.file_name):
+        return {"action": "proceed"}
+
+    refresh_diadoc_identity_from_file(document)
+    if not document.provider_id or not (
+        document.dedup_key or document.content_sha256
+    ):
+        return {"action": "proceed"}
+
+    # 1) тот же документ уже пришёл другим Диадок-сообщением
+    if document.dedup_key:
+        other = (
+            (
+                await session.execute(
+                    select(DiadocIncomingDocument)
+                    .where(
+                        DiadocIncomingDocument.dedup_key == document.dedup_key,
+                        DiadocIncomingDocument.id < document.id,
+                        DiadocIncomingDocument.status != "skipped",
+                    )
+                    .order_by(DiadocIncomingDocument.id.asc())
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if other is not None:
+            if totals_differ(other.total_amount, document.total_amount):
+                return await _flag_mismatch(
+                    session,
+                    document,
+                    other_message_id=other.supplier_order_message_id,
+                    other_total=other.total_amount,
+                    source="другой документ Диадок",
+                )
+            document.duplicate_kind = "diadoc"
+            document.duplicate_of_document_id = int(
+                other.duplicate_of_document_id or other.id
+            )
+            document.status = "duplicate"
+            document.import_error_details = (
+                f"Дубль документа Диадок id {other.id}"
+            )
+            session.add(document)
+            await session.commit()
+            return {"action": "duplicate"}
+
+    # 2) письмо
+    email_msg = await _email_message_for_key(session, document)
+    if email_msg is None:
+        return {"action": "proceed"}
+    if not email_msg.receipts:
+        # письмо не дало поступления — главным остаётся Диадок
+        email_msg.duplicate_of_diadoc_id = int(document.id)
+        if email_msg.message_type in (None, "UNKNOWN", "IMPORT_ERROR"):
+            email_msg.message_type = MESSAGE_TYPE_DUPLICATE
+        email_msg.import_error_details = (
+            f"Тот же документ пришёл через Диадок (id {document.id})"
+        )
+        session.add(email_msg)
+        await session.commit()
+        return {"action": "proceed"}
+    attachments = list(
+        (
+            await session.execute(
+                select(SupplierOrderAttachment).where(
+                    SupplierOrderAttachment.message_id == email_msg.id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    same_file = bool(
+        document.content_sha256
+        and any(a.sha256 == document.content_sha256 for a in attachments)
+    )
+    if not same_file and totals_differ(
+        document.total_amount, email_msg.document_total
+    ):
+        return await _flag_mismatch(
+            session,
+            document,
+            other_message_id=int(email_msg.id),
+            other_total=email_msg.document_total,
+            source="письмо",
+        )
+    _link_to_message(document, email_msg)
+    session.add(document)
+    await session.commit()
+    return {"action": "linked", "message_id": int(email_msg.id)}
+
+
+def _link_to_message(
+    document: DiadocIncomingDocument, message: SupplierOrderMessage
+) -> None:
+    document.duplicate_kind = "email"
+    document.matched_message_id = int(message.id)
+    document.supplier_order_message_id = int(message.id)
+    document.status = "processed"
+    document.registered_at = document.registered_at or now_moscow()
+    document.import_error_details = (
+        "Тот же документ уже получен по почте; второе поступление не "
+        "создаётся, подпись и статусы — по Диадоку"
+    )
+
+
+async def _flag_mismatch(
+    session: AsyncSession,
+    document: DiadocIncomingDocument,
+    *,
+    other_message_id: Optional[int],
+    other_total: Optional[Decimal],
+    source: str,
+) -> dict[str, Any]:
+    document.amount_mismatch_status = "pending"
+    document.mismatch_message_id = other_message_id
+    document.mismatch_other_total = other_total
+    document.status = "amount_mismatch"
+    document.import_error_details = (
+        f"Расхождение по сумме: Диадок {document.total_amount} ₽, "
+        f"{source} {other_total} ₽ — нужно решение администратора"
+    )
+    session.add(document)
+    await _notify_mismatch(session, document, other_total, source)
+    await session.commit()
+    return {"action": "mismatch"}
+
+
+def _log(document: DiadocIncomingDocument, **entry: Any) -> None:
+    entry["at"] = now_moscow().isoformat()
+    document.mismatch_log = [*(document.mismatch_log or []), entry]
+
+
+async def resolve_amount_mismatch(
+    session: AsyncSession,
+    *,
+    document_id: int,
+    action: str,
+    user_id: Optional[int] = None,
+) -> dict[str, Any]:
+    """action: apply_diadoc | keep_existing."""
+    from dz_fastapi.services.diadoc_documents import (
+        get_diadoc_incoming_document,
+        process_diadoc_incoming_document,
+        register_diadoc_document_as_supplier_message,
+    )
+    from dz_fastapi.services.supplier_receipt_corrections import (
+        register_incoming_correction,
+    )
+
+    document = await get_diadoc_incoming_document(
+        session, document_id=document_id
+    )
+    if document is None:
+        raise LookupError("Document not found")
+    if document.amount_mismatch_status != "pending":
+        raise ValueError("У документа нет нерешённого расхождения по сумме")
+    if action not in ("apply_diadoc", "keep_existing"):
+        raise ValueError("Unknown action")
+
+    email_msg = None
+    if document.mismatch_message_id:
+        email_msg = (
+            await session.execute(
+                select(SupplierOrderMessage)
+                .options(
+                    selectinload(SupplierOrderMessage.receipts).selectinload(
+                        SupplierReceipt.items
+                    )
+                )
+                .where(SupplierOrderMessage.id == document.mismatch_message_id)
+            )
+        ).scalar_one_or_none()
+    receipts = list(email_msg.receipts) if email_msg is not None else []
+
+    if action == "keep_existing":
+        document.amount_mismatch_status = "dismissed"
+        document.mismatch_resolved_at = now_moscow()
+        _log(document, action=action, user_id=user_id)
+        if receipts:
+            _link_to_message(document, email_msg)
+        else:
+            document.status = "synced"
+            document.import_error_details = None
+        session.add(document)
+        await session.commit()
+        return {
+            "status": "dismissed",
+            "receipt_ids": [int(r.id) for r in receipts],
+        }
+
+    posted = [r for r in receipts if r.posted_at is not None]
+    if posted:
+        diadoc_msg = await register_diadoc_document_as_supplier_message(
+            session, document=document, provider_id=document.provider_id
+        )
+        diadoc_msg.message_type = "CORRECTION_DOC"
+        correction = await register_incoming_correction(
+            session,
+            provider_id=int(document.provider_id),
+            message_id=int(diadoc_msg.id),
+            source_kind="diadoc",
+            document_number=document.document_number,
+            document_date=document.document_date,
+        )
+        document.amount_mismatch_status = "correction_required"
+        document.status = "registered"
+        document.import_error_details = (
+            "Поступление уже проведено; остатки не менялись, требуется "
+            f"корректировка (КСФ #{correction.id})"
+        )
+        _log(
+            document,
+            action=action,
+            user_id=user_id,
+            result="correction_required",
+            correction_id=int(correction.id),
+            receipt_ids=[int(r.id) for r in posted],
+            old_total=str(email_msg.document_total),
+            new_total=str(document.total_amount),
+        )
+        session.add(document)
+        await session.commit()
+        return {
+            "status": "correction_required",
+            "correction_id": int(correction.id),
+            "receipt_ids": [int(r.id) for r in posted],
+        }
+
+    removed: list[dict[str, Any]] = []
+    for receipt in receipts:
+        removed.append(
+            {
+                "receipt_id": int(receipt.id),
+                "items": [
+                    {
+                        "oem": i.oem_number,
+                        "qty": i.received_quantity,
+                        "total": str(i.total_price_with_vat),
+                    }
+                    for i in receipt.items
+                ],
+            }
+        )
+        await session.delete(receipt)  # черновик: на остатки не влияет
+    if email_msg is not None:
+        email_msg.message_type = MESSAGE_TYPE_DUPLICATE
+        email_msg.duplicate_of_diadoc_id = int(document.id)
+        email_msg.import_error_details = (
+            "Строки заменены данными Диадок после расхождения по сумме"
+        )
+        session.add(email_msg)
+    document.amount_mismatch_status = "applied"
+    document.mismatch_resolved_at = now_moscow()
+    document.status = "synced"
+    document.import_error_details = None
+    _log(
+        document,
+        action=action,
+        user_id=user_id,
+        result="draft_replaced",
+        old_total=str(email_msg.document_total) if email_msg else None,
+        removed_receipts=removed,
+    )
+    session.add(document)
+    await session.commit()
+    result = await process_diadoc_incoming_document(
+        session,
+        document=document,
+        provider_id=int(document.provider_id),
+        download_content_if_missing=False,
+        register_if_needed=True,
+    )
+    return {"status": "applied", **result}

@@ -56,6 +56,9 @@ class UpdXmlDocument:
     document_date: Optional[date] = None
     seller_name: Optional[str] = None
     seller_inn: Optional[str] = None
+    total_with_vat: Optional[float] = None
+    # КНД формы: 1115131 — УПД, 1115125 — УКД
+    knd: Optional[str] = None
     items: list[UpdXmlItem] = field(default_factory=list)
     items_without_article: int = 0
 
@@ -244,6 +247,15 @@ def parse_upd_xml(payload: bytes) -> UpdXmlDocument:
         _first_attr(invoice_header, "ДатаДок", "ДатаСчФ")
     )
     document.seller_name, document.seller_inn = _extract_seller(root)
+    for element in root.iter():
+        if _local_name(element.tag) == "Документ":
+            document.knd = _first_attr(element, "КНД")
+            break
+    header_total = None
+    for element in root.iter():
+        if _local_name(element.tag) == "ВсегоОпл":
+            header_total = _to_float(_first_attr(element, "СтТовУчНалВсего"))
+            break
 
     for item_el in root.iter():
         if _local_name(item_el.tag) != "СведТов":
@@ -274,6 +286,15 @@ def parse_upd_xml(payload: bytes) -> UpdXmlDocument:
         if not article:
             document.items_without_article += 1
         document.items.append(item)
+
+    if header_total is None:
+        line_totals = [
+            item.total_with_vat
+            for item in document.items
+            if item.total_with_vat is not None
+        ]
+        header_total = round(sum(line_totals), 2) if line_totals else None
+    document.total_with_vat = header_total
 
     logger.debug(
         "Parsed UPD XML: number=%s date=%s items=%s without_article=%s",

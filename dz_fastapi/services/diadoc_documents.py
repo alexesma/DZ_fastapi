@@ -19,6 +19,10 @@ from dz_fastapi.models.partner import (
     SupplierOrderMessage,
     SupplierResponseConfig,
 )
+from dz_fastapi.services.supplier_document_dedup import (
+    apply_diadoc_metadata_identity,
+    evaluate_diadoc_document,
+)
 from dz_fastapi.services.supplier_order_responses import process_stored_supplier_document_message
 from dz_fastapi.services.supplier_receipt_corrections import (
     is_correction_document,
@@ -359,6 +363,21 @@ async def process_diadoc_incoming_document(
             document=document,
         )
 
+    verdict = await evaluate_diadoc_document(session, document=document)
+    if verdict["action"] != "proceed":
+        return {
+            "message_id": int(
+                verdict.get("message_id")
+                or document.supplier_order_message_id
+                or 0
+            ),
+            "provider_id": target_provider_id,
+            "receipt_ids": [],
+            "dedup_action": verdict["action"],
+            "import_error_details": document.import_error_details,
+            "already_processed": verdict["action"] == "linked",
+        }
+
     message_row: SupplierOrderMessage | None = None
     if document.supplier_order_message_id is not None:
         message_row = await session.get(
@@ -551,6 +570,7 @@ async def sync_diadoc_incoming_documents(
         document.sent_at = _ticks_to_datetime(raw.get("SendTimestampTicks"))
         document.provider_id = resolved_provider_id
         document.raw_metadata = raw
+        apply_diadoc_metadata_identity(document)
         if existing_status in (None, "", "synced"):
             document.status = "synced"
         document.synced_at = now_moscow()
@@ -573,6 +593,16 @@ async def sync_diadoc_incoming_documents(
                 and document.provider_id is not None
                 and document.supplier_order_message_id is None
             ):
+                verdict = await evaluate_diadoc_document(
+                    session, document=document
+                )
+                if verdict["action"] != "proceed":
+                    result["dedup_" + verdict["action"]] = (
+                        result.get("dedup_" + verdict["action"], 0) + 1
+                    )
+                    session.add(document)
+                    await session.commit()
+                    continue
                 await register_diadoc_document_as_supplier_message(
                     session,
                     document=document,

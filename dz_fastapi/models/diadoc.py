@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
 )
@@ -48,6 +49,36 @@ class DiadocIncomingDocument(Base):
     content_sha256 = Column(String(64), nullable=True, index=True)
     status = Column(String(32), nullable=False, default="synced")
     import_error_details = Column(String(2000), nullable=True)
+    # Защита от дублей документа поставщика между почтой и Диадоком.
+    # dedup_key = "<provider>|<kind>|<номер>|<дата>"; total_amount — итог
+    # документа (с НДС) из XML. См. services/supplier_document_dedup.py.
+    document_kind = Column(String(32), nullable=True)
+    dedup_key = Column(String(255), nullable=True, index=True)
+    total_amount = Column(Numeric(14, 2), nullable=True)
+    # Тот же документ уже пришёл другим путём: письмо (matched_message_id —
+    # письмо, чьё поступление мы взяли) или другой Диадок-документ.
+    duplicate_kind = Column(String(32), nullable=True)
+    matched_message_id = Column(
+        Integer,
+        ForeignKey("supplierordermessage.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    duplicate_of_document_id = Column(
+        Integer,
+        ForeignKey("diadocincomingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Расхождение по сумме: pending | applied | correction_required | dismissed
+    amount_mismatch_status = Column(String(32), nullable=True, index=True)
+    mismatch_message_id = Column(
+        Integer,
+        ForeignKey("supplierordermessage.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    mismatch_other_total = Column(Numeric(14, 2), nullable=True)
+    mismatch_resolved_at = Column(DateTime(timezone=True), nullable=True)
+    mismatch_log = Column(JSON, default=list)
     raw_metadata = Column(JSON, default=dict)
     synced_at = Column(DateTime(timezone=True), default=now_moscow)
     registered_at = Column(DateTime(timezone=True), nullable=True)
@@ -66,6 +97,7 @@ class DiadocIncomingDocument(Base):
     supplier_order_message = relationship(
         "SupplierOrderMessage",
         lazy="selectin",
+        foreign_keys=[supplier_order_message_id],
     )
 
     __table_args__ = (

@@ -5335,6 +5335,52 @@ async def process_supplier_response_messages(
                 stats.processed_messages += 1
                 continue
 
+            # Тот же документ мог прийти через Диадок (он главнее почты):
+            # дубль/расхождение по сумме не разбираем и не проводим.
+            if attachments:
+                from dz_fastapi.services.supplier_document_dedup import (
+                    apply_email_dedup,
+                )
+
+                dedup_verdict = await apply_email_dedup(
+                    session,
+                    message_row=message_row,
+                    provider_id=provider.id,
+                    attachments=[
+                        (
+                            str(a.filename or ""),
+                            a.payload,
+                            hashlib.sha256(a.payload).hexdigest(),
+                        )
+                        for a in attachments
+                    ],
+                )
+                if dedup_verdict is not None:
+                    for attachment in attachments:
+                        (
+                            file_path,
+                            digest,
+                        ) = await _store_supplier_message_attachment(
+                            message_id=message_row.id,
+                            attachment=attachment,
+                        )
+                        session.add(
+                            SupplierOrderAttachment(
+                                message_id=message_row.id,
+                                filename=str(
+                                    attachment.filename or "attachment.bin"
+                                )[:255],
+                                mime_type=None,
+                                file_path=file_path,
+                                sha256=digest,
+                                parsed_kind="duplicate_document",
+                            )
+                        )
+                        stats.stored_attachments += 1
+                    await session.commit()
+                    stats.processed_messages += 1
+                    continue
+
             parsed_response_file = False
             parsed_text_rows = False
             parsed_text = ParsedSupplierTextResponse()
