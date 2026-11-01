@@ -6,6 +6,8 @@ import pytest
 from sqlalchemy import select
 
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
+from dz_fastapi.models.notification import AppNotification
+from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.models.partner import (
     SupplierOrderMessage,
     SupplierReceipt,
@@ -396,3 +398,130 @@ def test_1c_number_matches_diadoc_serial_and_subject_is_parsed():
     )
     assert dedup.normalize_document_number("УТ-1042") == "1042"
     assert dedup.normalize_document_number("ABC") == "ABC"
+
+
+@pytest.mark.asyncio
+async def test_mismatch_window_returns_until_admin_decides(
+    test_session, created_providers, tmp_path, monkeypatch
+):
+    from datetime import timedelta
+
+    from dz_fastapi.api.notifications import (
+        handle_document_mismatch_action,
+        mark_notification_read,
+    )
+    from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.schemas.notification import DocumentMismatchActionRequest
+    from fastapi import HTTPException
+
+    admin = User(
+        name="A", email="mm-admin@example.com", password_hash="x",
+        role=UserRole.ADMIN, status=UserStatus.ACTIVE,
+    )
+    test_session.add(admin)
+    provider = created_providers[0]
+    await test_session.commit()
+    await make_email_with_receipt(test_session, provider, total="1806.00", posted=False)
+    doc = await make_diadoc(test_session, provider, tmp_path, total="2000.00")
+
+    async def fake_process(session, *, document, **kwargs):
+        return {"receipt_ids": []}
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.diadoc_documents.process_diadoc_incoming_document",
+        fake_process,
+    )
+    await dedup.evaluate_diadoc_document(test_session, document=doc)
+    note = (
+        await test_session.scalars(
+            select(AppNotification).where(AppNotification.user_id == admin.id)
+        )
+    ).one()
+    assert note.payload["notification_type"] == "supplier_document_mismatch_action"
+    assert note.payload["diadoc_document_id"] == doc.id
+
+    # без решения закрыть нельзя
+    with pytest.raises(HTTPException) as exc:
+        await mark_notification_read(note.id, session=test_session, current_user=admin)
+    assert exc.value.status_code == 409
+
+    # «Перейти к решению» откладывает окно на 30 минут: оно вернётся
+    first = await handle_document_mismatch_action(
+        note.id, DocumentMismatchActionRequest(action="go_to_resolution"),
+        session=test_session, current_user=admin,
+    )
+    assert first.available_at >= now_moscow() + timedelta(minutes=29)
+    again = await test_session.get(AppNotification, first.notification_id)
+    assert again.read_at is None
+
+    # решение администратора (проверено) закрывает окно навсегда
+    await dedup.acknowledge_mismatch(test_session, document_id=doc.id)
+    await test_session.refresh(again)
+    assert again.read_at is not None
+
+
+@pytest.mark.asyncio
+async def test_price_over_order_by_more_than_one_ruble_is_flagged(
+    test_session, created_providers
+):
+    from dz_fastapi.services.supplier_receipt_prices import (
+        mark_receipt_price_discrepancies,
+        price_exceeds_order,
+    )
+
+    assert price_exceeds_order(101.01, 100)
+    assert not price_exceeds_order(101.00, 100)
+    assert not price_exceeds_order(90, 100)  # дешевле — не помечаем
+    assert not price_exceeds_order(100, None)
+
+    provider = created_providers[0]
+    message, receipt = await make_email_with_receipt(test_session, provider)
+    item = (await test_session.execute(select(SupplierReceiptItem))).scalar_one()
+    item.price = Decimal("120.00")
+    await test_session.commit()
+    # без связи с заказом сравнивать не с чем
+    assert await mark_receipt_price_discrepancies(test_session, receipt_id=receipt.id) == 0
+    await test_session.refresh(item)
+    assert item.price_exceeds_order is False
+
+
+@pytest.mark.asyncio
+async def test_linked_item_priced_over_order_is_flagged_and_serialized(
+    test_session, created_providers
+):
+    from dz_fastapi.models.partner import (
+        SUPPLIER_ORDER_STATUS,
+        SupplierOrder,
+        SupplierOrderItem,
+    )
+    from dz_fastapi.services.supplier_receipt_prices import (
+        mark_receipt_price_discrepancies,
+    )
+    from dz_fastapi.services.supplier_workflow import (
+        get_supplier_receipt_detail,
+        serialize_supplier_receipt,
+    )
+
+    provider = created_providers[0]
+    order = SupplierOrder(provider_id=provider.id, status=SUPPLIER_ORDER_STATUS.SENT)
+    test_session.add(order)
+    await test_session.flush()
+    order_item = SupplierOrderItem(
+        supplier_order_id=order.id, quantity=10, price=Decimal("100.00")
+    )
+    test_session.add(order_item)
+    await test_session.flush()
+    message, receipt = await make_email_with_receipt(test_session, provider)
+    item = (await test_session.execute(select(SupplierReceiptItem))).scalar_one()
+    item.supplier_order_item_id = order_item.id
+    item.price = Decimal("101.50")
+    await test_session.commit()
+    assert await mark_receipt_price_discrepancies(test_session, receipt_id=receipt.id) == 1
+    await test_session.commit()
+    detail = await get_supplier_receipt_detail(test_session, receipt_id=receipt.id)
+    data = serialize_supplier_receipt(detail)
+    assert data["has_price_alert"] is True
+    assert data["items"][0]["price_exceeds_order"] is True
+    assert data["items"][0]["order_price"] == Decimal("100.00")
+    item.price = Decimal("100.80")
+    assert await mark_receipt_price_discrepancies(test_session, receipt_id=receipt.id) == 0

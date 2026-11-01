@@ -843,6 +843,8 @@ class SupplierReceiptItemResponse(BaseModel):
     received_quantity: int
     price: Optional[Decimal] = None
     total_price_with_vat: Optional[Decimal] = None
+    order_price: Optional[Decimal] = None
+    price_exceeds_order: bool = False
     marking_codes: Optional[List[str]] = None
     gtd_code: Optional[str] = None
     country_code: Optional[str] = None
@@ -879,6 +881,7 @@ class SupplierReceiptResponse(BaseModel):
     created_at: datetime
     posted_at: Optional[datetime] = None
     comment: Optional[str] = None
+    has_price_alert: bool = False
     items: List[SupplierReceiptItemResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

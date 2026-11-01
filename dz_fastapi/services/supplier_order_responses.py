@@ -72,6 +72,9 @@ from dz_fastapi.services.inventory_stock import (
     resolve_warehouse_for_provider,
 )
 from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.supplier_receipt_prices import (
+    mark_receipt_price_discrepancies,
+)
 from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
     apply_supplier_response_action_to_order,
@@ -3896,6 +3899,9 @@ async def _append_document_receipt_items(
             supplier_order_item_ids=linked_supplier_order_item_ids,
             order_item_ids=linked_site_order_item_ids,
         )
+        await mark_receipt_price_discrepancies(
+            session, receipt_id=int(receipt.id)
+        )
     return added
 
 
@@ -4461,6 +4467,11 @@ async def _append_supplier_receipt_items(
         receipt.supplier_order_id = next(iter(supplier_order_ids))
     if added and post_now:
         receipt.posted_at = now_moscow()
+    if added:
+        await session.flush()
+        await mark_receipt_price_discrepancies(
+            session, receipt_id=int(receipt.id)
+        )
     return added
 
 

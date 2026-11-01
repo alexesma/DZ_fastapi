@@ -213,6 +213,7 @@ class DiadocInboundDocumentOut(BaseModel):
     mismatch_message_id: int | None = None
     mismatch_other_total: float | None = None
     mismatch_resolved_at: datetime | None = None
+    mismatch_acknowledged_at: datetime | None = None
     mismatch_log: list[dict[str, Any]] = Field(default_factory=list)
 
 

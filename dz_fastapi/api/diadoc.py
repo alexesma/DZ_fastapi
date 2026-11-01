@@ -74,6 +74,7 @@ from dz_fastapi.services.diadoc_cloud_sign import (
 )
 from dz_fastapi.services.diadoc_boxes import flatten_counteragent
 from dz_fastapi.services.supplier_document_dedup import (
+    acknowledge_mismatch,
     resolve_amount_mismatch,
 )
 from dz_fastapi.services.diadoc_documents import (
@@ -229,6 +230,7 @@ def _incoming_document_to_out(
             else None
         ),
         mismatch_resolved_at=document.mismatch_resolved_at,
+        mismatch_acknowledged_at=document.mismatch_acknowledged_at,
         mismatch_log=list(document.mismatch_log or []),
     )
 
@@ -1020,6 +1022,28 @@ async def resolve_diadoc_inbound_mismatch_endpoint(
         correction_id=result.get("correction_id"),
         detail=details.get(str(outcome), str(outcome)),
     )
+
+
+@router.post(
+    "/inbound-documents/{document_id}/acknowledge-mismatch",
+    response_model=DiadocInboundDocumentOut,
+    status_code=status.HTTP_200_OK,
+)
+async def acknowledge_diadoc_inbound_mismatch_endpoint(
+    document_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        await acknowledge_mismatch(session, document_id=document_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    document = await get_diadoc_incoming_document(
+        session, document_id=document_id
+    )
+    return _incoming_document_to_out(document)
 
 
 @router.post(

@@ -1592,6 +1592,12 @@ class SupplierReceiptItem(Base):
     received_quantity = Column(Integer, nullable=False, default=0)
     price = Column(DECIMAL(10, 2), nullable=True)
     total_price_with_vat = Column(DECIMAL(12, 2), nullable=True)
+    # Цена этой позиции в заказе поставщику и признак «в документе дороже
+    # заказа более чем на 1 ₽» (см. supplier_receipt_prices.py).
+    order_price = Column(DECIMAL(10, 2), nullable=True)
+    price_exceeds_order = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     marking_codes = Column(
         JSON,
         nullable=True,

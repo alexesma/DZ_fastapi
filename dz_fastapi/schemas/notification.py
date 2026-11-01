@@ -47,3 +47,16 @@ class RelayOfflineActionResponse(BaseModel):
     notification_id: int
     action: str
     available_at: datetime
+
+
+class DocumentMismatchActionRequest(BaseModel):
+    # go_to_resolution тоже откладывает окно на 30 минут: если решение
+    # не принято, оно вернётся.
+    action: Literal["snooze_30_minutes", "go_to_resolution"]
+
+
+class DocumentMismatchActionResponse(BaseModel):
+    notification_id: Optional[int] = None
+    action: str
+    available_at: Optional[datetime] = None
+    resolved: bool = False

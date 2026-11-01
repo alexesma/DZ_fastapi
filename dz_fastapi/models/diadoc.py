@@ -78,6 +78,8 @@ class DiadocIncomingDocument(Base):
     )
     mismatch_other_total = Column(Numeric(14, 2), nullable=True)
     mismatch_resolved_at = Column(DateTime(timezone=True), nullable=True)
+    # Администратор просмотрел расхождение (закрывает всплывающее окно)
+    mismatch_acknowledged_at = Column(DateTime(timezone=True), nullable=True)
     mismatch_log = Column(JSON, default=list)
     raw_metadata = Column(JSON, default=dict)
     synced_at = Column(DateTime(timezone=True), default=now_moscow)

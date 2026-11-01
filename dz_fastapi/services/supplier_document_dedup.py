@@ -47,6 +47,8 @@ logger = logging.getLogger("dz_fastapi")
 AMOUNT_TOLERANCE = Decimal("0.01")
 MESSAGE_TYPE_DUPLICATE = "DUPLICATE_DOC"
 MESSAGE_TYPE_MISMATCH = "DOCUMENT_MISMATCH"
+# Блокирующее окно у администраторов: закрывается только решением.
+MISMATCH_NOTIFICATION_TYPE = "supplier_document_mismatch_action"
 
 _NUMBER_CLEAN_RE = re.compile(r"[^0-9A-Za-zА-Яа-яЁё]+")
 
@@ -329,6 +331,7 @@ async def _notify_mismatch(
     from dz_fastapi.models.notification import AppNotificationLevel
     from dz_fastapi.services.notifications import create_admin_notifications
 
+    provider_name = getattr(getattr(document, "provider", None), "name", None)
     await create_admin_notifications(
         session=session,
         title="Расхождение по сумме документа поставщика",
@@ -340,13 +343,82 @@ async def _notify_mismatch(
                 (note or "Данные Диадока главнее — применены автоматически.")
                 + " Версия из письма не использована."
                 if auto
-                else "Нужно решение администратора: Диадок → Входящие."
+                else "Нужно решение администратора."
             )
         ),
-        level=AppNotificationLevel.WARNING,
-        link="/diadoc",
+        level=AppNotificationLevel.ERROR,
+        link=f"/documents/diadoc?tab=inbound&incomingId={document.id}",
+        payload={
+            "notification_type": MISMATCH_NOTIFICATION_TYPE,
+            "diadoc_document_id": int(document.id),
+            "document_number": document.document_number,
+            "document_date": (
+                document.document_date.isoformat()
+                if document.document_date
+                else None
+            ),
+            "provider_name": provider_name,
+            "diadoc_total": (
+                str(document.total_amount)
+                if document.total_amount is not None
+                else None
+            ),
+            "other_total": str(other_total) if other_total is not None else None,
+            "other_source": other_source,
+            "auto": auto,
+            "note": note,
+        },
         commit=False,
     )
+
+
+async def close_mismatch_notifications(
+    session: AsyncSession, *, document_id: int
+) -> int:
+    """Закрывает все открытые окна расхождения по документу."""
+    from dz_fastapi.models.notification import AppNotification
+
+    rows = (
+        (
+            await session.execute(
+                select(AppNotification).where(
+                    AppNotification.read_at.is_(None)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    closed = 0
+    now = now_moscow()
+    for row in rows:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        if (
+            payload.get("notification_type") == MISMATCH_NOTIFICATION_TYPE
+            and payload.get("diadoc_document_id") == int(document_id)
+        ):
+            row.read_at = now
+            closed += 1
+    return closed
+
+
+async def acknowledge_mismatch(
+    session: AsyncSession, *, document_id: int
+) -> DiadocIncomingDocument:
+    """Администратор просмотрел расхождение: окно больше не возвращается."""
+    document = await session.get(DiadocIncomingDocument, document_id)
+    if document is None:
+        raise LookupError("Document not found")
+    if document.amount_mismatch_status not in (
+        "applied",
+        "correction_required",
+        "dismissed",
+    ):
+        raise ValueError("Расхождение ещё требует решения")
+    document.mismatch_acknowledged_at = now_moscow()
+    await close_mismatch_notifications(session, document_id=int(document.id))
+    await session.commit()
+    return document
 
 
 # --------------------------------------------------------------- Диадок
@@ -609,7 +681,7 @@ def _log(document: DiadocIncomingDocument, **entry: Any) -> None:
     document.mismatch_log = [*(document.mismatch_log or []), entry]
 
 
-async def resolve_amount_mismatch(
+async def _resolve_amount_mismatch(
     session: AsyncSession,
     *,
     document_id: int,
@@ -799,3 +871,30 @@ async def resolve_amount_mismatch(
         "result": "reposted" if reposted else "draft_replaced",
         **result,
     }
+
+
+async def resolve_amount_mismatch(
+    session: AsyncSession,
+    *,
+    document_id: int,
+    action: str,
+    user_id: Optional[int] = None,
+    automatic: bool = False,
+) -> dict[str, Any]:
+    result = await _resolve_amount_mismatch(
+        session,
+        document_id=document_id,
+        action=action,
+        user_id=user_id,
+        automatic=automatic,
+    )
+    if not automatic:
+        # решение принято администратором — окно закрываем
+        document = await session.get(DiadocIncomingDocument, document_id)
+        if document is not None:
+            document.mismatch_acknowledged_at = now_moscow()
+            await close_mismatch_notifications(
+                session, document_id=document_id
+            )
+            await session.commit()
+    return result

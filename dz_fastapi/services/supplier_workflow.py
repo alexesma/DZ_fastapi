@@ -1319,6 +1319,8 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
         "received_quantity": item.received_quantity,
         "price": item.price,
         "total_price_with_vat": item.total_price_with_vat,
+        "order_price": item.order_price,
+        "price_exceeds_order": bool(item.price_exceeds_order),
         "gtd_code": item.gtd_code,
         "country_code": item.country_code,
         "country_name": item.country_name,
@@ -1355,6 +1357,7 @@ def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
         "created_at": receipt.created_at,
         "posted_at": receipt.posted_at,
         "comment": receipt.comment,
+        "has_price_alert": any(item.price_exceeds_order for item in receipt.items),
         "items": [_serialize_receipt_item(item) for item in receipt.items],
     }
 
