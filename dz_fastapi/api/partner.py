@@ -159,6 +159,7 @@ from dz_fastapi.services.pricelist_review_queue import (
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_ARTIFACT_ROOT,
     check_start_and_finish_date,
+    customer_pricelist_sends_email,
     parse_exclude_positions_file,
     process_customer_pricelist,
     process_provider_pricelist,
@@ -3899,6 +3900,22 @@ async def approve_customer_pricelist_draft(
         if failed_checks:
             detail = f"{detail}: {'; '.join(failed_checks)}"
         raise HTTPException(status_code=409, detail=detail)
+    if not customer_pricelist_sends_email(config):
+        # Рассылка клиенту выключена: подтверждение только делает прайс
+        # действующим (по нему считаются заказы), письмо не уходит.
+        # Отправить вручную можно кнопкой «Отправить прайс получателям».
+        approved_at = now_moscow()
+        if pricelist.published_at is None:
+            pricelist.published_at = approved_at
+        pricelist.approved_at = pricelist.approved_at or approved_at
+        pricelist.approved_by_user_id = pricelist.approved_by_user_id or current_user.id
+        pricelist.send_error = None
+        session.add(pricelist)
+        await session.commit()
+        pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+        if pricelist is None:
+            raise HTTPException(status_code=500, detail="Approved pricelist was not found")
+        return _customer_pricelist_draft_response(pricelist)
     path = Path(pricelist.artifact_path or "").resolve()
     artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
     if artifact_root not in path.parents or not path.is_file():
@@ -3942,6 +3959,7 @@ async def approve_customer_pricelist_draft(
     else:
         pricelist.generation_status = "sent"
         pricelist.sent_at = sent_at
+        pricelist.published_at = sent_at
         config.last_sent_at = sent_at
     pricelist.approved_at = sent_at
     pricelist.approved_by_user_id = current_user.id

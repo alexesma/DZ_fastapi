@@ -683,37 +683,6 @@ async def _run_auto(test_session, customer, config):
 
 
 @pytest.mark.asyncio
-async def test_scheduled_pricelist_is_published_without_sending_by_default(
-    test_session: AsyncSession,
-    created_customers: list[Customer],
-    created_brand: Brand,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Получатели есть, но рассылка из системы не включена: прайс только действует."""
-    from dz_fastapi.models.partner import CustomerPriceList
-
-    def must_not_send(**kwargs):
-        raise AssertionError("по умолчанию прайс клиенту не отправляется")
-
-    monkeypatch.setattr(process_service, "send_email_with_attachment", must_not_send)
-    customer = created_customers[0]
-    config = await _prepare_config(test_session, customer, created_brand)
-    config.additional_filters = {"REQUIRE_DRAFT_APPROVAL": True}  # одобрение не мешает
-    await test_session.commit()
-
-    config_id = await _run_auto(test_session, customer, config)
-
-    built = (
-        await test_session.execute(
-            select(CustomerPriceList).where(CustomerPriceList.customer_config_id == config_id)
-        )
-    ).scalars().all()
-    assert len(built) == 1
-    assert built[0].published_at is not None
-    assert built[0].sent_at is None
-
-
-@pytest.mark.asyncio
 async def test_scheduled_pricelist_is_sent_when_email_sending_is_enabled(
     test_session: AsyncSession,
     created_customers: list[Customer],
@@ -734,3 +703,129 @@ async def test_scheduled_pricelist_is_sent_when_email_sending_is_enabled(
     await _run_auto(test_session, customer, config)
 
     assert [item["to_email"] for item in sent] == ["client@example.com"]
+
+
+# (отправка по почте, проверка черновика, режим) ->
+# (опубликован, письмо отправлено, статус)
+DELIVERY_MATRIX = [
+    (False, False, "auto", True, False, "draft"),
+    (False, True, "auto", False, False, "draft"),
+    (True, False, "auto", True, True, "sent"),
+    (True, True, "auto", False, False, "draft"),
+    (False, False, "draft", False, False, "draft"),
+    (False, True, "draft", False, False, "draft"),
+    (True, False, "draft", False, False, "draft"),
+    (True, True, "draft", False, False, "draft"),
+    (False, False, "send", True, True, "sent"),
+    (False, True, "send", True, True, "sent"),
+    (True, False, "send", True, True, "sent"),
+    (True, True, "send", True, True, "sent"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "email_on,approval_on,mode,published,emailed,status", DELIVERY_MATRIX
+)
+async def test_pricelist_delivery_matrix(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    created_brand: Brand,
+    monkeypatch: pytest.MonkeyPatch,
+    email_on,
+    approval_on,
+    mode,
+    published,
+    emailed,
+    status,
+):
+    from dz_fastapi.models.partner import CustomerPriceList
+    from dz_fastapi.schemas.partner import CustomerPriceListCreate
+
+    sent = []
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: sent.append(kwargs) or True,
+    )
+    customer = created_customers[0]
+    config = await _prepare_config(test_session, customer, created_brand)
+    config.additional_filters = {
+        "SEND_PRICELIST_BY_EMAIL": email_on,
+        "REQUIRE_DRAFT_APPROVAL": approval_on,
+    }
+    await test_session.commit()
+    customer_id, config_id = customer.id, config.id
+
+    await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(customer_id=customer_id, config_id=config_id, items=[]),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode=mode,
+    )
+    await test_session.rollback()
+
+    built = (
+        await test_session.execute(
+            select(CustomerPriceList).where(CustomerPriceList.customer_config_id == config_id)
+        )
+    ).scalars().all()
+    assert len(built) == 1
+    assert (built[0].published_at is not None) is published
+    assert bool(sent) is emailed
+    assert (built[0].sent_at is not None) is emailed
+    assert built[0].generation_status == status
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("email_on", [False, True])
+async def test_approving_draft_publishes_and_sends_only_when_email_enabled(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+    monkeypatch: pytest.MonkeyPatch,
+    email_on,
+):
+    from dz_fastapi.models.partner import CustomerPriceList
+    from dz_fastapi.schemas.partner import CustomerPriceListCreate
+
+    sent = []
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: sent.append(kwargs) or True,
+    )
+    await _job_admin(test_session)
+    customer = created_customers[0]
+    config = await _prepare_config(test_session, customer, created_brand)
+    config.additional_filters = {
+        "SEND_PRICELIST_BY_EMAIL": email_on,
+        "REQUIRE_DRAFT_APPROVAL": True,
+    }
+    await test_session.commit()
+    customer_id, config_id = customer.id, config.id
+    response = await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(customer_id=customer_id, config_id=config_id, items=[]),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="auto",
+    )
+    pricelist_id = response.id
+    assert not sent
+
+    approve = await async_client.post(
+        f"/customers/{customer_id}/pricelist-configs/{config_id}"
+        f"/drafts/{pricelist_id}/approve"
+    )
+    assert approve.status_code == 200, approve.text
+
+    test_session.expire_all()
+    pricelist = await test_session.get(CustomerPriceList, pricelist_id)
+    assert pricelist.published_at is not None
+    assert pricelist.approved_at is not None
+    assert bool(sent) is email_on
+    assert (pricelist.sent_at is not None) is email_on
+    assert pricelist.generation_status == ("sent" if email_on else "draft")

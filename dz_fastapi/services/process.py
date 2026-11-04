@@ -4653,7 +4653,13 @@ async def _process_customer_pricelist_unlocked(
         config.id, customer_pricelist.id, customer_pricelist.positions_count,
         len(attachment_bytes),
     )
-    publish_only = delivery_mode == "auto" and not customer_pricelist_sends_email(config)
+    # При включённой проверке черновика расписание ничего не публикует и не
+    # отправляет: прайс остаётся черновиком до подтверждения оператором.
+    publish_only = (
+        delivery_mode == "auto"
+        and not customer_pricelist_sends_email(config)
+        and not customer_pricelist_requires_draft(config)
+    )
     should_send = delivery_mode == "send" or (
         delivery_mode == "auto"
         and not publish_only
