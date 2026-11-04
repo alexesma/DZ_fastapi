@@ -100,7 +100,7 @@ class DiadocSettingsUpdate(BaseModel):
     box_id: str | None = None
     box_id_guid: str | None = None
     inbound_sync_enabled: bool | None = None
-    inbound_sync_count: int | None = Field(default=None, ge=1, le=200)
+    inbound_sync_count: int | None = Field(default=None, ge=1, le=100)
     inbound_download_content: bool | None = None
     inbound_process_enabled: bool | None = None
     etrn_enabled: bool | None = None
@@ -109,7 +109,7 @@ class DiadocSettingsUpdate(BaseModel):
 
 class DiadocInboundSyncRequest(BaseModel):
     filter_category: str = "Any.Inbound"
-    count: int = 50
+    count: int = Field(default=50, ge=1, le=100)
     after_index_key: str | None = None
     counteragent_box_id: str | None = None
     document_number: str | None = None

@@ -1780,7 +1780,7 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                 # Пагинация: если за интервал пришло больше документов,
                 # чем помещается в страницу, докручиваем курсором
                 # (до 5 страниц за запуск).
-                page_count = max(1, min(int(integration.inbound_sync_count or 50), 200))
+                page_count = max(1, min(int(integration.inbound_sync_count or 50), 100))
                 after_index_key = None
                 combined: dict = {}
                 for _page in range(5):
