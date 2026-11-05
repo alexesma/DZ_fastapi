@@ -1,0 +1,48 @@
+name: Validate pull request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+      ASYNCPG_DSN: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+      TEST_DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+    services:
+      db:
+        image: postgres:13.10
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U testuser"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        run: poetry install
+      - name: Run database migrations
+        run: poetry run alembic upgrade heads
+      - name: Run flake8
+        run: poetry run flake8 dz_fastapi/ tests/ check_db.py seed.py
+      - name: Run pytest
+        run: poetry run pytest -q -n 4 --dist loadscope
