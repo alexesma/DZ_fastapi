@@ -821,6 +821,15 @@ class CustomerPriceListPublicationRule(Base):
         index=True,
     )
     fixed_price = Column(DECIMAL(10, 2), nullable=True)
+    # default — цена как у позиции в прайсе, fixed — жёсткая цена,
+    # percent — процент от цены позиции в выбранном источнике прайса.
+    price_mode = Column(String(16), nullable=False, default="default", server_default="default")
+    price_percent = Column(DECIMAL(7, 2), nullable=True)
+    price_source_id = Column(
+        Integer,
+        ForeignKey("customerpricelistsource.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     mode = Column(String(24), nullable=False, default="only_cross")
     is_active = Column(Boolean, nullable=False, default=True)
     created_by_user_id = Column(
@@ -840,6 +849,9 @@ class CustomerPriceListPublicationRule(Base):
     config = relationship("CustomerPriceListConfig", back_populates="publication_rules")
     source_autopart = relationship("AutoPart", foreign_keys=[source_autopart_id], lazy="joined")
     target_autopart = relationship("AutoPart", foreign_keys=[target_autopart_id], lazy="joined")
+    price_source = relationship(
+        "CustomerPriceListSource", foreign_keys=[price_source_id], lazy="joined"
+    )
     targets = relationship(
         "CustomerPriceListPublicationRuleTarget",
         back_populates="rule",

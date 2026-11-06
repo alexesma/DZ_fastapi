@@ -3829,3 +3829,116 @@ async def test_delete_customer_pricelist(
         pricelist_id=customer_pricelist.id,
     )
     assert deleted_pricelist is None
+
+
+@pytest.mark.asyncio
+async def test_publication_rule_price_modes_via_api(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    async_client: AsyncClient,
+):
+    customer, other_customer = created_customers[0], created_customers[1]
+    test_session.add(
+        User(
+            id=1,
+            name="Test Admin",
+            email="price-mode-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    brand = Brand(name="PRICE-MODE-BRAND")
+    provider = Provider(
+        name="PriceModeProvider",
+        email_contact="pm@example.com",
+        email_incoming_price="pm-in@example.com",
+        type_prices="Wholesale",
+    )
+    test_session.add_all([brand, provider])
+    await test_session.flush()
+    source_part = AutoPart(brand_id=brand.id, oem_number="PM-SOURCE", name="Source")
+    target_part = AutoPart(brand_id=brand.id, oem_number="PM-TARGET", name="Target")
+    provider_config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price="PM_SOURCE",
+        name_mail="PM_SOURCE",
+    )
+    config = CustomerPriceListConfig(customer_id=customer.id, name="PM", general_markup=1.0)
+    other_config = CustomerPriceListConfig(
+        customer_id=other_customer.id, name="PM other", general_markup=1.0
+    )
+    test_session.add_all([source_part, target_part, provider_config, config, other_config])
+    await test_session.flush()
+    own_source = CustomerPriceListSource(
+        customer_config_id=config.id, provider_config_id=provider_config.id, enabled=True
+    )
+    foreign_source = CustomerPriceListSource(
+        customer_config_id=other_config.id, provider_config_id=provider_config.id, enabled=True
+    )
+    test_session.add_all([own_source, foreign_source])
+    test_session.add(
+        AutoPartCross(
+            source_autopart_id=source_part.id,
+            cross_brand_id=brand.id,
+            cross_oem_number=target_part.oem_number,
+            cross_autopart_id=target_part.id,
+            is_bidirectional=True,
+        )
+    )
+    await test_session.commit()
+
+    endpoint = f"/customers/{customer.id}/pricelist-configs/{config.id}/publication-rules"
+    base = {
+        "source_autopart_id": source_part.id,
+        "target_autopart_ids": [target_part.id],
+        "mode": "only_cross",
+    }
+
+    legacy = await async_client.post(endpoint, json={**base, "fixed_price": 150})
+    assert legacy.status_code == 200, legacy.text
+    assert legacy.json()["price_mode"] == "fixed"
+    assert legacy.json()["fixed_price"] == 150
+
+    percent = await async_client.post(
+        endpoint,
+        json={
+            **base,
+            "price_mode": "percent",
+            "price_percent": 92.5,
+            "price_source_id": own_source.id,
+        },
+    )
+    assert percent.status_code == 200, percent.text
+    body = percent.json()
+    assert body["price_mode"] == "percent"
+    assert body["price_percent"] == 92.5
+    assert body["fixed_price"] is None
+    assert body["price_source_id"] == own_source.id
+    assert "PriceModeProvider" in body["price_source_name"]
+
+    foreign = await async_client.post(
+        endpoint,
+        json={
+            **base,
+            "price_mode": "percent",
+            "price_percent": 90,
+            "price_source_id": foreign_source.id,
+        },
+    )
+    assert foreign.status_code == 400, foreign.text
+
+    missing_percent = await async_client.post(endpoint, json={**base, "price_mode": "percent"})
+    assert missing_percent.status_code == 422
+
+    reset = await async_client.post(
+        endpoint, json={**base, "price_mode": "default", "price_percent": 80}
+    )
+    assert reset.status_code == 200, reset.text
+    assert reset.json()["price_mode"] == "default"
+    assert reset.json()["price_percent"] is None
+    assert reset.json()["price_source_id"] is None

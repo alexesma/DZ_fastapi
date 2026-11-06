@@ -359,6 +359,25 @@ async def _validate_customer_unique_fields(
     )
 
 
+_PUBLICATION_PRICE_SOURCE_LOAD = (
+    selectinload(CustomerPriceListPublicationRule.price_source)
+    .selectinload(CustomerPriceListSource.provider_config)
+    .selectinload(ProviderPriceListConfig.provider)
+)
+
+
+def _publication_price_source_name(source) -> str | None:
+    if source is None:
+        return None
+    provider_config = source.provider_config
+    provider = getattr(provider_config, "provider", None)
+    parts = [
+        str(getattr(provider, "name", "") or "").strip(),
+        str(getattr(provider_config, "name_price", "") or "").strip(),
+    ]
+    return " · ".join(part for part in parts if part) or f"Источник {source.id}"
+
+
 def _publication_rule_response(
     rule: CustomerPriceListPublicationRule,
 ) -> CustomerPriceListPublicationRuleOut:
@@ -400,6 +419,10 @@ def _publication_rule_response(
         target_name=target.name if target else None,
         targets=targets,
         fixed_price=rule.fixed_price,
+        price_mode=rule.price_mode or "default",
+        price_percent=rule.price_percent,
+        price_source_id=rule.price_source_id,
+        price_source_name=_publication_price_source_name(rule.price_source),
         mode=rule.mode,
         is_active=rule.is_active,
         created_at=rule.created_at,
@@ -474,7 +497,9 @@ async def _load_publication_rule(
                 .selectinload(AutoPart.brand),
                 selectinload(CustomerPriceListPublicationRule.created_by_user),
                 selectinload(CustomerPriceListPublicationRule.updated_by_user),
+                _PUBLICATION_PRICE_SOURCE_LOAD,
             )
+            .execution_options(populate_existing=True)
             .where(
                 CustomerPriceListPublicationRule.id == rule_id,
                 CustomerPriceListPublicationRule.config_id == config_id,
@@ -2659,16 +2684,18 @@ async def copy_customer_pricelist_config(
 
     try:
         await session.flush()
+        copied_source_by_old_id: dict[int, CustomerPriceListSource] = {}
         for source in source_config.sources:
-            session.add(
-                CustomerPriceListSource(
-                    customer_config_id=copied_config.id,
-                    **{
-                        field: deepcopy(getattr(source, field))
-                        for field in source_fields
-                    },
-                )
+            copied_source = CustomerPriceListSource(
+                customer_config_id=copied_config.id,
+                **{
+                    field: deepcopy(getattr(source, field))
+                    for field in source_fields
+                },
             )
+            copied_source_by_old_id[source.id] = copied_source
+            session.add(copied_source)
+        await session.flush()
 
         publication_target_count = 0
         for rule in source_config.publication_rules:
@@ -2677,6 +2704,13 @@ async def copy_customer_pricelist_config(
                 source_autopart_id=rule.source_autopart_id,
                 target_autopart_id=rule.target_autopart_id,
                 fixed_price=rule.fixed_price,
+                price_mode=rule.price_mode,
+                price_percent=rule.price_percent,
+                price_source_id=(
+                    copied_source_by_old_id[rule.price_source_id].id
+                    if rule.price_source_id in copied_source_by_old_id
+                    else None
+                ),
                 mode=rule.mode,
                 is_active=rule.is_active,
                 created_by_user_id=current_user.id,
@@ -3152,6 +3186,7 @@ async def list_customer_pricelist_publication_rules(
                     .selectinload(AutoPart.brand),
                     selectinload(CustomerPriceListPublicationRule.created_by_user),
                     selectinload(CustomerPriceListPublicationRule.updated_by_user),
+                    _PUBLICATION_PRICE_SOURCE_LOAD,
                 )
                 .where(CustomerPriceListPublicationRule.config_id == config_id)
                 .order_by(CustomerPriceListPublicationRule.updated_at.desc())
@@ -3218,7 +3253,17 @@ async def save_customer_pricelist_publication_rule(
             created_by_user_id=current_user.id,
         )
     existing.target_autopart_id = target_ids[0] if target_ids else None
+    if payload.price_source_id is not None:
+        price_source = await session.get(CustomerPriceListSource, payload.price_source_id)
+        if price_source is None or price_source.customer_config_id != config_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Прайс для расчёта цены должен быть источником этой конфигурации",
+            )
     existing.fixed_price = payload.fixed_price
+    existing.price_mode = payload.price_mode
+    existing.price_percent = payload.price_percent
+    existing.price_source_id = payload.price_source_id
     existing.mode = payload.mode
     existing.is_active = payload.is_active
     existing.updated_by_user_id = current_user.id

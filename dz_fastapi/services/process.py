@@ -1971,6 +1971,67 @@ async def _build_dragonzap_cross_alias_records(
     return list(aliases_by_key.values())
 
 
+def _build_publication_price_book(df: pd.DataFrame) -> dict[tuple[int, int], float]:
+    """Минимальная цена позиции в каждом прайсе-источнике.
+
+    Строится до сворачивания дубликатов: после него в прайсе остаётся только
+    самое выгодное предложение, а правилу «% от прайса» нужна цена из
+    конкретного источника.
+    """
+    required = {"autopart_id", "provider_config_id", "price"}
+    if df is None or df.empty or not required.issubset(df.columns):
+        return {}
+    book = pd.DataFrame(
+        {
+            "autopart_id": pd.to_numeric(df["autopart_id"], errors="coerce"),
+            "provider_config_id": pd.to_numeric(df["provider_config_id"], errors="coerce"),
+            "price": pd.to_numeric(df["price"], errors="coerce"),
+        }
+    ).dropna()
+    book = book[book["price"] > 0]
+    if book.empty:
+        return {}
+    grouped = book.groupby(["autopart_id", "provider_config_id"])["price"].min()
+    return {
+        (int(autopart_id), int(provider_config_id)): float(price)
+        for (autopart_id, provider_config_id), price in grouped.items()
+    }
+
+
+def _publication_rule_price(
+    rule: CustomerPriceListPublicationRule,
+    *,
+    selected_price: float,
+    price_book: dict[tuple[int, int], float],
+) -> tuple[float, bool, Optional[str]]:
+    """Цена кросса по правилу: (цена, задана ли правилом, предупреждение)."""
+    price_mode = str(getattr(rule, "price_mode", None) or "default").lower()
+    if rule.fixed_price is not None and price_mode != "percent":
+        return float(rule.fixed_price), True, None
+    if price_mode != "percent" or rule.price_percent is None:
+        return selected_price, False, None
+    base = selected_price
+    warning = None
+    source = rule.price_source
+    if source is not None:
+        source_price = price_book.get((int(rule.source_autopart_id), int(source.provider_config_id)))
+        if source_price is None:
+            warning = (
+                "в выбранном прайсе нет этой позиции, цена взята "
+                "из итогового прайса"
+            )
+        else:
+            base = source_price
+    elif rule.price_source_id is not None:
+        warning = "выбранный прайс удалён из конфигурации, цена взята из итогового прайса"
+    price = float(
+        (Decimal(str(base)) * Decimal(str(rule.price_percent)) / Decimal(100)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    )
+    return price, True, warning
+
+
 async def _apply_customer_publication_rules(
     session: AsyncSession,
     *,
@@ -1979,6 +2040,7 @@ async def _apply_customer_publication_rules(
     source_df: pd.DataFrame,
     automatic_aliases: list[dict[str, Any]],
     only_configured_when_rules_exist: bool = False,
+    price_book: Optional[dict[tuple[int, int], float]] = None,
 ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
     """Apply explicit per-client publication rules after price selection."""
 
@@ -2047,7 +2109,13 @@ async def _apply_customer_publication_rules(
             .to_dict()
         )
         mode = str(rule.mode or "only_cross").lower()
-        fixed_price = float(rule.fixed_price) if rule.fixed_price is not None else None
+        rule_price, price_is_manual, price_warning = _publication_rule_price(
+            rule,
+            selected_price=float(selected.get("price") or 0),
+            price_book=price_book or {},
+        )
+        if price_warning:
+            warnings.append(f"{source_brand_name} {source_oem}: {price_warning}")
         if mode in {"hide", "only_cross"}:
             suppressed_source_ids.add(source_id)
         if mode == "hide":
@@ -2092,14 +2160,12 @@ async def _apply_customer_publication_rules(
                     "oem_number": str(target_oem).strip(),
                     "name": str(target_part.name or selected.get("name") or "").strip(),
                     "quantity": _mask_supplier_quantity(quantity, unit),
-                    "price": (
-                        fixed_price
-                        if fixed_price is not None
-                        else float(selected.get("price") or 0)
-                    ),
+                    "price": rule_price,
                     "__dragonzap_alias": True,
                     "__manual_publication_rule": True,
-                    "__publication_rule_fixed_price": fixed_price is not None,
+                    # Цена задана правилом (жёсткая или процент): её не
+                    # трогают выбор дешёвого дубля и контроль цены.
+                    "__publication_rule_fixed_price": price_is_manual,
                     "__publication_rule_id": int(rule.id),
                     "__row_type": "manual_cross",
                 }
@@ -3892,6 +3958,7 @@ async def _process_customer_pricelist_unlocked(
         final_df = pd.DataFrame()
 
     logger.debug(_dataframe_summary(final_df, "customer_pricelist_final_df"))
+    publication_price_book: dict[tuple[int, int], float] = {}
     if not final_df.empty:
         overrides = await crud_customer_pricelist_override.get_for_config(
             session=session, config_id=config.id
@@ -3914,6 +3981,7 @@ async def _process_customer_pricelist_unlocked(
                     excluded_autoparts=excluded_autoparts,
                     df=final_df,
                 )
+        publication_price_book = _build_publication_price_book(final_df)
         # Сворачивание дубликатов на больших прайсах — чистый CPU (pandas),
         # выносим из event loop.
         final_df = await asyncio.to_thread(
@@ -4106,6 +4174,7 @@ async def _process_customer_pricelist_unlocked(
                             customer_id=customer.id,
                             source_df=output_df,
                             automatic_aliases=dragonzap_alias_records,
+                            price_book=publication_price_book,
                             only_configured_when_rules_exist=bool(
                                 _customer_pricelist_setting(
                                     config,
@@ -4235,6 +4304,7 @@ async def _process_customer_pricelist_unlocked(
                     customer_id=customer.id,
                     source_df=final_df,
                     automatic_aliases=dragonzap_alias_records,
+                    price_book=publication_price_book,
                     only_configured_when_rules_exist=bool(
                         _customer_pricelist_setting(
                             config,

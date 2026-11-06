@@ -1590,6 +1590,9 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
     target_autopart_id: Optional[int] = Field(default=None, gt=0)
     target_autopart_ids: List[int] = Field(default_factory=list)
     fixed_price: Optional[float] = Field(default=None, gt=0, le=99_999_999.99)
+    price_mode: Optional[str] = None
+    price_percent: Optional[float] = Field(default=None, gt=0, le=1000)
+    price_source_id: Optional[int] = Field(default=None, gt=0)
     mode: str = "only_cross"
     is_active: bool = True
 
@@ -1600,6 +1603,36 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
         if normalized not in {"add_cross", "only_cross", "hide"}:
             raise ValueError("mode must be add_cross, only_cross or hide")
         return normalized
+
+    @field_validator("price_mode")
+    @classmethod
+    def validate_price_mode(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = str(value).strip().lower()
+        if normalized not in {"default", "fixed", "percent"}:
+            raise ValueError("price_mode must be default, fixed or percent")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_price(self):
+        # Клиенты, которые шлют только fixed_price, продолжают работать.
+        if self.price_mode is None:
+            self.price_mode = "fixed" if self.fixed_price is not None else "default"
+        if self.price_mode == "fixed":
+            if self.fixed_price is None:
+                raise ValueError("fixed_price is required for fixed price mode")
+            self.price_percent = None
+            self.price_source_id = None
+        elif self.price_mode == "percent":
+            if self.price_percent is None:
+                raise ValueError("price_percent is required for percent price mode")
+            self.fixed_price = None
+        else:
+            self.fixed_price = None
+            self.price_percent = None
+            self.price_source_id = None
+        return self
 
     @model_validator(mode="after")
     def validate_target(self):
@@ -1613,6 +1646,9 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
             self.target_autopart_id = None
             self.target_autopart_ids = []
             self.fixed_price = None
+            self.price_mode = "default"
+            self.price_percent = None
+            self.price_source_id = None
         return self
 
 
@@ -1636,6 +1672,10 @@ class CustomerPriceListPublicationRuleOut(BaseModel):
     target_name: Optional[str] = None
     targets: List[CustomerPriceListPublicationTargetOut] = Field(default_factory=list)
     fixed_price: Optional[float] = None
+    price_mode: str = "default"
+    price_percent: Optional[float] = None
+    price_source_id: Optional[int] = None
+    price_source_name: Optional[str] = None
     mode: str
     is_active: bool
     created_at: datetime

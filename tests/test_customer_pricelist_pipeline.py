@@ -1259,3 +1259,137 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
         )
     assert empty_exc.value.status_code == 400
     assert not isinstance(empty_exc.value, StaleCustomerPricelistSourcesError)
+
+
+@pytest.mark.asyncio
+async def test_publication_rule_price_is_percent_of_chosen_source(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    provider = Provider(
+        name="PercentProvider",
+        email_contact="percent@example.com",
+        email_incoming_price="percent-in@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="DRAGONZAP")
+    test_session.add_all([provider, brand])
+    await test_session.flush()
+    configs = [
+        ProviderPriceListConfig(
+            provider_id=provider.id,
+            start_row=1,
+            oem_col=0,
+            qty_col=1,
+            price_col=2,
+            name_price=f"PERCENT_SOURCE_{index}",
+            name_mail=f"PERCENT_SOURCE_{index}",
+        )
+        for index in (1, 2)
+    ]
+    source_part = AutoPart(brand_id=brand.id, oem_number="PCTSOURCE", name="Источник")
+    target = AutoPart(brand_id=brand.id, oem_number="PCTCROSS", name="Кросс")
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="Percent rule",
+        general_markup=1,
+    )
+    test_session.add_all([*configs, source_part, target, config])
+    await test_session.flush()
+    sources = [
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=item.id,
+            enabled=True,
+            markup=1,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        )
+        for item in configs
+    ]
+    test_session.add_all(sources)
+    await test_session.flush()
+    rule = CustomerPriceListPublicationRule(
+        config_id=config.id,
+        source_autopart_id=source_part.id,
+        target_autopart_id=target.id,
+        price_mode="percent",
+        price_percent=95,
+        price_source_id=sources[1].id,
+        mode="only_cross",
+        is_active=True,
+    )
+    test_session.add(rule)
+    await test_session.flush()
+    test_session.add(
+        CustomerPriceListPublicationRuleTarget(
+            rule_id=rule.id, target_autopart_id=target.id
+        )
+    )
+    await test_session.commit()
+    part_id, config_id, customer_id = source_part.id, config.id, customer.id
+    first_config_id, second_config_id = configs[0].id, configs[1].id
+
+    price_book = process_service._build_publication_price_book(
+        pd.DataFrame(
+            [
+                {"autopart_id": part_id, "provider_config_id": first_config_id, "price": 80},
+                {"autopart_id": part_id, "provider_config_id": second_config_id, "price": 120},
+                {"autopart_id": part_id, "provider_config_id": second_config_id, "price": 130},
+            ]
+        )
+    )
+    assert price_book == {
+        (part_id, first_config_id): 80.0,
+        (part_id, second_config_id): 120.0,
+    }
+    published = pd.DataFrame(
+        [
+            {
+                "autopart_id": part_id,
+                "brand": "DRAGONZAP",
+                "oem_number": "PCTSOURCE",
+                "name": "Источник",
+                "price": 80,
+                "quantity": 4,
+            }
+        ]
+    )
+
+    _, aliases, summary = await _apply_customer_publication_rules(
+        test_session,
+        config_id=config_id,
+        customer_id=customer_id,
+        source_df=published,
+        automatic_aliases=[],
+        price_book=price_book,
+    )
+    assert [row["price"] for row in aliases] == [114.0]
+    assert aliases[0]["__publication_rule_fixed_price"] is True
+    assert summary["publication_rule_warnings"] == []
+
+    _, fallback, fallback_summary = await _apply_customer_publication_rules(
+        test_session,
+        config_id=config_id,
+        customer_id=customer_id,
+        source_df=published,
+        automatic_aliases=[],
+        price_book={(part_id, first_config_id): 80.0},
+    )
+    assert [row["price"] for row in fallback] == [76.0]
+    assert "нет этой позиции" in fallback_summary["publication_rule_warnings"][0]
+
+    rule.price_source_id = None
+    await test_session.commit()
+    test_session.expire_all()
+    _, own_price, _ = await _apply_customer_publication_rules(
+        test_session,
+        config_id=config_id,
+        customer_id=customer_id,
+        source_df=published,
+        automatic_aliases=[],
+        price_book=price_book,
+    )
+    assert [row["price"] for row in own_price] == [76.0]
