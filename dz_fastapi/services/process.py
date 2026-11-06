@@ -1694,6 +1694,9 @@ def _apply_benchmark_floor_records(
     rounding_step = max(float(rounding_step or 1.0), 0.01)
     for source in records:
         row = dict(source)
+        if row.get("__publication_rule_fixed_price"):
+            result.append(row)  # цену задало правило публикации
+            continue
         key = (
             _normalize_dedup_brand_key(row.get("brand")),
             _normalize_dedup_oem_key(row.get("oem_number")),
@@ -1971,6 +1974,14 @@ async def _build_dragonzap_cross_alias_records(
     return list(aliases_by_key.values())
 
 
+def _record_publication_rule_id(record: Optional[dict[str, Any]]) -> Optional[int]:
+    value = (record or {}).get("__publication_rule_id")
+    try:
+        return int(value) if value is not None and not pd.isna(value) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_publication_price_book(df: pd.DataFrame) -> dict[tuple[int, int], float]:
     """Минимальная цена позиции в каждом прайсе-источнике.
 
@@ -2014,7 +2025,9 @@ def _publication_rule_price(
     warning = None
     source = rule.price_source
     if source is not None:
-        source_price = price_book.get((int(rule.source_autopart_id), int(source.provider_config_id)))
+        source_price = price_book.get(
+            (int(rule.source_autopart_id), int(source.provider_config_id))
+        )
         if source_price is None:
             warning = (
                 "в выбранном прайсе нет этой позиции, цена взята "
@@ -2024,12 +2037,11 @@ def _publication_rule_price(
             base = source_price
     elif rule.price_source_id is not None:
         warning = "выбранный прайс удалён из конфигурации, цена взята из итогового прайса"
-    price = float(
-        (Decimal(str(base)) * Decimal(str(rule.price_percent)) / Decimal(100)).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-    )
-    return price, True, warning
+    price = Decimal(str(base)) * Decimal(str(rule.price_percent)) / Decimal(100)
+    step = int(getattr(rule, "price_rounding_step", None) or 0)
+    if step > 1:
+        price = (price / step).to_integral_value(rounding=ROUND_CEILING) * step
+    return float(price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)), True, warning
 
 
 async def _apply_customer_publication_rules(
@@ -2041,9 +2053,11 @@ async def _apply_customer_publication_rules(
     automatic_aliases: list[dict[str, Any]],
     only_configured_when_rules_exist: bool = False,
     price_book: Optional[dict[tuple[int, int], float]] = None,
+    today: Optional[date] = None,
 ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
     """Apply explicit per-client publication rules after price selection."""
 
+    today = today or now_moscow().date()
     rules = list(
         (
             await session.execute(
@@ -2060,6 +2074,14 @@ async def _apply_customer_publication_rules(
                 .where(
                     CustomerPriceListPublicationRule.config_id == config_id,
                     CustomerPriceListPublicationRule.is_active.is_(True),
+                    or_(
+                        CustomerPriceListPublicationRule.valid_from.is_(None),
+                        CustomerPriceListPublicationRule.valid_from <= today,
+                    ),
+                    or_(
+                        CustomerPriceListPublicationRule.valid_to.is_(None),
+                        CustomerPriceListPublicationRule.valid_to >= today,
+                    ),
                 )
                 .order_by(CustomerPriceListPublicationRule.id.asc())
             )
@@ -2086,6 +2108,7 @@ async def _apply_customer_publication_rules(
     suppressed_source_ids: set[int] = set()
     configured_source_ids = {int(rule.source_autopart_id) for rule in rules}
     manual_aliases: list[dict[str, Any]] = []
+    manual_aliases_price_only = 0
     warnings: list[str] = []
     week_key = _customer_pricelist_mask_week_key()
 
@@ -2119,6 +2142,22 @@ async def _apply_customer_publication_rules(
         if mode in {"hide", "only_cross"}:
             suppressed_source_ids.add(source_id)
         if mode == "hide":
+            continue
+        if mode == "price_only":
+            # Позиция остаётся в прайсе под своим артикулом, меняется только цена.
+            for column, default in (
+                ("__publication_rule_fixed_price", False),
+                ("__publication_rule_id", None),
+            ):
+                if column not in working.columns:
+                    working[column] = pd.Series(
+                        [default] * len(working), index=working.index, dtype="object"
+                    )
+            mask = working["autopart_id"] == source_id
+            working.loc[mask, "price"] = rule_price
+            working.loc[mask, "__publication_rule_fixed_price"] = True
+            working.loc[mask, "__publication_rule_id"] = int(rule.id)
+            manual_aliases_price_only += 1
             continue
         target_parts = [
             item.target_autopart
@@ -2207,6 +2246,7 @@ async def _apply_customer_publication_rules(
         {
             "publication_rules": len(rules),
             "manual_aliases": len(manual_aliases),
+            "price_only_positions": manual_aliases_price_only,
             "hidden_positions": len(suppressed_source_ids),
             "unconfigured_positions": unconfigured_positions,
             "only_configured_positions": bool(only_configured_when_rules_exist),
@@ -3562,6 +3602,7 @@ async def _persist_customer_pricelist_artifact(
                 ),
                 "price": float(price_value),
                 "row_type": row_type,
+                "publication_rule_id": _record_publication_rule_id(source),
             }
         )
         if len(insert_rows) >= 5000:

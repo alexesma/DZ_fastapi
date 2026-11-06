@@ -1393,3 +1393,120 @@ async def test_publication_rule_price_is_percent_of_chosen_source(
         price_book=price_book,
     )
     assert [row["price"] for row in own_price] == [76.0]
+
+
+@pytest.mark.asyncio
+async def test_publication_rule_rounding_validity_and_price_only(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    brand = Brand(name="DRAGONZAP")
+    test_session.add(brand)
+    await test_session.flush()
+    parts = [
+        AutoPart(brand_id=brand.id, oem_number=f"PRICEONLY{index}", name=f"Позиция {index}")
+        for index in range(4)
+    ]
+    target = AutoPart(brand_id=brand.id, oem_number="PRICEONLYCROSS", name="Кросс")
+    config = CustomerPriceListConfig(
+        customer_id=customer.id, name="Price only", general_markup=1
+    )
+    test_session.add_all([*parts, target, config])
+    await test_session.flush()
+    only_price, expired, future, rounded = parts
+    today = date.today()
+    test_session.add_all(
+        [
+            CustomerPriceListPublicationRule(
+                config_id=config.id,
+                source_autopart_id=only_price.id,
+                mode="price_only",
+                price_mode="fixed",
+                fixed_price=777,
+                is_active=True,
+            ),
+            CustomerPriceListPublicationRule(
+                config_id=config.id,
+                source_autopart_id=expired.id,
+                mode="price_only",
+                price_mode="fixed",
+                fixed_price=1,
+                valid_to=today - timedelta(days=1),
+                is_active=True,
+            ),
+            CustomerPriceListPublicationRule(
+                config_id=config.id,
+                source_autopart_id=future.id,
+                mode="price_only",
+                price_mode="fixed",
+                fixed_price=2,
+                valid_from=today + timedelta(days=1),
+                is_active=True,
+            ),
+            CustomerPriceListPublicationRule(
+                config_id=config.id,
+                source_autopart_id=rounded.id,
+                mode="price_only",
+                price_mode="percent",
+                price_percent=96.5,
+                price_rounding_step=10,
+                valid_from=today,
+                valid_to=today,
+                is_active=True,
+            ),
+        ]
+    )
+    await test_session.commit()
+    ids = [item.id for item in parts]
+    frame = pd.DataFrame(
+        [
+            {
+                "autopart_id": part_id,
+                "brand": "DRAGONZAP",
+                "oem_number": f"PRICEONLY{index}",
+                "name": "x",
+                "price": 1000,
+                "quantity": 3,
+            }
+            for index, part_id in enumerate(ids)
+        ]
+    )
+
+    direct, aliases, summary = await _apply_customer_publication_rules(
+        test_session,
+        config_id=config.id,
+        customer_id=customer.id,
+        source_df=frame,
+        automatic_aliases=[],
+    )
+
+    assert aliases == []
+    assert len(direct) == 4  # price_only не убирает позицию из прайса
+    prices = dict(zip(direct["autopart_id"], direct["price"]))
+    assert prices[only_price.id] == 777
+    assert prices[expired.id] == 1000  # срок правила истёк
+    assert prices[future.id] == 1000  # срок правила ещё не начался
+    assert prices[rounded.id] == 970  # 965 округлено вверх до шага 10
+    flagged = direct[direct["__publication_rule_fixed_price"] == True]  # noqa: E712
+    assert set(flagged["autopart_id"]) == {only_price.id, rounded.id}
+    assert summary["publication_rules"] == 2
+    assert summary["price_only_positions"] == 2
+    assert process_service._record_publication_rule_id(
+        direct[direct["autopart_id"] == only_price.id].iloc[0].to_dict()
+    ) is not None
+    assert process_service._record_publication_rule_id(
+        direct[direct["autopart_id"] == expired.id].iloc[0].to_dict()
+    ) is None
+
+    benchmark, changed = process_service._apply_benchmark_floor_records(
+        direct.to_dict("records"),
+        {("DRAGONZAP", "PRICEONLY0"): 5000.0, ("DRAGONZAP", "PRICEONLY1"): 5000.0},
+        multiplier=1.0,
+        rounding_step=1.0,
+        stage="after",
+    )
+    floors = {row["autopart_id"]: row["price"] for row in benchmark}
+    assert floors[only_price.id] == 777  # цену правила контроль цены не трогает
+    assert floors[expired.id] == 5000
+    assert changed == 1

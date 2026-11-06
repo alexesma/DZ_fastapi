@@ -1593,6 +1593,9 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
     price_mode: Optional[str] = None
     price_percent: Optional[float] = Field(default=None, gt=0, le=1000)
     price_source_id: Optional[int] = Field(default=None, gt=0)
+    price_rounding_step: Optional[int] = Field(default=None, gt=0, le=1000)
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
     mode: str = "only_cross"
     is_active: bool = True
 
@@ -1600,8 +1603,8 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
     @classmethod
     def validate_mode(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        if normalized not in {"add_cross", "only_cross", "hide"}:
-            raise ValueError("mode must be add_cross, only_cross or hide")
+        if normalized not in {"add_cross", "only_cross", "hide", "price_only"}:
+            raise ValueError("mode must be add_cross, only_cross, hide or price_only")
         return normalized
 
     @field_validator("price_mode")
@@ -1632,6 +1635,14 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
             self.fixed_price = None
             self.price_percent = None
             self.price_source_id = None
+        if self.price_mode != "percent":
+            self.price_rounding_step = None
+        if (
+            self.valid_from is not None
+            and self.valid_to is not None
+            and self.valid_to < self.valid_from
+        ):
+            raise ValueError("valid_to must not be earlier than valid_from")
         return self
 
     @model_validator(mode="after")
@@ -1640,7 +1651,12 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
         if self.target_autopart_id is not None:
             target_ids.append(int(self.target_autopart_id))
         self.target_autopart_ids = list(dict.fromkeys(target_ids))
-        if self.mode != "hide" and not self.target_autopart_ids:
+        if self.mode == "price_only":
+            if self.price_mode == "default":
+                raise ValueError("price_only rule needs a fixed or percent price")
+            self.target_autopart_id = None
+            self.target_autopart_ids = []
+        elif self.mode != "hide" and not self.target_autopart_ids:
             raise ValueError("at least one target autopart is required for cross rules")
         if self.mode == "hide":
             self.target_autopart_id = None
@@ -1649,7 +1665,97 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
             self.price_mode = "default"
             self.price_percent = None
             self.price_source_id = None
+            self.price_rounding_step = None
         return self
+
+
+class PublicationRulePricingIn(BaseModel):
+    """Цена правила; общая часть предпросмотра и массового задания."""
+
+    price_mode: str = "fixed"
+    fixed_price: Optional[float] = Field(default=None, gt=0, le=99_999_999.99)
+    price_percent: Optional[float] = Field(default=None, gt=0, le=1000)
+    price_source_id: Optional[int] = Field(default=None, gt=0)
+    price_rounding_step: Optional[int] = Field(default=None, gt=0, le=1000)
+
+    @field_validator("price_mode")
+    @classmethod
+    def validate_pricing_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"default", "fixed", "percent"}:
+            raise ValueError("price_mode must be default, fixed or percent")
+        return normalized
+
+
+class CustomerPriceListPublicationPreviewIn(PublicationRulePricingIn):
+    source_autopart_id: int = Field(gt=0)
+
+
+class CustomerPriceListPublicationPreviewSourcePrice(BaseModel):
+    source_id: int
+    source_name: Optional[str] = None
+    price: float
+    price_with_markup: float
+
+
+class CustomerPriceListPublicationPreviewOut(BaseModel):
+    current_price: Optional[float] = None
+    base_price: Optional[float] = None
+    result_price: Optional[float] = None
+    note: Optional[str] = None
+    source_prices: List[CustomerPriceListPublicationPreviewSourcePrice] = Field(
+        default_factory=list
+    )
+
+
+class CustomerPriceListPublicationBulkIn(PublicationRulePricingIn):
+    """Простое правило сразу для нескольких позиций или всего бренда."""
+
+    mode: str = "price_only"
+    autopart_ids: List[int] = Field(default_factory=list)
+    brand_id: Optional[int] = Field(default=None, gt=0)
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    is_active: bool = True
+    overwrite_cross_rules: bool = False
+
+    @field_validator("mode")
+    @classmethod
+    def validate_bulk_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"hide", "price_only"}:
+            raise ValueError("mode must be hide or price_only")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_bulk(self):
+        self.autopart_ids = list(
+            dict.fromkeys(int(item) for item in self.autopart_ids if int(item) > 0)
+        )
+        if not self.autopart_ids and self.brand_id is None:
+            raise ValueError("autopart_ids or brand_id is required")
+        if self.valid_from and self.valid_to and self.valid_to < self.valid_from:
+            raise ValueError("valid_to must not be earlier than valid_from")
+        if self.mode == "price_only":
+            if self.price_mode == "fixed" and self.fixed_price is None:
+                raise ValueError("fixed_price is required for fixed price mode")
+            if self.price_mode == "percent" and self.price_percent is None:
+                raise ValueError("price_percent is required for percent price mode")
+            if self.price_mode == "default":
+                raise ValueError("price_only rule needs a fixed or percent price")
+        return self
+
+
+class CustomerPriceListPublicationBulkError(BaseModel):
+    row: Optional[int] = None
+    message: str
+
+
+class CustomerPriceListPublicationBulkOut(BaseModel):
+    created: int = 0
+    updated: int = 0
+    skipped: int = 0
+    errors: List[CustomerPriceListPublicationBulkError] = Field(default_factory=list)
 
 
 class CustomerPriceListPublicationTargetOut(BaseModel):
@@ -1676,6 +1782,9 @@ class CustomerPriceListPublicationRuleOut(BaseModel):
     price_percent: Optional[float] = None
     price_source_id: Optional[int] = None
     price_source_name: Optional[str] = None
+    price_rounding_step: Optional[int] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
     mode: str
     is_active: bool
     created_at: datetime
@@ -1723,6 +1832,7 @@ class CustomerPriceListExportRowOut(BaseModel):
     multiplicity: int = 1
     price: float
     row_type: str
+    publication_rule_id: Optional[int] = None
     actual_brand: Optional[str] = None
     actual_oem: Optional[str] = None
     actual_name: Optional[str] = None

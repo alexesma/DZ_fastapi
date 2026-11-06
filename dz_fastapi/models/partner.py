@@ -785,6 +785,9 @@ class CustomerPriceListExportRow(Base):
     multiplicity = Column(Integer, nullable=False, default=1, server_default="1")
     price = Column(DECIMAL(10, 2), nullable=False)
     row_type = Column(String(32), nullable=False, default="direct")
+    # Правило публикации, по которому получена цена строки (без FK: история
+    # прайса не должна пропадать вместе с удалённым правилом).
+    publication_rule_id = Column(Integer, nullable=True, index=True)
 
     customer_pricelist = relationship("CustomerPriceList", back_populates="export_rows")
     source_autopart = relationship("AutoPart", lazy="joined")
@@ -830,6 +833,11 @@ class CustomerPriceListPublicationRule(Base):
         ForeignKey("customerpricelistsource.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Округление цены по правилу вверх до шага, как в контроле цены.
+    price_rounding_step = Column(Integer, nullable=True)
+    # Срок действия: без дат правило действует всегда.
+    valid_from = Column(Date, nullable=True)
+    valid_to = Column(Date, nullable=True)
     mode = Column(String(24), nullable=False, default="only_cross")
     is_active = Column(Boolean, nullable=False, default=True)
     created_by_user_id = Column(

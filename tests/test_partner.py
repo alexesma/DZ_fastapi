@@ -3942,3 +3942,181 @@ async def test_publication_rule_price_modes_via_api(
     assert reset.json()["price_mode"] == "default"
     assert reset.json()["price_percent"] is None
     assert reset.json()["price_source_id"] is None
+
+
+async def _seed_price_rule_config(test_session, customer):
+    test_session.add(
+        User(
+            id=1,
+            name="Bulk Admin",
+            email="bulk-rule-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    brand = Brand(name="BULK-BRAND")
+    provider = Provider(
+        name="BulkProvider",
+        email_contact="bulk@example.com",
+        email_incoming_price="bulk-in@example.com",
+        type_prices="Wholesale",
+    )
+    test_session.add_all([brand, provider])
+    await test_session.flush()
+    parts = [
+        AutoPart(brand_id=brand.id, oem_number=f"BULK{index}", name=f"Bulk {index}")
+        for index in range(3)
+    ]
+    provider_config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price="BULK_PRICE",
+        name_mail="BULK_PRICE",
+    )
+    config = CustomerPriceListConfig(customer_id=customer.id, name="BULK", general_markup=1.0)
+    test_session.add_all([*parts, provider_config, config])
+    await test_session.flush()
+    source = CustomerPriceListSource(
+        customer_config_id=config.id,
+        provider_config_id=provider_config.id,
+        enabled=True,
+        markup=1.1,
+    )
+    pricelist = PriceList(
+        date=date.today(),
+        provider_id=provider.id,
+        provider_config_id=provider_config.id,
+        is_active=True,
+    )
+    test_session.add_all([source, pricelist])
+    await test_session.flush()
+    test_session.add_all(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id, autopart_id=part.id, quantity=5, price=1000
+        )
+        for part in parts[:2]
+    )
+    await test_session.commit()
+    return brand, parts, config, source
+
+
+@pytest.mark.asyncio
+async def test_publication_rule_preview_bulk_and_import(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    async_client: AsyncClient,
+):
+    import pandas as pd
+
+    customer = created_customers[0]
+    brand, parts, config, source = await _seed_price_rule_config(test_session, customer)
+    base = f"/customers/{customer.id}/pricelist-configs/{config.id}/publication-rules"
+
+    preview = await async_client.post(
+        f"{base}/preview",
+        json={
+            "source_autopart_id": parts[0].id,
+            "price_mode": "percent",
+            "price_percent": 95,
+            "price_rounding_step": 10,
+            "price_source_id": source.id,
+        },
+    )
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["current_price"] == 1100  # 1000 с наценкой источника 1.1
+    assert body["result_price"] == 1050  # 1045 вверх до шага 10
+    missing = await async_client.post(
+        f"{base}/preview",
+        json={"source_autopart_id": parts[2].id, "price_mode": "fixed", "fixed_price": 10},
+    )
+    assert missing.json()["current_price"] is None
+
+    bulk = await async_client.post(
+        f"{base}/bulk",
+        json={
+            "mode": "price_only",
+            "price_mode": "percent",
+            "price_percent": 90,
+            "brand_id": brand.id,
+            "valid_to": "2099-01-01",
+        },
+    )
+    assert bulk.status_code == 200, bulk.text
+    assert bulk.json()["created"] == 2  # только позиции бренда, которые есть в прайсах
+    listed = (await async_client.get(base)).json()
+    assert {row["mode"] for row in listed} == {"price_only"}
+    assert all(row["price_percent"] == 90 and row["valid_to"] == "2099-01-01" for row in listed)
+
+    again = await async_client.post(
+        f"{base}/bulk",
+        json={"mode": "hide", "autopart_ids": [parts[0].id]},
+    )
+    assert again.json() == {"created": 0, "updated": 1, "skipped": 0, "errors": []}
+
+    foreign = await async_client.post(
+        f"{base}/bulk",
+        json={
+            "mode": "price_only",
+            "price_mode": "percent",
+            "price_percent": 90,
+            "price_source_id": 999999,
+            "autopart_ids": [parts[0].id],
+        },
+    )
+    assert foreign.status_code == 400
+    no_price = await async_client.post(
+        f"{base}/bulk", json={"mode": "price_only", "price_mode": "default", "brand_id": brand.id}
+    )
+    assert no_price.status_code == 422
+
+    frame = pd.DataFrame(
+        [
+            [brand.name, "BULK2", "цена", "фиксированная", "1 250,5", "", "", "", ""],
+            [brand.name, "bulk0", "скрыть", "", "", "", "", "01.12.2026", "31.12.2026"],
+            ["НЕТ-БРЕНДА", "X1", "цена", "процент", 90, "", "", "", ""],
+            [brand.name, "BULK1", "цена", "процент", 9000, "", "", "", ""],
+            [brand.name, "BULK1", "удалить", "", "", "", "", "", ""],
+        ],
+        columns=[
+            "Бренд", "Артикул", "Действие", "Тип цены", "Значение", "Прайс",
+            "Округление", "Действует с", "Действует по",
+        ],
+    )
+    buffer = io.BytesIO()
+    frame.to_excel(buffer, index=False)
+    imported = await async_client.post(
+        f"{base}/import",
+        files={"file": ("rules.xlsx", buffer.getvalue(), "application/octet-stream")},
+    )
+    assert imported.status_code == 200, imported.text
+    report = imported.json()
+    assert report["created"] == 1 and report["updated"] == 1
+    assert [item["row"] for item in report["errors"]] == [4, 5, 6]
+    assert "не найден" in report["errors"][0]["message"]
+
+    bad = await async_client.post(
+        f"{base}/import", files={"file": ("rules.xlsx", b"not excel", "application/octet-stream")}
+    )
+    assert bad.status_code == 400
+
+    template = await async_client.get(f"{base}/import-template")
+    assert template.status_code == 200
+    assert template.content[:2] == b"PK"
+
+    invalid_dates = await async_client.post(
+        base,
+        json={
+            "source_autopart_id": parts[0].id,
+            "mode": "price_only",
+            "price_mode": "fixed",
+            "fixed_price": 10,
+            "valid_from": "2026-12-31",
+            "valid_to": "2026-12-01",
+        },
+    )
+    assert invalid_dates.status_code == 422

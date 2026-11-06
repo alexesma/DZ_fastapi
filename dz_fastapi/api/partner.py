@@ -9,6 +9,7 @@ from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
+from fastapi.responses import Response as RawResponse
 from httpx import Response
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -89,7 +90,11 @@ from dz_fastapi.schemas.partner import (
     CustomerPriceListDraftRejectIn,
     CustomerPriceListExportRowOut,
     CustomerPriceListItem,
+    CustomerPriceListPublicationBulkIn,
+    CustomerPriceListPublicationBulkOut,
     CustomerPriceListPublicationCandidateOut,
+    CustomerPriceListPublicationPreviewIn,
+    CustomerPriceListPublicationPreviewOut,
     CustomerPriceListPublicationRuleCreate,
     CustomerPriceListPublicationRuleOut,
     CustomerPriceListResponse,
@@ -137,6 +142,7 @@ from dz_fastapi.schemas.partner import (
     SupplierResponseConfigUpdate,
 )
 from dz_fastapi.schemas.pricelist_job import CustomerPricelistJobCreate
+from dz_fastapi.services import publication_rules as publication_rules_service
 from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.customer_pricelist_jobs import enqueue_job, get_job_state, job_response
 from dz_fastapi.services.email import download_price_provider
@@ -367,15 +373,7 @@ _PUBLICATION_PRICE_SOURCE_LOAD = (
 
 
 def _publication_price_source_name(source) -> str | None:
-    if source is None:
-        return None
-    provider_config = source.provider_config
-    provider = getattr(provider_config, "provider", None)
-    parts = [
-        str(getattr(provider, "name", "") or "").strip(),
-        str(getattr(provider_config, "name_price", "") or "").strip(),
-    ]
-    return " · ".join(part for part in parts if part) or f"Источник {source.id}"
+    return publication_rules_service.source_label(source)
 
 
 def _publication_rule_response(
@@ -423,6 +421,9 @@ def _publication_rule_response(
         price_percent=rule.price_percent,
         price_source_id=rule.price_source_id,
         price_source_name=_publication_price_source_name(rule.price_source),
+        price_rounding_step=rule.price_rounding_step,
+        valid_from=rule.valid_from,
+        valid_to=rule.valid_to,
         mode=rule.mode,
         is_active=rule.is_active,
         created_at=rule.created_at,
@@ -2706,6 +2707,9 @@ async def copy_customer_pricelist_config(
                 fixed_price=rule.fixed_price,
                 price_mode=rule.price_mode,
                 price_percent=rule.price_percent,
+                price_rounding_step=rule.price_rounding_step,
+                valid_from=rule.valid_from,
+                valid_to=rule.valid_to,
                 price_source_id=(
                     copied_source_by_old_id[rule.price_source_id].id
                     if rule.price_source_id in copied_source_by_old_id
@@ -3219,7 +3223,7 @@ async def save_customer_pricelist_publication_rule(
     if source is None:
         raise HTTPException(status_code=404, detail="Source autopart not found")
     target_ids = [] if payload.mode == "hide" else payload.target_autopart_ids
-    if payload.mode != "hide":
+    if payload.mode not in {"hide", "price_only"}:
         if payload.source_autopart_id in target_ids:
             raise HTTPException(
                 status_code=400,
@@ -3264,6 +3268,9 @@ async def save_customer_pricelist_publication_rule(
     existing.price_mode = payload.price_mode
     existing.price_percent = payload.price_percent
     existing.price_source_id = payload.price_source_id
+    existing.price_rounding_step = payload.price_rounding_step
+    existing.valid_from = payload.valid_from
+    existing.valid_to = payload.valid_to
     existing.mode = payload.mode
     existing.is_active = payload.is_active
     existing.updated_by_user_id = current_user.id
@@ -3283,6 +3290,176 @@ async def save_customer_pricelist_publication_rule(
     await session.commit()
     loaded = await _load_publication_rule(session, config_id=config_id, rule_id=existing.id)
     return _publication_rule_response(loaded)
+
+
+async def _get_config_or_404(session: AsyncSession, customer_id: int, config_id: int):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    return config
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/preview",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListPublicationPreviewOut,
+)
+async def preview_customer_pricelist_publication_rule_price(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPriceListPublicationPreviewIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Цена позиции сейчас и после правила — по свежим прайсам источников."""
+    await _get_config_or_404(session, customer_id, config_id)
+    sources = await publication_rules_service.load_config_sources(session, config_id)
+    prices = await publication_rules_service.source_prices_for_autopart(
+        session, sources, payload.source_autopart_id
+    )
+    if not prices:
+        return CustomerPriceListPublicationPreviewOut(
+            note="Позиции нет в свежих прайсах источников этой конфигурации"
+        )
+    current = min(item["price_with_markup"] for item in prices)
+    base = current
+    note = None
+    if payload.price_mode == "percent" and payload.price_source_id is not None:
+        chosen = next(
+            (item for item in prices if item["source_id"] == payload.price_source_id), None
+        )
+        if chosen is None:
+            note = "В выбранном прайсе нет этой позиции — цена считается от итоговой"
+        else:
+            base = chosen["price_with_markup"]
+    result = publication_rules_service.compute_rule_price(
+        base_price=base,
+        price_mode=payload.price_mode,
+        fixed_price=payload.fixed_price,
+        price_percent=payload.price_percent,
+        rounding_step=payload.price_rounding_step,
+    )
+    return CustomerPriceListPublicationPreviewOut(
+        current_price=current,
+        base_price=base,
+        result_price=result,
+        note=note or "Ориентир: цены источников с их наценкой, без брендовых наценок и фильтров",
+        source_prices=prices,
+    )
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/bulk",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListPublicationBulkOut,
+)
+async def bulk_save_customer_pricelist_publication_rules(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPriceListPublicationBulkIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Скрыть или переоценить сразу несколько позиций либо весь бренд."""
+    await _get_config_or_404(session, customer_id, config_id)
+    sources = await publication_rules_service.load_config_sources(session, config_id)
+    if payload.price_source_id is not None and payload.price_source_id not in {
+        item.id for item in sources
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Прайс для расчёта цены должен быть источником этой конфигурации",
+        )
+    autopart_ids = list(payload.autopart_ids)
+    if payload.brand_id is not None:
+        autopart_ids += await publication_rules_service.brand_positions_in_sources(
+            session, sources, payload.brand_id
+        )
+        autopart_ids = list(dict.fromkeys(autopart_ids))
+    if len(autopart_ids) > publication_rules_service.BULK_POSITIONS_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Слишком много позиций для одного действия (больше "
+                f"{publication_rules_service.BULK_POSITIONS_LIMIT}). Сузьте выбор."
+            ),
+        )
+    if not autopart_ids:
+        raise HTTPException(
+            status_code=400, detail="Не найдено позиций для создания правил"
+        )
+    spec = publication_rules_service.SimpleRuleSpec(
+        mode=payload.mode,
+        price_mode=payload.price_mode,
+        fixed_price=payload.fixed_price,
+        price_percent=payload.price_percent,
+        price_source_id=payload.price_source_id,
+        price_rounding_step=payload.price_rounding_step,
+        valid_from=payload.valid_from,
+        valid_to=payload.valid_to,
+        is_active=payload.is_active,
+    )
+    report = publication_rules_service.BulkReport()
+    for autopart_id in autopart_ids:
+        outcome = await publication_rules_service.upsert_simple_rule(
+            session,
+            config_id=config_id,
+            autopart_id=autopart_id,
+            spec=spec,
+            user_id=current_user.id,
+            overwrite_cross_rules=payload.overwrite_cross_rules,
+        )
+        setattr(report, outcome, getattr(report, outcome) + 1)
+    await session.commit()
+    return CustomerPriceListPublicationBulkOut(**report.as_dict())
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/import",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListPublicationBulkOut,
+)
+async def import_customer_pricelist_publication_rules(
+    customer_id: int,
+    config_id: int,
+    file: UploadFile = File(...),
+    overwrite_cross_rules: bool = Form(False),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Импорт простых правил (скрыть / цена) из Excel."""
+    await _get_config_or_404(session, customer_id, config_id)
+    try:
+        report = await publication_rules_service.import_rules_from_excel(
+            session,
+            config_id=config_id,
+            content=await file.read(),
+            user_id=current_user.id,
+            overwrite_cross_rules=overwrite_cross_rules,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CustomerPriceListPublicationBulkOut(**report.as_dict())
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/import-template",
+    tags=["customers", "pricelists"],
+)
+async def download_publication_rules_import_template(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    await _get_config_or_404(session, customer_id, config_id)
+    return RawResponse(
+        content=publication_rules_service.build_import_template(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="publication_rules_template.xlsx"'},
+    )
 
 
 @router.delete(
@@ -3588,6 +3765,7 @@ async def list_customer_pricelist_draft_rows(
                 multiplicity=export_row.multiplicity,
                 price=float(export_row.price),
                 row_type=export_row.row_type,
+                publication_rule_id=export_row.publication_rule_id,
                 actual_brand=brand.name if brand else None,
                 actual_oem=autopart.oem_number if autopart else None,
                 actual_name=autopart.name if autopart else None,
