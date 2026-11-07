@@ -187,7 +187,9 @@ async def test_history_audit_returns_empty_counts(test_session):
     assert audit["posted_shipments"]["count"] == 0
     assert audit["providers_missing_contract"] == []
     assert audit["suspicious_auto_receipts"] == []
+    assert audit["suspicious_auto_receipt_count"] == 0
     assert audit["missing_price_receipts"] == []
+    assert audit["missing_price_receipt_count"] == 0
     assert audit["non_receipt_lots"] == []
 
 
@@ -218,7 +220,9 @@ async def test_misparsed_email_receipt_is_blocked_before_transfer(
         await dispatch._current_payload(test_session, event)
     audit = await dispatch.history_audit(test_session)
     assert audit["suspicious_auto_receipts"][0]["receipt_id"] == receipt.id
+    assert audit["suspicious_auto_receipt_count"] == 1
     assert audit["missing_price_receipts"][0]["receipt_id"] == receipt.id
+    assert audit["missing_price_receipt_count"] == 1
 
 
 @pytest.mark.asyncio

@@ -438,48 +438,52 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         .group_by(SupplierReceiptItem.receipt_id)
         .subquery()
     )
+    suspicious_query = (
+        select(
+            SupplierReceipt.id,
+            Provider.name,
+            SupplierReceipt.supplier_order_id,
+            receipt_quantities.c.quantity,
+            ordered_quantities.c.quantity,
+        )
+        .join(Provider, Provider.id == SupplierReceipt.provider_id)
+        .join(receipt_quantities, receipt_quantities.c.receipt_id == SupplierReceipt.id)
+        .join(
+            ordered_quantities,
+            ordered_quantities.c.order_id == SupplierReceipt.supplier_order_id,
+        )
+        .where(
+            SupplierReceipt.posted_at.is_not(None),
+            SupplierReceipt.comment.like("Авто-черновик поступления из ответа поставщика%"),
+            ordered_quantities.c.quantity > 0,
+            receipt_quantities.c.quantity > 10 * ordered_quantities.c.quantity,
+        )
+    )
+    suspicious_count = await session.scalar(
+        select(func.count()).select_from(suspicious_query.subquery())
+    )
     suspicious_auto_receipts = (
-        await session.execute(
-            select(
-                SupplierReceipt.id,
-                Provider.name,
-                SupplierReceipt.supplier_order_id,
-                receipt_quantities.c.quantity,
-                ordered_quantities.c.quantity,
-            )
-            .join(Provider, Provider.id == SupplierReceipt.provider_id)
-            .join(receipt_quantities, receipt_quantities.c.receipt_id == SupplierReceipt.id)
-            .join(
-                ordered_quantities,
-                ordered_quantities.c.order_id == SupplierReceipt.supplier_order_id,
-            )
-            .where(
-                SupplierReceipt.posted_at.is_not(None),
-                SupplierReceipt.comment.like("Авто-черновик поступления из ответа поставщика%"),
-                ordered_quantities.c.quantity > 0,
-                receipt_quantities.c.quantity > 10 * ordered_quantities.c.quantity,
-            )
-            .order_by(SupplierReceipt.id)
-            .limit(100)
-        )
+        await session.execute(suspicious_query.order_by(SupplierReceipt.id).limit(100))
     ).all()
-    missing_price_receipts = (
-        await session.execute(
-            select(SupplierReceipt.id, Provider.name, func.count(SupplierReceiptItem.id))
-            .join(Provider, Provider.id == SupplierReceipt.provider_id)
-            .join(SupplierReceiptItem, SupplierReceiptItem.receipt_id == SupplierReceipt.id)
-            .where(
-                SupplierReceipt.posted_at.is_not(None),
-                SupplierReceiptItem.received_quantity > 0,
-                (
-                    SupplierReceiptItem.price.is_(None)
-                    | (SupplierReceiptItem.price <= 0)
-                ),
-            )
-            .group_by(SupplierReceipt.id, Provider.name)
-            .order_by(SupplierReceipt.id)
-            .limit(100)
+    missing_price_query = (
+        select(SupplierReceipt.id, Provider.name, func.count(SupplierReceiptItem.id))
+        .join(Provider, Provider.id == SupplierReceipt.provider_id)
+        .join(SupplierReceiptItem, SupplierReceiptItem.receipt_id == SupplierReceipt.id)
+        .where(
+            SupplierReceipt.posted_at.is_not(None),
+            SupplierReceiptItem.received_quantity > 0,
+            (
+                SupplierReceiptItem.price.is_(None)
+                | (SupplierReceiptItem.price <= 0)
+            ),
         )
+        .group_by(SupplierReceipt.id, Provider.name)
+    )
+    missing_price_count = await session.scalar(
+        select(func.count()).select_from(missing_price_query.subquery())
+    )
+    missing_price_receipts = (
+        await session.execute(missing_price_query.order_by(SupplierReceipt.id).limit(100))
     ).all()
     return {
         "posted_receipts": {
@@ -508,10 +512,12 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             }
             for row in suspicious_auto_receipts
         ],
+        "suspicious_auto_receipt_count": suspicious_count or 0,
         "missing_price_receipts": [
             {"receipt_id": row[0], "provider": row[1], "items": row[2]}
             for row in missing_price_receipts
         ],
+        "missing_price_receipt_count": missing_price_count or 0,
         "stock_lots_by_source": [
             {
                 "source": str(row[0]), "lots": row[1],
