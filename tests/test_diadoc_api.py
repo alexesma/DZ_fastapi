@@ -662,6 +662,60 @@ async def test_diadoc_counteragents_and_provider_binding(
 
 
 @pytest.mark.asyncio
+async def test_diadoc_counteragents_return_cursor_for_next_page(
+    async_client,
+    test_session,
+    monkeypatch,
+):
+    await _login_admin(async_client, test_session)
+    await crud_diadoc_integration_settings.update(
+        test_session,
+        {
+            "environment": "staging",
+            "refresh_token": "refresh-token",
+            "access_token": "cached-access-token",
+            "access_token_expires_at": now_moscow() + timedelta(hours=1),
+            "box_id_guid": "box-guid",
+            "box_id": "box@diadoc.ru",
+        },
+    )
+    seen_cursors = []
+
+    async def fake_get_counteragents(self, **kwargs):
+        seen_cursors.append(kwargs["after_index_key"])
+        first_page = kwargs["after_index_key"] is None
+        rows = [
+            {
+                "IndexKey": f"KEY-{index}",
+                "Organization": {
+                    "ShortName": f"Org {index}",
+                    "Boxes": [{"BoxIdGuid": f"guid-{index}", "BoxId": f"b{index}@diadoc.ru"}],
+                },
+            }
+            for index in ([1, 2] if first_page else [3])
+        ]
+        return {"TotalCount": 3, "Counteragents": rows}
+
+    monkeypatch.setattr(
+        "dz_fastapi.api.diadoc.DiadocClient.get_counteragents",
+        fake_get_counteragents,
+    )
+    first = (await async_client.get("/diadoc/counteragents", params={"page_size": 2})).json()
+    assert first["has_more_results"] is True
+    assert first["after_index_key"] == "KEY-2"
+    second = (
+        await async_client.get(
+            "/diadoc/counteragents",
+            params={"page_size": 2, "after_index_key": first["after_index_key"]},
+        )
+    ).json()
+    assert seen_cursors == [None, "KEY-2"]
+    assert second["has_more_results"] is False
+    assert second["after_index_key"] is None
+    assert [item["short_name"] for item in second["counteragents"]] == ["Org 3"]
+
+
+@pytest.mark.asyncio
 async def test_diadoc_can_bind_customer_counteragent(
     async_client,
     test_session,

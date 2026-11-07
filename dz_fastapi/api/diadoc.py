@@ -841,10 +841,17 @@ async def list_diadoc_counteragents(
         integration.last_error = None
         session.add(integration)
         await session.commit()
+        raw_rows = payload.get("Counteragents") or []
+        total_count = int(payload.get("TotalCount") or len(items))
+        # Диадок не возвращает ключ продолжения для контрагентов: следующая
+        # страница начинается после IndexKey последней записи.
+        after_index_key = payload.get("AfterIndexKey")
+        if not after_index_key and len(raw_rows) >= page_size and total_count > len(raw_rows):
+            after_index_key = (raw_rows[-1] or {}).get("IndexKey")
         return DiadocCounteragentListOut(
-            total_count=int(payload.get("TotalCount") or len(items)),
-            has_more_results=bool(payload.get("HasMoreResults")),
-            after_index_key=payload.get("AfterIndexKey"),
+            total_count=total_count,
+            has_more_results=bool(payload.get("HasMoreResults") or after_index_key),
+            after_index_key=after_index_key,
             counteragents=items,
         )
     except Exception as exc:
