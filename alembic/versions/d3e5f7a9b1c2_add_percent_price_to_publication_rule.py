@@ -29,7 +29,10 @@ def upgrade() -> None:
             server_default="default",
         ),
     )
-    op.add_column(TABLE, sa.Column("price_percent", sa.Numeric(precision=7, scale=2), nullable=True))
+    op.add_column(
+        TABLE,
+        sa.Column("price_percent", sa.Numeric(precision=7, scale=2), nullable=True),
+    )
     op.add_column(TABLE, sa.Column("price_source_id", sa.Integer(), nullable=True))
     op.create_foreign_key(
         "fk_publication_rule_price_source",
