@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
@@ -1415,7 +1416,8 @@ async def test_publication_rule_rounding_validity_and_price_only(
     test_session.add_all([*parts, target, config])
     await test_session.flush()
     only_price, expired, future, rounded = parts
-    today = date.today()
+    # Правила считаются по московской дате, поэтому и тест не должен зависеть от UTC.
+    today = now_moscow().date()
     test_session.add_all(
         [
             CustomerPriceListPublicationRule(

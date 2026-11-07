@@ -1,11 +1,12 @@
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import List, Optional
 
 from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from dz_fastapi.core.time import MOSCOW_TZ
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
@@ -408,11 +409,11 @@ class CRUDStockOrder:
             created_range = []
             receipt_range = []
             if date_from is not None:
-                lower_bound = datetime.combine(date_from, datetime.min.time())
+                lower_bound = datetime.combine(date_from, time.min, tzinfo=MOSCOW_TZ)
                 created_range.append(StockOrder.created_at >= lower_bound)
                 receipt_range.append(SupplierReceipt.posted_at >= lower_bound)
             if date_to is not None:
-                upper_bound = datetime.combine(date_to, datetime.max.time())
+                upper_bound = datetime.combine(date_to, time.max, tzinfo=MOSCOW_TZ)
                 created_range.append(StockOrder.created_at <= upper_bound)
                 receipt_range.append(SupplierReceipt.posted_at <= upper_bound)
             recent_receipt = (
