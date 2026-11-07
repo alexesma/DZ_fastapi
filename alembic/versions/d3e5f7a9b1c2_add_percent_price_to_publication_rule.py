@@ -22,7 +22,12 @@ TABLE = "customerpricelistpublicationrule"
 def upgrade() -> None:
     op.add_column(
         TABLE,
-        sa.Column("price_mode", sa.String(length=16), nullable=False, server_default="default"),
+        sa.Column(
+            "price_mode",
+            sa.String(length=16),
+            nullable=False,
+            server_default="default",
+        ),
     )
     op.add_column(TABLE, sa.Column("price_percent", sa.Numeric(precision=7, scale=2), nullable=True))
     op.add_column(TABLE, sa.Column("price_source_id", sa.Integer(), nullable=True))

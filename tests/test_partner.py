@@ -4116,7 +4116,8 @@ async def test_publication_rule_preview_bulk_and_import(
     assert deleted.json() == {"deleted": 2}  # несуществующий id игнорируется
     left = [row["id"] for row in (await async_client.get(base)).json()]
     assert left == listed_ids[2:]
-    assert (await async_client.post(f"{base}/bulk-delete", json={"rule_ids": []})).status_code == 422
+    empty_delete = await async_client.post(f"{base}/bulk-delete", json={"rule_ids": []})
+    assert empty_delete.status_code == 422
 
     invalid_dates = await async_client.post(
         base,
