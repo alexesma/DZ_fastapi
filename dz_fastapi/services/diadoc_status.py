@@ -60,12 +60,10 @@ def derive_outgoing_status_fields(
         or "аннулирован" in text_lower
     ):
         status = "revoked"
-    elif (
-        "отказ" in text_lower
-        or "reject" in recipient_lower
-        or severity_lower == "error"
-    ):
+    elif "отказ" in text_lower or "reject" in recipient_lower:
         status = "rejected"
+    elif severity_lower == "error":
+        status = "technical_error"
     elif (
         severity_lower == "success"
         or "заверш" in text_lower
@@ -204,6 +202,7 @@ async def refresh_diadoc_outgoing_statuses(
         "completed": 0,
         "rejected": 0,
         "revoked": 0,
+        "technical_error": 0,
         "errors": [],
     }
     for document in documents:
@@ -218,15 +217,20 @@ async def refresh_diadoc_outgoing_statuses(
         except DiadocApiError as exc:
             await session.rollback()
             if exc.status_code == 404:
-                # Черновик удалили в вебе Диадока — фиксируем и больше
-                # не опрашиваем.
-                document.status = "rejected"
+                # 404 не является отказом контрагента. Идентификатор мог
+                # измениться после отправки черновика или быть временно
+                # недоступен, поэтому оставляем документ для повторной проверки.
+                document.status = "technical_error"
                 document.docflow_status_text = (
-                    "Документ не найден в Диадоке (удалён?)"
+                    "Документ временно не найден в Диадоке"
+                )
+                document.error_details = (
+                    "HTTP 404 при проверке статуса; будет проверен повторно"
                 )
                 document.status_checked_at = now_moscow()
                 session.add(document)
                 await session.commit()
+                result["technical_error"] += 1
             result["errors"].append(
                 f"#{document.id}: HTTP {exc.status_code} {exc.detail[:200]}"
             )

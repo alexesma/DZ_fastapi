@@ -1777,13 +1777,18 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                     trace.details["skipped_disabled"] = True
                     return
                 integration, client = await get_diadoc_client_for_session(session)
-                # Пагинация: если за интервал пришло больше документов,
-                # чем помещается в страницу, докручиваем курсором
-                # (до 5 страниц за запуск).
+                # Дочитываем очередь до конца. Остановка по created=0 опасна:
+                # на уже известной странице могут находиться более старые,
+                # ещё не импортированные документы.
                 page_count = max(1, min(int(integration.inbound_sync_count or 50), 100))
-                after_index_key = None
+                after_index_key = (
+                    integration.inbound_continuation_index_key or None
+                )
                 combined: dict = {}
-                for _page in range(5):
+                max_pages = 100
+                pages_read = 0
+                for _page in range(max_pages):
+                    pages_read += 1
                     result = await sync_diadoc_incoming_documents(
                         session=session,
                         client=client,
@@ -1814,16 +1819,33 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                         else:
                             combined[key] = value
                     after_index_key = result.get("last_index_key")
+                    has_more_results = bool(
+                        result.get("has_more_results") and after_index_key
+                    )
+                    integration.inbound_continuation_index_key = (
+                        after_index_key if has_more_results else None
+                    )
+                    session.add(integration)
+                    await session.commit()
                     if (
-                        not result.get("has_more_results")
-                        or not after_index_key
-                        or int(result.get("created") or 0) == 0
+                        not has_more_results
                     ):
                         break
+                combined["pages_read"] = pages_read
+                if result.get("has_more_results") and after_index_key:
+                    combined.setdefault("errors", []).append(
+                        "Очередь Диадока превышает 100 страниц; "
+                        "дочитывание продолжится следующим запуском"
+                    )
                 result = combined
                 trace.details["summary"] = result
                 integration.last_sync_at = now_moscow()
-                integration.last_error = None
+                integration.last_error = (
+                    "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
+                    or None
+                )
+                integration.inbound_last_sync_at = integration.last_sync_at
+                integration.inbound_last_error = integration.last_error
                 session.add(integration)
                 await session.commit()
                 logger.info(
@@ -1841,8 +1863,13 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                 trace.details["error"] = str(e)[:2000]
                 trace.details["__trace_status"] = "error"
                 try:
-                    integration = await crud_diadoc_integration_settings.get_or_create(session)
+                    integration = (
+                        await crud_diadoc_integration_settings.get_or_create(
+                            session
+                        )
+                    )
                     integration.last_error = str(e)[:2000]
+                    integration.inbound_last_error = integration.last_error
                     session.add(integration)
                     await session.commit()
                 except Exception:
@@ -1915,6 +1942,15 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                     environment=str(integration.environment or "staging"),
                 )
                 trace.details["summary"] = result
+                integration.outbound_last_sync_at = now_moscow()
+                integration.outbound_last_error = (
+                    "; ".join(
+                        str(item) for item in result.get("errors", [])[:5]
+                    )[:2000]
+                    or None
+                )
+                session.add(integration)
+                await session.commit()
                 try:
                     from dz_fastapi.services.etrn import sync_etrn
 
@@ -1937,6 +1973,17 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                     exc_info=True,
                 )
                 trace.details["error"] = str(e)[:2000]
+                try:
+                    integration = (
+                        await crud_diadoc_integration_settings.get_or_create(
+                            session
+                        )
+                    )
+                    integration.outbound_last_error = str(e)[:2000]
+                    session.add(integration)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
                 await _notify_scheduler_issue(
                     session,
                     subject="Ошибка обновления статусов Диадока",

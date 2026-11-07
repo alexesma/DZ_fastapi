@@ -80,6 +80,11 @@ class DiadocStatusOut(BaseModel):
     access_token_expires_at: datetime | None = None
     last_sync_at: datetime | None = None
     last_error: str | None = None
+    inbound_last_sync_at: datetime | None = None
+    inbound_last_error: str | None = None
+    inbound_continuation_index_key: str | None = None
+    outbound_last_sync_at: datetime | None = None
+    outbound_last_error: str | None = None
 
 
 class DiadocSettingsUpdate(BaseModel):
@@ -205,6 +210,8 @@ class DiadocInboundDocumentOut(BaseModel):
     rejected_at: datetime | None = None
     can_register_supplier_message: bool = False
     can_process_supplier_message: bool = False
+    can_sign_incoming: bool = False
+    sign_block_reason: str | None = None
     supplier_receipt_ids: list[int] = Field(default_factory=list)
     direction: str | None = None
     parsed_details: dict[str, Any] = Field(default_factory=dict)
@@ -413,6 +420,7 @@ class DiadocOutboundStatusSyncResult(BaseModel):
     completed: int = 0
     rejected: int = 0
     revoked: int = 0
+    technical_error: int = 0
     errors: list[str] = Field(default_factory=list)
 
 

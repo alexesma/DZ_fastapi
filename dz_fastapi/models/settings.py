@@ -126,6 +126,11 @@ class DiadocIntegrationSettings(Base):
     etrn_t6_enabled = Column(Boolean, default=False, nullable=False)
     last_sync_at = Column(DateTime(timezone=True), nullable=True)
     last_error = Column(String(2000), nullable=True)
+    inbound_last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    inbound_last_error = Column(String(2000), nullable=True)
+    inbound_continuation_index_key = Column(String(512), nullable=True)
+    outbound_last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    outbound_last_error = Column(String(2000), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),

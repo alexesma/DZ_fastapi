@@ -8,6 +8,7 @@ PostMessage. Файлы между шагами храним в задаче (ba
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 from typing import Any, Optional
 
@@ -206,6 +207,15 @@ def _encode_file(content: bytes) -> str:
     return base64.b64encode(content).decode("ascii")
 
 
+def _task_operation_id(task: DiadocCloudSignTask, action: str) -> str:
+    """Стабильный ID защищает повтор SMS-подтверждения от дубля в Диадоке."""
+    source = (
+        f"{action}|{task.environment}|{task.box_id_guid}|"
+        f"{task.message_id or ''}|{task.entity_id or ''}|{task.id or ''}"
+    )
+    return hashlib.md5(source.encode("utf-8")).hexdigest()
+
+
 async def start_incoming_sign_task(
     session: AsyncSession,
     *,
@@ -366,7 +376,10 @@ async def _apply_reject_incoming(
             }
         ],
     }
-    response = await client.post_message_patch(patch=patch)
+    response = await client.post_message_patch(
+        patch=patch,
+        operation_id=_task_operation_id(task, "reject-incoming"),
+    )
     if task.incoming_document_id:
         document = await session.get(
             DiadocIncomingDocument, task.incoming_document_id
@@ -526,7 +539,10 @@ async def _apply_sign_incoming(
         patch["UniversalTransferDocumentBuyerTitles"] = buyer_titles
     if receipts:
         patch["Receipts"] = receipts
-    response = await client.post_message_patch(patch=patch)
+    response = await client.post_message_patch(
+        patch=patch,
+        operation_id=_task_operation_id(task, "sign-incoming"),
+    )
     if task.incoming_document_id:
         document = await session.get(
             DiadocIncomingDocument, task.incoming_document_id
@@ -557,7 +573,10 @@ async def _apply_revoke_outgoing(
             }
         ],
     }
-    response = await client.post_message_patch(patch=patch)
+    response = await client.post_message_patch(
+        patch=patch,
+        operation_id=_task_operation_id(task, "revoke-outgoing"),
+    )
     if task.outgoing_document_id:
         document = await session.get(
             DiadocOutgoingDocument, task.outgoing_document_id
@@ -585,32 +604,26 @@ async def _apply_send_outgoing(
     )
     if document is None:
         raise ValueError("Исходящий документ не найден")
-    files = list(task.files or [])
-    attachment: dict[str, Any] = {
-        "SignedContent": _signed_content(files[0], signatures[0]),
-        "NeedRecipientSignature": bool(
-            document.need_recipient_signature
-        ),
-        "NeedReceipt": bool(document.need_receipt),
-        "TypeNamedId": document.type_named_id,
-        "Metadata": [
-            {"Key": key, "Value": str(value)}
-            for key, value in (document.metadata_json or {}).items()
-        ],
-    }
-    if document.comment:
-        attachment["Comment"] = document.comment
-    if document.document_function:
-        attachment["Function"] = document.document_function
-    if document.document_version:
-        attachment["Version"] = document.document_version
-    message_payload = {
-        "FromBoxId": document.from_box_id_guid,
-        "ToBoxId": document.to_box_id_guid,
-        "IsDraft": False,
-        "DocumentAttachments": [attachment],
-    }
-    response = await client.post_message(message=message_payload)
+    operation_id = hashlib.md5(
+        (
+            f"send-draft|{document.environment}|{document.id}|"
+            f"{document.message_id}|{document.content_sha256 or ''}"
+        ).encode("utf-8")
+    ).hexdigest()
+    response = await client.send_draft(
+        draft={
+            "BoxId": document.from_box_id_guid,
+            "ToBoxId": document.to_box_id_guid,
+            "DraftId": document.message_id,
+            "DocumentSignatures": [
+                {
+                    "ParentEntityId": document.entity_id,
+                    "Signature": signatures[0],
+                }
+            ],
+        },
+        operation_id=operation_id,
+    )
     document.message_id = (
         _extract_message_id(response) or document.message_id
     )
@@ -712,6 +725,8 @@ async def confirm_cloud_sign_task(
     task.error_details = None
     task.completed_at = now_moscow()
     task.params = {**(task.params or {}), **details}
+    task.cloud_sign_token = None
+    task.files = []
     session.add(task)
     await session.commit()
     await session.refresh(task)

@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from sqlalchemy import select
 
+from dz_fastapi.api.diadoc import _incoming_sign_block_reason
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.settings import crud_diadoc_integration_settings
 from dz_fastapi.models.diadoc import DiadocIncomingDocument, DiadocOutgoingDocument
@@ -73,6 +74,39 @@ async def _login_admin(async_client, test_session):
         json={"email": "admin@example.com", "password": "secret123"},
     )
     assert response.status_code == 200
+
+
+def test_incoming_sign_requires_processed_posted_receipt():
+    document = DiadocIncomingDocument(
+        environment="staging",
+        box_id_guid="box",
+        message_id="message",
+        entity_id="entity",
+        provider_id=1,
+        direction="supplier",
+        status="synced",
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    assert _incoming_sign_block_reason(document) == (
+        "Сначала обработайте УПД и создайте поступление"
+    )
+
+    document.duplicate_kind = "same_number"
+    assert _incoming_sign_block_reason(document) == (
+        "Нельзя подписать документ, распознанный как дубль"
+    )
+    document.duplicate_kind = None
+
+    message = SupplierOrderMessage(provider_id=1)
+    receipt = SupplierReceipt(provider_id=1)
+    message.receipts = [receipt]
+    document.supplier_order_message = message
+    assert _incoming_sign_block_reason(document) == (
+        "Сначала проверьте и проведите связанное поступление"
+    )
+
+    receipt.posted_at = now_moscow()
+    assert _incoming_sign_block_reason(document) is None
 
 
 @pytest.mark.asyncio

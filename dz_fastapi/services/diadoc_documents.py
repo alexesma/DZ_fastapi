@@ -84,10 +84,12 @@ def _build_diadoc_storage_relative_path(
     environment: str,
     box_id_guid: str,
     message_id: str,
+    entity_id: str,
     filename: str | None,
 ) -> str:
     safe_box = _safe_filename(box_id_guid)
     safe_message = _safe_filename(message_id)
+    safe_entity = _safe_filename(entity_id)
     safe_name = _safe_filename(filename)
     date_str = now_moscow().strftime("%Y%m%d")
     return os.path.join(
@@ -95,7 +97,7 @@ def _build_diadoc_storage_relative_path(
         environment,
         safe_box,
         date_str,
-        f"{safe_message}_{safe_name}",
+        f"{safe_message}_{safe_entity}_{safe_name}",
     )
 
 
@@ -209,6 +211,7 @@ async def ensure_diadoc_document_content(
         environment=document.environment,
         box_id_guid=document.box_id_guid,
         message_id=document.message_id,
+        entity_id=document.entity_id,
         filename=document.file_name,
     )
     await _write_content_to_relative_path(relative_path, content)

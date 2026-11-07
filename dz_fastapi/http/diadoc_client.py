@@ -80,13 +80,27 @@ class DiadocClient:
         params: dict[str, Any] | None = None,
         json_body: Any | None = None,
     ) -> dict[str, Any]:
-        response = await self._request(
-            method,
-            path,
-            params=params,
-            json_body=json_body,
-        )
-        return response.json()
+        for attempt in range(6):
+            response = await self._request(
+                method,
+                path,
+                params=params,
+                json_body=json_body,
+            )
+            if response.status_code != 204:
+                return response.json()
+            if attempt == 5:
+                raise DiadocApiError(
+                    504,
+                    "Diadoc operation is still processing after retries",
+                )
+            retry_after = response.headers.get("retry-after") or "1"
+            try:
+                delay = max(0.1, min(float(retry_after), 10.0))
+            except (TypeError, ValueError):
+                delay = 1.0
+            await asyncio.sleep(delay)
+        raise AssertionError("unreachable")
 
     async def get_my_user(self) -> dict[str, Any]:
         return await self._request_json("GET", "/V2/GetMyUser")
@@ -318,9 +332,26 @@ class DiadocClient:
             params = {"operationId": operation_id}
         return await self._request_json(
             "POST",
-            "/V3/PostMessagePatch",
+            "/V4/PostMessagePatch",
             params=params,
             json_body=patch,
+        )
+
+    async def send_draft(
+        self,
+        *,
+        draft: dict[str, Any],
+        operation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Подписывает и отправляет уже созданный черновик."""
+        params: dict[str, Any] | None = None
+        if operation_id:
+            params = {"operationId": operation_id}
+        return await self._request_json(
+            "POST",
+            "/SendDraft",
+            params=params,
+            json_body=draft,
         )
 
     async def _wait_task_result(

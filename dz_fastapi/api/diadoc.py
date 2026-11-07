@@ -116,6 +116,7 @@ from dz_fastapi.services.diadoc_status import (
 )
 from dz_fastapi.services.supplier_document_dedup import (
     acknowledge_mismatch,
+    effective_category,
     resolve_amount_mismatch,
 )
 
@@ -166,6 +167,13 @@ def _integration_to_status(
         access_token_expires_at=integration.access_token_expires_at,
         last_sync_at=integration.last_sync_at,
         last_error=integration.last_error,
+        inbound_last_sync_at=integration.inbound_last_sync_at,
+        inbound_last_error=integration.inbound_last_error,
+        inbound_continuation_index_key=(
+            integration.inbound_continuation_index_key
+        ),
+        outbound_last_sync_at=integration.outbound_last_sync_at,
+        outbound_last_error=integration.outbound_last_error,
     )
 
 
@@ -252,6 +260,7 @@ def _incoming_document_to_out(
         for receipt in getattr(supplier_message, "receipts", []) or []
         if getattr(receipt, "id", None) is not None
     )
+    sign_block_reason = _incoming_sign_block_reason(document)
     return DiadocInboundDocumentOut(
         id=int(document.id),
         environment=DiadocEnvironment(
@@ -289,6 +298,8 @@ def _incoming_document_to_out(
             and document.local_file_path
             and document.direction != "customer"
         ),
+        can_sign_incoming=sign_block_reason is None,
+        sign_block_reason=sign_block_reason,
         supplier_receipt_ids=receipt_ids,
         direction=document.direction,
         parsed_details=dict(document.parsed_details or {}),
@@ -319,6 +330,37 @@ def _incoming_document_to_out(
         mismatch_acknowledged_at=document.mismatch_acknowledged_at,
         mismatch_log=list(document.mismatch_log or []),
     )
+
+
+def _incoming_sign_block_reason(
+    document: DiadocIncomingDocument,
+) -> str | None:
+    """Объясняет, почему входящий УПД пока нельзя юридически принять."""
+    if document.signed_at is not None:
+        return "Документ уже подписан"
+    if document.rejected_at is not None:
+        return "По документу уже отправлен отказ в подписи"
+    if effective_category(document) != "upd":
+        return "Подписание титула покупателя доступно только для УПД"
+    if document.direction == "customer":
+        return "Документ относится к клиенту, а не к поставщику"
+    if document.direction in (None, "unknown"):
+        return "Сначала определите направление документа"
+    if not document.provider_id:
+        return "Сначала сопоставьте контрагента с поставщиком"
+    if document.duplicate_of_document_id or document.duplicate_kind:
+        return "Нельзя подписать документ, распознанный как дубль"
+    if document.amount_mismatch_status in ("pending", "correction_required"):
+        return "Сначала разрешите расхождение суммы документа"
+    if str(document.status or "").lower() in ("error", "technical_error"):
+        return "Сначала исправьте ошибку обработки документа"
+    supplier_message = getattr(document, "supplier_order_message", None)
+    receipts = list(getattr(supplier_message, "receipts", []) or [])
+    if not receipts:
+        return "Сначала обработайте УПД и создайте поступление"
+    if any(getattr(receipt, "posted_at", None) is None for receipt in receipts):
+        return "Сначала проверьте и проведите связанное поступление"
+    return None
 
 
 def _raise_diadoc_http_error(exc: Exception) -> None:
@@ -652,7 +694,6 @@ async def list_diadoc_organizations(
         integration, client = await get_diadoc_client_for_session(session)
         payload = await client.get_my_organizations(auto_register=False)
         integration.last_sync_at = now_moscow()
-        integration.last_error = None
         session.add(integration)
         await session.commit()
         return _normalize_organizations(payload)
@@ -946,7 +987,6 @@ async def list_diadoc_documents(
             sort_direction=sort_direction,
         )
         integration.last_sync_at = now_moscow()
-        integration.last_error = None
         session.add(integration)
         await session.commit()
         return _normalize_documents(payload)
@@ -986,7 +1026,12 @@ async def sync_diadoc_inbound_documents(
             process_supplier_message=payload.process_supplier_message,
         )
         integration.last_sync_at = now_moscow()
-        integration.last_error = None
+        integration.inbound_last_sync_at = integration.last_sync_at
+        integration.inbound_last_error = (
+            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
+            or None
+        )
+        integration.last_error = integration.inbound_last_error
         session.add(integration)
         await session.commit()
         return DiadocInboundSyncResult(**result)
@@ -1306,6 +1351,12 @@ async def sync_diadoc_outbound_statuses(
             limit=limit,
         )
         integration.last_sync_at = now_moscow()
+        integration.outbound_last_sync_at = integration.last_sync_at
+        integration.outbound_last_error = (
+            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
+            or None
+        )
+        integration.last_error = integration.outbound_last_error
         session.add(integration)
         await session.commit()
         return DiadocOutboundStatusSyncResult(**result)
@@ -1368,6 +1419,9 @@ async def start_sign_inbound_document(
     )
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    sign_block_reason = _incoming_sign_block_reason(document)
+    if sign_block_reason is not None:
+        raise HTTPException(status_code=409, detail=sign_block_reason)
     try:
         integration, client = await get_diadoc_client_for_session(session)
         if normalize_diadoc_environment(

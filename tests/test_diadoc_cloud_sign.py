@@ -1,9 +1,11 @@
 import xml.etree.ElementTree as ET
+from types import SimpleNamespace
 
 import pytest
 
 from dz_fastapi.models.settings import DiadocIntegrationSettings
 from dz_fastapi.services.diadoc_cloud_sign import (
+    _apply_send_outgoing,
     build_signer_payload,
     build_utd970_buyer_title_user_data,
     split_signer_full_name,
@@ -98,3 +100,63 @@ def test_buyer_title_escapes_quotes_in_names():
     )
     root = ET.fromstring(xml_bytes)
     assert root.get("DocumentCreator") == 'ООО "А&Б"'
+
+
+@pytest.mark.asyncio
+async def test_send_outgoing_sends_existing_draft():
+    document = SimpleNamespace(
+        id=17,
+        environment="staging",
+        from_box_id_guid="from-box",
+        to_box_id_guid="to-box",
+        message_id="draft-id",
+        entity_id="draft-entity",
+        content_sha256="abc123",
+        is_draft=True,
+        status="draft",
+        sent_at=None,
+        raw_response={},
+    )
+    task = SimpleNamespace(outgoing_document_id=17)
+
+    class Session:
+        async def get(self, model, object_id):
+            assert object_id == 17
+            return document
+
+        def add(self, value):
+            assert value is document
+
+    class Client:
+        async def send_draft(self, *, draft, operation_id):
+            assert draft == {
+                "BoxId": "from-box",
+                "ToBoxId": "to-box",
+                "DraftId": "draft-id",
+                "DocumentSignatures": [
+                    {
+                        "ParentEntityId": "draft-entity",
+                        "Signature": "signature",
+                    }
+                ],
+            }
+            assert operation_id
+            return {
+                "MessageId": "sent-message",
+                "Entities": [
+                    {"EntityType": "Attachment", "EntityId": "sent-entity"}
+                ],
+            }
+
+    result = await _apply_send_outgoing(
+        Session(),
+        client=Client(),
+        task=task,
+        signatures=["signature"],
+    )
+
+    assert result == {"message_id": "sent-message"}
+    assert document.message_id == "sent-message"
+    assert document.entity_id == "sent-entity"
+    assert document.is_draft is False
+    assert document.status == "sent"

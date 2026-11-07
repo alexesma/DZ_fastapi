@@ -65,6 +65,20 @@ def test_rejected_by_status_text():
     assert fields["status"] == "rejected"
 
 
+def test_technical_error_is_not_counteragent_rejection():
+    fields = _derive(
+        {
+            "DocflowStatus": {
+                "PrimaryStatus": {
+                    "Severity": "Error",
+                    "StatusText": "Ошибка доставки в роуминг",
+                }
+            }
+        }
+    )
+    assert fields["status"] == "technical_error"
+
+
 def test_revoked_by_revocation_status():
     fields = _derive({"RevocationStatus": "RevocationAccepted"})
     assert fields["status"] == "revoked"
