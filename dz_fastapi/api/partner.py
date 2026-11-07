@@ -90,6 +90,8 @@ from dz_fastapi.schemas.partner import (
     CustomerPriceListDraftRejectIn,
     CustomerPriceListExportRowOut,
     CustomerPriceListItem,
+    CustomerPriceListPublicationBulkDeleteIn,
+    CustomerPriceListPublicationBulkDeleteOut,
     CustomerPriceListPublicationBulkIn,
     CustomerPriceListPublicationBulkOut,
     CustomerPriceListPublicationCandidateOut,
@@ -3414,6 +3416,34 @@ async def bulk_save_customer_pricelist_publication_rules(
         setattr(report, outcome, getattr(report, outcome) + 1)
     await session.commit()
     return CustomerPriceListPublicationBulkOut(**report.as_dict())
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/bulk-delete",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListPublicationBulkDeleteOut,
+)
+async def bulk_delete_customer_pricelist_publication_rules(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPriceListPublicationBulkDeleteIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Удаляет выбранные правила этой конфигурации; чужие id игнорируются."""
+    await _get_config_or_404(session, customer_id, config_id)
+    rules = (
+        await session.execute(
+            select(CustomerPriceListPublicationRule).where(
+                CustomerPriceListPublicationRule.config_id == config_id,
+                CustomerPriceListPublicationRule.id.in_(payload.rule_ids),
+            )
+        )
+    ).scalars().all()
+    for rule in rules:
+        await session.delete(rule)
+    await session.commit()
+    return CustomerPriceListPublicationBulkDeleteOut(deleted=len(rules))
 
 
 @router.post(

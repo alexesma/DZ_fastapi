@@ -4108,6 +4108,16 @@ async def test_publication_rule_preview_bulk_and_import(
     assert template.status_code == 200
     assert template.content[:2] == b"PK"
 
+    listed_ids = [row["id"] for row in (await async_client.get(base)).json()]
+    deleted = await async_client.post(
+        f"{base}/bulk-delete", json={"rule_ids": [*listed_ids[:2], 999999]}
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json() == {"deleted": 2}  # несуществующий id игнорируется
+    left = [row["id"] for row in (await async_client.get(base)).json()]
+    assert left == listed_ids[2:]
+    assert (await async_client.post(f"{base}/bulk-delete", json={"rule_ids": []})).status_code == 422
+
     invalid_dates = await async_client.post(
         base,
         json={

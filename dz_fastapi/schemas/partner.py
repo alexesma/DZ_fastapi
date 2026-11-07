@@ -1746,6 +1746,19 @@ class CustomerPriceListPublicationBulkIn(PublicationRulePricingIn):
         return self
 
 
+class CustomerPriceListPublicationBulkDeleteIn(BaseModel):
+    rule_ids: List[int] = Field(min_length=1, max_length=5000)
+
+    @field_validator("rule_ids")
+    @classmethod
+    def unique_positive_ids(cls, value: List[int]) -> List[int]:
+        return list(dict.fromkeys(int(item) for item in value if int(item) > 0))
+
+
+class CustomerPriceListPublicationBulkDeleteOut(BaseModel):
+    deleted: int = 0
+
+
 class CustomerPriceListPublicationBulkError(BaseModel):
     row: Optional[int] = None
     message: str
