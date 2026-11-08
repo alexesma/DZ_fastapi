@@ -11,11 +11,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.models.partner import SupplierOrderItem, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    SupplierOrder,
+    SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.services.supplier_order_responses import (
     ParsedSupplierResponseRow,
     _config_priority_brand_keys,
@@ -210,4 +215,24 @@ async def find_receipts_to_relink(
         stmt = stmt.where(SupplierReceipt.provider_id == provider_id)
     if since is not None:
         stmt = stmt.where(SupplierReceipt.created_at >= since)
+        # Частый автозапуск: берём только поставщиков, у которых есть
+        # складские позиции заказов с неполученным остатком.
+        open_item = (
+            select(SupplierOrderItem.id)
+            .join(
+                SupplierOrder,
+                SupplierOrder.id == SupplierOrderItem.supplier_order_id,
+            )
+            .where(
+                SupplierOrder.provider_id == SupplierReceipt.provider_id,
+                SupplierOrderItem.customer_order_item_id.is_(None),
+                func.coalesce(SupplierOrderItem.received_quantity, 0)
+                < func.coalesce(
+                    SupplierOrderItem.confirmed_quantity,
+                    SupplierOrderItem.quantity,
+                ),
+            )
+            .exists()
+        )
+        stmt = stmt.where(open_item)
     return [int(row) for row in (await session.execute(stmt)).scalars().all()]

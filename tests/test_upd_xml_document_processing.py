@@ -365,3 +365,29 @@ async def test_relink_posted_receipt_to_earlier_order(
     assert rows[0].supplier_order_id == order_id
     refreshed = await test_session.get(SupplierOrderItem, item_id)
     assert refreshed.received_quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_find_receipts_to_relink_only_with_open_orders(
+    test_session, created_providers, created_autopart
+):
+    from datetime import timedelta
+
+    from dz_fastapi.services.receipt_relink import find_receipts_to_relink
+
+    provider = created_providers[0]
+    receipt = SupplierReceipt(
+        provider_id=provider.id, posted_at=now_moscow()
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+    test_session.add(
+        SupplierReceiptItem(receipt_id=receipt.id, received_quantity=1)
+    )
+    await test_session.commit()
+    since = now_moscow() - timedelta(days=14)
+    assert await find_receipts_to_relink(test_session, since=since) == []
+    await prepare(test_session, provider, created_autopart)
+    assert await find_receipts_to_relink(test_session, since=since) == [
+        receipt.id
+    ]

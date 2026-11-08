@@ -1023,14 +1023,16 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 8c. Перепроверка поступлений: привязка к поздним заказам ──────────
+    # Рабочий день 08–19 МСК, каждые 30 мин (запрос лёгкий: только
+    # поставщики с неполученными складскими позициями заказов)
     scheduler.add_job(
         func=relink_recent_receipts_task,
         trigger="cron",
         args=[app],
         id="relink_recent_receipts",
         name="Relink recent receipts to supplier orders",
-        hour=7,
-        minute=40,
+        hour="8-19",
+        minute="10,40",
         replace_existing=True,
     )
 
@@ -1978,7 +1980,7 @@ async def sync_reclamations_task(app: FastAPI):
 
 
 async def relink_recent_receipts_task(app: FastAPI):
-    """Раз в сутки привязывает непривязанные строки свежих поступлений к
+    """Периодически привязывает непривязанные строки свежих поступлений к
     заказам поставщику, созданным позже документа."""
     async with tracked_execution(
         app,
