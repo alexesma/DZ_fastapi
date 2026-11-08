@@ -1,4 +1,5 @@
 import base64
+import os
 from datetime import timedelta
 from io import BytesIO
 
@@ -35,6 +36,7 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.models.user import UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
+from dz_fastapi.services.diadoc_documents import _build_diadoc_storage_relative_path
 from dz_fastapi.services.diadoc_oauth import build_diadoc_oauth_state
 
 
@@ -1900,3 +1902,16 @@ async def test_diadoc_can_create_formalized_ukd_from_supplier_return(
 
     await test_session.refresh(return_doc)
     assert return_doc.diadoc_outgoing_document_id == data["id"]
+
+
+def test_diadoc_storage_path_shortens_long_filename():
+    path = _build_diadoc_storage_relative_path(
+        environment='prod',
+        box_id_guid='b' * 36,
+        message_id='m' * 36,
+        entity_id='e' * 36,
+        filename='ON_TRNACL' + 'X' * 400 + '.xml',
+    )
+    name = os.path.basename(path)
+    assert len(name) <= 255
+    assert name.endswith('.xml')

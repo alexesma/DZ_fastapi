@@ -90,8 +90,18 @@ def _build_diadoc_storage_relative_path(
     safe_box = _safe_filename(box_id_guid)
     safe_message = _safe_filename(message_id)
     safe_entity = _safe_filename(entity_id)
-    safe_name = _safe_filename(filename)
     date_str = now_moscow().strftime("%Y%m%d")
+    # Имя файла в ФС не длиннее 255 байт: сокращаем исходное имя,
+    # сохраняя расширение.
+    raw_name = _INVALID_FILENAME_CHARS_RE.sub(
+        "_", str(filename or "").strip()
+    )
+    stem, ext = os.path.splitext(raw_name)
+    ext = ext[:10]
+    max_stem_len = max(
+        10, 200 - len(safe_message) - len(safe_entity) - 2 - len(ext)
+    )
+    safe_name = (stem[:max_stem_len] + ext) or "document.bin"
     return os.path.join(
         DIADOC_DOCUMENTS_DIR,
         environment,
