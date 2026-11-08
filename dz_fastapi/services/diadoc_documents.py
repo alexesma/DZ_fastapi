@@ -368,6 +368,7 @@ async def process_diadoc_incoming_document(
     download_content_if_missing: bool = True,
     register_if_needed: bool = True,
     client: DiadocClient | None = None,
+    reprocess_draft: bool = False,
 ) -> dict[str, Any]:
     target_provider_id = int(provider_id or document.provider_id or 0)
     if target_provider_id <= 0:
@@ -383,6 +384,32 @@ async def process_diadoc_incoming_document(
             client=client,
             document=document,
         )
+
+    if reprocess_draft and document.supplier_order_message_id is not None:
+        draft_message = (
+            await session.execute(
+                select(SupplierOrderMessage)
+                .options(selectinload(SupplierOrderMessage.receipts))
+                .where(
+                    SupplierOrderMessage.id
+                    == document.supplier_order_message_id
+                )
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        draft_receipts = list(draft_message.receipts or []) if draft_message else []
+        if any(receipt.posted_at is not None for receipt in draft_receipts):
+            raise ValueError(
+                "Есть проведённое поступление: сначала распроведите его"
+            )
+        from dz_fastapi.services.supplier_workflow import delete_supplier_receipt
+
+        for receipt in draft_receipts:
+            await delete_supplier_receipt(session, receipt_id=int(receipt.id))
+        document.status = "synced"
+        document.import_error_details = None
+        session.add(document)
+        await session.commit()
 
     verdict = await evaluate_diadoc_document(session, document=document)
     if verdict["action"] != "proceed":

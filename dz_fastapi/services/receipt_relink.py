@@ -49,6 +49,7 @@ async def relink_receipt_to_orders(
     *,
     receipt_id: int,
     apply: bool = False,
+    include_customer_linked: bool = False,
 ) -> dict[str, Any]:
     receipt = (
         await session.execute(
@@ -94,7 +95,10 @@ async def relink_receipt_to_orders(
         for order_item in order.items or []:
             if _remaining(order_item) <= 0:
                 continue
-            if order_item.customer_order_item_id is not None:
+            if (
+                order_item.customer_order_item_id is not None
+                and not include_customer_linked
+            ):
                 result["skipped_customer_linked"] += 1
                 continue
             pool[int(order_item.id)] = order_item
@@ -148,8 +152,13 @@ async def relink_receipt_to_orders(
                 "excess": qty - take,
                 "supplier_order_id": int(matched.supplier_order_id),
                 "supplier_order_item_id": int(matched.id),
+                "customer_linked": matched.customer_order_item_id is not None,
             }
         )
+        if matched.customer_order_item_id is not None:
+            # Привязка к клиентскому заказу меняет сборку и этикетки: только
+            # предпросмотр, применяется отдельным безопасным процессом.
+            continue
         if not apply:
             continue
         if take < qty:

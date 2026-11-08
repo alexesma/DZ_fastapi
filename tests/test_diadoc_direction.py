@@ -178,3 +178,17 @@ async def test_xml_overrides_provider_only_binding(
     # продавец — мы, но клиентской привязки нет: customer без customer_id
     assert await detect_document_direction(test_session, doc) == DIRECTION_CUSTOMER
     assert doc.customer_id is None
+
+
+@pytest.mark.asyncio
+async def test_dual_bound_payment_invoice_pdf_is_supplier(
+    test_session, created_providers, created_customers, tmp_path
+):
+    provider, customer = created_providers[0], created_customers[0]
+    await setup(test_session, provider, customer)
+    doc = await make_doc(
+        test_session, tmp_path, provider, b"%PDF-1.4",
+        "Счет на оплату №77 от 15.06.2026.pdf", "Nonformalized",
+    )
+    assert await detect_document_direction(test_session, doc) == DIRECTION_SUPPLIER
+    assert doc.customer_id is None

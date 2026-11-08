@@ -161,6 +161,8 @@ class DiadocInboundDocumentProcessIn(BaseModel):
     response_config_id: int | None = None
     download_content_if_missing: bool = True
     register_if_needed: bool = True
+    # Удалить непроведённые черновики поступления и разобрать документ заново
+    reprocess_draft: bool = False
 
 
 class DiadocInboundDocumentProcessResult(BaseModel):

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 from sqlalchemy import select
@@ -26,6 +27,8 @@ from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.settings import DiadocIntegrationSettings
 from dz_fastapi.services.diadoc_outgoing import resolve_customer_by_diadoc_counteragent_box
 from dz_fastapi.services.upd_xml import extract_document_parties
+
+_PAYMENT_INVOICE_NAME_RE = re.compile(r"^\s*сч[её]т", re.IGNORECASE)
 
 DIRECTION_SUPPLIER = "supplier"
 DIRECTION_CUSTOMER = "customer"
@@ -79,7 +82,14 @@ async def detect_document_direction(
     direction = direction_from_parties(parties, our_inn)
     if direction is None:
         has_provider = bool(document.provider_id)
-        if customer is not None and has_provider:
+        if (
+            customer is not None
+            and has_provider
+            and _PAYMENT_INVOICE_NAME_RE.match(str(document.file_name or ""))
+        ):
+            # Входящий «Счёт на оплату» выставляют нам, а не мы клиенту.
+            direction = DIRECTION_SUPPLIER
+        elif customer is not None and has_provider:
             direction = DIRECTION_UNKNOWN
         elif customer is not None:
             direction = DIRECTION_CUSTOMER

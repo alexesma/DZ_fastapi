@@ -391,3 +391,44 @@ async def test_find_receipts_to_relink_only_with_open_orders(
     assert await find_receipts_to_relink(test_session, since=since) == [
         receipt.id
     ]
+
+
+@pytest.mark.asyncio
+async def test_reprocess_draft_rebuilds_receipt_with_free_excess(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    path = tmp_path / "ON_NSCHFDOPPR_over.xml"
+    # заказано 3, в документе 5
+    path.write_bytes(upd_xml(created_autopart.oem_number, qty=5, total="500.00"))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="m9", entity_id="e9",
+        provider_id=provider.id, file_name=path.name, document_number="9",
+        document_date=date.today(), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    first = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    receipt = await test_session.get(SupplierReceipt, first["receipt_ids"][0])
+    receipt.posted_at = None  # имитируем старый черновик
+    await test_session.commit()
+    again = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+        reprocess_draft=True,
+    )
+    rows = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id.in_(again["receipt_ids"])
+            )
+        )
+    ).scalars().all()
+    assert sorted(
+        (r.supplier_order_item_id is not None, r.received_quantity) for r in rows
+    ) == [(False, 2), (True, 3)]

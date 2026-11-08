@@ -1163,6 +1163,7 @@ async def process_diadoc_inbound_document_endpoint(
             download_content_if_missing=payload.download_content_if_missing,
             register_if_needed=payload.register_if_needed,
             client=client,
+            reprocess_draft=payload.reprocess_draft,
         )
         dedup_details = {
             "linked": "Тот же документ уже получен по почте — привязан к "

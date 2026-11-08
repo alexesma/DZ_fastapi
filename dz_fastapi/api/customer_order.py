@@ -2514,6 +2514,7 @@ async def post_supplier_receipt_endpoint(
 async def relink_supplier_receipt_endpoint(
     receipt_id: int,
     apply: bool = False,
+    include_customer_linked: bool = False,
     session: AsyncSession = Depends(get_session),
 ):
     """Перепроверить: подобрать заказы поставщику для строк без привязки.
@@ -2523,7 +2524,10 @@ async def relink_supplier_receipt_endpoint(
 
     try:
         return await relink_receipt_to_orders(
-            session, receipt_id=receipt_id, apply=apply
+            session,
+            receipt_id=receipt_id,
+            apply=apply,
+            include_customer_linked=include_customer_linked,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -2537,6 +2541,7 @@ async def relink_supplier_receipts_batch_endpoint(
     provider_id: int | None = None,
     limit: int = 200,
     apply: bool = False,
+    include_customer_linked: bool = False,
     session: AsyncSession = Depends(get_session),
 ):
     """Перепроверить все поступления с непривязанными строками."""
@@ -2549,7 +2554,10 @@ async def relink_supplier_receipts_batch_endpoint(
     for receipt_id in receipt_ids:
         results.append(
             await relink_receipt_to_orders(
-                session, receipt_id=receipt_id, apply=apply
+                session,
+                receipt_id=receipt_id,
+                apply=apply,
+                include_customer_linked=include_customer_linked,
             )
         )
     return {
