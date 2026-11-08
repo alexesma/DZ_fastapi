@@ -238,6 +238,7 @@ async def _pick_default_supplier_response_config_id(
     session: AsyncSession,
     *,
     provider_id: int,
+    file_name: str | None = None,
 ) -> int | None:
     stmt = (
         select(SupplierResponseConfig)
@@ -252,6 +253,21 @@ async def _pick_default_supplier_response_config_id(
     configs = list((await session.execute(stmt)).scalars().all())
     if len(configs) == 1:
         return int(configs[0].id)
+    # Несколько конфигураций (например, для писем и для Диадока):
+    # выбираем ту, чей шаблон имени файла документа подходит.
+    if file_name:
+        matching = []
+        for config in configs:
+            pattern = (config.shipping_doc_filename_pattern or "").strip()
+            if not pattern:
+                continue
+            try:
+                if re.search(pattern, file_name):
+                    matching.append(config)
+            except re.error:
+                continue
+        if len(matching) == 1:
+            return int(matching[0].id)
     return None
 
 
@@ -282,6 +298,7 @@ async def register_diadoc_document_as_supplier_message(
         response_config_id = await _pick_default_supplier_response_config_id(
             session,
             provider_id=target_provider_id,
+            file_name=document.file_name,
         )
 
     if document.supplier_order_message_id is not None:
@@ -464,6 +481,7 @@ async def process_diadoc_incoming_document(
         auto_config_id = await _pick_default_supplier_response_config_id(
             session,
             provider_id=target_provider_id,
+            file_name=document.file_name,
         )
         if auto_config_id is None:
             raise ValueError(

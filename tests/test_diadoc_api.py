@@ -38,6 +38,7 @@ from dz_fastapi.models.user import UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 from dz_fastapi.services.diadoc_documents import (
     _build_diadoc_storage_relative_path,
+    _pick_default_supplier_response_config_id,
     sync_diadoc_incoming_documents,
 )
 from dz_fastapi.services.diadoc_oauth import build_diadoc_oauth_state
@@ -1972,3 +1973,41 @@ async def test_diadoc_sync_skips_processing_before_cutoff_date(
     assert result['created'] == 2
     assert len(result['errors']) == 1
     assert result['errors'][0].startswith('m-2/')
+
+
+@pytest.mark.asyncio
+async def test_pick_response_config_by_filename_pattern(
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    common = dict(
+        provider_id=provider.id,
+        response_type='file',
+        file_payload_type='document',
+        is_active=True,
+        sender_emails=[],
+    )
+    mail_cfg = SupplierResponseConfig(name='mail', **common)
+    xml_cfg = SupplierResponseConfig(
+        name='xml',
+        shipping_doc_filename_pattern=r'^ON_NSCHFDOP.*\.xml$',
+        **common,
+    )
+    test_session.add_all([mail_cfg, xml_cfg])
+    await test_session.commit()
+
+    picked = await _pick_default_supplier_response_config_id(
+        test_session,
+        provider_id=provider.id,
+        file_name='ON_NSCHFDOPPR_2BM-1.xml',
+    )
+    assert picked == xml_cfg.id
+    assert (
+        await _pick_default_supplier_response_config_id(
+            test_session,
+            provider_id=provider.id,
+            file_name='Счёт.pdf',
+        )
+        is None
+    )
