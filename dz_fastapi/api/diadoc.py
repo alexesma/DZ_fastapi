@@ -1014,7 +1014,7 @@ async def sync_diadoc_inbound_documents(
             environment=normalize_diadoc_environment(integration.environment),
             box_id_guid=selected_box_id_guid,
             filter_category=payload.filter_category,
-            count=payload.count,
+            count=min(payload.count, 100),
             after_index_key=payload.after_index_key,
             counteragent_box_id=payload.counteragent_box_id,
             document_number=payload.document_number,

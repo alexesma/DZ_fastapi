@@ -114,7 +114,7 @@ class DiadocSettingsUpdate(BaseModel):
 
 class DiadocInboundSyncRequest(BaseModel):
     filter_category: str = "Any.Inbound"
-    count: int = Field(default=50, ge=1, le=100)
+    count: int = Field(default=50, ge=1, le=500)
     after_index_key: str | None = None
     counteragent_box_id: str | None = None
     document_number: str | None = None
