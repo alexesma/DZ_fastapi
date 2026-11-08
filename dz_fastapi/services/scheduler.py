@@ -1022,6 +1022,18 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # ── 8c. Перепроверка поступлений: привязка к поздним заказам ──────────
+    scheduler.add_job(
+        func=relink_recent_receipts_task,
+        trigger="cron",
+        args=[app],
+        id="relink_recent_receipts",
+        name="Relink recent receipts to supplier orders",
+        hour=7,
+        minute=40,
+        replace_existing=True,
+    )
+
     # ── 8c. Приём рекламаций из почты ────────────────────────────────────
     # Рабочий день 09–19 МСК, каждые 15 мин (задача сама выходит, если
     # не настроен ящик с назначением «reclamation»).
@@ -1963,6 +1975,46 @@ async def sync_reclamations_task(app: FastAPI):
                 )
                 trace.details["error"] = str(e)[:2000]
                 raise
+
+
+async def relink_recent_receipts_task(app: FastAPI):
+    """Раз в сутки привязывает непривязанные строки свежих поступлений к
+    заказам поставщику, созданным позже документа."""
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="relink_recent_receipts",
+        job_name="Relink recent receipts to supplier orders",
+    ) as trace:
+        from dz_fastapi.services.receipt_relink import (
+            find_receipts_to_relink,
+            relink_receipt_to_orders,
+        )
+
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                since = now_moscow() - timedelta(days=14)
+                receipt_ids = await find_receipts_to_relink(
+                    session, limit=300, since=since
+                )
+                linked = 0
+                for receipt_id in receipt_ids:
+                    try:
+                        result = await relink_receipt_to_orders(
+                            session, receipt_id=receipt_id, apply=True
+                        )
+                        linked += len(result["matches"]) if result["applied"] else 0
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.warning(
+                            "Receipt %s relink failed: %s", receipt_id, exc
+                        )
+                trace.details["checked"] = len(receipt_ids)
+                trace.details["linked_rows"] = linked
+            except Exception:
+                logger.exception("relink_recent_receipts_task failed")
+                await session.rollback()
 
 
 async def sync_diadoc_outbound_status_task(app: FastAPI):

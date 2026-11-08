@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import select
@@ -188,6 +189,7 @@ async def find_receipts_to_relink(
     *,
     provider_id: Optional[int] = None,
     limit: int = 200,
+    since: Optional[datetime] = None,
 ) -> list[int]:
     """Поступления, в которых есть строки без привязки к заказу."""
     stmt = (
@@ -206,4 +208,6 @@ async def find_receipts_to_relink(
     )
     if provider_id is not None:
         stmt = stmt.where(SupplierReceipt.provider_id == provider_id)
+    if since is not None:
+        stmt = stmt.where(SupplierReceipt.created_at >= since)
     return [int(row) for row in (await session.execute(stmt)).scalars().all()]
