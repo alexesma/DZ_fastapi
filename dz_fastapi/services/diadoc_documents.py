@@ -41,6 +41,7 @@ DIADOC_PROVIDER_SOURCE_SYSTEMS = (
     "DIADOC_BOX",
     "DIADOC_COUNTERAGENT_BOX",
 )
+_REVIEW_ONLY_PREFIX = "Строки документа не полностью сопоставлены"
 _INVALID_FILENAME_CHARS_RE = re.compile(r"[^A-Za-z0-9._-]+")
 _DOTNET_TICKS_EPOCH = datetime(1, 1, 1, tzinfo=timezone.utc)
 
@@ -476,7 +477,14 @@ async def process_diadoc_incoming_document(
     document.provider_id = target_provider_id
     document.supplier_order_message_id = int(message_row.id)
     document.import_error_details = result.get("import_error_details")
-    if result.get("message_type") == "IMPORT_ERROR":
+    details = str(result.get("import_error_details") or "").strip()
+    review_only = bool(result.get("receipt_ids")) and details.startswith(
+        _REVIEW_ONLY_PREFIX
+    ) and ";" not in details
+    if result.get("message_type") == "IMPORT_ERROR" and review_only:
+        # Черновик создан, строки нужно лишь проверить — это не сбой.
+        document.status = "registered"
+    elif result.get("message_type") == "IMPORT_ERROR":
         document.status = "error"
     elif result.get("already_processed") or result.get("receipt_ids"):
         document.status = "processed"

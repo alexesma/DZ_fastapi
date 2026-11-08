@@ -155,6 +155,31 @@ async def test_diadoc_upd_xml_without_mask_is_recognised_by_file_name(
 
 
 @pytest.mark.asyncio
+async def test_diadoc_upd_xml_accepted_by_excel_format_config(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    config.file_format = "excel"
+    path = tmp_path / "ON_NSCHFDOPPR_excelcfg.xml"
+    path.write_bytes(upd_xml(created_autopart.oem_number))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="m3", entity_id="e3",
+        provider_id=provider.id, file_name=path.name, document_number="1",
+        document_date=date(2026, 4, 9), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    assert len(result["receipt_ids"]) == 1
+    assert "Формат файла" not in str(result.get("import_error_details"))
+
+
+@pytest.mark.asyncio
 async def test_non_upd_xml_does_not_break_processing(
     test_session, created_providers, created_autopart, tmp_path
 ):

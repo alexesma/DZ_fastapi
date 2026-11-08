@@ -5535,6 +5535,7 @@ async def process_supplier_response_messages(
                         )
                 if (
                     response_candidate
+                    and not shipping_xml
                     and extension
                     not in _allowed_attachment_extensions(response_file_format)
                 ):
@@ -6809,6 +6810,7 @@ async def process_stored_supplier_document_message(
 
         if (
             response_candidate
+            and not shipping_xml
             and extension
             not in _allowed_attachment_extensions(response_file_format)
         ):
