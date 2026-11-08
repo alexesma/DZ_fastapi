@@ -4,7 +4,7 @@
 DocflowNamedId = "KlMt"). Форма Details в документации описана неточно,
 поэтому проверяем оба варианта — список пар и плоский словарь.
 """
-from dz_fastapi.services.diadoc_status import derive_outgoing_status_fields
+from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 from dz_fastapi.services.diadoc_transport import (
     extract_transport_status,
     is_transport_document,
@@ -114,31 +114,35 @@ def test_status_fields_carry_transport_status():
             "StatusText": "Документооборот завершён",
         }
     }
-    fields = derive_outgoing_status_fields(
-        payload, current_status="sent", is_draft=False
-    )
-    assert fields["status"] == "completed"
-    assert fields["transport_status_named_id"] == "4000211000"
-    assert fields["transport_status_text"] == "Груз принят к перевозке"
-    assert fields["transport_mintrans_id"] == "MT-9"
-
-
-def test_status_fields_leave_transport_empty_for_utd():
-    fields = derive_outgoing_status_fields(
+    fields = derive_docflow_state(
         {
-            "DocflowStatus": {
-                "PrimaryStatus": {
-                    "Severity": "Success",
-                    "StatusText": "Документооборот завершён",
+            "LastEvent": {
+                "Docflow": {
+                    "IsFinished": True,
+                    "DocflowStatus": payload["DocflowStatus"],
                 }
             }
         },
         current_status="sent",
-        is_draft=False,
     )
-    assert fields["transport_status_named_id"] is None
-    assert fields["transport_status_text"] is None
-    assert fields["transport_mintrans_id"] is None
+    transport = extract_transport_status(payload)
+    assert fields["status"] == "completed"
+    assert transport["status_named_id"] == "4000211000"
+    assert transport["status_text"] == "Груз принят к перевозке"
+    assert transport["mintrans_id"] == "MT-9"
+
+
+def test_status_fields_leave_transport_empty_for_utd():
+    payload = {
+        "TypeNamedId": "UniversalTransferDocument",
+        "DocflowStatus": {
+            "PrimaryStatus": {
+                "Severity": "Success",
+                "StatusText": "Документооборот завершён",
+            }
+        },
+    }
+    assert extract_transport_status(payload) is None
 
 
 def test_logistics_waybill_is_transport_document_without_docflow():
