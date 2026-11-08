@@ -7,6 +7,7 @@ import pytest
 from dz_fastapi.services.one_c_enterprise_data_export import (
     DATA_NS,
     event_body_objects,
+    event_document_ref,
     object_xml,
     preview_outbox_event,
 )
@@ -64,9 +65,7 @@ def test_document_references_and_stable_guid(kind: str, party_path: str):
     assert _value(first, "ОбщиеСвойстваОбъектовФормата/Комментарий") == (
         "Исходный номер DragonZap: ДЗ-123"
     )
-    assert _value(first, "КлючевыеСвойства/Ссылка") == _value(
-        second, "КлючевыеСвойства/Ссылка"
-    )
+    assert _value(first, "КлючевыеСвойства/Ссылка") == _value(second, "КлючевыеСвойства/Ссылка")
     assert _value(first, "Товары/Строка/ДанныеНоменклатуры/Номенклатура/Артикул") == "A-123"
     assert _value(first, "Товары/Строка/Количество") == "2"
     assert _value(first, "Склад/Наименование") == "Основной склад"
@@ -136,9 +135,9 @@ def test_counterparty_identity_is_shared_between_customer_and_provider_roles():
 
 def test_line_identity_includes_document_identity():
     first = ET.fromstring(object_xml("Документ.РеализацияТоваровУслуг", DOCUMENT, COMPANY))
-    second = ET.fromstring(object_xml(
-        "Документ.РеализацияТоваровУслуг", {**DOCUMENT, "document_id": 124}, COMPANY
-    ))
+    second = ET.fromstring(
+        object_xml("Документ.РеализацияТоваровУслуг", {**DOCUMENT, "document_id": 124}, COMPANY)
+    )
     assert _value(first, "Товары/Строка/ИдентификаторСтроки") != _value(
         second, "Товары/Строка/ИдентификаторСтроки"
     )
@@ -149,15 +148,45 @@ def test_unsupported_correction_is_not_serialized_as_incomplete_document():
         object_xml("Документ.КорректировкаРеализацииТоваров", DOCUMENT, COMPANY)
 
 
-def test_outbox_preview_maps_only_supported_posted_events():
+def test_outbox_preview_maps_supported_posted_and_cancelled_events():
     shipment = ET.fromstring(preview_outbox_event("shipment", "posted", DOCUMENT, COMPANY))
     receipt = ET.fromstring(preview_outbox_event("supplier_receipt", "posted", DOCUMENT, COMPANY))
     assert shipment.tag == f"{{{DATA_NS}}}Документ.РеализацияТоваровУслуг"
     assert receipt.tag == f"{{{DATA_NS}}}Документ.ПоступлениеТоваровУслуг"
-    with pytest.raises(ValueError, match="проведённых"):
-        preview_outbox_event("shipment", "cancelled", DOCUMENT, COMPANY)
+    cancelled = ET.fromstring(preview_outbox_event("shipment", "cancelled", DOCUMENT, COMPANY))
+    assert cancelled.find(f"{{{DATA_NS}}}Проведен").text == "false"
+    with pytest.raises(ValueError, match="проведение и отмену"):
+        preview_outbox_event("shipment", "updated", DOCUMENT, COMPANY)
     with pytest.raises(ValueError, match="пока не реализована"):
         preview_outbox_event("shipment_correction", "posted", DOCUMENT, COMPANY)
+
+
+@pytest.mark.parametrize(
+    "entity_type,object_type",
+    [
+        ("customer_order", "Документ.ЗаказКлиента"),
+        ("supplier_order", "Документ.ЗаказПоставщику"),
+        ("customer_return", "Документ.ВозвратТоваровОтПокупателя"),
+        ("supplier_return", "Документ.ВозвратТоваровПоставщику"),
+    ],
+)
+def test_extended_document_types_are_serialized(entity_type, object_type):
+    root = ET.fromstring(preview_outbox_event(entity_type, "posted", DOCUMENT, COMPANY))
+    assert root.tag == f"{{{DATA_NS}}}{object_type}"
+    assert _value(root, "Проведен") == "true"
+
+
+def test_stock_adjustment_reference_matches_serialized_document():
+    payload = {
+        **DOCUMENT,
+        "document_type": "manual_receipt",
+        "items": [{**ITEM, "cost_price": "100.00"}],
+    }
+    root = ET.fromstring(preview_outbox_event("stock_document", "posted", payload, COMPANY))
+    assert root.tag == f"{{{DATA_NS}}}Документ.ОприходованиеТоваров"
+    assert _value(root, "КлючевыеСвойства/Ссылка") == event_document_ref(
+        "stock_document", payload["document_id"], payload
+    )
 
 
 def test_supplier_receipt_sends_contract_before_document():
@@ -197,6 +226,4 @@ def test_existing_one_c_contract_is_referenced_without_rewriting_it():
 
 def test_supplier_receipt_without_contract_fails_before_send():
     with pytest.raises(ValueError, match="договор 1С"):
-        event_body_objects(
-            "supplier_receipt", "posted", {**DOCUMENT, "provider": PARTY}, COMPANY
-        )
+        event_body_objects("supplier_receipt", "posted", {**DOCUMENT, "provider": PARTY}, COMPANY)

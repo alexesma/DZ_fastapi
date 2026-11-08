@@ -129,6 +129,7 @@ async def test_apply_inbox_stores_unf_number_on_matching_event(test_session, tmp
     await test_session.refresh(event)
 
     assert outcome["matched"] == 1 and len(outcome["unmatched"]) == 1
+    assert outcome["acknowledge_messages"] == 0
     assert event.ed_unf_number == "НФ-0000042"
     assert event.ed_unf_ref == ref
     assert event.ed_unf_posted is True

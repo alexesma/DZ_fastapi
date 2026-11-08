@@ -138,9 +138,7 @@ def _integration_to_status(
         id=integration.id,
         configured=configured,
         connected=connected,
-        environment=DiadocEnvironment(
-            normalize_diadoc_environment(integration.environment)
-        ),
+        environment=DiadocEnvironment(normalize_diadoc_environment(integration.environment)),
         organization_id=integration.organization_id,
         organization_name=integration.organization_name,
         organization_inn=integration.organization_inn,
@@ -150,9 +148,7 @@ def _integration_to_status(
         signer_full_name=integration.signer_full_name,
         signer_position=integration.signer_position,
         signer_basis=integration.signer_basis,
-        formalized_default_function=(
-            integration.formalized_default_function or "ДОП"
-        ),
+        formalized_default_function=(integration.formalized_default_function or "ДОП"),
         box_id=integration.box_id,
         box_id_guid=integration.box_id_guid,
         connected_user_id=integration.connected_user_id,
@@ -170,9 +166,7 @@ def _integration_to_status(
         last_error=integration.last_error,
         inbound_last_sync_at=integration.inbound_last_sync_at,
         inbound_last_error=integration.inbound_last_error,
-        inbound_continuation_index_key=(
-            integration.inbound_continuation_index_key
-        ),
+        inbound_continuation_index_key=(integration.inbound_continuation_index_key),
         outbound_last_sync_at=integration.outbound_last_sync_at,
         outbound_last_error=integration.outbound_last_error,
     )
@@ -187,9 +181,7 @@ _DECISION_STATUSES = {
 }
 
 
-def _needs_decision(
-    document: DiadocIncomingDocument, correction_statuses: dict[int, str]
-) -> bool:
+def _needs_decision(document: DiadocIncomingDocument, correction_statuses: dict[int, str]) -> bool:
     if document.status in _DECISION_STATUSES:
         return True
     details = document.parsed_details or {}
@@ -199,7 +191,11 @@ def _needs_decision(
             return True
         # рекламация пока не принята/отклонена/закрыта
         return correction_statuses.get(f"r{int(reclamation_id)}", "recognized") in {
-            "new", "recognized", "checked", "waiting_docs", "waiting_supplier",
+            "new",
+            "recognized",
+            "checked",
+            "waiting_docs",
+            "waiting_supplier",
         }
     mismatch = document.amount_mismatch_status
     if mismatch == "pending":
@@ -213,9 +209,7 @@ def _needs_decision(
     return False
 
 
-async def _correction_statuses(
-    session: AsyncSession, rows: list[DiadocIncomingDocument]
-) -> dict:
+async def _correction_statuses(session: AsyncSession, rows: list[DiadocIncomingDocument]) -> dict:
     ids = {
         int(row.parsed_details["correction_id"])
         for row in rows
@@ -240,13 +234,9 @@ async def _correction_statuses(
         from dz_fastapi.models.partner import Reclamation
 
         found = await session.execute(
-            select(Reclamation.id, Reclamation.status).where(
-                Reclamation.id.in_(reclamation_ids)
-            )
+            select(Reclamation.id, Reclamation.status).where(Reclamation.id.in_(reclamation_ids))
         )
-        result.update(
-            {f"r{int(i)}": str(getattr(st, "value", st)) for i, st in found.all()}
-        )
+        result.update({f"r{int(i)}": str(getattr(st, "value", st)) for i, st in found.all()})
     return result
 
 
@@ -261,12 +251,10 @@ def _incoming_document_to_out(
         for receipt in getattr(supplier_message, "receipts", []) or []
         if getattr(receipt, "id", None) is not None
     )
-    sign_block_reason = _incoming_sign_block_reason(document)
+    sign_block_reason = _incoming_sign_block_reason(document, correction_statuses or {})
     return DiadocInboundDocumentOut(
         id=int(document.id),
-        environment=DiadocEnvironment(
-            normalize_diadoc_environment(document.environment)
-        ),
+        environment=DiadocEnvironment(normalize_diadoc_environment(document.environment)),
         box_id_guid=document.box_id_guid,
         message_id=document.message_id,
         entity_id=document.entity_id,
@@ -279,9 +267,7 @@ def _incoming_document_to_out(
         sent_at=document.sent_at,
         provider_id=document.provider_id,
         provider_name=(
-            str(getattr(provider, "name", "") or "").strip()
-            if provider is not None
-            else None
+            str(getattr(provider, "name", "") or "").strip() if provider is not None else None
         ),
         supplier_order_message_id=document.supplier_order_message_id,
         local_file_path=document.local_file_path,
@@ -291,6 +277,12 @@ def _incoming_document_to_out(
         registered_at=document.registered_at,
         signed_at=document.signed_at,
         rejected_at=document.rejected_at,
+        docflow_is_finished=document.docflow_is_finished,
+        docflow_status_severity=document.docflow_status_severity,
+        docflow_status_text=document.docflow_status_text,
+        recipient_response_status=document.recipient_response_status,
+        revocation_status=document.revocation_status,
+        docflow_checked_at=document.docflow_checked_at,
         can_register_supplier_message=bool(
             (document.provider_id or 0) > 0 and document.local_file_path
         ),
@@ -312,11 +304,7 @@ def _incoming_document_to_out(
             else None
         ),
         document_kind=document.document_kind,
-        total_amount=(
-            float(document.total_amount)
-            if document.total_amount is not None
-            else None
-        ),
+        total_amount=(float(document.total_amount) if document.total_amount is not None else None),
         duplicate_kind=document.duplicate_kind,
         matched_message_id=document.matched_message_id,
         duplicate_of_document_id=document.duplicate_of_document_id,
@@ -335,14 +323,16 @@ def _incoming_document_to_out(
 
 def _incoming_sign_block_reason(
     document: DiadocIncomingDocument,
+    correction_statuses: dict[int, str] | None = None,
 ) -> str | None:
     """Объясняет, почему входящий УПД пока нельзя юридически принять."""
     if document.signed_at is not None:
         return "Документ уже подписан"
     if document.rejected_at is not None:
         return "По документу уже отправлен отказ в подписи"
-    if effective_category(document) != "upd":
-        return "Подписание титула покупателя доступно только для УПД"
+    category = effective_category(document)
+    if category not in {"upd", "ukd"}:
+        return "Подписание титула покупателя доступно только для УПД и УКД"
     if document.direction == "customer":
         return "Документ относится к клиенту, а не к поставщику"
     if document.direction in (None, "unknown"):
@@ -355,6 +345,17 @@ def _incoming_sign_block_reason(
         return "Сначала разрешите расхождение суммы документа"
     if str(document.status or "").lower() in ("error", "technical_error"):
         return "Сначала исправьте ошибку обработки документа"
+    if category == "ukd":
+        correction_id = (document.parsed_details or {}).get("correction_id")
+        if not correction_id:
+            return "Сначала распознайте УКД и создайте корректировку поступления"
+        correction_state = (document.parsed_details or {}).get("state")
+        if correction_state in {"receipt_not_found", "receipt_ambiguous", "not_parsed"}:
+            return "Сначала сопоставьте УКД с исходным поступлением и его строками"
+        status = (correction_statuses or {}).get(int(correction_id))
+        if status != "posted":
+            return "Сначала проверьте и проведите корректировку поступления"
+        return None
     supplier_message = getattr(document, "supplier_order_message", None)
     receipts = list(getattr(supplier_message, "receipts", []) or [])
     if not receipts:
@@ -413,25 +414,20 @@ def _outgoing_document_to_out(
     provider = getattr(document, "provider", None)
     return DiadocOutgoingDocumentOut(
         id=int(document.id),
-        environment=DiadocEnvironment(
-            normalize_diadoc_environment(document.environment)
-        ),
+        environment=DiadocEnvironment(normalize_diadoc_environment(document.environment)),
         from_box_id_guid=document.from_box_id_guid,
         to_box_id_guid=document.to_box_id_guid,
         customer_id=document.customer_id,
         customer_name=(
-            str(getattr(customer, "name", "") or "").strip()
-            if customer is not None
-            else None
+            str(getattr(customer, "name", "") or "").strip() if customer is not None else None
         ),
         provider_id=document.provider_id,
         provider_name=(
-            str(getattr(provider, "name", "") or "").strip()
-            if provider is not None
-            else None
+            str(getattr(provider, "name", "") or "").strip() if provider is not None else None
         ),
         source_type=document.source_type,
         source_id=document.source_id,
+        source_version=int(document.source_version or 1),
         type_named_id=document.type_named_id,
         document_function=document.document_function,
         document_version=document.document_version,
@@ -447,6 +443,7 @@ def _outgoing_document_to_out(
         message_id=document.message_id,
         entity_id=document.entity_id,
         status=document.status,
+        docflow_is_finished=document.docflow_is_finished,
         docflow_status_severity=document.docflow_status_severity,
         docflow_status_text=document.docflow_status_text,
         recipient_response_status=document.recipient_response_status,
@@ -461,9 +458,7 @@ def _outgoing_document_to_out(
     )
 
 
-def _normalize_organizations(
-    payload: dict[str, Any]
-) -> list[DiadocOrganizationOut]:
+def _normalize_organizations(payload: dict[str, Any]) -> list[DiadocOrganizationOut]:
     organizations = []
     for item in payload.get("Organizations") or []:
         boxes = []
@@ -474,9 +469,7 @@ def _normalize_organizations(
                     "box_id_guid": box.get("BoxIdGuid"),
                     "title": box.get("Title"),
                     "invoice_format_version": box.get("InvoiceFormatVersion"),
-                    "encrypted_documents_allowed": box.get(
-                        "EncryptedDocumentsAllowed"
-                    ),
+                    "encrypted_documents_allowed": box.get("EncryptedDocumentsAllowed"),
                 }
             )
         organizations.append(
@@ -523,10 +516,7 @@ def _resolve_box_id_guid(integration, override_box_id_guid: str | None) -> str:
     if not box_id_guid:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Diadoc box is not selected. "
-                "Select a box via /diadoc/settings first."
-            ),
+            detail=("Diadoc box is not selected. " "Select a box via /diadoc/settings first."),
         )
     return box_id_guid
 
@@ -601,9 +591,7 @@ async def diadoc_oauth_callback(
             raise RuntimeError("Diadoc access token not returned")
         client = DiadocClient(access_token=access_token)
         user_payload = await client.get_my_user()
-        organizations_payload = await client.get_my_organizations(
-            auto_register=False
-        )
+        organizations_payload = await client.get_my_organizations(auto_register=False)
         await save_diadoc_authorization(
             session=session,
             integration=integration,
@@ -618,9 +606,7 @@ async def diadoc_oauth_callback(
             "<h3>Diadoc OAuth error</h3>" "<p>Token exchange failed.</p>",
             status_code=400,
         )
-    return HTMLResponse(
-        "<h3>Диадок подключен</h3>" "<p>Можно закрыть это окно.</p>"
-    )
+    return HTMLResponse("<h3>Диадок подключен</h3>" "<p>Можно закрыть это окно.</p>")
 
 
 @router.post(
@@ -632,9 +618,7 @@ async def disconnect_diadoc(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
-    integration = await crud_diadoc_integration_settings.clear_connection(
-        session
-    )
+    integration = await crud_diadoc_integration_settings.clear_connection(session)
     return _integration_to_status(integration)
 
 
@@ -653,10 +637,7 @@ async def update_diadoc_settings(
     environment = data.get("environment")
     if environment is not None:
         environment_value = environment.value
-        if (
-            normalize_diadoc_environment(integration.environment)
-            != environment_value
-        ):
+        if normalize_diadoc_environment(integration.environment) != environment_value:
             integration.refresh_token = None
             integration.access_token = None
             integration.token_type = None
@@ -715,48 +696,35 @@ async def _fill_counteragent_inn_suggestions(
             str(item.inn or "").strip()
             for item in items
             if str(item.inn or "").strip()
-            and (item.mapped_provider_id is None
-                 or item.mapped_customer_id is None)
+            and (item.mapped_provider_id is None or item.mapped_customer_id is None)
         }
     )
     if not inns:
         return
     provider_rows = (
         await session.execute(
-            select(Provider.id, Provider.name, Provider.inn).where(
-                Provider.inn.in_(inns)
-            )
+            select(Provider.id, Provider.name, Provider.inn).where(Provider.inn.in_(inns))
         )
     ).all()
     customer_rows = (
         await session.execute(
-            select(Customer.id, Customer.name, Customer.inn).where(
-                Customer.inn.in_(inns)
-            )
+            select(Customer.id, Customer.name, Customer.inn).where(Customer.inn.in_(inns))
         )
     ).all()
     providers_by_inn: dict[str, tuple[int, str]] = {}
     for provider_id, name, inn in provider_rows:
-        providers_by_inn.setdefault(
-            str(inn).strip(), (int(provider_id), str(name or ""))
-        )
+        providers_by_inn.setdefault(str(inn).strip(), (int(provider_id), str(name or "")))
     customers_by_inn: dict[str, tuple[int, str]] = {}
     for customer_id, name, inn in customer_rows:
-        customers_by_inn.setdefault(
-            str(inn).strip(), (int(customer_id), str(name or ""))
-        )
+        customers_by_inn.setdefault(str(inn).strip(), (int(customer_id), str(name or "")))
     for item in items:
         inn = str(item.inn or "").strip()
         if not inn:
             continue
         if item.mapped_provider_id is None and inn in providers_by_inn:
-            item.suggested_provider_id, item.suggested_provider_name = (
-                providers_by_inn[inn]
-            )
+            item.suggested_provider_id, item.suggested_provider_name = providers_by_inn[inn]
         if item.mapped_customer_id is None and inn in customers_by_inn:
-            item.suggested_customer_id, item.suggested_customer_name = (
-                customers_by_inn[inn]
-            )
+            item.suggested_customer_id, item.suggested_customer_name = customers_by_inn[inn]
 
 
 @router.get(
@@ -792,11 +760,9 @@ async def list_diadoc_counteragents(
             customer_id = None
             customer_name = None
             if box_ref:
-                provider_id = (
-                    await resolve_provider_by_diadoc_counteragent_box(
-                        session,
-                        counteragent_box_id=box_ref,
-                    )
+                provider_id = await resolve_provider_by_diadoc_counteragent_box(
+                    session,
+                    counteragent_box_id=box_ref,
                 )
                 if provider_id is not None:
                     provider = await crud_provider.get_by_id(
@@ -817,20 +783,14 @@ async def list_diadoc_counteragents(
                     box_id_guid=box_ref or "",
                     box_id=str(row.get("BoxId") or "") or None,
                     full_name=(str(row.get("FullName") or "").strip() or None),
-                    short_name=(
-                        str(row.get("ShortName") or "").strip() or None
-                    ),
+                    short_name=(str(row.get("ShortName") or "").strip() or None),
                     inn=str(row.get("Inn") or "").strip() or None,
                     kpp=str(row.get("Kpp") or "").strip() or None,
                     status=_normalize_counteragent_status(row),
                     event_timestamp_ticks=(
                         int(
                             row.get("EventTimestampTicks")
-                            or (
-                                (row.get("CounteragentInfo") or {}).get(
-                                    "EventTimestampTicks"
-                                )
-                            )
+                            or ((row.get("CounteragentInfo") or {}).get("EventTimestampTicks"))
                             or 0
                         )
                         or None
@@ -838,11 +798,7 @@ async def list_diadoc_counteragents(
                     last_event_comment=(
                         str(
                             row.get("LastEventComment")
-                            or (
-                                (row.get("CounteragentInfo") or {}).get(
-                                    "LastEventComment"
-                                )
-                            )
+                            or ((row.get("CounteragentInfo") or {}).get("LastEventComment"))
                             or ""
                         ).strip()
                         or None
@@ -850,11 +806,7 @@ async def list_diadoc_counteragents(
                     message_from_counteragent=(
                         str(
                             row.get("MessageFromCounteragent")
-                            or (
-                                (row.get("CounteragentInfo") or {}).get(
-                                    "MessageFromCounteragent"
-                                )
-                            )
+                            or ((row.get("CounteragentInfo") or {}).get("MessageFromCounteragent"))
                             or ""
                         ).strip()
                         or None
@@ -862,11 +814,7 @@ async def list_diadoc_counteragents(
                     message_to_counteragent=(
                         str(
                             row.get("MessageToCounteragent")
-                            or (
-                                (row.get("CounteragentInfo") or {}).get(
-                                    "MessageToCounteragent"
-                                )
-                            )
+                            or ((row.get("CounteragentInfo") or {}).get("MessageToCounteragent"))
                             or ""
                         ).strip()
                         or None
@@ -1029,8 +977,7 @@ async def sync_diadoc_inbound_documents(
         integration.last_sync_at = now_moscow()
         integration.inbound_last_sync_at = integration.last_sync_at
         integration.inbound_last_error = (
-            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
-            or None
+            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000] or None
         )
         integration.last_error = integration.inbound_last_error
         session.add(integration)
@@ -1082,10 +1029,7 @@ async def register_diadoc_inbound_document(
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     try:
-        if (
-            payload.download_content_if_missing
-            and not document.local_file_path
-        ):
+        if payload.download_content_if_missing and not document.local_file_path:
             integration, client = await get_diadoc_client_for_session(session)
             if normalize_diadoc_environment(
                 integration.environment
@@ -1113,10 +1057,7 @@ async def register_diadoc_inbound_document(
             provider_id=int(message_row.provider_id),
             supplier_order_message_id=int(message_row.id),
             response_config_id=message_row.response_config_id,
-            detail=(
-                "Диадок-документ зарегистрирован во входящих "
-                "документах поставщика"
-            ),
+            detail=("Диадок-документ зарегистрирован во входящих " "документах поставщика"),
         )
     except HTTPException:
         raise
@@ -1151,8 +1092,7 @@ async def resolve_diadoc_inbound_mismatch_endpoint(
         "applied": "Данные Диадок применены, поступление пересоздано",
         "dismissed": "Оставлена версия из письма; Диадок-документ привязан",
         "correction_required": (
-            "Поступление уже проведено: остатки не менялись, создана КСФ "
-            "для корректировки"
+            "Поступление уже проведено: остатки не менялись, создана КСФ " "для корректировки"
         ),
     }
     return DiadocMismatchResolveOut(
@@ -1180,12 +1120,8 @@ async def acknowledge_diadoc_inbound_mismatch_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    document = await get_diadoc_incoming_document(
-        session, document_id=document_id
-    )
-    return _incoming_document_to_out(
-        document, await _correction_statuses(session, [document])
-    )
+    document = await get_diadoc_incoming_document(session, document_id=document_id)
+    return _incoming_document_to_out(document, await _correction_statuses(session, [document]))
 
 
 @router.post(
@@ -1207,10 +1143,7 @@ async def process_diadoc_inbound_document_endpoint(
         raise HTTPException(status_code=404, detail="Document not found")
     try:
         client = None
-        if (
-            payload.download_content_if_missing
-            and not document.local_file_path
-        ):
+        if payload.download_content_if_missing and not document.local_file_path:
             integration, client = await get_diadoc_client_for_session(session)
             if normalize_diadoc_environment(
                 integration.environment
@@ -1235,24 +1168,23 @@ async def process_diadoc_inbound_document_endpoint(
             "linked": "Тот же документ уже получен по почте — привязан к "
             "существующему поступлению, дубль не создан",
             "duplicate": "Дубль уже загруженного документа — не обработан",
-            "applied": "Сумма отличалась от письма — применены данные "
-            "Диадока (Диадок главнее)",
+            "applied": "Сумма отличалась от письма — применены данные " "Диадока (Диадок главнее)",
             "mismatch": "Расхождение по сумме — нужно решение администратора",
-            "customer": "Документ по нашей продаже клиенту — поступление "
-            "не создаётся",
-            "unknown": "Направление документа не определено — нужно "
-            "решение вручную",
+            "customer": "Документ по нашей продаже клиенту — поступление " "не создаётся",
+            "unknown": "Направление документа не определено — нужно " "решение вручную",
             "skipped": "Не поступление (счёт на оплату и т.п.) — пропущено",
         }
         detail = (
             dedup_details[result["dedup_action"]]
             if result.get("dedup_action") in dedup_details
-            else "КСФ зарегистрирована; сопоставьте строки с исходным приходом"
-            if result.get("correction_id")
             else (
-                "Диадок-документ уже был обработан ранее"
-                if result.get("already_processed")
-                else "Диадок-документ обработан и передан в поступления"
+                "КСФ зарегистрирована; сопоставьте строки с исходным приходом"
+                if result.get("correction_id")
+                else (
+                    "Диадок-документ уже был обработан ранее"
+                    if result.get("already_processed")
+                    else "Диадок-документ обработан и передан в поступления"
+                )
             )
         )
         return DiadocInboundDocumentProcessResult(
@@ -1264,21 +1196,14 @@ async def process_diadoc_inbound_document_endpoint(
                 if result.get("response_config_id") is not None
                 else None
             ),
-            receipt_ids=[
-                int(receipt_id)
-                for receipt_id in (result.get("receipt_ids") or [])
-            ],
+            receipt_ids=[int(receipt_id) for receipt_id in (result.get("receipt_ids") or [])],
             correction_id=(int(result["correction_id"]) if result.get("correction_id") else None),
             already_processed=bool(result.get("already_processed")),
             processed_messages=int(result.get("processed_messages") or 0),
-            parsed_response_files=int(
-                result.get("parsed_response_files") or 0
-            ),
+            parsed_response_files=int(result.get("parsed_response_files") or 0),
             recognized_positions=int(result.get("recognized_positions") or 0),
             unresolved_positions=int(result.get("unresolved_positions") or 0),
-            unresolved_examples=[
-                str(item) for item in (result.get("unresolved_examples") or [])
-            ],
+            unresolved_examples=[str(item) for item in (result.get("unresolved_examples") or [])],
             created_receipts=int(result.get("created_receipts") or 0),
             updated_receipts=int(result.get("updated_receipts") or 0),
             posted_receipts=int(result.get("posted_receipts") or 0),
@@ -1286,9 +1211,7 @@ async def process_diadoc_inbound_document_endpoint(
             updated_items=int(result.get("updated_items") or 0),
             skipped_messages=int(result.get("skipped_messages") or 0),
             message_type=(
-                str(result.get("message_type"))
-                if result.get("message_type") is not None
-                else None
+                str(result.get("message_type")) if result.get("message_type") is not None else None
             ),
             import_error_details=(
                 str(result.get("import_error_details"))
@@ -1346,16 +1269,13 @@ async def sync_diadoc_outbound_statuses(
         result = await refresh_diadoc_outgoing_statuses(
             session,
             client=client,
-            environment=normalize_diadoc_environment(
-                integration.environment
-            ),
+            environment=normalize_diadoc_environment(integration.environment),
             limit=limit,
         )
         integration.last_sync_at = now_moscow()
         integration.outbound_last_sync_at = integration.last_sync_at
         integration.outbound_last_error = (
-            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
-            or None
+            "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000] or None
         )
         integration.last_error = integration.outbound_last_error
         session.add(integration)
@@ -1381,14 +1301,13 @@ async def refresh_diadoc_outbound_document_status(
         raise HTTPException(status_code=404, detail="Document not found")
     try:
         integration, client = await get_diadoc_client_for_session(session)
-        if normalize_diadoc_environment(
-            integration.environment
-        ) != normalize_diadoc_environment(document.environment):
+        if normalize_diadoc_environment(integration.environment) != normalize_diadoc_environment(
+            document.environment
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Document environment does not match current "
-                    "Diadoc integration environment"
+                    "Document environment does not match current " "Diadoc integration environment"
                 ),
             )
         document = await refresh_outgoing_document_status(
@@ -1407,7 +1326,7 @@ async def refresh_diadoc_outbound_document_status(
     "/inbound-documents/{document_id}/sign/start",
     response_model=DiadocCloudSignTaskOut,
     status_code=status.HTTP_200_OK,
-    summary="Подписать входящий УПД облачной подписью (шаг 1: SMS)",
+    summary="Подписать входящий УПД или УКД облачной подписью (шаг 1: SMS)",
 )
 async def start_sign_inbound_document(
     document_id: int,
@@ -1415,24 +1334,24 @@ async def start_sign_inbound_document(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
-    document = await get_diadoc_incoming_document(
-        session, document_id=document_id
-    )
+    document = await get_diadoc_incoming_document(session, document_id=document_id)
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    sign_block_reason = _incoming_sign_block_reason(document)
+    sign_block_reason = _incoming_sign_block_reason(
+        document,
+        await _correction_statuses(session, [document]),
+    )
     if sign_block_reason is not None:
         raise HTTPException(status_code=409, detail=sign_block_reason)
     try:
         integration, client = await get_diadoc_client_for_session(session)
-        if normalize_diadoc_environment(
-            integration.environment
-        ) != normalize_diadoc_environment(document.environment):
+        if normalize_diadoc_environment(integration.environment) != normalize_diadoc_environment(
+            document.environment
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Document environment does not match current "
-                    "Diadoc integration environment"
+                    "Document environment does not match current " "Diadoc integration environment"
                 ),
             )
         options = payload or DiadocInboundSignStartIn()
@@ -1568,9 +1487,7 @@ async def start_reject_inbound_document(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
-    document = await get_diadoc_incoming_document(
-        session, document_id=document_id
-    )
+    document = await get_diadoc_incoming_document(session, document_id=document_id)
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     try:
@@ -1602,9 +1519,7 @@ async def diadoc_print_form(
 ):
     try:
         integration, client = await get_diadoc_client_for_session(session)
-        selected_box_id_guid = _resolve_box_id_guid(
-            integration, box_id_guid
-        )
+        selected_box_id_guid = _resolve_box_id_guid(integration, box_id_guid)
         content = await client.generate_print_form(
             box_id_guid=selected_box_id_guid,
             message_id=message_id,
@@ -1614,11 +1529,7 @@ async def diadoc_print_form(
         return Response(
             content=content,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": (
-                    f"attachment; filename*=UTF-8''{filename}"
-                )
-            },
+            headers={"Content-Disposition": (f"attachment; filename*=UTF-8''{filename}")},
         )
     except HTTPException:
         raise
@@ -1771,10 +1682,7 @@ async def create_diadoc_outbound_document_from_shipment(
         integration, client = await get_diadoc_client_for_session(session)
         from_box_id_guid = _resolve_box_id_guid(integration, None)
         to_box_id_guid = str(payload.to_box_id_guid or "").strip() or None
-        if (
-            not to_box_id_guid
-            and payload.document_format.value == "nonformalized"
-        ):
+        if not to_box_id_guid and payload.document_format.value == "nonformalized":
             preview_payload = await build_diadoc_payload_from_shipment(
                 session,
                 shipment_id=shipment_id,
@@ -1795,20 +1703,15 @@ async def create_diadoc_outbound_document_from_shipment(
                     "Shipment is not ready for formalized UTD"
                 )
                 raise HTTPException(status_code=400, detail=detail)
-            shipment_payload = (
-                await build_formalized_diadoc_payload_from_shipment(
-                    session,
-                    client=client,
-                    integration=integration,
-                    shipment_id=shipment_id,
-                    customer_id=payload.customer_id,
-                    to_box_id_guid=to_box_id_guid,
-                )
+            shipment_payload = await build_formalized_diadoc_payload_from_shipment(
+                session,
+                client=client,
+                integration=integration,
+                shipment_id=shipment_id,
+                customer_id=payload.customer_id,
+                to_box_id_guid=to_box_id_guid,
             )
-            to_box_id_guid = (
-                str(shipment_payload.get("to_box_id_guid") or "").strip()
-                or None
-            )
+            to_box_id_guid = str(shipment_payload.get("to_box_id_guid") or "").strip() or None
         else:
             shipment_payload = await build_diadoc_payload_from_shipment(
                 session,
@@ -1844,8 +1747,7 @@ async def create_diadoc_outbound_document_from_shipment(
             need_receipt=payload.need_receipt,
             send_mode=payload.send_mode.value,
             type_named_id=(
-                str(shipment_payload.get("type_named_id") or "").strip()
-                or payload.type_named_id
+                str(shipment_payload.get("type_named_id") or "").strip() or payload.type_named_id
             ),
             document_function=(shipment_payload.get("document_function")),
             document_version=(shipment_payload.get("document_version")),
@@ -1903,9 +1805,7 @@ async def create_diadoc_outbound_document_from_shipment_correction(
         if doc is None:
             raise HTTPException(status_code=404, detail="Корректировка не найдена")
         if doc.diadoc_outgoing_document_id:
-            existing = await session.get(
-                DiadocOutgoingDocument, doc.diadoc_outgoing_document_id
-            )
+            existing = await session.get(DiadocOutgoingDocument, doc.diadoc_outgoing_document_id)
             if existing is not None:
                 return _outgoing_document_to_out(existing)
         existing = await session.scalar(
@@ -2037,19 +1937,15 @@ async def create_diadoc_outbound_document_from_customer_return(
                 "Customer return is not ready for formalized UKD"
             )
             raise HTTPException(status_code=400, detail=detail)
-        return_payload = (
-            await build_formalized_diadoc_payload_from_customer_return(
-                session,
-                client=client,
-                integration=integration,
-                return_id=return_id,
-                customer_id=payload.customer_id,
-                to_box_id_guid=to_box_id_guid,
-            )
+        return_payload = await build_formalized_diadoc_payload_from_customer_return(
+            session,
+            client=client,
+            integration=integration,
+            return_id=return_id,
+            customer_id=payload.customer_id,
+            to_box_id_guid=to_box_id_guid,
         )
-        to_box_id_guid = (
-            str(return_payload.get("to_box_id_guid") or "").strip() or None
-        )
+        to_box_id_guid = str(return_payload.get("to_box_id_guid") or "").strip() or None
         if not to_box_id_guid:
             raise HTTPException(
                 status_code=400,
@@ -2122,19 +2018,15 @@ async def create_diadoc_outbound_document_from_supplier_return(
                 "Supplier return is not ready for formalized UKD"
             )
             raise HTTPException(status_code=400, detail=detail)
-        return_payload = (
-            await build_formalized_diadoc_payload_from_supplier_return(
-                session,
-                client=client,
-                integration=integration,
-                return_id=return_id,
-                provider_id=payload.provider_id,
-                to_box_id_guid=to_box_id_guid,
-            )
+        return_payload = await build_formalized_diadoc_payload_from_supplier_return(
+            session,
+            client=client,
+            integration=integration,
+            return_id=return_id,
+            provider_id=payload.provider_id,
+            to_box_id_guid=to_box_id_guid,
         )
-        to_box_id_guid = (
-            str(return_payload.get("to_box_id_guid") or "").strip() or None
-        )
+        to_box_id_guid = str(return_payload.get("to_box_id_guid") or "").strip() or None
         if not to_box_id_guid:
             raise HTTPException(
                 status_code=400,
@@ -2236,9 +2128,7 @@ async def download_diadoc_document_content(
                 inject_entity_content=False,
             )
             resolved_filename = (
-                metadata.get("FileName")
-                or metadata.get("DocumentNumber")
-                or f"{entity_id}.bin"
+                metadata.get("FileName") or metadata.get("DocumentNumber") or f"{entity_id}.bin"
             )
         content = await client.get_entity_content(
             box_id_guid=selected_box_id_guid,
@@ -2253,11 +2143,7 @@ async def download_diadoc_document_content(
         return Response(
             content=content,
             media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": (
-                    f"attachment; filename*=UTF-8''{quoted_name}"
-                )
-            },
+            headers={"Content-Disposition": (f"attachment; filename*=UTF-8''{quoted_name}")},
         )
     except Exception as exc:
         _raise_diadoc_http_error(exc)

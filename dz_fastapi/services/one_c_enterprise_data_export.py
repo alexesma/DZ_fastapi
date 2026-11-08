@@ -15,15 +15,21 @@ from uuid import NAMESPACE_URL, uuid5
 from xml.etree import ElementTree as ET
 
 DATA_NS = "http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.22"
-SUPPORTED_OBJECTS = frozenset({
-    "Справочник.Контрагенты",
-    "Справочник.Договоры",
-    "Справочник.Номенклатура",
-    "Документ.ЗаказКлиента",
-    "Документ.ЗаказПоставщику",
-    "Документ.РеализацияТоваровУслуг",
-    "Документ.ПоступлениеТоваровУслуг",
-})
+SUPPORTED_OBJECTS = frozenset(
+    {
+        "Справочник.Контрагенты",
+        "Справочник.Договоры",
+        "Справочник.Номенклатура",
+        "Документ.ЗаказКлиента",
+        "Документ.ЗаказПоставщику",
+        "Документ.РеализацияТоваровУслуг",
+        "Документ.ПоступлениеТоваровУслуг",
+        "Документ.ВозвратТоваровОтПокупателя",
+        "Документ.ВозвратТоваровПоставщику",
+        "Документ.ОприходованиеТоваров",
+        "Документ.СписаниеТоваров",
+    }
+)
 
 
 def _tag(name: str) -> str:
@@ -100,8 +106,8 @@ def _counterparty_key(parent: ET.Element, party: dict[str, Any], kind: str) -> N
     kpp = str(party.get("kpp") or "").strip()
     # Один и тот же контрагент может быть клиентом и поставщиком DragonZap.
     # ИНН/КПП объединяют роли; локальный id нужен только без налогового ключа.
-    identity = f"inn:{inn}:kpp:{kpp}" if inn else (
-        f"{kind}:{party['id']}" if party.get("id") else None
+    identity = (
+        f"inn:{inn}:kpp:{kpp}" if inn else (f"{kind}:{party['id']}" if party.get("id") else None)
     )
     _optional(parent, "Ссылка", _guid("counterparty", identity) if identity else None)
     _add(parent, "Наименование", _required(name, "наименование контрагента"))
@@ -235,8 +241,8 @@ def item_price(item: dict[str, Any]) -> Decimal | None:
     price = item.get("price") if item.get("price") is not None else item.get("requested_price")
     if price is not None:
         return Decimal(str(price))
-    quantity = item.get("quantity") if item.get("quantity") is not None else item.get(
-        "requested_qty"
+    quantity = (
+        item.get("quantity") if item.get("quantity") is not None else item.get("requested_qty")
     )
     amount = item.get("total_price_with_vat")
     if amount is None or not quantity or Decimal(str(quantity)) <= 0:
@@ -273,8 +279,7 @@ def _goods_row(
     _optional(
         row,
         "ИдентификаторСтроки",
-        _guid("line", f"{document_identity}:{item['item_id']}")
-        if item.get("item_id") else None,
+        _guid("line", f"{document_identity}:{item['item_id']}") if item.get("item_id") else None,
     )
 
 
@@ -308,9 +313,16 @@ def serialize_object(
         "Документ.ЗаказПоставщику": "supplier-order",
         "Документ.РеализацияТоваровУслуг": "shipment",
         "Документ.ПоступлениеТоваровУслуг": "receipt",
+        "Документ.ВозвратТоваровОтПокупателя": "customer-return",
+        "Документ.ВозвратТоваровПоставщику": "supplier-return",
+        "Документ.ОприходованиеТоваров": "stock-receipt",
+        "Документ.СписаниеТоваров": "stock-writeoff",
     }[object_type]
     document_identity = f"{kind}:{payload['document_id']}"
     _document_key(node, payload, company, kind)
+    # Повтор того же объекта с Проведен=false отменяет проведение в УНФ.
+    # Ссылка документа остаётся прежней, поэтому новый документ не создаётся.
+    _add(node, "Проведен", "false" if payload.get("_cancelled") else "true")
 
     if object_type == "Документ.ЗаказКлиента":
         _currency(node)
@@ -362,6 +374,43 @@ def serialize_object(
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
         _supplier_settlements(node, payload["provider"], company)
+    elif object_type == "Документ.ВозвратТоваровОтПокупателя":
+        _add(node, "ВидОперации", "ВозвратОтПокупателя")
+        _currency(node)
+        _add(node, "Сумма", _decimal(_amount(payload.get("items") or [])))
+        _add(node, "СуммаВключаетНДС", "true")
+        _warehouse(node, payload.get("warehouse"))
+        _counterparty_key(_add(node, "Контрагент"), payload["customer"], "customer")
+        rows = _add(node, "Товары")
+        for item in payload.get("items") or []:
+            _goods_row(rows, item, require_unit=True, document_identity=document_identity)
+    elif object_type == "Документ.ВозвратТоваровПоставщику":
+        key = node.find(_tag("КлючевыеСвойства"))
+        _counterparty_key(_add(key, "Контрагент"), payload["provider"], "provider")
+        _currency(node)
+        _add(node, "Сумма", _decimal(_amount(payload.get("items") or [])))
+        _add(node, "СуммаВключаетНДС", "true")
+        _warehouse(node, payload.get("warehouse"))
+        _supplier_settlements(node, payload["provider"], company)
+        rows = _add(node, "Товары")
+        for item in payload.get("items") or []:
+            _goods_row(rows, item, require_unit=True, document_identity=document_identity)
+    elif object_type in {"Документ.ОприходованиеТоваров", "Документ.СписаниеТоваров"}:
+        _warehouse(node, payload.get("warehouse"))
+        _optional(node, "Комментарий", payload.get("reason"))
+        rows = _add(node, "Товары")
+        for item in payload.get("items") or []:
+            normalized = {
+                **item,
+                "price": item.get("cost_price"),
+                "vat_rate": "22",
+            }
+            _goods_row(
+                rows,
+                normalized,
+                require_unit=True,
+                document_identity=document_identity,
+            )
     _source_number(node, payload["document_number"])
     return node
 
@@ -385,12 +434,32 @@ def object_xml(
 _EVENT_OBJECT_TYPES = {
     "shipment": "Документ.РеализацияТоваровУслуг",
     "supplier_receipt": "Документ.ПоступлениеТоваровУслуг",
+    "customer_order": "Документ.ЗаказКлиента",
+    "supplier_order": "Документ.ЗаказПоставщику",
+    "customer_return": "Документ.ВозвратТоваровОтПокупателя",
+    "supplier_return": "Документ.ВозвратТоваровПоставщику",
 }
 
 
-def event_document_ref(entity_type: str, document_id: Any) -> str:
+def event_document_ref(
+    entity_type: str,
+    document_id: Any,
+    payload: dict[str, Any] | None = None,
+) -> str:
     """Ссылка (GUID), под которой мы отправили документ события в УНФ."""
-    kind = {"shipment": "shipment", "supplier_receipt": "receipt"}[entity_type]
+    kind = {
+        "shipment": "shipment",
+        "supplier_receipt": "receipt",
+        "customer_order": "customer-order",
+        "supplier_order": "supplier-order",
+        "customer_return": "customer-return",
+        "supplier_return": "supplier-return",
+        "stock_document": (
+            "stock-receipt"
+            if str((payload or {}).get("document_type") or "") == "manual_receipt"
+            else "stock-writeoff"
+        ),
+    }[entity_type]
     return _guid(kind, document_id)
 
 
@@ -398,10 +467,19 @@ def event_document_number(document_id: Any) -> str:
     return _one_c_number(document_id)
 
 
-def _event_object_type(entity_type: str, event_type: str) -> str:
-    if event_type != "posted":
-        raise ValueError("Предпросмотр EnterpriseData доступен только для проведённых документов")
+def _event_object_type(
+    entity_type: str, event_type: str, payload: dict[str, Any]
+) -> str:
+    if event_type not in {"posted", "cancelled"}:
+        raise ValueError("EnterpriseData поддерживает проведение и отмену проведения документа")
     object_type = _EVENT_OBJECT_TYPES.get(entity_type)
+    if entity_type == "stock_document":
+        doc_type = str(payload.get("document_type") or "")
+        object_type = (
+            "Документ.ОприходованиеТоваров"
+            if doc_type == "manual_receipt"
+            else "Документ.СписаниеТоваров" if doc_type == "manual_writeoff" else None
+        )
     if object_type is None:
         raise ValueError(f"Выгрузка EnterpriseData для {entity_type} пока не реализована")
     return object_type
@@ -414,7 +492,11 @@ def preview_outbox_event(
     company: dict[str, Any],
 ) -> bytes:
     """Render a posted accounting event for inspection without sending it."""
-    return object_xml(_event_object_type(entity_type, event_type), payload, company)
+    return object_xml(
+        _event_object_type(entity_type, event_type, payload),
+        {**payload, "_cancelled": event_type == "cancelled"},
+        company,
+    )
 
 
 def event_body_objects(
@@ -428,9 +510,24 @@ def event_body_objects(
     Справочники идут перед документом, чтобы УНФ создала их раньше, чем
     документ сошлётся на них. Повторяющиеся элементы выводятся один раз.
     """
-    object_type = _event_object_type(entity_type, event_type)
-    party_key = "customer" if object_type == "Документ.РеализацияТоваровУслуг" else "provider"
-    party_kind = "customer" if party_key == "customer" else "provider"
+    object_type = _event_object_type(entity_type, event_type, payload)
+    payload = {**payload, "_cancelled": event_type == "cancelled"}
+    customer_types = {
+        "Документ.РеализацияТоваровУслуг",
+        "Документ.ЗаказКлиента",
+        "Документ.ВозвратТоваровОтПокупателя",
+    }
+    provider_types = {
+        "Документ.ПоступлениеТоваровУслуг",
+        "Документ.ЗаказПоставщику",
+        "Документ.ВозвратТоваровПоставщику",
+    }
+    party_key = (
+        "customer"
+        if object_type in customer_types
+        else "provider" if object_type in provider_types else None
+    )
+    party_kind = party_key
 
     objects: list[ET.Element] = []
     seen: set[tuple[str, str]] = set()
@@ -443,7 +540,11 @@ def event_body_objects(
             seen.add(marker)
             objects.append(node)
 
-    add_reference("Справочник.Контрагенты", {**payload[party_key], "kind": party_kind})
+    if party_key:
+        add_reference(
+            "Справочник.Контрагенты",
+            {**payload[party_key], "kind": party_kind},
+        )
     if party_key == "provider" and not (payload[party_key].get("one_c_contract") or {}).get("guid"):
         add_reference("Справочник.Договоры", payload[party_key])
     for item in payload.get("items") or []:

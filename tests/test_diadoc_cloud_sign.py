@@ -7,6 +7,7 @@ from dz_fastapi.models.settings import DiadocIntegrationSettings
 from dz_fastapi.services.diadoc_cloud_sign import (
     _apply_send_outgoing,
     build_signer_payload,
+    build_ucd_buyer_title_user_data,
     build_utd970_buyer_title_user_data,
     split_signer_full_name,
 )
@@ -17,15 +18,9 @@ def _integration(**overrides):
     integration.signer_full_name = overrides.get(
         "signer_full_name", "Ермоленко Александр Сергеевич"
     )
-    integration.signer_position = overrides.get(
-        "signer_position", "Директор"
-    )
-    integration.organization_name = overrides.get(
-        "organization_name", 'ООО "Дрэгонзап"'
-    )
-    integration.organization_inn = overrides.get(
-        "organization_inn", "7701234567"
-    )
+    integration.signer_position = overrides.get("signer_position", "Директор")
+    integration.organization_name = overrides.get("organization_name", 'ООО "Дрэгонзап"')
+    integration.organization_inn = overrides.get("organization_inn", "7701234567")
     return integration
 
 
@@ -102,6 +97,16 @@ def test_buyer_title_escapes_quotes_in_names():
     assert root.get("DocumentCreator") == 'ООО "А&Б"'
 
 
+def test_ucd_buyer_title_uses_director_authority_without_poa():
+    root = ET.fromstring(
+        build_ucd_buyer_title_user_data(_integration(), approval_date="08.11.2026")
+    )
+    assert root.tag == "UniversalCorrectionDocumentBuyerTitle"
+    assert root.get("ApprovalDate") == "08.11.2026"
+    signer = root.find("./Signers/Signer")
+    assert signer.get("SignerPowersConfirmationMethod") == "1"
+
+
 @pytest.mark.asyncio
 async def test_send_outgoing_sends_existing_draft():
     document = SimpleNamespace(
@@ -143,9 +148,7 @@ async def test_send_outgoing_sends_existing_draft():
             assert operation_id
             return {
                 "MessageId": "sent-message",
-                "Entities": [
-                    {"EntityType": "Attachment", "EntityId": "sent-entity"}
-                ],
+                "Entities": [{"EntityType": "Attachment", "EntityId": "sent-entity"}],
             }
 
     result = await _apply_send_outgoing(

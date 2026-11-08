@@ -137,9 +137,7 @@ class DiadocClient:
             if kpp:
                 params["kpp"] = kpp
         else:
-            raise ValueError(
-                "One of org_id, box_id_guid, fns_participant_id, inn must be set"
-            )
+            raise ValueError("One of org_id, box_id_guid, fns_participant_id, inn must be set")
         return await self._request_json(
             "GET",
             "/GetOrganization",
@@ -204,15 +202,63 @@ class DiadocClient:
         if document_number:
             params["documentNumber"] = document_number
         if from_document_date:
-            params["fromDocumentDate"] = from_document_date.strftime(
-                "%d.%m.%Y"
-            )
+            params["fromDocumentDate"] = from_document_date.strftime("%d.%m.%Y")
         if to_document_date:
             params["toDocumentDate"] = to_document_date.strftime("%d.%m.%Y")
         return await self._request_json(
             "GET",
             "/V3/GetDocuments",
             params=params,
+        )
+
+    async def get_new_events(
+        self,
+        *,
+        box_id_guid: str,
+        after_index_key: str | None = None,
+        document_direction: str | None = None,
+        message_type: str = "Letter",
+        limit: int = 100,
+        order_by: str = "Ascending",
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "boxId": box_id_guid,
+            "messageType": message_type,
+            "limit": max(1, min(int(limit or 100), 500)),
+            "orderBy": order_by,
+        }
+        if after_index_key:
+            params["afterIndexKey"] = after_index_key
+        if document_direction:
+            params["documentDirection"] = document_direction
+        return await self._request_json("GET", "/V8/GetNewEvents", params=params)
+
+    async def get_last_event(self, *, box_id_guid: str) -> dict[str, Any]:
+        return await self._request_json("GET", "/V2/GetLastEvent", params={"boxId": box_id_guid})
+
+    async def get_docflows(
+        self,
+        *,
+        box_id_guid: str,
+        document_ids: list[tuple[str, str]],
+    ) -> dict[str, Any]:
+        if not document_ids:
+            return {"Documents": []}
+        return await self._request_json(
+            "POST",
+            "/V5/GetDocflows",
+            params={"boxId": box_id_guid},
+            json_body={
+                "Requests": [
+                    {
+                        "DocumentId": {
+                            "MessageId": message_id,
+                            "EntityId": entity_id,
+                        }
+                    }
+                    for message_id, entity_id in document_ids
+                ]
+            },
         )
 
     async def get_document(
@@ -298,9 +344,7 @@ class DiadocClient:
         for marker in ("filename=", "filename*="):
             idx = content_disposition.lower().find(marker)
             if idx >= 0:
-                file_name = (
-                    content_disposition[idx + len(marker):].strip().strip('"')
-                )
+                file_name = content_disposition[idx + len(marker):].strip().strip('"')
                 break
         return response.content, file_name
 
@@ -379,8 +423,7 @@ class DiadocClient:
             if time.monotonic() > deadline:
                 raise DiadocApiError(
                     504,
-                    f"Diadoc async task {path} timed out "
-                    f"after {timeout_seconds}s",
+                    f"Diadoc async task {path} timed out " f"after {timeout_seconds}s",
                 )
             retry_after = response.headers.get("Retry-After")
             try:
@@ -439,21 +482,15 @@ class DiadocClient:
         )
         task_id = str(started.get("TaskId") or "").strip()
         if not task_id:
-            raise DiadocApiError(
-                502, "CloudSignConfirm did not return TaskId"
-            )
-        result = await self._wait_task_result(
-            "/CloudSignConfirmResult", task_id
-        )
+            raise DiadocApiError(502, "CloudSignConfirm did not return TaskId")
+        result = await self._wait_task_result("/CloudSignConfirmResult", task_id)
         signatures: list[str] = []
         for item in result.get("Signatures") or []:
             content = str((item or {}).get("Content") or "").strip()
             if content:
                 signatures.append(content)
         if not signatures:
-            raise DiadocApiError(
-                502, "CloudSignConfirmResult returned no signatures"
-            )
+            raise DiadocApiError(502, "CloudSignConfirmResult returned no signatures")
         return signatures
 
     async def generate_receipt_xml(
@@ -503,13 +540,9 @@ class DiadocClient:
                 },
                 headers={"Accept": "*/*"},
             )
-            content_type = str(
-                response.headers.get("Content-Type") or ""
-            ).lower()
+            content_type = str(response.headers.get("Content-Type") or "").lower()
             retry_after = response.headers.get("Retry-After")
-            if response.content and "json" not in content_type and (
-                not retry_after
-            ):
+            if response.content and "json" not in content_type and (not retry_after):
                 return response.content
             if time.monotonic() > deadline:
                 raise DiadocApiError(

@@ -13,21 +13,29 @@ from dataclasses import asdict, dataclass
 from typing import Any, Optional
 from xml.etree import ElementTree as ET
 
-TRACKED_DOCUMENTS = frozenset({
-    "Документ.РеализацияТоваровУслуг",
-    "Документ.ПоступлениеТоваровУслуг",
-})
+TRACKED_DOCUMENTS = frozenset(
+    {
+        "Документ.РеализацияТоваровУслуг",
+        "Документ.ПоступлениеТоваровУслуг",
+        "Документ.ЗаказКлиента",
+        "Документ.ЗаказПоставщику",
+        "Документ.ВозвратТоваровОтПокупателя",
+        "Документ.ВозвратТоваровПоставщику",
+        "Документ.ОприходованиеТоваров",
+        "Документ.СписаниеТоваров",
+    }
+)
 # Объекты, которыми владеет DragonZap: их копии из УНФ нам не нужны, поэтому
 # сообщение, где есть только они и отслеживаемые документы, можно подтвердить.
 # Любой другой тип (например, оприходование, созданное в УНФ) подтверждать нельзя:
 # подтверждение сотрёт данные, которые мы не загрузили.
-OWNED_OBJECTS = frozenset({
-    "Справочник.Контрагенты",
-    "Справочник.Договоры",
-    "Справочник.Номенклатура",
-    "Документ.ЗаказКлиента",
-    "Документ.ЗаказПоставщику",
-})
+OWNED_OBJECTS = frozenset(
+    {
+        "Справочник.Контрагенты",
+        "Справочник.Договоры",
+        "Справочник.Номенклатура",
+    }
+)
 _TRUE = {"true", "1", "да"}
 _FALSE = {"false", "0", "нет"}
 _NUMBER_RE = re.compile(r"^DZ(\d{9})$")
@@ -114,7 +122,14 @@ def importable_documents(xml_bytes: bytes) -> Optional[list[IncomingDocument]]:
     for node in body_objects(xml_bytes):
         name = _local(node.tag)
         if name in TRACKED_DOCUMENTS:
-            documents.append(_document(node))
+            document = _document(node)
+            # УНФ может отправлять собственные документы тех же типов. Мы
+            # принимаем обратно только объект, в котором сохранилась наша
+            # стабильная ссылка либо исходный номер DragonZap. Иначе нельзя
+            # безопасно подтвердить сообщение и потерять чужой документ.
+            if not document.ref and document.dragonzap_id() is None:
+                return None
+            documents.append(document)
         elif name not in OWNED_OBJECTS:
             return None
     return documents

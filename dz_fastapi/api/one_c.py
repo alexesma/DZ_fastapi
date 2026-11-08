@@ -31,6 +31,7 @@ from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.diadoc import DiadocIncomingDocument, DiadocOutgoingDocument
 from dz_fastapi.models.inventory import ShipmentDocument, ShipmentDocumentStatus
 from dz_fastapi.models.one_c import (
     OneCEnterpriseConfig,
@@ -115,6 +116,10 @@ class EnterpriseAutoSettingsUpdate(BaseModel):
     enabled: bool
     send_receipts: bool = True
     send_shipments: bool = False
+    send_customer_orders: bool = False
+    send_supplier_orders: bool = False
+    send_returns: bool = False
+    send_stock_documents: bool = False
     include_history: bool = False
     batch_size: int | None = Field(default=None, ge=1, le=50)
 
@@ -344,6 +349,10 @@ async def enterprise_data_auto_update(
         enabled=data.enabled,
         send_receipts=data.send_receipts,
         send_shipments=data.send_shipments,
+        send_customer_orders=data.send_customer_orders,
+        send_supplier_orders=data.send_supplier_orders,
+        send_returns=data.send_returns,
+        send_stock_documents=data.send_stock_documents,
         include_history=data.include_history,
         batch_size=data.batch_size,
     )
@@ -366,9 +375,7 @@ async def enterprise_data_dispatch_next(
     return result
 
 
-@router.post(
-    "/enterprise-data/reconcile", summary="Сверить подтверждения чтения УНФ с очередью"
-)
+@router.post("/enterprise-data/reconcile", summary="Сверить подтверждения чтения УНФ с очередью")
 async def enterprise_data_reconcile(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
@@ -410,9 +417,7 @@ async def enterprise_data_incoming_file(
     _: User = Depends(require_admin),
 ):
     try:
-        content = await asyncio.to_thread(
-            read_incoming_archive, file_name, outgoing=outgoing
-        )
+        content = await asyncio.to_thread(read_incoming_archive, file_name, outgoing=outgoing)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -443,7 +448,8 @@ async def _company_for_enterprise_data(session: AsyncSession) -> dict:
 
 
 async def _payload_for_enterprise_data(
-    event: OneCExchangeEvent, session: AsyncSession,
+    event: OneCExchangeEvent,
+    session: AsyncSession,
 ) -> dict:
     """Use the current contract mapping for old and newly queued receipts."""
     payload = event.payload
@@ -580,9 +586,7 @@ async def enterprise_data_announce(
     объектами мы готовы обмениваться. Здесь мы перевыкладываем сообщение с
     актуальным составом, не дожидаясь нового входящего."""
     try:
-        return await asyncio.to_thread(
-            regenerate_outgoing_message, bump_message_no=bump_message_no
-        )
+        return await asyncio.to_thread(regenerate_outgoing_message, bump_message_no=bump_message_no)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Не удалось пересобрать сообщение EnterpriseData")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -608,6 +612,131 @@ async def list_one_c_events(
         stmt = stmt.where(OneCExchangeEvent.ed_last_error.is_not(None))
     rows = (await session.execute(stmt.limit(limit))).scalars().all()
     return {"items": [serialize_one_c_event(row, include_payload=False) for row in rows]}
+
+
+@router.get(
+    "/exchange-cards",
+    summary="Единые карточки обмена DragonZap, УНФ и Диадок",
+)
+async def list_exchange_cards(
+    limit: int = Query(default=100, ge=1, le=300),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    raw_events = (
+        await session.execute(
+            select(OneCExchangeEvent)
+            .order_by(OneCExchangeEvent.created_at.desc(), OneCExchangeEvent.id.desc())
+            .limit(limit * 3)
+        )
+    ).scalars().all()
+    events: list[OneCExchangeEvent] = []
+    seen: set[tuple[str, int]] = set()
+    for event in raw_events:
+        key = (event.entity_type, int(event.entity_id))
+        if key in seen:
+            continue
+        seen.add(key)
+        events.append(event)
+        if len(events) >= limit:
+            break
+
+    source_types = {
+        "shipment": "shipment_document",
+        "customer_return": "return_from_customer",
+        "supplier_return": "return_to_supplier",
+    }
+    source_ids = {int(row.entity_id) for row in events if row.entity_type in source_types}
+    outgoing_rows = []
+    if source_ids:
+        outgoing_rows = (
+            await session.execute(
+                select(DiadocOutgoingDocument)
+                .where(
+                    DiadocOutgoingDocument.source_id.in_(source_ids),
+                    DiadocOutgoingDocument.source_type.in_(tuple(source_types.values())),
+                )
+                .order_by(DiadocOutgoingDocument.id.desc())
+            )
+        ).scalars().all()
+    outgoing = {}
+    for row in outgoing_rows:
+        outgoing.setdefault((row.source_type, int(row.source_id)), row)
+
+    receipt_ids = [int(row.entity_id) for row in events if row.entity_type == ENTITY_RECEIPT]
+    incoming = {}
+    if receipt_ids:
+        rows = await session.execute(
+            select(SupplierReceipt.id, DiadocIncomingDocument)
+            .join(
+                DiadocIncomingDocument,
+                DiadocIncomingDocument.supplier_order_message_id
+                == SupplierReceipt.source_message_id,
+            )
+            .where(SupplierReceipt.id.in_(receipt_ids))
+            .order_by(DiadocIncomingDocument.id.desc())
+        )
+        for receipt_id, document in rows.all():
+            incoming.setdefault(int(receipt_id), document)
+
+    cards = []
+    for event in events:
+        payload = event.payload or {}
+        diadoc = None
+        source_type = source_types.get(event.entity_type)
+        outgoing_document = (
+            outgoing.get((source_type, int(event.entity_id))) if source_type else None
+        )
+        incoming_document = (
+            incoming.get(int(event.entity_id)) if event.entity_type == ENTITY_RECEIPT else None
+        )
+        if outgoing_document is not None:
+            diadoc = {
+                "direction": "outbound",
+                "id": outgoing_document.id,
+                "document_number": outgoing_document.document_number,
+                "status": outgoing_document.status,
+                "is_finished": outgoing_document.docflow_is_finished,
+                "status_text": outgoing_document.docflow_status_text,
+                "message_id": outgoing_document.message_id,
+                "entity_id": outgoing_document.entity_id,
+                "error": outgoing_document.error_details,
+            }
+        elif incoming_document is not None:
+            diadoc = {
+                "direction": "inbound",
+                "id": incoming_document.id,
+                "document_number": incoming_document.document_number,
+                "status": incoming_document.status,
+                "is_finished": incoming_document.docflow_is_finished,
+                "status_text": incoming_document.docflow_status_text,
+                "message_id": incoming_document.message_id,
+                "entity_id": incoming_document.entity_id,
+                "error": incoming_document.import_error_details,
+            }
+        cards.append(
+            {
+                "entity_type": event.entity_type,
+                "entity_id": event.entity_id,
+                "document_number": payload.get("document_number"),
+                "document_date": payload.get("document_date") or payload.get("created_at"),
+                "event_type": event.event_type,
+                "event_created_at": event.created_at,
+                "dragonzap_status": payload.get("status"),
+                "unf": {
+                    "message_no": event.ed_message_no,
+                    "sent_at": event.ed_sent_at,
+                    "transport_confirmed_at": event.ed_transport_confirmed_at,
+                    "number": event.ed_unf_number,
+                    "ref": event.ed_unf_ref,
+                    "posted": event.ed_unf_posted,
+                    "received_at": event.ed_unf_received_at,
+                    "error": event.ed_last_error,
+                },
+                "diadoc": diadoc,
+            }
+        )
+    return {"items": cards}
 
 
 @router.get("/batches", summary="Пакеты передачи в 1С")

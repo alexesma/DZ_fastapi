@@ -210,6 +210,12 @@ class DiadocInboundDocumentOut(BaseModel):
     registered_at: datetime | None = None
     signed_at: datetime | None = None
     rejected_at: datetime | None = None
+    docflow_is_finished: bool | None = None
+    docflow_status_severity: str | None = None
+    docflow_status_text: str | None = None
+    recipient_response_status: str | None = None
+    revocation_status: str | None = None
+    docflow_checked_at: datetime | None = None
     can_register_supplier_message: bool = False
     can_process_supplier_message: bool = False
     can_sign_incoming: bool = False
@@ -380,6 +386,7 @@ class DiadocOutgoingDocumentOut(BaseModel):
     provider_name: str | None = None
     source_type: str | None = None
     source_id: int | None = None
+    source_version: int = 1
     type_named_id: str
     document_function: str | None = None
     document_version: str | None = None
@@ -395,6 +402,7 @@ class DiadocOutgoingDocumentOut(BaseModel):
     message_id: str | None = None
     entity_id: str | None = None
     status: str
+    docflow_is_finished: bool | None = None
     docflow_status_severity: str | None = None
     docflow_status_text: str | None = None
     recipient_response_status: str | None = None
@@ -461,9 +469,7 @@ class DiadocShipmentOutboundCreateIn(BaseModel):
     need_recipient_signature: bool = False
     need_receipt: bool = True
     send_mode: DiadocSendMode = DiadocSendMode.DRAFT
-    document_format: DiadocShipmentDocumentFormat = (
-        DiadocShipmentDocumentFormat.NONFORMALIZED
-    )
+    document_format: DiadocShipmentDocumentFormat = DiadocShipmentDocumentFormat.NONFORMALIZED
     type_named_id: str = Field(default="Nonformalized", min_length=1)
 
 
@@ -476,6 +482,4 @@ class DiadocReturnOutboundCreateIn(BaseModel):
     need_recipient_signature: bool = False
     need_receipt: bool = True
     send_mode: DiadocSendMode = DiadocSendMode.DRAFT
-    document_format: DiadocReturnDocumentFormat = (
-        DiadocReturnDocumentFormat.FORMALIZED_UKD
-    )
+    document_format: DiadocReturnDocumentFormat = DiadocReturnDocumentFormat.FORMALIZED_UKD

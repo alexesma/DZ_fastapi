@@ -71,6 +71,12 @@ from dz_fastapi.services.customer_orders import (
     send_scheduled_supplier_orders,
 )
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_documents
+from dz_fastapi.services.diadoc_events import (
+    get_event_cursor,
+    initialize_event_cursor,
+    stage_event_cursor_boundary,
+    sync_event_feed,
+)
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
 from dz_fastapi.services.diadoc_status import refresh_diadoc_outgoing_statuses
 from dz_fastapi.services.email import get_emails
@@ -619,8 +625,14 @@ async def process_one_c_enterprise_handshake_task(app: FastAPI):
         async with app.state.session_factory() as session:
             received = await apply_inbox(session)
             await session.commit()
+        if received["acknowledge_messages"]:
+            await asyncio.to_thread(drop_inbox, received["acknowledge_messages"])
+        if received["unmatched"]:
+            logger.warning(
+                "EnterpriseData inbox retained because documents were not " "matched: %s",
+                received["unmatched"],
+            )
         if received["messages"]:
-            await asyncio.to_thread(drop_inbox, received["messages"])
             logger.info("EnterpriseData numbers received from UNF: %s", received)
     except Exception:
         logger.exception("EnterpriseData receive failed")
@@ -652,9 +664,7 @@ def start_scheduler(app: FastAPI):
         },
     )
 
-    handshake_poll_seconds = max(
-        0, int(os.getenv("ONE_C_ED_HANDSHAKE_POLL_SECONDS", "60"))
-    )
+    handshake_poll_seconds = max(0, int(os.getenv("ONE_C_ED_HANDSHAKE_POLL_SECONDS", "60")))
     if handshake_poll_seconds:
         scheduler.add_job(
             func=process_one_c_enterprise_handshake_task,
@@ -1706,9 +1716,7 @@ async def expire_supplier_document_remainders_task(app: FastAPI):
     ) as trace:
         async with app.state.session_factory() as session:
             try:
-                trace.details["rejected_items"] = await expire_document_missing_items(
-                    session
-                )
+                trace.details["rejected_items"] = await expire_document_missing_items(session)
             except Exception as exc:
                 await session.rollback()
                 logger.error("Supplier document grace processing failed: %s", exc, exc_info=True)
@@ -1777,13 +1785,54 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                     trace.details["skipped_disabled"] = True
                     return
                 integration, client = await get_diadoc_client_for_session(session)
+                environment = str(integration.environment or "staging")
+                box_id_guid = str(integration.box_id_guid)
+                event_cursor = await get_event_cursor(
+                    session,
+                    environment=environment,
+                    box_id_guid=box_id_guid,
+                )
+                if event_cursor is not None and event_cursor.initialized_at is not None:
+                    result = await sync_event_feed(
+                        session,
+                        client=client,
+                        environment=environment,
+                        box_id_guid=box_id_guid,
+                        download_content=bool(integration.inbound_download_content),
+                        process_supplier_message=bool(integration.inbound_process_enabled),
+                        page_size=max(1, min(int(integration.inbound_sync_count or 50), 100)),
+                    )
+                    trace.details["summary"] = result
+                    integration.last_sync_at = now_moscow()
+                    integration.last_error = (
+                        "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000] or None
+                    )
+                    integration.inbound_last_sync_at = integration.last_sync_at
+                    integration.inbound_last_error = integration.last_error
+                    session.add(integration)
+                    await session.commit()
+                    logger.info(
+                        "Completed sync_diadoc_inbound_task from BoxEvent feed summary=%s",
+                        result,
+                    )
+                    if setting:
+                        await _mark_scheduler_ran(session, setting, now_moscow())
+                    return
+                # Граница берётся ДО первоначального обхода GetDocuments. Так
+                # событие, появившееся во время обхода, окажется после границы
+                # и не потеряется при следующем запуске ленты.
+                event_cursor = await stage_event_cursor_boundary(
+                    session,
+                    client=client,
+                    environment=environment,
+                    box_id_guid=box_id_guid,
+                )
+                await session.commit()
                 # Дочитываем очередь до конца. Остановка по created=0 опасна:
                 # на уже известной странице могут находиться более старые,
                 # ещё не импортированные документы.
                 page_count = max(1, min(int(integration.inbound_sync_count or 50), 100))
-                after_index_key = (
-                    integration.inbound_continuation_index_key or None
-                )
+                after_index_key = integration.inbound_continuation_index_key or None
                 combined: dict = {}
                 max_pages = 100
                 pages_read = 0
@@ -1792,8 +1841,8 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                     result = await sync_diadoc_incoming_documents(
                         session=session,
                         client=client,
-                        environment=str(integration.environment or "staging"),
-                        box_id_guid=str(integration.box_id_guid),
+                        environment=environment,
+                        box_id_guid=box_id_guid,
                         filter_category="Any.Inbound",
                         count=page_count,
                         after_index_key=after_index_key,
@@ -1820,17 +1869,13 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                         else:
                             combined[key] = value
                     after_index_key = result.get("last_index_key")
-                    has_more_results = bool(
-                        result.get("has_more_results") and after_index_key
-                    )
+                    has_more_results = bool(result.get("has_more_results") and after_index_key)
                     integration.inbound_continuation_index_key = (
                         after_index_key if has_more_results else None
                     )
                     session.add(integration)
                     await session.commit()
-                    if (
-                        not has_more_results
-                    ):
+                    if not has_more_results:
                         break
                 combined["pages_read"] = pages_read
                 if result.get("has_more_results") and after_index_key:
@@ -1839,11 +1884,21 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                         "дочитывание продолжится следующим запуском"
                     )
                 result = combined
+                if result.get("has_more_results") and after_index_key:
+                    result["event_feed_initialized"] = False
+                else:
+                    await initialize_event_cursor(
+                        session,
+                        client=client,
+                        environment=environment,
+                        box_id_guid=box_id_guid,
+                        boundary_event={"IndexKey": event_cursor.index_key},
+                    )
+                    result["event_feed_initialized"] = True
                 trace.details["summary"] = result
                 integration.last_sync_at = now_moscow()
                 integration.last_error = (
-                    "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000]
-                    or None
+                    "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000] or None
                 )
                 integration.inbound_last_sync_at = integration.last_sync_at
                 integration.inbound_last_error = integration.last_error
@@ -1864,11 +1919,7 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                 trace.details["error"] = str(e)[:2000]
                 trace.details["__trace_status"] = "error"
                 try:
-                    integration = (
-                        await crud_diadoc_integration_settings.get_or_create(
-                            session
-                        )
-                    )
+                    integration = await crud_diadoc_integration_settings.get_or_create(session)
                     integration.last_error = str(e)[:2000]
                     integration.inbound_last_error = integration.last_error
                     session.add(integration)
@@ -1945,10 +1996,7 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                 trace.details["summary"] = result
                 integration.outbound_last_sync_at = now_moscow()
                 integration.outbound_last_error = (
-                    "; ".join(
-                        str(item) for item in result.get("errors", [])[:5]
-                    )[:2000]
-                    or None
+                    "; ".join(str(item) for item in result.get("errors", [])[:5])[:2000] or None
                 )
                 session.add(integration)
                 await session.commit()
@@ -1975,11 +2023,7 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                 )
                 trace.details["error"] = str(e)[:2000]
                 try:
-                    integration = (
-                        await crud_diadoc_integration_settings.get_or_create(
-                            session
-                        )
-                    )
+                    integration = await crud_diadoc_integration_settings.get_or_create(session)
                     integration.outbound_last_error = str(e)[:2000]
                     session.add(integration)
                     await session.commit()

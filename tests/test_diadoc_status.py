@@ -1,11 +1,19 @@
-from dz_fastapi.services.diadoc_status import derive_outgoing_status_fields
+from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 
 
 def _derive(payload, current_status="sent", is_draft=False):
-    return derive_outgoing_status_fields(
-        payload,
-        current_status=current_status,
-        is_draft=is_draft,
+    docflow = {
+        "IsFinished": payload.get("IsFinished"),
+        "DocflowStatus": payload.get("DocflowStatus"),
+        "RecipientResponse": {
+            "ResponseStatus": payload.get("RecipientResponseStatus")
+        },
+        "Revocation": {"RevocationStatus": payload.get("RevocationStatus")},
+        "SenderTitle": {"DeliveredAt": payload.get("DeliveryTimestampTicks")},
+    }
+    return derive_docflow_state(
+        {"LastEvent": {"Docflow": docflow}},
+        current_status="draft" if is_draft else current_status,
     )
 
 
@@ -17,7 +25,8 @@ def test_completed_by_success_severity():
                     "Severity": "Success",
                     "StatusText": "Документооборот завершен",
                 }
-            }
+            },
+            "IsFinished": True,
         }
     )
     assert fields["status"] == "completed"
@@ -27,7 +36,7 @@ def test_completed_by_success_severity():
 
 def test_completed_by_recipient_signature():
     fields = _derive(
-        {"RecipientResponseStatus": "WithRecipientSignature"}
+        {"RecipientResponseStatus": "WithRecipientSignature", "IsFinished": True}
     )
     assert fields["status"] == "completed"
     assert (
@@ -52,16 +61,7 @@ def test_delivered_when_only_delivery_ticks():
 
 
 def test_rejected_by_status_text():
-    fields = _derive(
-        {
-            "DocflowStatus": {
-                "PrimaryStatus": {
-                    "Severity": "Warning",
-                    "StatusText": "В подписи отказано",
-                }
-            }
-        }
-    )
+    fields = _derive({"RecipientResponseStatus": "SignatureRequestRejected"})
     assert fields["status"] == "rejected"
 
 

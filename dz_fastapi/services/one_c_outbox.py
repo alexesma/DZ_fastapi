@@ -19,6 +19,9 @@ from dz_fastapi.models.inventory import (
     ProductionWave,
     ProductionWaveAllocation,
     ProductionWaveItem,
+    ReturnFromCustomer,
+    ReturnItem,
+    ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentItem,
     ShipmentDocumentItemLotAllocation,
@@ -34,7 +37,14 @@ from dz_fastapi.models.one_c import (
     OneCExchangeEvent,
     OneCExchangeEventStatus,
 )
-from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    CustomerOrder,
+    CustomerOrderItem,
+    SupplierOrder,
+    SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.models.shipment_correction import ShipmentCorrection
 
 ENTITY_SHIPMENT = "shipment"
@@ -42,6 +52,10 @@ ENTITY_SHIPMENT_CORRECTION = "shipment_correction"
 ENTITY_RECEIPT = "supplier_receipt"
 ENTITY_STOCK_DOCUMENT = "stock_document"
 ENTITY_PRODUCTION_WAVE = "production_wave"
+ENTITY_CUSTOMER_ORDER = "customer_order"
+ENTITY_SUPPLIER_ORDER = "supplier_order"
+ENTITY_CUSTOMER_RETURN = "customer_return"
+ENTITY_SUPPLIER_RETURN = "supplier_return"
 
 EVENT_POSTED = "posted"
 EVENT_CANCELLED = "cancelled"
@@ -110,9 +124,7 @@ async def build_shipment_snapshot(
             "legal_address": getattr(customer, "legal_address", None),
             "postal_address": getattr(customer, "postal_address", None),
             "email_contact": getattr(customer, "email_contact", None),
-            "email_outgoing_price": getattr(
-                customer, "email_outgoing_price", None
-            ),
+            "email_outgoing_price": getattr(customer, "email_outgoing_price", None),
             "description": getattr(customer, "description", None),
             "comment": getattr(customer, "comment", None),
             "type_prices": _value(getattr(customer, "type_prices", None)),
@@ -157,7 +169,8 @@ async def build_shipment_snapshot(
 
 
 async def build_shipment_correction_snapshot(
-    session: AsyncSession, correction_id: int,
+    session: AsyncSession,
+    correction_id: int,
 ) -> dict[str, Any]:
     correction = (
         await session.execute(
@@ -165,8 +178,7 @@ async def build_shipment_correction_snapshot(
             .where(ShipmentCorrection.id == correction_id)
             .options(
                 selectinload(ShipmentCorrection.items),
-                selectinload(ShipmentCorrection.shipment)
-                .selectinload(ShipmentDocument.customer),
+                selectinload(ShipmentCorrection.shipment).selectinload(ShipmentDocument.customer),
             )
         )
     ).scalar_one_or_none()
@@ -264,6 +276,177 @@ async def build_receipt_snapshot(
                 "customer_order_item_id": item.customer_order_item_id,
             }
             for item in (receipt.items or [])
+        ],
+    }
+
+
+async def build_customer_order_snapshot(
+    session: AsyncSession,
+    order_id: int,
+) -> dict[str, Any]:
+    order = (
+        await session.execute(
+            select(CustomerOrder)
+            .where(CustomerOrder.id == order_id)
+            .options(
+                selectinload(CustomerOrder.customer),
+                selectinload(CustomerOrder.items)
+                .selectinload(CustomerOrderItem.autopart)
+                .selectinload(AutoPart.brand),
+            )
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        raise LookupError("Заказ клиента не найден")
+    customer = order.customer
+    return {
+        "document_id": order.id,
+        "document_number": order.order_number or f"DZ-CO-{order.id}",
+        "document_date": _value(order.order_date or order.received_at),
+        "status": _value(order.status),
+        "customer": {
+            "id": getattr(customer, "id", None),
+            "name": getattr(customer, "name", None),
+            "legal_name": getattr(customer, "legal_name", None),
+            "inn": getattr(customer, "inn", None),
+            "kpp": getattr(customer, "kpp", None),
+        },
+        "warehouse": None,
+        "items": [
+            {
+                "item_id": item.id,
+                "autopart": _item_autopart_payload(item.autopart),
+                "oem": item.actual_oem or item.oem,
+                "brand": item.actual_brand or item.brand,
+                "name": item.actual_name or item.name,
+                "quantity": int(item.requested_qty or 0),
+                "requested_qty": int(item.requested_qty or 0),
+                "price": _value(item.requested_price),
+                "requested_price": _value(item.requested_price),
+                "vat_rate": "22",
+            }
+            for item in (order.items or [])
+            if int(item.requested_qty or 0) > 0
+        ],
+    }
+
+
+async def build_supplier_order_snapshot(
+    session: AsyncSession,
+    order_id: int,
+) -> dict[str, Any]:
+    order = (
+        await session.execute(
+            select(SupplierOrder)
+            .where(SupplierOrder.id == order_id)
+            .options(
+                selectinload(SupplierOrder.provider),
+                selectinload(SupplierOrder.items)
+                .selectinload(SupplierOrderItem.autopart)
+                .selectinload(AutoPart.brand),
+            )
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        raise LookupError("Заказ поставщику не найден")
+    provider = order.provider
+    return {
+        "document_id": order.id,
+        "document_number": f"DZ-SO-{order.id}",
+        "document_date": _value(order.sent_at or order.created_at),
+        "status": _value(order.status),
+        "provider": {
+            "id": getattr(provider, "id", None),
+            "name": getattr(provider, "name", None),
+            "legal_name": getattr(provider, "legal_name", None),
+            "inn": getattr(provider, "inn", None),
+            "kpp": getattr(provider, "kpp", None),
+            "one_c_contract": {
+                "name": getattr(provider, "one_c_contract_name", None),
+                "number": getattr(provider, "one_c_contract_number", None),
+                "date": _value(getattr(provider, "one_c_contract_date", None)),
+                "guid": getattr(provider, "one_c_contract_guid", None),
+            },
+        },
+        "warehouse": None,
+        "items": [
+            {
+                "item_id": item.id,
+                "autopart": _item_autopart_payload(item.autopart),
+                "oem": item.oem_number,
+                "brand": item.brand_name,
+                "name": item.autopart_name,
+                "quantity": int(item.quantity or 0),
+                "price": _value(item.price),
+                "vat_rate": "22",
+            }
+            for item in (order.items or [])
+            if int(item.quantity or 0) > 0
+        ],
+    }
+
+
+async def build_return_snapshot(
+    session: AsyncSession,
+    *,
+    return_id: int,
+    to_supplier: bool,
+) -> dict[str, Any]:
+    model = ReturnToSupplier if to_supplier else ReturnFromCustomer
+    document = (
+        await session.execute(
+            select(model)
+            .where(model.id == return_id)
+            .options(
+                selectinload(model.items)
+                .selectinload(ReturnItem.autopart)
+                .selectinload(AutoPart.brand),
+                selectinload(model.warehouse),
+                selectinload(model.provider if to_supplier else model.customer),
+            )
+        )
+    ).scalar_one_or_none()
+    if document is None:
+        raise LookupError("Возврат не найден")
+    party = document.provider if to_supplier else document.customer
+    party_key = "provider" if to_supplier else "customer"
+    party_payload = {
+        "id": getattr(party, "id", None),
+        "name": getattr(party, "name", None),
+        "legal_name": getattr(party, "legal_name", None),
+        "inn": getattr(party, "inn", None),
+        "kpp": getattr(party, "kpp", None),
+    }
+    if to_supplier:
+        party_payload["one_c_contract"] = {
+            "name": getattr(party, "one_c_contract_name", None),
+            "number": getattr(party, "one_c_contract_number", None),
+            "date": _value(getattr(party, "one_c_contract_date", None)),
+            "guid": getattr(party, "one_c_contract_guid", None),
+        }
+    return {
+        "document_id": document.id,
+        "document_number": document.doc_number or f"DZ-RET-{document.id}",
+        "document_date": _value(document.doc_date),
+        "status": _value(document.status),
+        party_key: party_payload,
+        "warehouse": {
+            "id": getattr(document.warehouse, "id", None),
+            "name": getattr(document.warehouse, "name", None),
+        },
+        "items": [
+            {
+                "item_id": item.id,
+                "autopart": _item_autopart_payload(item.autopart),
+                "oem": item.oem_number,
+                "brand": item.brand_name,
+                "name": item.autopart_name,
+                "quantity": int(item.quantity or 0),
+                "price": _value(item.price),
+                "vat_rate": _value(item.vat_rate or 22),
+            }
+            for item in (document.items or [])
+            if int(item.quantity or 0) > 0
         ],
     }
 
@@ -415,15 +598,18 @@ async def enqueue_one_c_event(
 
     transition_no = 1
     if latest is not None:
-        transition_no = int(
-            await session.scalar(
-                select(func.count(OneCExchangeEvent.id)).where(
-                    OneCExchangeEvent.entity_type == entity_type,
-                    OneCExchangeEvent.entity_id == entity_id,
+        transition_no = (
+            int(
+                await session.scalar(
+                    select(func.count(OneCExchangeEvent.id)).where(
+                        OneCExchangeEvent.entity_type == entity_type,
+                        OneCExchangeEvent.entity_id == entity_id,
+                    )
                 )
+                or 0
             )
-            or 0
-        ) + 1
+            + 1
+        )
     base_key = f"{entity_type}:{entity_id}:{event_type}"
     idempotency_key = base_key if transition_no == 1 else f"{base_key}:{transition_no}"
     event = OneCExchangeEvent(
@@ -470,7 +656,8 @@ async def enqueue_shipment_event(
 
 
 async def enqueue_shipment_correction_event(
-    session: AsyncSession, correction_id: int,
+    session: AsyncSession,
+    correction_id: int,
 ) -> OneCExchangeEvent:
     payload = await build_shipment_correction_snapshot(session, correction_id)
     return await enqueue_one_c_event(
@@ -518,6 +705,46 @@ async def enqueue_production_wave_event(
         entity_id=wave_id,
         event_type=event_type,
         payload=payload,
+    )
+
+
+async def enqueue_customer_order_event(
+    session: AsyncSession, order_id: int, event_type: str = EVENT_POSTED
+) -> OneCExchangeEvent:
+    return await enqueue_one_c_event(
+        session,
+        entity_type=ENTITY_CUSTOMER_ORDER,
+        entity_id=order_id,
+        event_type=event_type,
+        payload=await build_customer_order_snapshot(session, order_id),
+    )
+
+
+async def enqueue_supplier_order_event(
+    session: AsyncSession, order_id: int, event_type: str = EVENT_POSTED
+) -> OneCExchangeEvent:
+    return await enqueue_one_c_event(
+        session,
+        entity_type=ENTITY_SUPPLIER_ORDER,
+        entity_id=order_id,
+        event_type=event_type,
+        payload=await build_supplier_order_snapshot(session, order_id),
+    )
+
+
+async def enqueue_return_event(
+    session: AsyncSession,
+    *,
+    return_id: int,
+    to_supplier: bool,
+    event_type: str = EVENT_POSTED,
+) -> OneCExchangeEvent:
+    return await enqueue_one_c_event(
+        session,
+        entity_type=(ENTITY_SUPPLIER_RETURN if to_supplier else ENTITY_CUSTOMER_RETURN),
+        entity_id=return_id,
+        event_type=event_type,
+        payload=await build_return_snapshot(session, return_id=return_id, to_supplier=to_supplier),
     )
 
 

@@ -14,12 +14,15 @@ from decimal import Decimal
 from typing import Any
 from xml.etree import ElementTree as ET
 
-from sqlalchemy import and_, case, func, select, text
+from sqlalchemy import and_, case, exists, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import (
     LotSourceType,
+    ReturnDocumentStatus,
+    ReturnFromCustomer,
+    ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentStatus,
     StockDocument,
@@ -29,7 +32,11 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
 from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_STATUS,
+    SUPPLIER_ORDER_STATUS,
+    CustomerOrder,
     Provider,
+    SupplierOrder,
     SupplierOrderItem,
     SupplierReceipt,
     SupplierReceiptItem,
@@ -38,11 +45,21 @@ from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.services.one_c_enterprise_data import get_exchange_status, send_body_message
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS, event_body_objects
 from dz_fastapi.services.one_c_outbox import (
+    ENTITY_CUSTOMER_ORDER,
+    ENTITY_CUSTOMER_RETURN,
     ENTITY_RECEIPT,
     ENTITY_SHIPMENT,
+    ENTITY_STOCK_DOCUMENT,
+    ENTITY_SUPPLIER_ORDER,
+    ENTITY_SUPPLIER_RETURN,
+    EVENT_CANCELLED,
     EVENT_POSTED,
+    build_customer_order_snapshot,
     build_receipt_snapshot,
+    build_return_snapshot,
     build_shipment_snapshot,
+    build_stock_document_snapshot,
+    build_supplier_order_snapshot,
     enqueue_one_c_event,
 )
 
@@ -51,6 +68,7 @@ _EVENT_ID_RE = re.compile(r"\bevent(?:\s+|:)(\d+)\s*$")
 _EVENT_IDS_RE = re.compile(r"\bevents:([0-9,]+)\s*$")
 _DISPATCH_LOCK_KEY = 148_271_002
 _MAX_BATCH_SIZE = 50
+_MAX_CANDIDATE_SCAN = 500
 
 
 def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
@@ -58,6 +76,10 @@ def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
         "enabled": bool(config.enabled) if config else False,
         "send_receipts": bool(config.send_receipts) if config else True,
         "send_shipments": bool(config.send_shipments) if config else False,
+        "send_customer_orders": bool(config.send_customer_orders) if config else False,
+        "send_supplier_orders": bool(config.send_supplier_orders) if config else False,
+        "send_returns": bool(config.send_returns) if config else False,
+        "send_stock_documents": bool(config.send_stock_documents) if config else False,
         "batch_size": config.batch_size if config else 1,
         "first_event_id": config.first_event_id if config else None,
     }
@@ -69,6 +91,10 @@ async def set_config(
     enabled: bool,
     send_receipts: bool,
     send_shipments: bool,
+    send_customer_orders: bool = False,
+    send_supplier_orders: bool = False,
+    send_returns: bool = False,
+    send_stock_documents: bool = False,
     include_history: bool = False,
     batch_size: int | None = None,
 ) -> OneCEnterpriseConfig:
@@ -88,6 +114,10 @@ async def set_config(
     config.enabled = enabled
     config.send_receipts = send_receipts
     config.send_shipments = send_shipments
+    config.send_customer_orders = send_customer_orders
+    config.send_supplier_orders = send_supplier_orders
+    config.send_returns = send_returns
+    config.send_stock_documents = send_stock_documents
     if batch_size is not None:
         config.batch_size = batch_size
     config.updated_at = now_moscow()
@@ -107,7 +137,8 @@ def _event_ids(body: dict[str, Any] | None) -> list[int]:
 
 
 async def reconcile_transport(
-    session: AsyncSession, transport: dict[str, Any],
+    session: AsyncSession,
+    transport: dict[str, Any],
 ) -> list[int]:
     """Recover DB tracking even after a crash between FTP write and DB commit."""
     changed: list[int] = []
@@ -125,7 +156,9 @@ async def reconcile_transport(
             if event.ed_message_no is not None and event.ed_message_no != message_no:
                 logger.error(
                     "EnterpriseData event %s has message %s, FTP says %s",
-                    event_id, event.ed_message_no, message_no,
+                    event_id,
+                    event.ed_message_no,
+                    message_no,
                 )
                 continue
             event.ed_message_no = message_no
@@ -158,11 +191,14 @@ async def _company(session: AsyncSession) -> dict[str, Any]:
 async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> dict:
     if event.entity_type == ENTITY_RECEIPT:
         receipt = await session.get(SupplierReceipt, event.entity_id)
-        if receipt is None or receipt.posted_at is None:
-            raise ValueError("Поступление отменено или удалено")
-        if (
-            receipt.supplier_order_id
-            and (receipt.comment or "").startswith("Авто-черновик поступления из ответа поставщика")
+        if receipt is None:
+            raise ValueError("Поступление удалено")
+        if event.event_type == EVENT_POSTED and receipt.posted_at is None:
+            raise ValueError("Поступление больше не проведено")
+        if event.event_type == EVENT_CANCELLED:
+            return event.payload
+        if receipt.supplier_order_id and (receipt.comment or "").startswith(
+            "Авто-черновик поступления из ответа поставщика"
         ):
             ordered_qty = await session.scalar(
                 select(func.sum(SupplierOrderItem.quantity)).where(
@@ -170,8 +206,7 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
                 )
             )
             received_qty = sum(
-                Decimal(str(item.get("quantity") or 0))
-                for item in event.payload.get("items") or []
+                Decimal(str(item.get("quantity") or 0)) for item in event.payload.get("items") or []
             )
             if ordered_qty and received_qty > 10 * ordered_qty:
                 raise ValueError(
@@ -184,7 +219,8 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
         if provider is None:
             raise ValueError("Поставщик поступления не найден")
         if not provider.one_c_contract_guid and not (
-            provider.one_c_contract_name and provider.one_c_contract_number
+            provider.one_c_contract_name
+            and provider.one_c_contract_number
             and provider.one_c_contract_date
         ):
             raise ValueError("Для поставщика не задан договор УНФ")
@@ -202,10 +238,263 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
         }
     if event.entity_type == ENTITY_SHIPMENT:
         shipment = await session.get(ShipmentDocument, event.entity_id)
-        if shipment is None or shipment.status != ShipmentDocumentStatus.POSTED:
-            raise ValueError("Реализация отменена или удалена")
+        if shipment is None:
+            raise ValueError("Реализация удалена")
+        if event.event_type == EVENT_POSTED and shipment.status != ShipmentDocumentStatus.POSTED:
+            raise ValueError("Реализация больше не проведена")
+        if event.event_type == EVENT_CANCELLED:
+            return event.payload
+        return event.payload
+    if event.entity_type == ENTITY_CUSTOMER_ORDER:
+        if event.event_type == EVENT_CANCELLED:
+            return event.payload
+        order = await session.get(CustomerOrder, event.entity_id)
+        if order is None or order.status not in {
+            CUSTOMER_ORDER_STATUS.PROCESSED,
+            CUSTOMER_ORDER_STATUS.SENT,
+        }:
+            raise ValueError("Заказ клиента не готов к передаче в УНФ")
+        return event.payload
+    if event.entity_type == ENTITY_SUPPLIER_ORDER:
+        if event.event_type == EVENT_CANCELLED:
+            return event.payload
+        order = await session.get(SupplierOrder, event.entity_id)
+        if order is None or order.status != SUPPLIER_ORDER_STATUS.SENT:
+            raise ValueError("Заказ поставщику не отправлен")
+        provider = await session.get(Provider, order.provider_id)
+        if provider is None:
+            raise ValueError("Поставщик заказа не найден")
+        if not provider.one_c_contract_guid and not (
+            provider.one_c_contract_name
+            and provider.one_c_contract_number
+            and provider.one_c_contract_date
+        ):
+            raise ValueError("Для поставщика не задан договор УНФ")
+        return {
+            **event.payload,
+            "provider": {
+                **(event.payload.get("provider") or {}),
+                "one_c_contract": {
+                    "name": provider.one_c_contract_name,
+                    "number": provider.one_c_contract_number,
+                    "date": provider.one_c_contract_date,
+                    "guid": provider.one_c_contract_guid,
+                },
+            },
+        }
+    if event.entity_type in {ENTITY_CUSTOMER_RETURN, ENTITY_SUPPLIER_RETURN}:
+        if event.event_type == EVENT_CANCELLED:
+            return event.payload
+        model = (
+            ReturnFromCustomer if event.entity_type == ENTITY_CUSTOMER_RETURN else ReturnToSupplier
+        )
+        document = await session.get(model, event.entity_id)
+        if document is None or document.status not in {
+            ReturnDocumentStatus.SHIPPED,
+            ReturnDocumentStatus.CONFIRMED,
+        }:
+            raise ValueError("Возврат ещё не отгружен/принят")
+        return event.payload
+    if event.entity_type == ENTITY_STOCK_DOCUMENT:
+        document = await session.get(StockDocument, event.entity_id)
+        if document is None:
+            raise ValueError("Складской документ удалён")
+        if event.event_type == EVENT_POSTED and document.status != "posted":
+            raise ValueError("Складской документ больше не проведён")
         return event.payload
     raise ValueError("Тип документа не поддерживается EnterpriseData")
+
+
+async def _ensure_configured_events(
+    session: AsyncSession, config: OneCEnterpriseConfig, *, limit: int = 100
+) -> list[int]:
+    """Подхватывает готовые документы, даже если переход создал старый код."""
+    specs: list[tuple[Any, str, Any, Any, Any]] = []
+    if config.send_customer_orders:
+        specs.append(
+            (
+                CustomerOrder,
+                ENTITY_CUSTOMER_ORDER,
+                CustomerOrder.received_at,
+                CustomerOrder.status.in_(
+                    (
+                        CUSTOMER_ORDER_STATUS.PROCESSED,
+                        CUSTOMER_ORDER_STATUS.SENT,
+                    )
+                ),
+                build_customer_order_snapshot,
+            )
+        )
+    if config.send_supplier_orders:
+        specs.append(
+            (
+                SupplierOrder,
+                ENTITY_SUPPLIER_ORDER,
+                SupplierOrder.sent_at,
+                SupplierOrder.status == SUPPLIER_ORDER_STATUS.SENT,
+                build_supplier_order_snapshot,
+            )
+        )
+    if config.send_returns:
+        ready_return = ReturnDocumentStatus.SHIPPED, ReturnDocumentStatus.CONFIRMED
+        specs.extend(
+            (
+                (
+                    ReturnFromCustomer,
+                    ENTITY_CUSTOMER_RETURN,
+                    ReturnFromCustomer.doc_date,
+                    ReturnFromCustomer.status.in_(ready_return),
+                    lambda current_session, document_id: build_return_snapshot(
+                        current_session, return_id=document_id, to_supplier=False
+                    ),
+                ),
+                (
+                    ReturnToSupplier,
+                    ENTITY_SUPPLIER_RETURN,
+                    ReturnToSupplier.doc_date,
+                    ReturnToSupplier.status.in_(ready_return),
+                    lambda current_session, document_id: build_return_snapshot(
+                        current_session, return_id=document_id, to_supplier=True
+                    ),
+                ),
+            )
+        )
+    if config.send_stock_documents:
+        specs.append(
+            (
+                StockDocument,
+                ENTITY_STOCK_DOCUMENT,
+                StockDocument.document_date,
+                StockDocument.status == "posted",
+                build_stock_document_snapshot,
+            )
+        )
+    created: list[int] = []
+    for model, entity_type, date_field, ready_filter, builder in specs:
+        if len(created) >= limit:
+            break
+        existing = and_(
+            OneCExchangeEvent.entity_type == entity_type,
+            OneCExchangeEvent.entity_id == model.id,
+            OneCExchangeEvent.event_type == EVENT_POSTED,
+        )
+        ids = (
+            (
+                await session.execute(
+                    select(model.id)
+                    .outerjoin(OneCExchangeEvent, existing)
+                    .where(ready_filter, OneCExchangeEvent.id.is_(None))
+                    .order_by(date_field, model.id)
+                    .limit(limit - len(created))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for document_id in ids:
+            event = await enqueue_one_c_event(
+                session,
+                entity_type=entity_type,
+                entity_id=document_id,
+                event_type=EVENT_POSTED,
+                payload=await builder(session, document_id),
+                ed_only=True,
+            )
+            created.append(event.id)
+    cancellation_specs = []
+    if config.send_customer_orders:
+        cancellation_specs.append(
+            (CustomerOrder, ENTITY_CUSTOMER_ORDER, CustomerOrder.deleted_at.is_not(None))
+        )
+    if config.send_supplier_orders:
+        cancellation_specs.append(
+            (
+                SupplierOrder,
+                ENTITY_SUPPLIER_ORDER,
+                SupplierOrder.status == SUPPLIER_ORDER_STATUS.REMOVED,
+            )
+        )
+    if config.send_returns:
+        cancellation_specs.extend(
+            (
+                (
+                    ReturnFromCustomer,
+                    ENTITY_CUSTOMER_RETURN,
+                    ReturnFromCustomer.status == ReturnDocumentStatus.REJECTED,
+                ),
+                (
+                    ReturnToSupplier,
+                    ENTITY_SUPPLIER_RETURN,
+                    ReturnToSupplier.status == ReturnDocumentStatus.REJECTED,
+                ),
+            )
+        )
+    for model, entity_type, cancelled_filter in cancellation_specs:
+        if len(created) >= limit:
+            break
+        has_posted = exists(
+            select(OneCExchangeEvent.id).where(
+                OneCExchangeEvent.entity_type == entity_type,
+                OneCExchangeEvent.entity_id == model.id,
+                OneCExchangeEvent.event_type == EVENT_POSTED,
+            )
+        )
+        latest_event_id = (
+            select(func.max(OneCExchangeEvent.id))
+            .where(
+                OneCExchangeEvent.entity_type == entity_type,
+                OneCExchangeEvent.entity_id == model.id,
+            )
+            .scalar_subquery()
+        )
+        latest_is_cancelled = exists(
+            select(OneCExchangeEvent.id).where(
+                OneCExchangeEvent.id == latest_event_id,
+                OneCExchangeEvent.event_type == EVENT_CANCELLED,
+            )
+        )
+        ids = (
+            await session.execute(
+                select(model.id)
+                .where(cancelled_filter, has_posted, ~latest_is_cancelled)
+                .order_by(model.id)
+                .limit(limit - len(created))
+            )
+        ).scalars().all()
+        for document_id in ids:
+            latest_event = await session.scalar(
+                select(OneCExchangeEvent)
+                .where(
+                    OneCExchangeEvent.entity_type == entity_type,
+                    OneCExchangeEvent.entity_id == document_id,
+                )
+                .order_by(OneCExchangeEvent.id.desc())
+                .limit(1)
+            )
+            if latest_event is not None and latest_event.event_type == EVENT_CANCELLED:
+                continue
+            posted_event = await session.scalar(
+                select(OneCExchangeEvent)
+                .where(
+                    OneCExchangeEvent.entity_type == entity_type,
+                    OneCExchangeEvent.entity_id == document_id,
+                    OneCExchangeEvent.event_type == EVENT_POSTED,
+                )
+                .order_by(OneCExchangeEvent.id.desc())
+                .limit(1)
+            )
+            if posted_event is None:
+                continue
+            event = await enqueue_one_c_event(
+                session,
+                entity_type=entity_type,
+                entity_id=document_id,
+                event_type=EVENT_CANCELLED,
+                payload=posted_event.payload,
+                ed_only=True,
+            )
+            created.append(event.id)
+    return created
 
 
 async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
@@ -218,11 +507,14 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
     reconciled = await reconcile_transport(session, transport)
     config = await session.get(OneCEnterpriseConfig, 1)
     result: dict[str, Any] = {
-        "reconciled": reconciled, "sent_event_id": None, "sent_event_ids": [],
+        "reconciled": reconciled,
+        "sent_event_id": None,
+        "sent_event_ids": [],
     }
     if config is None or not config.enabled:
         result["note"] = "Автоотправка выключена"
         return result
+    result["created_event_ids"] = await _ensure_configured_events(session, config)
     if transport["incoming_files"]:
         result["note"] = "Сначала нужно обработать входящее сообщение УНФ"
         return result
@@ -234,29 +526,42 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
         entity_types.append(ENTITY_RECEIPT)
     if config.send_shipments:
         entity_types.append(ENTITY_SHIPMENT)
+    if config.send_customer_orders:
+        entity_types.append(ENTITY_CUSTOMER_ORDER)
+    if config.send_supplier_orders:
+        entity_types.append(ENTITY_SUPPLIER_ORDER)
+    if config.send_returns:
+        entity_types.extend((ENTITY_CUSTOMER_RETURN, ENTITY_SUPPLIER_RETURN))
+    if config.send_stock_documents:
+        entity_types.append(ENTITY_STOCK_DOCUMENT)
     if not entity_types:
         result["note"] = "Не выбран ни один тип документа"
         return result
 
-    events = (
-        await session.execute(
-            select(OneCExchangeEvent)
-            .where(
-                OneCExchangeEvent.id >= (config.first_event_id or 1),
-                OneCExchangeEvent.entity_type.in_(entity_types),
-                OneCExchangeEvent.event_type == EVENT_POSTED,
-                OneCExchangeEvent.ed_message_no.is_(None),
-                OneCExchangeEvent.ed_last_error.is_(None),
+    batch_size = min(max(config.batch_size or 1, 1), _MAX_BATCH_SIZE)
+    candidates = (
+        (
+            await session.execute(
+                select(OneCExchangeEvent)
+                .where(
+                    OneCExchangeEvent.id >= (config.first_event_id or 1),
+                    OneCExchangeEvent.entity_type.in_(entity_types),
+                    OneCExchangeEvent.event_type.in_((EVENT_POSTED, EVENT_CANCELLED)),
+                    OneCExchangeEvent.ed_message_no.is_(None),
+                    OneCExchangeEvent.ed_last_error.is_(None),
+                )
+                .order_by(
+                    OneCExchangeEvent.payload["document_date"].as_string(),
+                    case((OneCExchangeEvent.entity_type == ENTITY_RECEIPT, 0), else_=1),
+                    OneCExchangeEvent.id,
+                )
+                .limit(_MAX_CANDIDATE_SCAN)
             )
-            .order_by(
-                OneCExchangeEvent.payload["document_date"].as_string(),
-                case((OneCExchangeEvent.entity_type == ENTITY_RECEIPT, 0), else_=1),
-                OneCExchangeEvent.id,
-            )
-            .limit(min(max(config.batch_size or 1, 1), _MAX_BATCH_SIZE))
         )
-    ).scalars().all()
-    if not events:
+        .scalars()
+        .all()
+    )
+    if not candidates:
         result["note"] = "Документов для отправки нет"
         return result
     try:
@@ -267,17 +572,19 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
     references: list[ET.Element] = []
     documents: list[ET.Element] = []
     seen_references: set[tuple[str, str | bytes]] = set()
-    for event in events:
+    events: list[OneCExchangeEvent] = []
+    blocked_event_ids: list[int] = []
+    for event in candidates:
+        if len(events) >= batch_size:
+            break
         try:
             payload = await _current_payload(session, event)
-            body_objects = event_body_objects(
-                event.entity_type, event.event_type, payload, company
-            )
+            body_objects = event_body_objects(event.entity_type, event.event_type, payload, company)
         except (KeyError, TypeError, ValueError) as exc:
             event.ed_last_error = str(exc)
-            await session.flush()
-            result.update({"error_event_id": event.id, "note": str(exc)})
-            return result
+            blocked_event_ids.append(event.id)
+            continue
+        events.append(event)
         for obj in body_objects:
             if obj.tag.rsplit("}", 1)[-1].startswith("Справочник."):
                 ref = obj.find(f"{{{DATA_NS}}}КлючевыеСвойства/{{{DATA_NS}}}Ссылка")
@@ -288,10 +595,20 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
                     references.append(obj)
             else:
                 documents.append(obj)
+    await session.flush()
+    result["blocked_event_ids"] = blocked_event_ids
+    if not events:
+        result["note"] = (
+            "Подходящие документы заблокированы ошибками подготовки"
+            if blocked_event_ids
+            else "Документов для отправки нет"
+        )
+        return result
     event_ids = [event.id for event in events]
     description = (
         f"{events[0].entity_type}:{events[0].entity_id} event:{event_ids[0]}"
-        if len(events) == 1 else "batch events:" + ",".join(map(str, event_ids))
+        if len(events) == 1
+        else "batch events:" + ",".join(map(str, event_ids))
     )
     try:
         sent = await asyncio.to_thread(
@@ -308,10 +625,13 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
         event.ed_sent_at = sent_at
         event.ed_last_error = None
     await session.flush()
-    result.update({
-        "sent_event_id": event_ids[0], "sent_event_ids": event_ids,
-        "message_no": sent["message_no"],
-    })
+    result.update(
+        {
+            "sent_event_id": event_ids[0],
+            "sent_event_ids": event_ids,
+            "message_no": sent["message_no"],
+        }
+    )
     return result
 
 
@@ -345,6 +665,76 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             ).where(ShipmentDocument.status == ShipmentDocumentStatus.POSTED)
         )
     ).one()
+
+    async def _document_stats(
+        model: Any,
+        *,
+        entity_type: str,
+        date_field: Any,
+        ready_filter: Any,
+    ) -> dict[str, Any]:
+        event_join = and_(
+            OneCExchangeEvent.entity_type == entity_type,
+            OneCExchangeEvent.entity_id == model.id,
+            OneCExchangeEvent.event_type == EVENT_POSTED,
+        )
+        totals = (
+            await session.execute(
+                select(func.count(model.id), func.min(date_field), func.max(date_field)).where(
+                    ready_filter
+                )
+            )
+        ).one()
+        missing = await session.scalar(
+            select(func.count(model.id))
+            .outerjoin(OneCExchangeEvent, event_join)
+            .where(ready_filter, OneCExchangeEvent.id.is_(None))
+        )
+        return {
+            "count": totals[0],
+            "first_date": totals[1],
+            "last_date": totals[2],
+            "without_event": missing or 0,
+        }
+
+    additional_documents = {
+        "customer_orders": await _document_stats(
+            CustomerOrder,
+            entity_type=ENTITY_CUSTOMER_ORDER,
+            date_field=CustomerOrder.received_at,
+            ready_filter=CustomerOrder.status.in_(
+                (CUSTOMER_ORDER_STATUS.PROCESSED, CUSTOMER_ORDER_STATUS.SENT)
+            ),
+        ),
+        "supplier_orders": await _document_stats(
+            SupplierOrder,
+            entity_type=ENTITY_SUPPLIER_ORDER,
+            date_field=SupplierOrder.sent_at,
+            ready_filter=SupplierOrder.status == SUPPLIER_ORDER_STATUS.SENT,
+        ),
+        "customer_returns": await _document_stats(
+            ReturnFromCustomer,
+            entity_type=ENTITY_CUSTOMER_RETURN,
+            date_field=ReturnFromCustomer.doc_date,
+            ready_filter=ReturnFromCustomer.status.in_(
+                (ReturnDocumentStatus.SHIPPED, ReturnDocumentStatus.CONFIRMED)
+            ),
+        ),
+        "supplier_returns": await _document_stats(
+            ReturnToSupplier,
+            entity_type=ENTITY_SUPPLIER_RETURN,
+            date_field=ReturnToSupplier.doc_date,
+            ready_filter=ReturnToSupplier.status.in_(
+                (ReturnDocumentStatus.SHIPPED, ReturnDocumentStatus.CONFIRMED)
+            ),
+        ),
+        "stock_documents": await _document_stats(
+            StockDocument,
+            entity_type=ENTITY_STOCK_DOCUMENT,
+            date_field=StockDocument.document_date,
+            ready_filter=StockDocument.status == "posted",
+        ),
+    }
     receipt_missing = await session.scalar(
         select(func.count(SupplierReceipt.id))
         .outerjoin(OneCExchangeEvent, receipt_events)
@@ -368,10 +758,7 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             .join(SupplierReceipt, SupplierReceipt.provider_id == Provider.id)
             .where(
                 SupplierReceipt.posted_at.is_not(None),
-                (
-                    Provider.one_c_contract_guid.is_(None)
-                    | (Provider.one_c_contract_guid == "")
-                ),
+                (Provider.one_c_contract_guid.is_(None) | (Provider.one_c_contract_guid == "")),
                 (
                     Provider.one_c_contract_name.is_(None)
                     | Provider.one_c_contract_number.is_(None)
@@ -395,8 +782,9 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
     ).all()
     movements = (
         await session.execute(
-            select(StockMovement.movement_type, func.count(StockMovement.id))
-            .group_by(StockMovement.movement_type)
+            select(StockMovement.movement_type, func.count(StockMovement.id)).group_by(
+                StockMovement.movement_type
+            )
         )
     ).all()
     other_lots = (
@@ -472,10 +860,7 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         .where(
             SupplierReceipt.posted_at.is_not(None),
             SupplierReceiptItem.received_quantity > 0,
-            (
-                SupplierReceiptItem.price.is_(None)
-                | (SupplierReceiptItem.price <= 0)
-            ),
+            (SupplierReceiptItem.price.is_(None) | (SupplierReceiptItem.price <= 0)),
         )
         .group_by(SupplierReceipt.id, Provider.name)
     )
@@ -487,7 +872,9 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
     ).all()
     return {
         "posted_receipts": {
-            "count": receipts[0], "first_date": receipts[1], "last_date": receipts[2],
+            "count": receipts[0],
+            "first_date": receipts[1],
+            "last_date": receipts[2],
             "without_event": receipt_missing,
             "without_date": await session.scalar(
                 select(func.count(SupplierReceipt.id)).where(
@@ -497,17 +884,21 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             ),
         },
         "posted_shipments": {
-            "count": shipments[0], "first_date": shipments[1], "last_date": shipments[2],
+            "count": shipments[0],
+            "first_date": shipments[1],
+            "last_date": shipments[2],
             "without_event": shipment_missing,
         },
+        "additional_documents": additional_documents,
         "providers_missing_contract": [
-            {"id": row[0], "name": row[1], "posted_receipts": row[2]}
-            for row in missing_contracts
+            {"id": row[0], "name": row[1], "posted_receipts": row[2]} for row in missing_contracts
         ],
         "suspicious_auto_receipts": [
             {
-                "receipt_id": row[0], "provider": row[1],
-                "supplier_order_id": row[2], "received_quantity": row[3],
+                "receipt_id": row[0],
+                "provider": row[1],
+                "supplier_order_id": row[2],
+                "received_quantity": row[3],
                 "ordered_quantity": row[4],
             }
             for row in suspicious_auto_receipts
@@ -520,24 +911,28 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         "missing_price_receipt_count": missing_price_count or 0,
         "stock_lots_by_source": [
             {
-                "source": str(row[0]), "lots": row[1],
-                "initial_quantity": row[2], "remaining_quantity": row[3],
+                "source": str(row[0]),
+                "lots": row[1],
+                "initial_quantity": row[2],
+                "remaining_quantity": row[3],
             }
             for row in lots
         ],
         "non_receipt_lots": [
             {
-                "id": row[0], "autopart_id": row[1], "source": str(row[2]),
-                "initial_quantity": row[3], "remaining_quantity": row[4],
-                "cost_price": row[5], "received_at": row[6],
+                "id": row[0],
+                "autopart_id": row[1],
+                "source": str(row[2]),
+                "initial_quantity": row[3],
+                "remaining_quantity": row[4],
+                "cost_price": row[5],
+                "received_at": row[6],
                 "stock_document_id": row[7],
                 "stock_document_status": str(row[8]) if row[8] is not None else None,
             }
             for row in other_lots
         ],
-        "movements_by_type": [
-            {"type": str(row[0]), "count": row[1]} for row in movements
-        ],
+        "movements_by_type": [{"type": str(row[0]), "count": row[1]} for row in movements],
     }
 
 
@@ -565,18 +960,23 @@ async def backfill_history_step(session: AsyncSession, *, limit: int = 100) -> d
             OneCExchangeEvent.event_type == EVENT_POSTED,
         )
         posted_filter = (
-            model.posted_at.is_not(None) if entity_type == ENTITY_RECEIPT
+            model.posted_at.is_not(None)
+            if entity_type == ENTITY_RECEIPT
             else model.status == ShipmentDocumentStatus.POSTED
         )
         ids = (
-            await session.execute(
-                select(model.id)
-                .outerjoin(OneCExchangeEvent, event_join)
-                .where(posted_filter, OneCExchangeEvent.id.is_(None))
-                .order_by(date_field, model.id)
-                .limit(limit - len(created))
+            (
+                await session.execute(
+                    select(model.id)
+                    .outerjoin(OneCExchangeEvent, event_join)
+                    .where(posted_filter, OneCExchangeEvent.id.is_(None))
+                    .order_by(date_field, model.id)
+                    .limit(limit - len(created))
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for document_id in ids:
             payload = await builder(session, document_id)
             event = await enqueue_one_c_event(
@@ -585,6 +985,93 @@ async def backfill_history_step(session: AsyncSession, *, limit: int = 100) -> d
                 entity_id=document_id,
                 event_type=EVENT_POSTED,
                 payload=payload,
+                ed_only=True,
+            )
+            created.append(event.id)
+    extra_specs = (
+        (
+            CustomerOrder,
+            ENTITY_CUSTOMER_ORDER,
+            CustomerOrder.received_at,
+            CustomerOrder.status.in_(
+                (
+                    CUSTOMER_ORDER_STATUS.PROCESSED,
+                    CUSTOMER_ORDER_STATUS.SENT,
+                )
+            ),
+            build_customer_order_snapshot,
+        ),
+        (
+            SupplierOrder,
+            ENTITY_SUPPLIER_ORDER,
+            SupplierOrder.sent_at,
+            SupplierOrder.status == SUPPLIER_ORDER_STATUS.SENT,
+            build_supplier_order_snapshot,
+        ),
+        (
+            ReturnFromCustomer,
+            ENTITY_CUSTOMER_RETURN,
+            ReturnFromCustomer.doc_date,
+            ReturnFromCustomer.status.in_(
+                (
+                    ReturnDocumentStatus.SHIPPED,
+                    ReturnDocumentStatus.CONFIRMED,
+                )
+            ),
+            lambda current_session, document_id: build_return_snapshot(
+                current_session, return_id=document_id, to_supplier=False
+            ),
+        ),
+        (
+            ReturnToSupplier,
+            ENTITY_SUPPLIER_RETURN,
+            ReturnToSupplier.doc_date,
+            ReturnToSupplier.status.in_(
+                (
+                    ReturnDocumentStatus.SHIPPED,
+                    ReturnDocumentStatus.CONFIRMED,
+                )
+            ),
+            lambda current_session, document_id: build_return_snapshot(
+                current_session, return_id=document_id, to_supplier=True
+            ),
+        ),
+        (
+            StockDocument,
+            ENTITY_STOCK_DOCUMENT,
+            StockDocument.document_date,
+            StockDocument.status == "posted",
+            build_stock_document_snapshot,
+        ),
+    )
+    for model, entity_type, date_field, ready_filter, builder in extra_specs:
+        if len(created) >= limit:
+            break
+        event_join = and_(
+            OneCExchangeEvent.entity_type == entity_type,
+            OneCExchangeEvent.entity_id == model.id,
+            OneCExchangeEvent.event_type == EVENT_POSTED,
+        )
+        ids = (
+            (
+                await session.execute(
+                    select(model.id)
+                    .outerjoin(OneCExchangeEvent, event_join)
+                    .where(ready_filter, OneCExchangeEvent.id.is_(None))
+                    .order_by(date_field, model.id)
+                    .limit(limit - len(created))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for document_id in ids:
+            event = await enqueue_one_c_event(
+                session,
+                entity_type=entity_type,
+                entity_id=document_id,
+                event_type=EVENT_POSTED,
+                payload=await builder(session, document_id),
                 ed_only=True,
             )
             created.append(event.id)

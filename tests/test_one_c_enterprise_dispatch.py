@@ -31,14 +31,18 @@ def _event(index: int) -> OneCExchangeEvent:
 
 @pytest.mark.asyncio
 async def test_auto_dispatch_waits_for_read_and_does_not_mark_event_succeeded(
-    test_session, monkeypatch,
+    test_session,
+    monkeypatch,
 ):
     event = _event(1)
     test_session.add(event)
     await test_session.flush()
     await dispatch.set_config(
-        test_session, enabled=True, send_receipts=True,
-        send_shipments=False, include_history=True,
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
+        include_history=True,
     )
     await test_session.commit()
 
@@ -81,7 +85,8 @@ async def test_auto_dispatch_waits_for_read_and_does_not_mark_event_succeeded(
 
     transport["pending_body"] = None
     transport["last_confirmed_body"] = {
-        **body, "transport_confirmed_at": "2026-10-28T12:05:00+03:00",
+        **body,
+        "transport_confirmed_at": "2026-10-28T12:05:00+03:00",
     }
     third = await dispatch.dispatch_next(test_session)
     await test_session.commit()
@@ -92,14 +97,19 @@ async def test_auto_dispatch_waits_for_read_and_does_not_mark_event_succeeded(
 
 @pytest.mark.asyncio
 async def test_batch_dispatch_deduplicates_references_and_recovers_all_events(
-    test_session, monkeypatch,
+    test_session,
+    monkeypatch,
 ):
     events = [_event(30), _event(31)]
     test_session.add_all(events)
     await test_session.flush()
     await dispatch.set_config(
-        test_session, enabled=True, send_receipts=True,
-        send_shipments=False, include_history=True, batch_size=2,
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
+        include_history=True,
+        batch_size=2,
     )
     await test_session.commit()
 
@@ -151,12 +161,61 @@ async def test_batch_dispatch_deduplicates_references_and_recovers_all_events(
 
 
 @pytest.mark.asyncio
+async def test_invalid_event_is_quarantined_without_blocking_next_document(
+    test_session,
+    monkeypatch,
+):
+    events = [_event(40), _event(41)]
+    test_session.add_all(events)
+    await test_session.flush()
+    await dispatch.set_config(
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
+        include_history=True,
+        batch_size=1,
+    )
+    await test_session.commit()
+
+    transport = {"incoming_files": [], "pending_body": None, "last_confirmed_body": None}
+
+    async def payload(_session, event):
+        if event.entity_id == 40:
+            raise ValueError("нет цены")
+        return {"document_id": event.entity_id}
+
+    async def company(_session):
+        return {"short_name": "Test"}
+
+    monkeypatch.setattr(dispatch, "get_exchange_status", lambda: transport)
+    monkeypatch.setattr(dispatch, "_current_payload", payload)
+    monkeypatch.setattr(dispatch, "_company", company)
+    monkeypatch.setattr(dispatch, "event_body_objects", lambda *_: [ET.Element("Document")])
+    monkeypatch.setattr(
+        dispatch,
+        "send_body_message",
+        lambda *_args, **_kwargs: {"message_no": 14},
+    )
+
+    result = await dispatch.dispatch_next(test_session)
+
+    assert result["blocked_event_ids"] == [events[0].id]
+    assert result["sent_event_ids"] == [events[1].id]
+    assert events[0].ed_last_error == "нет цены"
+    assert events[1].ed_message_no == 14
+
+
+@pytest.mark.asyncio
 async def test_activation_skips_old_events_unless_history_requested(test_session):
     old = _event(10)
     test_session.add(old)
     await test_session.flush()
     config = await dispatch.set_config(
-        test_session, enabled=True, send_receipts=True, send_shipments=False,
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
     )
     assert config.first_event_id == old.id + 1
 
@@ -166,14 +225,17 @@ async def test_manual_message_is_recovered_from_ftp_confirmation(test_session):
     event = _event(20)
     test_session.add(event)
     await test_session.flush()
-    changed = await dispatch.reconcile_transport(test_session, {
-        "last_confirmed_body": {
-            "message_no": 6,
-            "description": f"supplier_receipt:1880 event {event.id}",
-            "sent_at": "2026-10-28T21:09:22+03:00",
-            "transport_confirmed_at": "2026-10-28T23:24:27+03:00",
+    changed = await dispatch.reconcile_transport(
+        test_session,
+        {
+            "last_confirmed_body": {
+                "message_no": 6,
+                "description": f"supplier_receipt:1880 event {event.id}",
+                "sent_at": "2026-10-28T21:09:22+03:00",
+                "transport_confirmed_at": "2026-10-28T23:24:27+03:00",
+            },
         },
-    })
+    )
     assert changed == [event.id]
     assert event.ed_message_no == 6
     assert event.ed_transport_confirmed_at is not None
@@ -195,7 +257,8 @@ async def test_history_audit_returns_empty_counts(test_session):
 
 @pytest.mark.asyncio
 async def test_misparsed_email_receipt_is_blocked_before_transfer(
-    test_session, created_providers,
+    test_session,
+    created_providers,
 ):
     order = SupplierOrder(provider_id=created_providers[0].id)
     test_session.add(order)
@@ -209,9 +272,13 @@ async def test_misparsed_email_receipt_is_blocked_before_transfer(
     )
     test_session.add(receipt)
     await test_session.flush()
-    test_session.add(SupplierReceiptItem(
-        receipt_id=receipt.id, received_quantity=36933, price=Decimal("0"),
-    ))
+    test_session.add(
+        SupplierReceiptItem(
+            receipt_id=receipt.id,
+            received_quantity=36933,
+            price=Decimal("0"),
+        )
+    )
     await test_session.flush()
     event = _event(receipt.id)
     event.payload = {"items": [{"quantity": 36933}]}
@@ -227,7 +294,9 @@ async def test_misparsed_email_receipt_is_blocked_before_transfer(
 
 @pytest.mark.asyncio
 async def test_history_backfill_is_idempotent_and_isolated_from_json_queue(
-    test_session, created_autopart, created_providers,
+    test_session,
+    created_autopart,
+    created_providers,
 ):
     receipt = SupplierReceipt(
         provider_id=created_providers[0].id,
@@ -237,12 +306,14 @@ async def test_history_backfill_is_idempotent_and_isolated_from_json_queue(
     )
     test_session.add(receipt)
     await test_session.flush()
-    test_session.add(SupplierReceiptItem(
-        receipt_id=receipt.id,
-        autopart_id=created_autopart.id,
-        received_quantity=1,
-        price=Decimal("100.00"),
-    ))
+    test_session.add(
+        SupplierReceiptItem(
+            receipt_id=receipt.id,
+            autopart_id=created_autopart.id,
+            received_quantity=1,
+            price=Decimal("100.00"),
+        )
+    )
     await test_session.commit()
 
     before = await dispatch.history_audit(test_session)

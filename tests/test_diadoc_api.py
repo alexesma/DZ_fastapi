@@ -118,6 +118,9 @@ def test_incoming_sign_requires_processed_posted_receipt():
 @pytest.mark.asyncio
 @pytest.mark.no_auth_override
 async def test_diadoc_status_and_init_require_admin(async_client, test_session, monkeypatch):
+    monkeypatch.setattr("dz_fastapi.api.diadoc.settings.diadoc_client_id", "")
+    monkeypatch.setattr("dz_fastapi.api.diadoc.settings.diadoc_client_secret", "")
+    monkeypatch.setattr("dz_fastapi.api.diadoc.settings.diadoc_oauth_redirect_uri", "")
     response = await async_client.get("/diadoc/status")
     assert response.status_code == 401
 

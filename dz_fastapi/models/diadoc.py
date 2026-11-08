@@ -94,6 +94,14 @@ class DiadocIncomingDocument(Base):
     raw_metadata = Column(JSON, default=dict)
     synced_at = Column(DateTime(timezone=True), default=now_moscow)
     registered_at = Column(DateTime(timezone=True), nullable=True)
+    # Каноническое состояние документооборота из GetDocflows V5.
+    docflow_is_finished = Column(Boolean, nullable=True, index=True)
+    docflow_status_severity = Column(String(32), nullable=True)
+    docflow_status_text = Column(String(500), nullable=True)
+    recipient_response_status = Column(String(120), nullable=True)
+    revocation_status = Column(String(120), nullable=True)
+    docflow_checked_at = Column(DateTime(timezone=True), nullable=True)
+    last_docflow_payload = Column(JSON, default=dict)
     # Когда мы отправили титул покупателя (подписали входящий документ)
     signed_at = Column(DateTime(timezone=True), nullable=True)
     # Когда мы отправили отказ в подписи
@@ -144,9 +152,8 @@ class DiadocOutgoingDocument(Base):
     )
     source_type = Column(String(64), nullable=True, index=True)
     source_id = Column(Integer, nullable=True, index=True)
-    type_named_id = Column(
-        String(120), nullable=False, default="Nonformalized"
-    )
+    source_version = Column(Integer, nullable=False, default=1)
+    type_named_id = Column(String(120), nullable=False, default="Nonformalized")
     document_function = Column(String(120), nullable=True)
     document_version = Column(String(120), nullable=True)
     file_name = Column(String(500), nullable=False)
@@ -165,6 +172,7 @@ class DiadocOutgoingDocument(Base):
     # текст как в вебе Диадока + производный внутренний статус в status.
     docflow_status_severity = Column(String(32), nullable=True)
     docflow_status_text = Column(String(500), nullable=True)
+    docflow_is_finished = Column(Boolean, nullable=True, index=True)
     recipient_response_status = Column(String(120), nullable=True)
     revocation_status = Column(String(120), nullable=True)
     # Внешний документооборот с ГИС ЭПД (перевозочные документы).
@@ -191,6 +199,16 @@ class DiadocOutgoingDocument(Base):
 
     customer = relationship("Customer", lazy="selectin")
     provider = relationship("Provider", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "environment",
+            "source_type",
+            "source_id",
+            "source_version",
+            name="uq_diadoc_outgoing_source_version",
+        ),
+    )
 
 
 class DiadocCloudSignTask(Base):
@@ -236,3 +254,57 @@ class DiadocCloudSignTask(Base):
         onupdate=now_moscow,
     )
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class DiadocEventCursor(Base):
+    """Последняя надёжно сохранённая позиция ленты событий одного ящика."""
+
+    __tablename__ = "diadoceventcursor"
+
+    environment = Column(String(32), nullable=False)
+    box_id_guid = Column(String(64), nullable=False)
+    scope = Column(String(32), nullable=False, default="inbound")
+    index_key = Column(String(512), nullable=True)
+    initialized_at = Column(DateTime(timezone=True), nullable=True)
+    last_polled_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(String(2000), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "environment",
+            "box_id_guid",
+            "scope",
+            name="uq_diadoc_event_cursor_box_scope",
+        ),
+    )
+
+
+class DiadocBoxEvent(Base):
+    """Сырой BoxEvent сначала сохраняется, затем обрабатывается повторяемо."""
+
+    __tablename__ = "diadocboxevent"
+
+    environment = Column(String(32), nullable=False)
+    box_id_guid = Column(String(64), nullable=False, index=True)
+    event_id = Column(String(64), nullable=False)
+    index_key = Column(String(512), nullable=False)
+    event_kind = Column(String(16), nullable=False)
+    message_id = Column(String(255), nullable=True, index=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    status = Column(String(24), nullable=False, default="pending", index=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    last_error = Column(String(2000), nullable=True)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "environment",
+            "box_id_guid",
+            "event_id",
+            name="uq_diadoc_box_event",
+        ),
+    )

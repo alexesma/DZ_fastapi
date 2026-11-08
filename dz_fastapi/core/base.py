@@ -24,8 +24,13 @@ from dz_fastapi.models.cross import (  # noqa
     AutoPartInvalidCross,
     AutoPartSubstitution,
 )
-from dz_fastapi.models.diadoc import DiadocIncomingDocument  # noqa
-from dz_fastapi.models.diadoc import DiadocOutgoingDocument
+from dz_fastapi.models.diadoc import (  # noqa
+    DiadocBoxEvent,
+    DiadocCloudSignTask,
+    DiadocEventCursor,
+    DiadocIncomingDocument,
+    DiadocOutgoingDocument,
+)
 from dz_fastapi.models.email_account import EmailAccount  # noqa
 from dz_fastapi.models.etrn import (  # noqa
     EtrnWaybill,
@@ -241,6 +246,9 @@ __all__ = [
     "User",
     "DiadocIncomingDocument",
     "DiadocOutgoingDocument",
+    "DiadocCloudSignTask",
+    "DiadocEventCursor",
+    "DiadocBoxEvent",
     "EmailAccount",
     "PaymentInvoice",
     "PaymentInvoiceItem",

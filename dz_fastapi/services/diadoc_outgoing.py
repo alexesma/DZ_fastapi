@@ -3,13 +3,14 @@ import hashlib
 import os
 import re
 import xml.etree.ElementTree as ET
+import zlib
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 from uuid import uuid4
 
 import aiofiles
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,6 +28,7 @@ from dz_fastapi.models.inventory import (
     ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
 )
+from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
 from dz_fastapi.models.partner import (
     Customer,
     CustomerExternalReference,
@@ -152,9 +154,7 @@ async def resolve_diadoc_box_for_provider(
         .where(
             ProviderExternalReference.provider_id == provider_id,
             ProviderExternalReference.is_active.is_(True),
-            ProviderExternalReference.source_system.in_(
-                _DIADOC_PROVIDER_SOURCE_SYSTEMS
-            ),
+            ProviderExternalReference.source_system.in_(_DIADOC_PROVIDER_SOURCE_SYSTEMS),
         )
         .order_by(ProviderExternalReference.id.asc())
     )
@@ -173,9 +173,7 @@ async def resolve_diadoc_box_for_customer(
         .where(
             CustomerExternalReference.customer_id == customer_id,
             CustomerExternalReference.is_active.is_(True),
-            CustomerExternalReference.source_system.in_(
-                _DIADOC_CUSTOMER_SOURCE_SYSTEMS
-            ),
+            CustomerExternalReference.source_system.in_(_DIADOC_CUSTOMER_SOURCE_SYSTEMS),
         )
         .order_by(CustomerExternalReference.id.asc())
     )
@@ -197,12 +195,8 @@ async def resolve_customer_by_diadoc_counteragent_box(
         .join(CustomerExternalReference)
         .where(
             CustomerExternalReference.is_active.is_(True),
-            CustomerExternalReference.source_system.in_(
-                _DIADOC_CUSTOMER_SOURCE_SYSTEMS
-            ),
-            func.lower(CustomerExternalReference.external_customer_name).in_(
-                variants
-            ),
+            CustomerExternalReference.source_system.in_(_DIADOC_CUSTOMER_SOURCE_SYSTEMS),
+            func.lower(CustomerExternalReference.external_customer_name).in_(variants),
         )
         .order_by(CustomerExternalReference.id.asc())
     )
@@ -253,9 +247,7 @@ def _unsupported_formalized_shipment_vat_rates(items: list[Any]) -> list[str]:
     rates = set()
     for item in items:
         raw_rate = getattr(item, "vat_rate", None)
-        rate = Decimal(
-            str(DEFAULT_WHOLESALE_VAT_RATE if raw_rate is None else raw_rate)
-        )
+        rate = Decimal(str(DEFAULT_WHOLESALE_VAT_RATE if raw_rate is None else raw_rate))
         if rate != Decimal("22"):
             rates.add(str(rate))
     return sorted(rates)
@@ -370,9 +362,7 @@ def _find_formalized_doc_type(
             ):
                 yield version_row
 
-    def _choose_version(
-        versions: list[dict[str, Any]]
-    ) -> dict[str, Any] | None:
+    def _choose_version(versions: list[dict[str, Any]]) -> dict[str, Any] | None:
         if not versions:
             return None
         for row in versions:
@@ -381,10 +371,7 @@ def _find_formalized_doc_type(
         return versions[0]
 
     for doc_type in document_types:
-        if (
-            str(doc_type.get("TypeNamedId") or "").strip()
-            != str(type_named_id or "").strip()
-        ):
+        if str(doc_type.get("TypeNamedId") or "").strip() != str(type_named_id or "").strip():
             continue
         functions = list(doc_type.get("Functions") or [])
         for function_name in preferred_functions or []:
@@ -392,36 +379,24 @@ def _find_formalized_doc_type(
                 row_name = str(function_row.get("Name") or "").strip()
                 if row_name != function_name:
                     continue
-                selected_version = _choose_version(
-                    list(_iter_versions(doc_type, function_row))
-                )
+                selected_version = _choose_version(list(_iter_versions(doc_type, function_row)))
                 if selected_version is None:
                     continue
                 return {
                     "type_named_id": str(type_named_id or "").strip(),
                     "document_function": row_name,
-                    "document_version": str(
-                        selected_version.get("Version") or ""
-                    ).strip(),
+                    "document_version": str(selected_version.get("Version") or "").strip(),
                 }
         for function_row in functions:
-            selected_version = _choose_version(
-                list(_iter_versions(doc_type, function_row))
-            )
+            selected_version = _choose_version(list(_iter_versions(doc_type, function_row)))
             if selected_version is None:
                 continue
             return {
                 "type_named_id": str(type_named_id or "").strip(),
-                "document_function": str(
-                    function_row.get("Name") or ""
-                ).strip(),
-                "document_version": str(
-                    selected_version.get("Version") or ""
-                ).strip(),
+                "document_function": str(function_row.get("Name") or "").strip(),
+                "document_version": str(selected_version.get("Version") or "").strip(),
             }
-    raise ValueError(
-        "Diadoc box does not support requested formalized document type"
-    )
+    raise ValueError("Diadoc box does not support requested formalized document type")
 
 
 def _append_address_xml(
@@ -464,9 +439,7 @@ def _append_address_xml(
         )
         return
 
-    raise ValueError(
-        "Organization address is not available for formalized UTD"
-    )
+    raise ValueError("Organization address is not available for formalized UTD")
 
 
 def _append_organization_details_xml(
@@ -483,19 +456,11 @@ def _append_organization_details_xml(
         or str(org_payload.get("FullName") or "").strip()
         or str(fallback_name or "").strip()
     )
-    inn = (
-        str(org_payload.get("Inn") or "").strip()
-        or str(fallback_inn or "").strip()
-    )
-    kpp = (
-        str(org_payload.get("Kpp") or "").strip()
-        or str(fallback_kpp or "").strip()
-    )
+    inn = str(org_payload.get("Inn") or "").strip() or str(fallback_inn or "").strip()
+    kpp = str(org_payload.get("Kpp") or "").strip() or str(fallback_kpp or "").strip()
     fns_participant_id = str(org_payload.get("FnsParticipantId") or "").strip()
     if not org_name or not inn or not fns_participant_id:
-        raise ValueError(
-            "Diadoc organization does not contain enough data for formalized UTD"
-        )
+        raise ValueError("Diadoc organization does not contain enough data for formalized UTD")
 
     attrs = {
         "OrgType": "2",
@@ -525,9 +490,7 @@ def _append_signer_details_xml(
         str(seller_org_payload.get("Inn") or "").strip()
         or str(integration.organization_inn or "").strip()
     )
-    last_name, first_name, middle_name = _split_full_name(
-        integration.signer_full_name
-    )
+    last_name, first_name, middle_name = _split_full_name(integration.signer_full_name)
     attrs = {
         "LastName": last_name,
         "FirstName": first_name,
@@ -574,16 +537,12 @@ async def build_shipment_formalized_readiness(
         )
 
     if document.status != ShipmentDocumentStatus.POSTED:
-        missing_required_fields.append(
-            "Отгрузка должна быть проведена перед отправкой в Диадок."
-        )
+        missing_required_fields.append("Отгрузка должна быть проведена перед отправкой в Диадок.")
     if customer is None:
         missing_required_fields.append("У отгрузки не выбран клиент.")
     if not items:
         missing_required_fields.append("В отгрузке нет строк товаров.")
-    if items and any(
-        int(getattr(item, "quantity", 0) or 0) <= 0 for item in items
-    ):
+    if items and any(int(getattr(item, "quantity", 0) or 0) <= 0 for item in items):
         missing_required_fields.append(
             "Во всех строках отгрузки должно быть положительное количество."
         )
@@ -597,9 +556,7 @@ async def build_shipment_formalized_readiness(
     if _is_blank_text(getattr(integration, "box_id_guid", None)):
         missing_required_fields.append("Не выбран ящик Диадока организации.")
     if _is_blank_text(getattr(integration, "refresh_token", None)):
-        missing_required_fields.append(
-            "Интеграция Диадока не подключена или истёк refresh token."
-        )
+        missing_required_fields.append("Интеграция Диадока не подключена или истёк refresh token.")
     if not has_counteragent_binding:
         missing_required_fields.append(
             "Для клиента не настроена привязка к ящику контрагента Диадока."
@@ -620,46 +577,54 @@ async def build_shipment_formalized_readiness(
             warnings.append("У клиента не заполнен почтовый адрес.")
 
     if _is_blank_text(getattr(integration, "organization_name", None)):
-        warnings.append(
-            "В настройках Диадока не определено название организации-продавца."
-        )
+        warnings.append("В настройках Диадока не определено название организации-продавца.")
     if _is_blank_text(getattr(integration, "organization_inn", None)):
-        warnings.append(
-            "В настройках Диадока не определён ИНН организации-продавца."
-        )
+        warnings.append("В настройках Диадока не определён ИНН организации-продавца.")
     if _is_blank_text(getattr(integration, "seller_legal_address", None)):
-        warnings.append(
-            "В профиле Диадока не заполнен юридический адрес продавца."
-        )
+        warnings.append("В профиле Диадока не заполнен юридический адрес продавца.")
     if _is_blank_text(getattr(integration, "signer_full_name", None)):
-        missing_required_fields.append(
-            "В профиле Диадока не заполнено ФИО подписанта."
-        )
+        missing_required_fields.append("В профиле Диадока не заполнено ФИО подписанта.")
     if _is_blank_text(getattr(integration, "signer_position", None)):
-        missing_required_fields.append(
-            "В профиле Диадока не заполнена должность подписанта."
-        )
+        missing_required_fields.append("В профиле Диадока не заполнена должность подписанта.")
     if _is_blank_text(getattr(integration, "signer_basis", None)):
-        warnings.append(
-            "В профиле Диадока не заполнено основание полномочий подписанта."
-        )
+        warnings.append("В профиле Диадока не заполнено основание полномочий подписанта.")
     if _is_blank_text(getattr(integration, "seller_postal_address", None)):
-        warnings.append(
-            "В профиле Диадока не заполнен почтовый адрес продавца."
-        )
+        warnings.append("В профиле Диадока не заполнен почтовый адрес продавца.")
     if _is_blank_text(getattr(integration, "organization_kpp", None)):
-        warnings.append(
-            "В настройках Диадока не определён КПП организации-продавца."
-        )
+        warnings.append("В настройках Диадока не определён КПП организации-продавца.")
 
     if _is_blank_text(getattr(document, "doc_number", None)):
         warnings.append(
             "У отгрузки нет номера документа. Для формализованного УПД лучше иметь явный номер."
         )
 
+    one_c_config = await session.get(OneCEnterpriseConfig, 1)
+    if one_c_config is not None and one_c_config.enabled and one_c_config.send_shipments:
+        one_c_event = await session.scalar(
+            select(OneCExchangeEvent)
+            .where(
+                OneCExchangeEvent.entity_type == "shipment",
+                OneCExchangeEvent.entity_id == document.id,
+                OneCExchangeEvent.event_type == "posted",
+            )
+            .order_by(OneCExchangeEvent.id.desc())
+            .limit(1)
+        )
+        if one_c_event is None or one_c_event.ed_unf_posted is not True:
+            missing_required_fields.append(
+                "Сначала передайте реализацию в УНФ и дождитесь подтверждения проведения."
+            )
+        elif _is_blank_text(one_c_event.ed_unf_number):
+            missing_required_fields.append(
+                "УНФ подтвердила реализацию, но не вернула её учётный номер."
+            )
+        elif str(document.doc_number or "").strip() != str(one_c_event.ed_unf_number).strip():
+            missing_required_fields.append(
+                "Номер реализации ещё не синхронизирован с номером УНФ."
+            )
+
     if any(
-        _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None))
-        for item in items
+        _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None)) for item in items
     ):
         warnings.append(
             "У части строк нет ГТД. Для товара российского происхождения "
@@ -678,13 +643,8 @@ async def build_shipment_formalized_readiness(
             "Привяжите клиента к контрагенту Диадока на карточке клиента "
             "или в разделе Документы → Диадок."
         )
-    if any(
-        "клиента" in item.lower()
-        for item in missing_required_fields + warnings
-    ):
-        recommended_actions.append(
-            "Заполните юридические реквизиты на карточке клиента."
-        )
+    if any("клиента" in item.lower() for item in missing_required_fields + warnings):
+        recommended_actions.append("Заполните юридические реквизиты на карточке клиента.")
     if any(
         "продавца" in item.lower() or "подписанта" in item.lower()
         for item in missing_required_fields + warnings
@@ -700,8 +660,7 @@ async def build_shipment_formalized_readiness(
         warnings.append(f"КИЗ: {issue['message']}")
     if marking["issues"]:
         recommended_actions.append(
-            "Проверьте коды маркировки отгрузки (кнопка «Проверить КИЗ» "
-            "в блоке готовности УПД)."
+            "Проверьте коды маркировки отгрузки (кнопка «Проверить КИЗ» " "в блоке готовности УПД)."
         )
 
     ready_nonformalized = not any(
@@ -730,15 +689,12 @@ async def build_shipment_formalized_readiness(
         "warnings": warnings,
         "customer_id": (
             int(customer.id)
-            if customer is not None
-            and getattr(customer, "id", None) is not None
+            if customer is not None and getattr(customer, "id", None) is not None
             else None
         ),
         "customer_name": (
             str(
-                getattr(customer, "legal_name", None)
-                or getattr(customer, "name", "")
-                or ""
+                getattr(customer, "legal_name", None) or getattr(customer, "name", "") or ""
             ).strip()
             if customer is not None
             else None
@@ -790,9 +746,7 @@ async def _load_customer_return_document(
             selectinload(ReturnFromCustomer.items)
             .selectinload(ReturnItem.autopart)
             .selectinload(AutoPart.brand),
-            selectinload(ReturnFromCustomer.items).selectinload(
-                ReturnItem.lot
-            ),
+            selectinload(ReturnFromCustomer.items).selectinload(ReturnItem.lot),
             selectinload(ReturnFromCustomer.items)
             .selectinload(ReturnItem.shipment_item)
             .selectinload(ShipmentDocumentItem.lot),
@@ -817,9 +771,7 @@ async def _load_supplier_return_document(
             .selectinload(ReturnItem.autopart)
             .selectinload(AutoPart.brand),
             selectinload(ReturnToSupplier.items).selectinload(ReturnItem.lot),
-            selectinload(ReturnToSupplier.items).selectinload(
-                ReturnItem.supplier_receipt_item
-            ),
+            selectinload(ReturnToSupplier.items).selectinload(ReturnItem.supplier_receipt_item),
         )
     )
     return (await session.execute(stmt)).scalar_one_or_none()
@@ -834,41 +786,55 @@ def _append_common_formalized_sender_checks(
     if _is_blank_text(getattr(integration, "box_id_guid", None)):
         missing_required_fields.append("Не выбран ящик Диадока организации.")
     if _is_blank_text(getattr(integration, "refresh_token", None)):
-        missing_required_fields.append(
-            "Интеграция Диадока не подключена или истёк refresh token."
-        )
+        missing_required_fields.append("Интеграция Диадока не подключена или истёк refresh token.")
     if _is_blank_text(getattr(integration, "organization_name", None)):
-        warnings.append(
-            "В настройках Диадока не определено название организации-отправителя."
-        )
+        warnings.append("В настройках Диадока не определено название организации-отправителя.")
     if _is_blank_text(getattr(integration, "organization_inn", None)):
-        warnings.append(
-            "В настройках Диадока не определён ИНН организации-отправителя."
-        )
+        warnings.append("В настройках Диадока не определён ИНН организации-отправителя.")
     if _is_blank_text(getattr(integration, "organization_kpp", None)):
-        warnings.append(
-            "В настройках Диадока не определён КПП организации-отправителя."
-        )
+        warnings.append("В настройках Диадока не определён КПП организации-отправителя.")
     if _is_blank_text(getattr(integration, "seller_legal_address", None)):
-        warnings.append(
-            "В профиле Диадока не заполнен юридический адрес отправителя."
-        )
+        warnings.append("В профиле Диадока не заполнен юридический адрес отправителя.")
     if _is_blank_text(getattr(integration, "seller_postal_address", None)):
-        warnings.append(
-            "В профиле Диадока не заполнен почтовый адрес отправителя."
-        )
+        warnings.append("В профиле Диадока не заполнен почтовый адрес отправителя.")
     if _is_blank_text(getattr(integration, "signer_full_name", None)):
-        missing_required_fields.append(
-            "В профиле Диадока не заполнено ФИО подписанта."
-        )
+        missing_required_fields.append("В профиле Диадока не заполнено ФИО подписанта.")
     if _is_blank_text(getattr(integration, "signer_position", None)):
-        missing_required_fields.append(
-            "В профиле Диадока не заполнена должность подписанта."
-        )
+        missing_required_fields.append("В профиле Диадока не заполнена должность подписанта.")
     if _is_blank_text(getattr(integration, "signer_basis", None)):
-        warnings.append(
-            "В профиле Диадока не заполнено основание полномочий подписанта."
+        warnings.append("В профиле Диадока не заполнено основание полномочий подписанта.")
+
+
+async def _append_unf_number_requirement(
+    session: AsyncSession,
+    *,
+    entity_type: str,
+    entity_id: int,
+    current_number: str | None,
+    enabled_for_type: bool,
+    missing_required_fields: list[str],
+) -> None:
+    config = await session.get(OneCEnterpriseConfig, 1)
+    if config is None or not config.enabled or not enabled_for_type:
+        return
+    event = await session.scalar(
+        select(OneCExchangeEvent)
+        .where(
+            OneCExchangeEvent.entity_type == entity_type,
+            OneCExchangeEvent.entity_id == entity_id,
+            OneCExchangeEvent.event_type == "posted",
         )
+        .order_by(OneCExchangeEvent.id.desc())
+        .limit(1)
+    )
+    if event is None or event.ed_unf_posted is not True:
+        missing_required_fields.append(
+            "Сначала передайте документ в УНФ и дождитесь подтверждения проведения."
+        )
+    elif _is_blank_text(event.ed_unf_number):
+        missing_required_fields.append("УНФ не вернула учётный номер документа.")
+    elif str(current_number or "").strip() != str(event.ed_unf_number).strip():
+        missing_required_fields.append("Номер документа ещё не синхронизирован с УНФ.")
 
 
 async def build_customer_return_formalized_readiness(
@@ -912,26 +878,13 @@ async def build_customer_return_formalized_readiness(
     if customer is None:
         missing_required_fields.append("У возврата не выбран клиент.")
     if source_document is None:
-        missing_required_fields.append(
-            "У возврата не привязана исходная отгрузка."
-        )
+        missing_required_fields.append("У возврата не привязана исходная отгрузка.")
     if document.source_diadoc_outgoing_document_id is None:
-        recommended_actions.append(
-            "Привяжите исходную реализацию и нашу исходящую УПД."
-        )
-    if source_document is not None and _is_blank_text(
-        getattr(source_document, "doc_number", None)
-    ):
-        missing_required_fields.append(
-            "У исходной отгрузки отсутствует номер документа."
-        )
-    if (
-        source_document is not None
-        and getattr(source_document, "doc_date", None) is None
-    ):
-        missing_required_fields.append(
-            "У исходной отгрузки отсутствует дата документа."
-        )
+        recommended_actions.append("Привяжите исходную реализацию и нашу исходящую УПД.")
+    if source_document is not None and _is_blank_text(getattr(source_document, "doc_number", None)):
+        missing_required_fields.append("У исходной отгрузки отсутствует номер документа.")
+    if source_document is not None and getattr(source_document, "doc_date", None) is None:
+        missing_required_fields.append("У исходной отгрузки отсутствует дата документа.")
     if not items:
         missing_required_fields.append("В возврате нет строк товаров.")
     if any(int(getattr(item, "quantity", 0) or 0) <= 0 for item in items):
@@ -939,9 +892,7 @@ async def build_customer_return_formalized_readiness(
             "Во всех строках возврата должно быть положительное количество."
         )
     if any(getattr(item, "price", None) is None for item in items):
-        missing_required_fields.append(
-            "Во всех строках возврата должна быть указана цена."
-        )
+        missing_required_fields.append("Во всех строках возврата должна быть указана цена.")
     if not has_counteragent_binding:
         missing_required_fields.append(
             "Для клиента не настроена привязка к ящику контрагента Диадока."
@@ -970,11 +921,18 @@ async def build_customer_return_formalized_readiness(
         warnings.append(
             "У возврата нет собственного номера документа. Лучше заполнить его перед отправкой."
         )
+    one_c_config = await session.get(OneCEnterpriseConfig, 1)
+    await _append_unf_number_requirement(
+        session,
+        entity_type="customer_return",
+        entity_id=int(document.id),
+        current_number=document.doc_number,
+        enabled_for_type=bool(one_c_config and one_c_config.send_returns),
+        missing_required_fields=missing_required_fields,
+    )
     if any(
         _is_blank_text(getattr(item, "gtd_number", None))
-        and _is_blank_text(
-            getattr(getattr(item, "lot", None), "gtd_number", None)
-        )
+        and _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None))
         for item in items
     ):
         warnings.append(
@@ -992,13 +950,8 @@ async def build_customer_return_formalized_readiness(
             "Привяжите клиента к контрагенту Диадока на карточке клиента "
             "или в разделе Документы → Диадок."
         )
-    if any(
-        "клиента" in item.lower()
-        for item in missing_required_fields + warnings
-    ):
-        recommended_actions.append(
-            "Заполните юридические реквизиты на карточке клиента."
-        )
+    if any("клиента" in item.lower() for item in missing_required_fields + warnings):
+        recommended_actions.append("Заполните юридические реквизиты на карточке клиента.")
     if any(
         marker in item.lower()
         for item in missing_required_fields + warnings
@@ -1013,22 +966,17 @@ async def build_customer_return_formalized_readiness(
         "document_id": int(document.id),
         "status": str(document.status.value),
         "ready_formalized": not missing_required_fields,
-        "missing_required_fields": list(
-            dict.fromkeys(missing_required_fields)
-        ),
+        "missing_required_fields": list(dict.fromkeys(missing_required_fields)),
         "warnings": warnings,
         "recommended_actions": recommended_actions,
         "customer_id": (
             int(customer.id)
-            if customer is not None
-            and getattr(customer, "id", None) is not None
+            if customer is not None and getattr(customer, "id", None) is not None
             else None
         ),
         "customer_name": (
             str(
-                getattr(customer, "legal_name", None)
-                or getattr(customer, "name", "")
-                or ""
+                getattr(customer, "legal_name", None) or getattr(customer, "name", "") or ""
             ).strip()
             if customer is not None
             else None
@@ -1037,13 +985,11 @@ async def build_customer_return_formalized_readiness(
         "provider_name": None,
         "source_document_id": (
             int(source_document.id)
-            if source_document is not None
-            and getattr(source_document, "id", None) is not None
+            if source_document is not None and getattr(source_document, "id", None) is not None
             else None
         ),
         "source_document_number": (
-            str(getattr(source_document, "doc_number", "") or "").strip()
-            or None
+            str(getattr(source_document, "doc_number", "") or "").strip() or None
             if source_document is not None
             else None
         ),
@@ -1095,22 +1041,13 @@ async def build_supplier_return_formalized_readiness(
     if provider is None:
         missing_required_fields.append("У возврата не выбран поставщик.")
     if source_document is None:
-        missing_required_fields.append(
-            "У возврата не привязано исходное поступление."
-        )
+        missing_required_fields.append("У возврата не привязано исходное поступление.")
     if source_document is not None and _is_blank_text(
         getattr(source_document, "document_number", None)
     ):
-        missing_required_fields.append(
-            "У исходного поступления отсутствует номер документа."
-        )
-    if (
-        source_document is not None
-        and getattr(source_document, "document_date", None) is None
-    ):
-        missing_required_fields.append(
-            "У исходного поступления отсутствует дата документа."
-        )
+        missing_required_fields.append("У исходного поступления отсутствует номер документа.")
+    if source_document is not None and getattr(source_document, "document_date", None) is None:
+        missing_required_fields.append("У исходного поступления отсутствует дата документа.")
     if not items:
         missing_required_fields.append("В возврате нет строк товаров.")
     if any(int(getattr(item, "quantity", 0) or 0) <= 0 for item in items):
@@ -1118,9 +1055,7 @@ async def build_supplier_return_formalized_readiness(
             "Во всех строках возврата должно быть положительное количество."
         )
     if any(getattr(item, "price", None) is None for item in items):
-        missing_required_fields.append(
-            "Во всех строках возврата должна быть указана цена."
-        )
+        missing_required_fields.append("Во всех строках возврата должна быть указана цена.")
     if not has_counteragent_binding:
         missing_required_fields.append(
             "Для поставщика не настроена привязка к ящику контрагента Диадока."
@@ -1136,11 +1071,18 @@ async def build_supplier_return_formalized_readiness(
         warnings.append(
             "У возврата нет собственного номера документа. Лучше заполнить его перед отправкой."
         )
+    one_c_config = await session.get(OneCEnterpriseConfig, 1)
+    await _append_unf_number_requirement(
+        session,
+        entity_type="supplier_return",
+        entity_id=int(document.id),
+        current_number=document.doc_number,
+        enabled_for_type=bool(one_c_config and one_c_config.send_returns),
+        missing_required_fields=missing_required_fields,
+    )
     if any(
         _is_blank_text(getattr(item, "gtd_number", None))
-        and _is_blank_text(
-            getattr(getattr(item, "lot", None), "gtd_number", None)
-        )
+        and _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None))
         for item in items
     ):
         warnings.append(
@@ -1182,31 +1124,24 @@ async def build_supplier_return_formalized_readiness(
         "customer_name": None,
         "provider_id": (
             int(provider.id)
-            if provider is not None
-            and getattr(provider, "id", None) is not None
+            if provider is not None and getattr(provider, "id", None) is not None
             else None
         ),
         "provider_name": (
-            str(getattr(provider, "name", "") or "").strip()
-            if provider is not None
-            else None
+            str(getattr(provider, "name", "") or "").strip() if provider is not None else None
         ),
         "source_document_id": (
             int(source_document.id)
-            if source_document is not None
-            and getattr(source_document, "id", None) is not None
+            if source_document is not None and getattr(source_document, "id", None) is not None
             else None
         ),
         "source_document_number": (
-            str(getattr(source_document, "document_number", "") or "").strip()
-            or None
+            str(getattr(source_document, "document_number", "") or "").strip() or None
             if source_document is not None
             else None
         ),
         "source_document_date": (
-            getattr(source_document, "document_date", None)
-            if source_document is not None
-            else None
+            getattr(source_document, "document_date", None) if source_document is not None else None
         ),
     }
 
@@ -1287,9 +1222,7 @@ def _build_formalized_ukd_user_data_xml(
     if hasattr(document_date_value, "date"):
         document_date_value = document_date_value.date()
     document_date = document_date_value.strftime("%d.%m.%Y")
-    current_document_number = str(
-        document.doc_number or f"RETURN-{document.id}"
-    ).strip()
+    current_document_number = str(document.doc_number or f"RETURN-{document.id}").strip()
     seller_name = _build_document_creator_name(integration, seller_org_payload)
     root_attrs = {
         "DocumentDate": document_date,
@@ -1297,9 +1230,7 @@ def _build_formalized_ukd_user_data_xml(
         "Currency": "643",
         "CurrencyName": "1",
         "Function": document_function,
-        "DocumentName": _formalized_correction_document_name_for_function(
-            document_function
-        ),
+        "DocumentName": _formalized_correction_document_name_for_function(document_function),
         "DocumentCreator": seller_name,
         "Uid": str(uuid4()),
         "xmlns:xs": "http://www.w3.org/2001/XMLSchema",
@@ -1307,9 +1238,7 @@ def _build_formalized_ukd_user_data_xml(
     sender_fns = str(seller_org_payload.get("FnsParticipantId") or "").strip()
     if sender_fns:
         root_attrs["SenderFnsParticipantId"] = sender_fns
-    recipient_fns = str(
-        buyer_org_payload.get("FnsParticipantId") or ""
-    ).strip()
+    recipient_fns = str(buyer_org_payload.get("FnsParticipantId") or "").strip()
     if recipient_fns:
         root_attrs["RecipientFnsParticipantId"] = recipient_fns
     root = ET.Element(_UCD_TYPE_NAMED_ID, root_attrs)
@@ -1382,14 +1311,14 @@ def _build_formalized_ukd_user_data_xml(
     items_el = ET.SubElement(table_el, "Items")
     for idx, item in enumerate(items, start=1):
         state = (line_states or {}).get(int(item.id), {})
-        return_quantity = Decimal(str(
-            getattr(item, "quantity", None)
-            if getattr(item, "quantity", None) is not None
-            else getattr(item, "quantity_before", 0)
-        ))
-        quantity_before = Decimal(
-            str(state.get("quantity_before", return_quantity))
+        return_quantity = Decimal(
+            str(
+                getattr(item, "quantity", None)
+                if getattr(item, "quantity", None) is not None
+                else getattr(item, "quantity_before", 0)
+            )
         )
+        quantity_before = Decimal(str(state.get("quantity_before", return_quantity)))
         quantity_after = Decimal(str(state.get("quantity_after", 0)))
         vat_rate = Decimal(str(item.vat_rate or DEFAULT_WHOLESALE_VAT_RATE))
         price_before = state.get(
@@ -1398,11 +1327,11 @@ def _build_formalized_ukd_user_data_xml(
         price_after = state.get(
             "price_after", getattr(item, "price_after", getattr(item, "price", 0))
         )
-        net_price_before, original_net, original_vat, original_gross = (
-            _gross_price_vat_parts(price_before, quantity_before, vat_rate)
+        net_price_before, original_net, original_vat, original_gross = _gross_price_vat_parts(
+            price_before, quantity_before, vat_rate
         )
-        net_price_after, corrected_net, corrected_vat, corrected_gross = (
-            _gross_price_vat_parts(price_after, quantity_after, vat_rate)
+        net_price_after, corrected_net, corrected_vat, corrected_gross = _gross_price_vat_parts(
+            price_after, quantity_after, vat_rate
         )
         net_dec = original_net - corrected_net
         vat_dec = original_vat - corrected_vat
@@ -1475,9 +1404,9 @@ def _build_formalized_ukd_user_data_xml(
             },
         )
         if gross_dec:
-            ET.SubElement(
-                subtotal_el, "AmountsDec" if gross_dec > 0 else "AmountsInc"
-            ).text = _format_decimal(abs(gross_dec))
+            ET.SubElement(subtotal_el, "AmountsDec" if gross_dec > 0 else "AmountsInc").text = (
+                _format_decimal(abs(gross_dec))
+            )
         subtotal_without_vat_el = ET.SubElement(
             item_el,
             "SubtotalWithVatExcluded",
@@ -1500,9 +1429,9 @@ def _build_formalized_ukd_user_data_xml(
             },
         )
         if vat_dec:
-            ET.SubElement(
-                vat_el, "AmountsDec" if vat_dec > 0 else "AmountsInc"
-            ).text = _format_decimal(abs(vat_dec))
+            ET.SubElement(vat_el, "AmountsDec" if vat_dec > 0 else "AmountsInc").text = (
+                _format_decimal(abs(vat_dec))
+            )
 
         item_lot = getattr(item, "lot", None)
         source_lot = getattr(getattr(item, "shipment_item", None), "lot", None)
@@ -1572,9 +1501,7 @@ def _build_document_metadata(
     if document_number:
         normalized.setdefault("DocumentNumber", str(document_number))
     if document_date:
-        normalized.setdefault(
-            "DocumentDate", document_date.strftime("%d.%m.%Y")
-        )
+        normalized.setdefault("DocumentDate", document_date.strftime("%d.%m.%Y"))
     return [{"Key": key, "Value": value} for key, value in normalized.items()]
 
 
@@ -1620,9 +1547,7 @@ async def _load_shipment_document(
             selectinload(ShipmentDocument.items).selectinload(
                 ShipmentDocumentItem.storage_location
             ),
-            selectinload(ShipmentDocument.items).selectinload(
-                ShipmentDocumentItem.lot
-            ),
+            selectinload(ShipmentDocument.items).selectinload(ShipmentDocumentItem.lot),
             selectinload(ShipmentDocument.items)
             .selectinload(ShipmentDocumentItem.allocations)
             .selectinload(ShipmentDocumentItemLotAllocation.stock_lot),
@@ -1667,18 +1592,12 @@ def _normalize_marking_codes_for_xml(values: Any) -> list[str]:
 def _collect_shipment_item_marking_codes(item: ShipmentDocumentItem) -> list[str]:
     codes: list[str] = []
     for allocation in list(getattr(item, "allocations", []) or []):
-        codes.extend(
-            _normalize_marking_codes_for_xml(
-                getattr(allocation, "marking_codes", None)
-            )
-        )
+        codes.extend(_normalize_marking_codes_for_xml(getattr(allocation, "marking_codes", None)))
     if not codes:
         # Коды всей партии подставляем, только если они точно относятся к
         # этой строке: иначе в УПД попали бы КИЗ чужих штук из партии.
         lot = getattr(item, "lot", None)
-        lot_codes = _normalize_marking_codes_for_xml(
-            getattr(lot, "marking_codes", None)
-        )
+        lot_codes = _normalize_marking_codes_for_xml(getattr(lot, "marking_codes", None))
         if lot_codes and len(lot_codes) == int(item.quantity or 0):
             codes.extend(lot_codes)
     return list(dict.fromkeys(codes))
@@ -1696,20 +1615,10 @@ def _shipment_client_identity(
     brand = getattr(autopart, "brand", None)
     return (
         str(
-            getattr(item, "customer_oem", None)
-            or getattr(autopart, "oem_number", None)
-            or ""
+            getattr(item, "customer_oem", None) or getattr(autopart, "oem_number", None) or ""
         ).strip(),
-        str(
-            getattr(item, "customer_brand", None)
-            or getattr(brand, "name", None)
-            or ""
-        ).strip(),
-        str(
-            getattr(item, "customer_name", None)
-            or getattr(autopart, "name", None)
-            or ""
-        ).strip(),
+        str(getattr(item, "customer_brand", None) or getattr(brand, "name", None) or "").strip(),
+        str(getattr(item, "customer_name", None) or getattr(autopart, "name", None) or "").strip(),
     )
 
 
@@ -1728,9 +1637,7 @@ def _build_shipment_document_xml(doc: ShipmentDocument) -> bytes:
         ET.SubElement(customer_el, "Id").text = str(customer.id)
         ET.SubElement(customer_el, "Name").text = str(customer.document_name or "")
         if getattr(customer, "email_contact", None):
-            ET.SubElement(customer_el, "Email").text = str(
-                customer.email_contact
-            )
+            ET.SubElement(customer_el, "Email").text = str(customer.email_contact)
     if warehouse is not None:
         warehouse_el = ET.SubElement(root, "Warehouse")
         ET.SubElement(warehouse_el, "Id").text = str(warehouse.id)
@@ -1756,20 +1663,14 @@ def _build_shipment_document_xml(doc: ShipmentDocument) -> bytes:
         if item.price is not None:
             ET.SubElement(item_el, "Price").text = str(item.price)
         if location is not None:
-            ET.SubElement(item_el, "StorageLocation").text = str(
-                location.name or ""
-            )
+            ET.SubElement(item_el, "StorageLocation").text = str(location.name or "")
         if lot is not None:
             if getattr(lot, "gtd_number", None):
                 ET.SubElement(item_el, "GtdNumber").text = str(lot.gtd_number)
             if getattr(lot, "country_code", None):
-                ET.SubElement(item_el, "CountryCode").text = str(
-                    lot.country_code
-                )
+                ET.SubElement(item_el, "CountryCode").text = str(lot.country_code)
             if getattr(lot, "country_name", None):
-                ET.SubElement(item_el, "CountryName").text = str(
-                    lot.country_name
-                )
+                ET.SubElement(item_el, "CountryName").text = str(lot.country_name)
 
     return ET.tostring(
         root,
@@ -1788,30 +1689,20 @@ async def build_diadoc_payload_from_shipment(
     if document is None:
         raise ValueError("Shipment document not found")
     if document.status != ShipmentDocumentStatus.POSTED:
-        raise ValueError(
-            "Only posted shipment documents can be sent to Diadoc"
-        )
+        raise ValueError("Only posted shipment documents can be sent to Diadoc")
 
     resolved_customer_id = (
         int(customer_id)
         if customer_id is not None
-        else (
-            int(document.customer_id)
-            if document.customer_id is not None
-            else None
-        )
+        else (int(document.customer_id) if document.customer_id is not None else None)
     )
     if resolved_customer_id is None:
-        raise ValueError(
-            "Shipment document has no customer and customer override is not set"
-        )
+        raise ValueError("Shipment document has no customer and customer override is not set")
 
     return {
         "customer_id": resolved_customer_id,
         "file_name": _shipment_export_file_name(document),
-        "content_base64": base64.b64encode(
-            _build_shipment_document_xml(document)
-        ).decode("ascii"),
+        "content_base64": base64.b64encode(_build_shipment_document_xml(document)).decode("ascii"),
         "document_number": _shipment_document_number(document),
         "document_date": document.doc_date.date(),
         "source_type": "shipment_document",
@@ -1833,9 +1724,7 @@ def _build_formalized_utd_user_data_xml(
     document_function: str,
 ) -> bytes:
     document_date = document.doc_date.date().strftime("%d.%m.%Y")
-    document_number = (
-        _shipment_document_number(document) or f"SHIP-{document.id}"
-    )
+    document_number = _shipment_document_number(document) or f"SHIP-{document.id}"
     seller_name = _build_document_creator_name(integration, seller_org_payload)
     customer = getattr(document, "customer", None)
     items = list(getattr(document, "items", []) or [])
@@ -1868,12 +1757,8 @@ def _build_formalized_utd_user_data_xml(
             "DocumentNumber": document_number,
             "Currency": "643",
             "Function": document_function,
-            "DocumentName": _formalized_document_name_for_function(
-                document_function
-            ),
-            "SenderFnsParticipantId": str(
-                seller_org_payload.get("FnsParticipantId") or ""
-            ).strip(),
+            "DocumentName": _formalized_document_name_for_function(document_function),
+            "SenderFnsParticipantId": str(seller_org_payload.get("FnsParticipantId") or "").strip(),
             "RecipientFnsParticipantId": str(
                 buyer_org_payload.get("FnsParticipantId") or ""
             ).strip(),
@@ -1941,9 +1826,7 @@ def _build_formalized_utd_user_data_xml(
                 "Product": product_name,
                 "Unit": _DEFAULT_ITEM_UNIT_CODE,
                 "UnitName": _DEFAULT_ITEM_UNIT_NAME,
-                "Quantity": _format_decimal(quantity, places=3)
-                .rstrip("0")
-                .rstrip("."),
+                "Quantity": _format_decimal(quantity, places=3).rstrip("0").rstrip("."),
                 "Price": _format_decimal(net_price),
                 "SubtotalWithVatExcluded": _format_decimal(net),
                 "Vat": _format_decimal(vat),
@@ -1979,8 +1862,7 @@ def _build_formalized_utd_user_data_xml(
                 ET.SubElement(identification_number_el, "Unit").text = code
 
     transfer_attrs = {
-        "OperationInfo": str(document.reason or "товары переданы").strip()
-        or "товары переданы",
+        "OperationInfo": str(document.reason or "товары переданы").strip() or "товары переданы",
         "TransferDate": document_date,
     }
     ET.SubElement(root, "TransferInfo", transfer_attrs)
@@ -1989,11 +1871,11 @@ def _build_formalized_utd_user_data_xml(
     signer_el = ET.SubElement(
         signers_el,
         "Signer",
-        {"SignerPowersConfirmationMethod": "6"},
+        # Руководитель действует без МЧД; метод 1 означает подтверждение
+        # полномочий его собственной электронной подписью.
+        {"SignerPowersConfirmationMethod": "1"},
     )
-    last_name, first_name, middle_name = _split_full_name(
-        integration.signer_full_name
-    )
+    last_name, first_name, middle_name = _split_full_name(integration.signer_full_name)
     fio_attrs = {"LastName": last_name, "FirstName": first_name}
     if middle_name:
         fio_attrs["MiddleName"] = middle_name
@@ -2021,31 +1903,21 @@ async def build_formalized_diadoc_payload_from_shipment(
     if document is None:
         raise ValueError("Shipment document not found")
     if document.status != ShipmentDocumentStatus.POSTED:
-        raise ValueError(
-            "Only posted shipment documents can be sent to Diadoc"
-        )
+        raise ValueError("Only posted shipment documents can be sent to Diadoc")
 
     items = list(getattr(document, "items", []) or [])
     if not items:
         raise ValueError("Shipment document has no items")
     if any(getattr(item, "price", None) is None for item in items):
-        raise ValueError(
-            "Every shipment item must have a price for formalized UTD"
-        )
+        raise ValueError("Every shipment item must have a price for formalized UTD")
 
     resolved_customer_id = (
         int(customer_id)
         if customer_id is not None
-        else (
-            int(document.customer_id)
-            if document.customer_id is not None
-            else None
-        )
+        else (int(document.customer_id) if document.customer_id is not None else None)
     )
     if resolved_customer_id is None:
-        raise ValueError(
-            "Shipment document has no customer and customer override is not set"
-        )
+        raise ValueError("Shipment document has no customer and customer override is not set")
 
     buyer_box_id_guid = str(to_box_id_guid or "").strip() or None
     if not buyer_box_id_guid:
@@ -2054,21 +1926,15 @@ async def build_formalized_diadoc_payload_from_shipment(
             customer_id=resolved_customer_id,
         )
     if not buyer_box_id_guid:
-        raise ValueError(
-            "Recipient Diadoc box is not resolved for shipment customer"
-        )
+        raise ValueError("Recipient Diadoc box is not resolved for shipment customer")
 
-    document_types = await client.get_document_types(
-        integration.box_id_guid or ""
-    )
+    document_types = await client.get_document_types(integration.box_id_guid or "")
     descriptor = _find_formalized_doc_type(
         document_types,
         type_named_id=_UTD_TYPE_NAMED_ID,
         preferred_functions=_build_preferred_utd_functions(integration),
     )
-    seller_org_payload = await client.get_organization(
-        box_id_guid=integration.box_id_guid or ""
-    )
+    seller_org_payload = await client.get_organization(box_id_guid=integration.box_id_guid or "")
     buyer_org_payload = await client.get_organization(
         box_id_guid=buyer_box_id_guid,
     )
@@ -2087,9 +1953,7 @@ async def build_formalized_diadoc_payload_from_shipment(
         title_index=0,
         user_data_xml=user_data_xml,
     )
-    file_name = str(
-        generated_file_name or ""
-    ).strip() or _shipment_formalized_file_name(document)
+    file_name = str(generated_file_name or "").strip() or _shipment_formalized_file_name(document)
 
     return {
         "customer_id": resolved_customer_id,
@@ -2111,7 +1975,8 @@ async def build_formalized_diadoc_payload_from_shipment(
 
 
 async def _source_upd_for_correction(
-    session: AsyncSession, correction: ShipmentCorrection,
+    session: AsyncSession,
+    correction: ShipmentCorrection,
 ) -> DiadocOutgoingDocument | None:
     return (
         await session.execute(
@@ -2123,9 +1988,7 @@ async def _source_upd_for_correction(
                 DiadocOutgoingDocument.is_draft.is_(False),
                 DiadocOutgoingDocument.message_id.is_not(None),
                 DiadocOutgoingDocument.entity_id.is_not(None),
-                DiadocOutgoingDocument.status.not_in(
-                    ("error", "rejected", "revoked")
-                ),
+                DiadocOutgoingDocument.status.not_in(("error", "rejected", "revoked")),
             )
             .order_by(DiadocOutgoingDocument.id.desc())
             .limit(1)
@@ -2158,7 +2021,8 @@ async def build_shipment_correction_formalized_readiness(
     customer_id = doc.shipment.customer_id
     buyer_box = (
         await resolve_diadoc_box_for_customer(session, customer_id=customer_id)
-        if customer_id else None
+        if customer_id
+        else None
     )
     if not buyer_box:
         missing.append("Клиент не привязан к ящику Диадока")
@@ -2167,15 +2031,15 @@ async def build_shipment_correction_formalized_readiness(
         missing.append("Не найдена отправленная исходящая УПД этой реализации")
     elif buyer_box and source_upd.to_box_id_guid != buyer_box:
         missing.append("Ящик клиента отличается от ящика исходящей УПД")
-    elif _map_transfer_function_to_correction_function(
-        source_upd.document_function
-    ) != doc.document_function:
+    elif (
+        _map_transfer_function_to_correction_function(source_upd.document_function)
+        != doc.document_function
+    ):
         expected_function = _map_transfer_function_to_correction_function(
             source_upd.document_function
         )
         missing.append(
-            "Функция УКД не соответствует функции исходящей УПД: "
-            f"ожидается {expected_function}"
+            "Функция УКД не соответствует функции исходящей УПД: " f"ожидается {expected_function}"
         )
     if doc.diadoc_outgoing_document_id:
         missing.append("По корректировке уже создан документ Диадока")
@@ -2206,25 +2070,16 @@ async def build_formalized_diadoc_payload_from_shipment_correction(
     doc = await get_correction(session, correction_id)
     source_upd = await _source_upd_for_correction(session, doc)
     customer_id = doc.shipment.customer_id
-    buyer_box_id = await resolve_diadoc_box_for_customer(
-        session, customer_id=customer_id
-    )
-    document_types = await client.get_document_types(
-        integration.box_id_guid or ""
-    )
+    buyer_box_id = await resolve_diadoc_box_for_customer(session, customer_id=customer_id)
+    document_types = await client.get_document_types(integration.box_id_guid or "")
     descriptor = _find_formalized_doc_type(
         document_types,
         type_named_id=_UCD_TYPE_NAMED_ID,
         preferred_functions=[doc.document_function],
     )
     if descriptor["document_function"] != doc.document_function:
-        raise ValueError(
-            "Диадок не поддерживает выбранную функцию УКД: "
-            + doc.document_function
-        )
-    seller_org = await client.get_organization(
-        box_id_guid=integration.box_id_guid or ""
-    )
+        raise ValueError("Диадок не поддерживает выбранную функцию УКД: " + doc.document_function)
+    seller_org = await client.get_organization(box_id_guid=integration.box_id_guid or "")
     buyer_org = await client.get_organization(box_id_guid=buyer_box_id)
     customer = doc.shipment.customer
     source_date = source_upd.document_date or doc.shipment.doc_date.date()
@@ -2240,9 +2095,7 @@ async def build_formalized_diadoc_payload_from_shipment_correction(
         buyer_fallback_kpp=getattr(customer, "kpp", None),
         buyer_fallback_address=getattr(customer, "legal_address", None),
         original_document_name="Универсальный передаточный документ",
-        original_document_number=(
-            source_upd.document_number or doc.shipment.doc_number
-        ),
+        original_document_number=(source_upd.document_number or doc.shipment.doc_number),
         original_document_date=source_date,
         operation_content=doc.reason,
         correction_base_name=doc.basis_description,
@@ -2301,9 +2154,7 @@ async def build_formalized_diadoc_payload_from_customer_return(
     if document is None:
         raise ValueError("Customer return document not found")
     if document.status != ReturnDocumentStatus.CONFIRMED:
-        raise ValueError(
-            "Only confirmed customer returns can be sent as formalized UKD"
-        )
+        raise ValueError("Only confirmed customer returns can be sent as formalized UKD")
     draft_status = await build_customer_return_draft_status(
         session,
         return_id=return_id,
@@ -2321,35 +2172,25 @@ async def build_formalized_diadoc_payload_from_customer_return(
         or ""
     ).strip()
     if not source_number:
-        raise ValueError(
-            "Source shipment document number is required for formalized UKD"
-        )
+        raise ValueError("Source shipment document number is required for formalized UKD")
     source_doc_date = getattr(source_upd, "document_date", None) or getattr(
         source_document,
         "doc_date",
         None,
     )
     if source_doc_date is None:
-        raise ValueError(
-            "Source shipment document date is required for formalized UKD"
-        )
+        raise ValueError("Source shipment document date is required for formalized UKD")
 
     items = list(getattr(document, "items", []) or [])
     if not items:
         raise ValueError("Customer return document has no items")
     if any(getattr(item, "price", None) is None for item in items):
-        raise ValueError(
-            "Every return item must have a price for formalized UKD"
-        )
+        raise ValueError("Every return item must have a price for formalized UKD")
 
     resolved_customer_id = (
         int(customer_id)
         if customer_id is not None
-        else (
-            int(document.customer_id)
-            if document.customer_id is not None
-            else None
-        )
+        else (int(document.customer_id) if document.customer_id is not None else None)
     )
     if resolved_customer_id is None:
         raise ValueError(
@@ -2363,21 +2204,15 @@ async def build_formalized_diadoc_payload_from_customer_return(
             customer_id=resolved_customer_id,
         )
     if not buyer_box_id_guid:
-        raise ValueError(
-            "Recipient Diadoc box is not resolved for customer return"
-        )
+        raise ValueError("Recipient Diadoc box is not resolved for customer return")
 
-    document_types = await client.get_document_types(
-        integration.box_id_guid or ""
-    )
+    document_types = await client.get_document_types(integration.box_id_guid or "")
     descriptor = _find_formalized_doc_type(
         document_types,
         type_named_id=_UCD_TYPE_NAMED_ID,
         preferred_functions=_build_preferred_ukd_functions(integration),
     )
-    seller_org_payload = await client.get_organization(
-        box_id_guid=integration.box_id_guid or ""
-    )
+    seller_org_payload = await client.get_organization(box_id_guid=integration.box_id_guid or "")
     buyer_org_payload = await client.get_organization(
         box_id_guid=buyer_box_id_guid,
     )
@@ -2397,18 +2232,12 @@ async def build_formalized_diadoc_payload_from_customer_return(
         original_document_number=source_number,
         original_document_date=(
             source_doc_date
-            if isinstance(source_doc_date, date)
-            and not hasattr(source_doc_date, "date")
+            if isinstance(source_doc_date, date) and not hasattr(source_doc_date, "date")
             else source_doc_date.date()
         ),
-        operation_content=(
-            str(document.reason or "").strip() or "Возврат товара от клиента"
-        ),
+        operation_content=(str(document.reason or "").strip() or "Возврат товара от клиента"),
         correction_base_name="Возврат от клиента",
-        line_states={
-            int(row["return_item_id"]): row
-            for row in draft_status["items"]
-        },
+        line_states={int(row["return_item_id"]): row for row in draft_status["items"]},
     )
     generated_xml, generated_file_name = await client.generate_title_xml(
         box_id_guid=integration.box_id_guid or "",
@@ -2418,9 +2247,9 @@ async def build_formalized_diadoc_payload_from_customer_return(
         title_index=0,
         user_data_xml=user_data_xml,
     )
-    file_name = str(
-        generated_file_name or ""
-    ).strip() or _customer_return_formalized_file_name(document)
+    file_name = str(generated_file_name or "").strip() or _customer_return_formalized_file_name(
+        document
+    )
 
     return {
         "customer_id": resolved_customer_id,
@@ -2437,9 +2266,7 @@ async def build_formalized_diadoc_payload_from_customer_return(
         "metadata": {
             "DocumentKind": "FormalizedUniversalCorrectionDocument",
             "GeneratedBy": "GenerateTitleXml",
-            "SourceOutgoingDocumentId": str(
-                document.source_diadoc_outgoing_document_id
-            ),
+            "SourceOutgoingDocumentId": str(document.source_diadoc_outgoing_document_id),
             "SourceMessageId": str(getattr(source_upd, "message_id", "") or ""),
             "SourceEntityId": str(getattr(source_upd, "entity_id", "") or ""),
         },
@@ -2465,42 +2292,28 @@ async def build_formalized_diadoc_payload_from_supplier_return(
         ReturnDocumentStatus.SHIPPED,
         ReturnDocumentStatus.CONFIRMED,
     }:
-        raise ValueError(
-            "Only shipped supplier returns can be sent as formalized UKD"
-        )
+        raise ValueError("Only shipped supplier returns can be sent as formalized UKD")
 
     source_document = getattr(document, "supplier_receipt", None)
     if source_document is None:
         raise ValueError("Supplier return has no source supplier receipt")
-    source_number = str(
-        getattr(source_document, "document_number", "") or ""
-    ).strip()
+    source_number = str(getattr(source_document, "document_number", "") or "").strip()
     if not source_number:
-        raise ValueError(
-            "Source supplier receipt number is required for formalized UKD"
-        )
+        raise ValueError("Source supplier receipt number is required for formalized UKD")
     source_doc_date = getattr(source_document, "document_date", None)
     if source_doc_date is None:
-        raise ValueError(
-            "Source supplier receipt date is required for formalized UKD"
-        )
+        raise ValueError("Source supplier receipt date is required for formalized UKD")
 
     items = list(getattr(document, "items", []) or [])
     if not items:
         raise ValueError("Supplier return document has no items")
     if any(getattr(item, "price", None) is None for item in items):
-        raise ValueError(
-            "Every return item must have a price for formalized UKD"
-        )
+        raise ValueError("Every return item must have a price for formalized UKD")
 
     resolved_provider_id = (
         int(provider_id)
         if provider_id is not None
-        else (
-            int(document.provider_id)
-            if document.provider_id is not None
-            else None
-        )
+        else (int(document.provider_id) if document.provider_id is not None else None)
     )
     if resolved_provider_id is None:
         raise ValueError(
@@ -2514,21 +2327,15 @@ async def build_formalized_diadoc_payload_from_supplier_return(
             provider_id=resolved_provider_id,
         )
     if not buyer_box_id_guid:
-        raise ValueError(
-            "Recipient Diadoc box is not resolved for supplier return"
-        )
+        raise ValueError("Recipient Diadoc box is not resolved for supplier return")
 
-    document_types = await client.get_document_types(
-        integration.box_id_guid or ""
-    )
+    document_types = await client.get_document_types(integration.box_id_guid or "")
     descriptor = _find_formalized_doc_type(
         document_types,
         type_named_id=_UCD_TYPE_NAMED_ID,
         preferred_functions=_build_preferred_ukd_functions(integration),
     )
-    seller_org_payload = await client.get_organization(
-        box_id_guid=integration.box_id_guid or ""
-    )
+    seller_org_payload = await client.get_organization(box_id_guid=integration.box_id_guid or "")
     buyer_org_payload = await client.get_organization(
         box_id_guid=buyer_box_id_guid,
     )
@@ -2547,9 +2354,7 @@ async def build_formalized_diadoc_payload_from_supplier_return(
         original_document_name="Исходное поступление поставщика",
         original_document_number=source_number,
         original_document_date=source_doc_date,
-        operation_content=(
-            str(document.reason or "").strip() or "Возврат товара поставщику"
-        ),
+        operation_content=(str(document.reason or "").strip() or "Возврат товара поставщику"),
         correction_base_name="Возврат поставщику",
     )
     generated_xml, generated_file_name = await client.generate_title_xml(
@@ -2560,9 +2365,9 @@ async def build_formalized_diadoc_payload_from_supplier_return(
         title_index=0,
         user_data_xml=user_data_xml,
     )
-    file_name = str(
-        generated_file_name or ""
-    ).strip() or _supplier_return_formalized_file_name(document)
+    file_name = str(generated_file_name or "").strip() or _supplier_return_formalized_file_name(
+        document
+    )
 
     return {
         "provider_id": resolved_provider_id,
@@ -2615,6 +2420,31 @@ async def post_diadoc_outgoing_document(
     if not is_draft and not str(signature_base64 or "").strip():
         raise ValueError("signature_base64 is required when send_mode=send")
 
+    normalized_source_type = str(source_type or "").strip() or None
+    normalized_source_id = int(source_id) if source_id is not None else None
+    if normalized_source_type is not None and normalized_source_id is not None:
+        if session.get_bind().dialect.name == "postgresql":
+            type_key = zlib.crc32(f"diadoc:{environment}:{normalized_source_type}".encode("utf-8"))
+            if type_key >= 2**31:
+                type_key -= 2**32
+            await session.execute(
+                text("SELECT pg_advisory_xact_lock(:type_key, :source_id)"),
+                {"type_key": type_key, "source_id": normalized_source_id},
+            )
+        existing = await session.scalar(
+            select(DiadocOutgoingDocument)
+            .where(
+                DiadocOutgoingDocument.environment == environment,
+                DiadocOutgoingDocument.source_type == normalized_source_type,
+                DiadocOutgoingDocument.source_id == normalized_source_id,
+                DiadocOutgoingDocument.source_version == 1,
+            )
+            .order_by(DiadocOutgoingDocument.id)
+            .limit(1)
+        )
+        if existing is not None:
+            return existing
+
     customer: Customer | None = None
     if customer_id is not None:
         customer = await session.get(Customer, int(customer_id))
@@ -2649,9 +2479,7 @@ async def post_diadoc_outgoing_document(
         "Content": base64.b64encode(content).decode("ascii"),
     }
     if signature_bytes is not None:
-        signed_content["Signature"] = base64.b64encode(signature_bytes).decode(
-            "ascii"
-        )
+        signed_content["Signature"] = base64.b64encode(signature_bytes).decode("ascii")
 
     message_payload: dict[str, Any] = {
         "FromBoxId": from_box_id_guid,
@@ -2691,13 +2519,16 @@ async def post_diadoc_outgoing_document(
     if document_version:
         attachment["Version"] = str(document_version).strip()
 
-    operation_id = operation_id_override or hashlib.md5(
-        (
-            f"{environment}|{from_box_id_guid}|{to_box_id_guid}|"
-            f"{file_name}|{hashlib.sha256(content).hexdigest()}|"
-            f"{resolved_send_mode}"
-        ).encode("utf-8")
-    ).hexdigest()
+    operation_id = (
+        operation_id_override
+        or hashlib.md5(
+            (
+                f"{environment}|{from_box_id_guid}|{to_box_id_guid}|"
+                f"{file_name}|{hashlib.sha256(content).hexdigest()}|"
+                f"{resolved_send_mode}"
+            ).encode("utf-8")
+        ).hexdigest()
+    )
 
     response_payload = await client.post_message(
         message=message_payload,
@@ -2710,8 +2541,9 @@ async def post_diadoc_outgoing_document(
         to_box_id_guid=to_box_id_guid,
         customer_id=int(customer.id) if customer is not None else None,
         provider_id=int(provider.id) if provider is not None else None,
-        source_type=str(source_type or "").strip() or None,
-        source_id=int(source_id) if source_id is not None else None,
+        source_type=normalized_source_type,
+        source_id=normalized_source_id,
+        source_version=1,
         type_named_id=str(type_named_id or "Nonformalized").strip(),
         document_function=(str(document_function or "").strip() or None),
         document_version=str(document_version or "").strip() or None,

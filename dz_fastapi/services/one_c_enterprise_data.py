@@ -75,6 +75,10 @@ DEFAULT_SENDING: tuple[str, ...] = (
     "Документ.ПоступлениеТоваровУслуг",
     "Документ.ЗаказКлиента",
     "Документ.ЗаказПоставщику",
+    "Документ.ВозвратТоваровОтПокупателя",
+    "Документ.ВозвратТоваровПоставщику",
+    "Документ.ОприходованиеТоваров",
+    "Документ.СписаниеТоваров",
     "Справочник.Контрагенты",
     "Справочник.Договоры",
     "Справочник.Номенклатура",
@@ -95,12 +99,8 @@ def _types_from_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(part.strip() for part in raw.split(",") if part.strip())
 
 
-SUPPORTED_SENDING: tuple[str, ...] = _types_from_env(
-    "ONE_C_ED_SENDING", DEFAULT_SENDING
-)
-SUPPORTED_RECEIVING: tuple[str, ...] = _types_from_env(
-    "ONE_C_ED_RECEIVING", DEFAULT_RECEIVING
-)
+SUPPORTED_SENDING: tuple[str, ...] = _types_from_env("ONE_C_ED_SENDING", DEFAULT_SENDING)
+SUPPORTED_RECEIVING: tuple[str, ...] = _types_from_env("ONE_C_ED_RECEIVING", DEFAULT_RECEIVING)
 
 STATE_FILE_NAME = ".dz_enterprise_data_state.json"
 LOCK_FILE_NAME = ".dz_enterprise_data.lock"
@@ -209,9 +209,7 @@ def parse_message(xml_bytes: bytes, *, file_name: str = "") -> IncomingMessage:
         local_name = child.tag.rsplit("}", 1)[-1]
         if local_name == "Body":
             body_types.extend(
-                item.tag.rsplit("}", 1)[-1]
-                for item in child
-                if isinstance(item.tag, str)
+                item.tag.rsplit("}", 1)[-1] for item in child if isinstance(item.tag, str)
             )
         else:
             body_types.append(local_name)
@@ -307,12 +305,10 @@ def build_response_xml(
     # Объявляем лишь пересечение наших возможностей и возможностей её узла.
     if incoming.object_types:
         sending = tuple(
-            name for name in sending
-            if incoming.object_types.get(name, {}).get("receiving", False)
+            name for name in sending if incoming.object_types.get(name, {}).get("receiving", False)
         )
         receiving = tuple(
-            name for name in receiving
-            if incoming.object_types.get(name, {}).get("sending", False)
+            name for name in receiving if incoming.object_types.get(name, {}).get("sending", False)
         )
 
     ET.register_namespace("msg", MSG_NS)
@@ -412,8 +408,7 @@ def read_message_file(path: str, *, max_xml_size: int = 32 * 1024 * 1024) -> byt
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as archive:
             entries = [
-                item for item in archive.infolist()
-                if item.filename.lower().endswith(".xml")
+                item for item in archive.infolist() if item.filename.lower().endswith(".xml")
             ]
             if not entries:
                 raise ValueError(f"В архиве {path} нет XML-файла")
@@ -449,8 +444,8 @@ def read_incoming_archive(
     match = _MESSAGE_RE.fullmatch(name)
     senders, receivers = (
         ({OUR_NODE_CODE, OUR_NODE_FILE_CODE}, {PEER_NODE_CODE, PEER_NODE_FILE_CODE})
-        if outgoing else
-        ({PEER_NODE_CODE, PEER_NODE_FILE_CODE}, {OUR_NODE_CODE, OUR_NODE_FILE_CODE})
+        if outgoing
+        else ({PEER_NODE_CODE, PEER_NODE_FILE_CODE}, {OUR_NODE_CODE, OUR_NODE_FILE_CODE})
     )
     guid = state.get("node_guid") if outgoing else state.get("peer_node_guid")
     if _GUID_RE.match(str(guid or "")):
@@ -461,9 +456,7 @@ def read_incoming_archive(
     if not match or match.group("from").upper() not in senders:
         raise ValueError("Недопустимое имя сообщения")
     to_part = match.group("to")
-    if to_part.upper() not in receivers and not (
-        outgoing and _GUID_RE.match(to_part)
-    ):
+    if to_part.upper() not in receivers and not (outgoing and _GUID_RE.match(to_part)):
         raise ValueError("Недопустимое имя сообщения")
     path = os.path.join(directory, name)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
@@ -559,9 +552,7 @@ def regenerate_outgoing_message(
 ) -> dict[str, Any]:
     directory = directory or get_exchange_dir()
     with _exchange_lock(directory):
-        return _regenerate_outgoing_message_unlocked(
-            directory, bump_message_no=bump_message_no
-        )
+        return _regenerate_outgoing_message_unlocked(directory, bump_message_no=bump_message_no)
 
 
 def _regenerate_outgoing_message_unlocked(
@@ -656,8 +647,7 @@ def send_body_message(
             )
         # Справочники — только если узел УНФ их принимает; документ обязателен.
         accepted = {
-            name for name, flags in state["peer_object_types"].items()
-            if flags.get("receiving")
+            name for name, flags in state["peer_object_types"].items() if flags.get("receiving")
         }
         documents = {
             obj.tag.rsplit("}", 1)[-1]
@@ -668,7 +658,8 @@ def send_body_message(
             unsupported = ", ".join(sorted(documents - accepted)) or "документ отсутствует"
             raise ValueError(f"УНФ не объявила приём: {unsupported}")
         body_objects = [
-            obj for obj in body_objects
+            obj
+            for obj in body_objects
             if not obj.tag.rsplit("}", 1)[-1].startswith("Справочник.")
             or obj.tag.rsplit("}", 1)[-1] in accepted
         ]
@@ -731,9 +722,7 @@ def process_exchange_directory(
 ) -> dict[str, Any]:
     directory = directory or get_exchange_dir()
     with _exchange_lock(directory):
-        return _process_exchange_directory_unlocked(
-            directory, archive_incoming=archive_incoming
-        )
+        return _process_exchange_directory_unlocked(directory, archive_incoming=archive_incoming)
 
 
 def _process_exchange_directory_unlocked(
@@ -774,9 +763,7 @@ def _process_exchange_directory_unlocked(
         try:
             xml_bytes = read_message_file(path)
             message = parse_message(xml_bytes, file_name=name)
-            body_documents = (
-                importable_documents(xml_bytes) if message.has_body else None
-            )
+            body_documents = importable_documents(xml_bytes) if message.has_body else None
         except Exception as exc:  # noqa: BLE001
             logger.exception("Не удалось разобрать сообщение %s", name)
             result["processed"].append({"file": name, "error": str(exc)})
@@ -797,9 +784,9 @@ def _process_exchange_directory_unlocked(
         valid_senders = {PEER_NODE_CODE, state.get("peer_node_guid")}
         valid_receivers = {OUR_NODE_CODE, state.get("node_guid")}
         if message.from_code not in valid_senders or message.to_code not in valid_receivers:
-            result["processed"][-1]["error"] = (
-                "Коды отправителя или получателя не совпадают с узлом"
-            )
+            result["processed"][-1][
+                "error"
+            ] = "Коды отправителя или получателя не совпадают с узлом"
             continue
         if message.has_body and body_documents is None:
             files_with_body.append(name)
@@ -815,20 +802,20 @@ def _process_exchange_directory_unlocked(
             # очередь внутри состояния, и только потом подтверждаем.
             if message.message_no > int(state.get("received_no", 0)):
                 if body_documents:
-                    state.setdefault("inbox", []).append({
-                        "message_no": message.message_no,
-                        "received_at": now_moscow().isoformat(),
-                        "documents": [item.as_dict() for item in body_documents],
-                    })
+                    state.setdefault("inbox", []).append(
+                        {
+                            "message_no": message.message_no,
+                            "received_at": now_moscow().isoformat(),
+                            "documents": [item.as_dict() for item in body_documents],
+                        }
+                    )
                 state["received_no"] = message.message_no
         # В поле ReceivedNo 1С сообщает, какое НАШЕ сообщение она приняла.
         # По нему понимаем, нужно ли увеличивать номер следующего исходящего.
         if message.received_no > int(state.get("peer_confirmed_our_no", 0)):
             state["peer_confirmed_our_no"] = message.received_no
         pending = state.get("pending_body")
-        if pending and int(pending["message_no"]) <= int(
-            state.get("peer_confirmed_our_no", 0)
-        ):
+        if pending and int(pending["message_no"]) <= int(state.get("peer_confirmed_our_no", 0)):
             state["last_confirmed_body"] = {
                 **pending,
                 "transport_confirmed_at": now_moscow().isoformat(),
@@ -963,13 +950,12 @@ def get_exchange_status(directory: Optional[str] = None) -> dict[str, Any]:
         path = os.path.join(directory, name)
         info: dict[str, Any] = {"file": name}
         try:
-            info["modified_at"] = datetime.fromtimestamp(
-                os.path.getmtime(path)
-            ).isoformat()
+            info["modified_at"] = datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
             if zipfile.is_zipfile(path):
                 with zipfile.ZipFile(path) as archive:
                     xml_files = [
-                        entry for entry in archive.infolist()
+                        entry
+                        for entry in archive.infolist()
                         if entry.filename.lower().endswith(".xml")
                     ]
                     if not xml_files:
@@ -984,14 +970,16 @@ def get_exchange_status(directory: Optional[str] = None) -> dict[str, Any]:
                 message = parse_message(read_message_file(path), file_name=name)
                 if message.object_types:
                     peer_types = message.object_types
-                info.update({
-                    "message_no": message.message_no,
-                    "received_no": message.received_no,
-                    "has_body": message.has_body,
-                    "body_types": message.body_types,
-                    "format_versions": message.format_versions,
-                    "object_types": sorted(message.object_types),
-                })
+                info.update(
+                    {
+                        "message_no": message.message_no,
+                        "received_no": message.received_no,
+                        "has_body": message.has_body,
+                        "body_types": message.body_types,
+                        "format_versions": message.format_versions,
+                        "object_types": sorted(message.object_types),
+                    }
+                )
         except (OSError, ValueError, zipfile.BadZipFile, ET.ParseError) as exc:
             info["error"] = str(exc)
         incoming_messages.append(info)
@@ -1005,12 +993,10 @@ def get_exchange_status(directory: Optional[str] = None) -> dict[str, Any]:
         "declared_sending": list(SUPPORTED_SENDING),
         "declared_receiving": list(SUPPORTED_RECEIVING),
         "negotiated_sending": [
-            name for name in SUPPORTED_SENDING
-            if peer_types.get(name, {}).get("receiving", False)
+            name for name in SUPPORTED_SENDING if peer_types.get(name, {}).get("receiving", False)
         ],
         "negotiated_receiving": [
-            name for name in SUPPORTED_RECEIVING
-            if peer_types.get(name, {}).get("sending", False)
+            name for name in SUPPORTED_RECEIVING if peer_types.get(name, {}).get("sending", False)
         ],
         "peer_receives_corrections": peer_types.get(
             "Документ.КорректировкаРеализацииТоваров", {}

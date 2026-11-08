@@ -93,14 +93,10 @@ def _build_diadoc_storage_relative_path(
     date_str = now_moscow().strftime("%Y%m%d")
     # Имя файла в ФС не длиннее 255 байт: сокращаем исходное имя,
     # сохраняя расширение.
-    raw_name = _INVALID_FILENAME_CHARS_RE.sub(
-        "_", str(filename or "").strip()
-    )
+    raw_name = _INVALID_FILENAME_CHARS_RE.sub("_", str(filename or "").strip())
     stem, ext = os.path.splitext(raw_name)
     ext = ext[:10]
-    max_stem_len = max(
-        10, 200 - len(safe_message) - len(safe_entity) - 2 - len(ext)
-    )
+    max_stem_len = max(10, 200 - len(safe_message) - len(safe_entity) - 2 - len(ext))
     safe_name = (stem[:max_stem_len] + ext) or "document.bin"
     return os.path.join(
         DIADOC_DOCUMENTS_DIR,
@@ -131,9 +127,9 @@ async def get_diadoc_incoming_document(
         select(DiadocIncomingDocument)
         .options(
             selectinload(DiadocIncomingDocument.provider),
-            selectinload(
-                DiadocIncomingDocument.supplier_order_message
-            ).selectinload(SupplierOrderMessage.receipts),
+            selectinload(DiadocIncomingDocument.supplier_order_message).selectinload(
+                SupplierOrderMessage.receipts
+            ),
         )
         .where(DiadocIncomingDocument.id == document_id)
     )
@@ -152,9 +148,9 @@ async def list_diadoc_incoming_documents(
         select(DiadocIncomingDocument)
         .options(
             selectinload(DiadocIncomingDocument.provider),
-            selectinload(
-                DiadocIncomingDocument.supplier_order_message
-            ).selectinload(SupplierOrderMessage.receipts),
+            selectinload(DiadocIncomingDocument.supplier_order_message).selectinload(
+                SupplierOrderMessage.receipts
+            ),
         )
         .order_by(
             DiadocIncomingDocument.document_date.desc().nullslast(),
@@ -167,13 +163,9 @@ async def list_diadoc_incoming_documents(
     if provider_id is not None:
         stmt = stmt.where(DiadocIncomingDocument.provider_id == provider_id)
     if registered_only is True:
-        stmt = stmt.where(
-            DiadocIncomingDocument.supplier_order_message_id.is_not(None)
-        )
+        stmt = stmt.where(DiadocIncomingDocument.supplier_order_message_id.is_not(None))
     elif registered_only is False:
-        stmt = stmt.where(
-            DiadocIncomingDocument.supplier_order_message_id.is_(None)
-        )
+        stmt = stmt.where(DiadocIncomingDocument.supplier_order_message_id.is_(None))
     return list((await session.execute(stmt)).scalars().all())
 
 
@@ -189,12 +181,8 @@ async def resolve_provider_by_diadoc_counteragent_box(
         select(ProviderExternalReference)
         .where(
             ProviderExternalReference.is_active.is_(True),
-            ProviderExternalReference.source_system.in_(
-                DIADOC_PROVIDER_SOURCE_SYSTEMS
-            ),
-            func.lower(ProviderExternalReference.external_supplier_name).in_(
-                variants
-            ),
+            ProviderExternalReference.source_system.in_(DIADOC_PROVIDER_SOURCE_SYSTEMS),
+            func.lower(ProviderExternalReference.external_supplier_name).in_(variants),
         )
         .order_by(ProviderExternalReference.id.asc())
     )
@@ -208,9 +196,7 @@ async def ensure_diadoc_document_content(
     client: DiadocClient,
     document: DiadocIncomingDocument,
 ) -> DiadocIncomingDocument:
-    if document.local_file_path and os.path.exists(
-        os.path.abspath(document.local_file_path)
-    ):
+    if document.local_file_path and os.path.exists(os.path.abspath(document.local_file_path)):
         return document
     content = await client.get_entity_content(
         box_id_guid=document.box_id_guid,
@@ -281,18 +267,15 @@ async def register_diadoc_document_as_supplier_message(
     target_provider_id = int(provider_id or document.provider_id or 0)
     if target_provider_id <= 0:
         raise ValueError(
-            "Provider is not resolved. "
-            "Bind provider via external reference or pass provider_id."
+            "Provider is not resolved. " "Bind provider via external reference or pass provider_id."
         )
     if document.direction == "customer":
         raise ValueError(
-            "Документ по нашей продаже клиенту: как поставщиковый "
-            "не регистрируется"
+            "Документ по нашей продаже клиенту: как поставщиковый " "не регистрируется"
         )
     if not document.local_file_path:
         raise ValueError(
-            "Document content is not downloaded yet. "
-            "Sync with download_content=true first."
+            "Document content is not downloaded yet. " "Sync with download_content=true first."
         )
     if response_config_id is None:
         response_config_id = await _pick_default_supplier_response_config_id(
@@ -324,11 +307,7 @@ async def register_diadoc_document_as_supplier_message(
             )
             else "SHIPPING_DOC"
         ),
-        subject=(
-            document.document_number
-            or document.file_name
-            or "Документ из Диадок"
-        ),
+        subject=(document.document_number or document.file_name or "Документ из Диадок"),
         sender_email=document.counteragent_box_id or "diadoc",
         received_at=document.delivery_at or document.sent_at or now_moscow(),
         body_preview="Импортировано из Диадок",
@@ -358,8 +337,10 @@ async def register_diadoc_document_as_supplier_message(
     session.add(attachment)
     if message_row.message_type == "CORRECTION_DOC":
         await register_incoming_correction(
-            session, provider_id=target_provider_id,
-            message_id=int(message_row.id), source_kind="diadoc",
+            session,
+            provider_id=target_provider_id,
+            message_id=int(message_row.id),
+            source_kind="diadoc",
             document_number=document.document_number,
             document_date=document.document_date,
         )
@@ -387,15 +368,12 @@ async def process_diadoc_incoming_document(
     target_provider_id = int(provider_id or document.provider_id or 0)
     if target_provider_id <= 0:
         raise ValueError(
-            "Provider is not resolved. "
-            "Bind provider via external reference or pass provider_id."
+            "Provider is not resolved. " "Bind provider via external reference or pass provider_id."
         )
 
     if download_content_if_missing and not document.local_file_path:
         if client is None:
-            raise ValueError(
-                "Document content is missing and no Diadoc client was provided"
-            )
+            raise ValueError("Document content is missing and no Diadoc client was provided")
         document = await ensure_diadoc_document_content(
             session,
             client=client,
@@ -405,11 +383,7 @@ async def process_diadoc_incoming_document(
     verdict = await evaluate_diadoc_document(session, document=document)
     if verdict["action"] != "proceed":
         return {
-            "message_id": int(
-                verdict.get("message_id")
-                or document.supplier_order_message_id
-                or 0
-            ),
+            "message_id": int(verdict.get("message_id") or document.supplier_order_message_id or 0),
             "provider_id": target_provider_id,
             "receipt_ids": [],
             "dedup_action": verdict["action"],
@@ -425,9 +399,7 @@ async def process_diadoc_incoming_document(
         )
     if message_row is None:
         if not register_if_needed:
-            raise ValueError(
-                "Document is not registered as a supplier message yet"
-            )
+            raise ValueError("Document is not registered as a supplier message yet")
         message_row = await register_diadoc_document_as_supplier_message(
             session,
             document=document,
@@ -444,12 +416,15 @@ async def process_diadoc_incoming_document(
         target_provider_id = int(message_row.provider_id)
 
     if message_row.message_type == "CORRECTION_DOC" or is_correction_document(
-        (document.raw_metadata or {}).get("TypeNamedId"), document.file_name,
+        (document.raw_metadata or {}).get("TypeNamedId"),
+        document.file_name,
     ):
         message_row.message_type = "CORRECTION_DOC"
         correction = await register_incoming_correction(
-            session, provider_id=target_provider_id,
-            message_id=int(message_row.id), source_kind="diadoc",
+            session,
+            provider_id=target_provider_id,
+            message_id=int(message_row.id),
+            source_kind="diadoc",
             document_number=document.document_number,
             document_date=document.document_date,
         )
@@ -474,9 +449,7 @@ async def process_diadoc_incoming_document(
             "needs_review": True,
         }
 
-    resolved_config_id = int(
-        response_config_id or message_row.response_config_id or 0
-    )
+    resolved_config_id = int(response_config_id or message_row.response_config_id or 0)
     if resolved_config_id <= 0:
         auto_config_id = await _pick_default_supplier_response_config_id(
             session,
@@ -485,8 +458,7 @@ async def process_diadoc_incoming_document(
         )
         if auto_config_id is None:
             raise ValueError(
-                "Supplier response config is not resolved. "
-                "Pass response_config_id explicitly."
+                "Supplier response config is not resolved. " "Pass response_config_id explicitly."
             )
         resolved_config_id = int(auto_config_id)
         if message_row.response_config_id != resolved_config_id:
@@ -550,9 +522,7 @@ async def sync_diadoc_incoming_documents(
         "total_from_api": int(payload.get("TotalCount") or 0),
         "has_more_results": bool(payload.get("HasMoreResults")),
         "last_index_key": (
-            str(documents_payload[-1].get("IndexKey") or "") or None
-            if documents_payload
-            else None
+            str(documents_payload[-1].get("IndexKey") or "") or None if documents_payload else None
         ),
         "synced": 0,
         "created": 0,
@@ -569,9 +539,7 @@ async def sync_diadoc_incoming_documents(
         message_id = str(raw.get("MessageId") or "").strip()
         entity_id = str(raw.get("EntityId") or "").strip()
         if not message_id or not entity_id:
-            result["errors"].append(
-                "Skipped document without message/entity id"
-            )
+            result["errors"].append("Skipped document without message/entity id")
             continue
         stmt = select(DiadocIncomingDocument).where(
             DiadocIncomingDocument.environment == environment,
@@ -592,15 +560,11 @@ async def sync_diadoc_incoming_documents(
             existing_status = None
         else:
             result["updated"] += 1
-            existing_status = (
-                str(document.status or "").strip().lower() or None
-            )
+            existing_status = str(document.status or "").strip().lower() or None
 
-        resolved_provider_id = (
-            await resolve_provider_by_diadoc_counteragent_box(
-                session,
-                counteragent_box_id=raw.get("CounteragentBoxId"),
-            )
+        resolved_provider_id = await resolve_provider_by_diadoc_counteragent_box(
+            session,
+            counteragent_box_id=raw.get("CounteragentBoxId"),
         )
         if resolved_provider_id is not None:
             result["provider_resolved"] += 1
@@ -614,9 +578,7 @@ async def sync_diadoc_incoming_documents(
         document.document_date = _parse_document_date(raw.get("DocumentDate"))
         document.delivery_timestamp_ticks = raw.get("DeliveryTimestampTicks")
         document.send_timestamp_ticks = raw.get("SendTimestampTicks")
-        document.delivery_at = _ticks_to_datetime(
-            raw.get("DeliveryTimestampTicks")
-        )
+        document.delivery_at = _ticks_to_datetime(raw.get("DeliveryTimestampTicks"))
         document.sent_at = _ticks_to_datetime(raw.get("SendTimestampTicks"))
         document.provider_id = resolved_provider_id
         document.raw_metadata = raw
@@ -655,9 +617,7 @@ async def sync_diadoc_incoming_documents(
                 and document.provider_id is not None
                 and document.supplier_order_message_id is None
             ):
-                verdict = await evaluate_diadoc_document(
-                    session, document=document
-                )
+                verdict = await evaluate_diadoc_document(session, document=document)
                 if verdict["action"] != "proceed":
                     result["dedup_" + verdict["action"]] = (
                         result.get("dedup_" + verdict["action"], 0) + 1
@@ -689,3 +649,113 @@ async def sync_diadoc_incoming_documents(
             await session.commit()
             result["errors"].append(f"{message_id}/{entity_id}: {exc}")
     return result
+
+
+async def sync_diadoc_incoming_document_by_id(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    environment: str,
+    box_id_guid: str,
+    message_id: str,
+    entity_id: str,
+    event_index_key: str | None = None,
+    download_content: bool = True,
+    register_supplier_message: bool = False,
+    process_supplier_message: bool = False,
+) -> dict[str, Any]:
+    """Загружает конкретный документ, найденный в ленте BoxEvent.
+
+    В отличие от GetDocuments здесь нет повторного поиска и пагинации: пара
+    MessageId/EntityId берётся прямо из события.
+    """
+    raw = await client.get_document(
+        box_id_guid=box_id_guid,
+        message_id=message_id,
+        entity_id=entity_id,
+    )
+    stmt = select(DiadocIncomingDocument).where(
+        DiadocIncomingDocument.environment == environment,
+        DiadocIncomingDocument.box_id_guid == box_id_guid,
+        DiadocIncomingDocument.message_id == message_id,
+        DiadocIncomingDocument.entity_id == entity_id,
+    )
+    document = (await session.execute(stmt)).scalar_one_or_none()
+    created = document is None
+    if document is None:
+        document = DiadocIncomingDocument(
+            environment=environment,
+            box_id_guid=box_id_guid,
+            message_id=message_id,
+            entity_id=entity_id,
+        )
+        session.add(document)
+        existing_status = None
+    else:
+        existing_status = str(document.status or "").strip().lower() or None
+
+    provider_id = await resolve_provider_by_diadoc_counteragent_box(
+        session,
+        counteragent_box_id=raw.get("CounteragentBoxId"),
+    )
+    document.index_key = event_index_key or raw.get("IndexKey")
+    document.counteragent_box_id = raw.get("CounteragentBoxId")
+    document.file_name = raw.get("FileName")
+    document.document_number = raw.get("DocumentNumber")
+    document.document_date = _parse_document_date(raw.get("DocumentDate"))
+    document.delivery_timestamp_ticks = raw.get("DeliveryTimestampTicks")
+    document.send_timestamp_ticks = raw.get("SendTimestampTicks")
+    document.delivery_at = _ticks_to_datetime(raw.get("DeliveryTimestampTicks"))
+    document.sent_at = _ticks_to_datetime(raw.get("SendTimestampTicks"))
+    document.provider_id = provider_id
+    document.raw_metadata = raw
+    apply_diadoc_metadata_identity(document)
+    apply_category_status(document)
+    if existing_status in (None, "", "synced"):
+        document.status = "synced"
+    document.synced_at = now_moscow()
+    session.add(document)
+    await session.flush()
+
+    downloaded = False
+    registered = False
+    processed = False
+    try:
+        if download_content or process_supplier_message:
+            before_path = document.local_file_path
+            await ensure_diadoc_document_content(session, client=client, document=document)
+            downloaded = not before_path and bool(document.local_file_path)
+        if document.local_file_path and document.direction in (None, "unknown"):
+            await detect_document_direction(session, document)
+        if (
+            (register_supplier_message or process_supplier_message)
+            and document.provider_id is not None
+            and document.supplier_order_message_id is None
+        ):
+            verdict = await evaluate_diadoc_document(session, document=document)
+            if verdict["action"] == "proceed":
+                await register_diadoc_document_as_supplier_message(session, document=document)
+                registered = True
+        if process_supplier_message and document.provider_id is not None:
+            await process_diadoc_incoming_document(
+                session,
+                document=document,
+                provider_id=int(document.provider_id),
+                download_content_if_missing=False,
+                register_if_needed=True,
+            )
+            processed = True
+    except Exception as exc:
+        document.status = "error"
+        document.import_error_details = str(exc)[:2000]
+        session.add(document)
+        await session.flush()
+        raise
+    return {
+        "document_id": document.id,
+        "created": created,
+        "downloaded": downloaded,
+        "registered_supplier_message": registered,
+        "processed_supplier_message": processed,
+        "provider_resolved": provider_id is not None,
+    }

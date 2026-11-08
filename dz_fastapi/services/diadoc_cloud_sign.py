@@ -5,13 +5,16 @@
 приходит SMS. Шаг 2 (confirm): SMS-код → подписи → PostMessagePatch или
 PostMessage. Файлы между шагами храним в задаче (base64).
 """
+
 from __future__ import annotations
 
 import base64
 import hashlib
 import logging
+import zlib
 from typing import Any, Optional
 
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
@@ -33,19 +36,50 @@ OPERATION_REJECT_INCOMING = "reject_incoming"
 # Версия УПД по умолчанию: формат 5.03 обязателен с 01.04.2025.
 DEFAULT_UTD_VERSION = "utd970_05_03_01"
 DEFAULT_UTD_FUNCTION = "СЧФДОП"
+DEFAULT_UCD_VERSION = "ucd29_05_02_01"
+DEFAULT_UCD_FUNCTION = "КСЧФДИС"
+
+
+async def _active_task(
+    session: AsyncSession,
+    *,
+    operation: str,
+    incoming_document_id: int | None = None,
+    outgoing_document_id: int | None = None,
+) -> DiadocCloudSignTask | None:
+    document_id = incoming_document_id or outgoing_document_id
+    if document_id is not None and session.get_bind().dialect.name == "postgresql":
+        lock_key = zlib.crc32(f"cloud-sign:{operation}".encode("utf-8"))
+        if lock_key >= 2**31:
+            lock_key -= 2**32
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(:operation_key, :document_id)"),
+            {"operation_key": lock_key, "document_id": int(document_id)},
+        )
+    conditions = [
+        DiadocCloudSignTask.operation == operation,
+        DiadocCloudSignTask.state == "waiting_code",
+    ]
+    if incoming_document_id is not None:
+        conditions.append(DiadocCloudSignTask.incoming_document_id == incoming_document_id)
+    if outgoing_document_id is not None:
+        conditions.append(DiadocCloudSignTask.outgoing_document_id == outgoing_document_id)
+    return await session.scalar(
+        select(DiadocCloudSignTask)
+        .where(*conditions)
+        .order_by(DiadocCloudSignTask.id.desc())
+        .limit(1)
+    )
 
 
 def split_signer_full_name(
     full_name: Optional[str],
 ) -> tuple[str, str, Optional[str]]:
     """«Фамилия Имя Отчество» → (фамилия, имя, отчество|None)."""
-    parts = [
-        part for part in str(full_name or "").strip().split() if part
-    ]
+    parts = [part for part in str(full_name or "").strip().split() if part]
     if len(parts) < 2:
         raise ValueError(
-            "В профиле Диадока не заполнено ФИО подписанта "
-            "(нужно минимум «Фамилия Имя»)"
+            "В профиле Диадока не заполнено ФИО подписанта " "(нужно минимум «Фамилия Имя»)"
         )
     surname = parts[0]
     first_name = parts[1]
@@ -57,9 +91,7 @@ def build_signer_payload(
     integration: DiadocIntegrationSettings,
 ) -> dict[str, Any]:
     """Signer для GenerateReceiptXml/GenerateRevocationRequestXml."""
-    surname, first_name, patronymic = split_signer_full_name(
-        integration.signer_full_name
-    )
+    surname, first_name, patronymic = split_signer_full_name(integration.signer_full_name)
     details: dict[str, Any] = {
         "Surname": surname,
         "FirstName": first_name,
@@ -96,27 +128,16 @@ def build_utd970_buyer_title_user_data(
     total_code: 1 — принято без расхождений, 2 — с расхождениями,
     3 — не принято.
     """
-    surname, first_name, patronymic = split_signer_full_name(
-        integration.signer_full_name
-    )
+    surname, first_name, patronymic = split_signer_full_name(integration.signer_full_name)
     position = str(integration.signer_position or "").strip()
     if not position:
-        raise ValueError(
-            "В профиле Диадока не заполнена должность подписанта"
-        )
-    organization_name = str(
-        integration.organization_name or ""
-    ).strip()
-    fio_attrs = (
-        f'LastName="{_xml_escape(surname)}" '
-        f'FirstName="{_xml_escape(first_name)}"'
-    )
+        raise ValueError("В профиле Диадока не заполнена должность подписанта")
+    organization_name = str(integration.organization_name or "").strip()
+    fio_attrs = f'LastName="{_xml_escape(surname)}" ' f'FirstName="{_xml_escape(first_name)}"'
     if patronymic:
         fio_attrs += f' MiddleName="{_xml_escape(patronymic)}"'
     creator_attr = (
-        f' DocumentCreator="{_xml_escape(organization_name)}"'
-        if organization_name
-        else ""
+        f' DocumentCreator="{_xml_escape(organization_name)}"' if organization_name else ""
     )
     xml = (
         '<?xml version="1.0" encoding="utf-8"?>\n'
@@ -125,13 +146,45 @@ def build_utd970_buyer_title_user_data(
         f"{creator_attr}>\n"
         f'  <ContentOperCode TotalCode="{_xml_escape(total_code)}" />\n'
         "  <Signers>\n"
-        "    <Signer>\n"
+        '    <Signer SignerPowersConfirmationMethod="1">\n'
         f"      <Fio {fio_attrs} />\n"
         '      <Position PositionSource="Manual">'
         f"{_xml_escape(position)}</Position>\n"
         "    </Signer>\n"
         "  </Signers>\n"
         "</UniversalTransferDocumentBuyerTitle>\n"
+    )
+    return xml.encode("utf-8")
+
+
+def build_ucd_buyer_title_user_data(
+    integration: DiadocIntegrationSettings,
+    *,
+    approval_date: str,
+    operation_content: str = "1",
+) -> bytes:
+    """UserDataXml титула покупателя УКД текущего формата приказа №29."""
+    surname, first_name, patronymic = split_signer_full_name(integration.signer_full_name)
+    position = str(integration.signer_position or "").strip()
+    if not position:
+        raise ValueError("В профиле Диадока не заполнена должность подписанта")
+    fio_attrs = f'LastName="{_xml_escape(surname)}" ' f'FirstName="{_xml_escape(first_name)}"'
+    if patronymic:
+        fio_attrs += f' MiddleName="{_xml_escape(patronymic)}"'
+    xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<UniversalCorrectionDocumentBuyerTitle "
+        f'OperationContent="{_xml_escape(operation_content)}" '
+        f'ApprovalDate="{_xml_escape(approval_date)}" '
+        'xmlns:xs="http://www.w3.org/2001/XMLSchema">\n'
+        "  <Signers>\n"
+        '    <Signer SignerPowersConfirmationMethod="1">\n'
+        f"      <Fio {fio_attrs} />\n"
+        '      <Position PositionSource="Manual">'
+        f"{_xml_escape(position)}</Position>\n"
+        "    </Signer>\n"
+        "  </Signers>\n"
+        "</UniversalCorrectionDocumentBuyerTitle>\n"
     )
     return xml.encode("utf-8")
 
@@ -151,16 +204,12 @@ def _find_first_string(
             if isinstance(value, str) and value.strip():
                 return value.strip()
         for value in payload.values():
-            found = _find_first_string(
-                value, keys, max_depth=max_depth - 1
-            )
+            found = _find_first_string(value, keys, max_depth=max_depth - 1)
             if found:
                 return found
     elif isinstance(payload, list):
         for item in payload:
-            found = _find_first_string(
-                item, keys, max_depth=max_depth - 1
-            )
+            found = _find_first_string(item, keys, max_depth=max_depth - 1)
             if found:
                 return found
     return None
@@ -172,12 +221,8 @@ async def _resolve_incoming_function_and_version(
 ) -> tuple[str, str]:
     """Function/Version входящего УПД — нужны для генерации титула."""
     metadata = document.raw_metadata or {}
-    function = _find_first_string(
-        metadata, ("Function", "DocumentFunction")
-    )
-    version = _find_first_string(
-        metadata, ("Version", "DocumentVersion")
-    )
+    function = _find_first_string(metadata, ("Function", "DocumentFunction"))
+    version = _find_first_string(metadata, ("Version", "DocumentVersion"))
     if not function or not version:
         try:
             payload = await client.get_document(
@@ -185,22 +230,19 @@ async def _resolve_incoming_function_and_version(
                 message_id=document.message_id,
                 entity_id=document.entity_id,
             )
-            function = function or _find_first_string(
-                payload, ("Function", "DocumentFunction")
-            )
-            version = version or _find_first_string(
-                payload, ("Version", "DocumentVersion")
-            )
+            function = function or _find_first_string(payload, ("Function", "DocumentFunction"))
+            version = version or _find_first_string(payload, ("Version", "DocumentVersion"))
         except Exception:  # noqa: BLE001
             logger.warning(
                 "Failed to resolve function/version for incoming "
                 "Diadoc document #%s, falling back to defaults",
                 document.id,
             )
-    return (
-        function or DEFAULT_UTD_FUNCTION,
-        version or DEFAULT_UTD_VERSION,
-    )
+    from dz_fastapi.services.supplier_document_dedup import effective_category
+
+    if effective_category(document) == "ukd":
+        return function or DEFAULT_UCD_FUNCTION, version or DEFAULT_UCD_VERSION
+    return function or DEFAULT_UTD_FUNCTION, version or DEFAULT_UTD_VERSION
 
 
 def _encode_file(content: bytes) -> str:
@@ -228,18 +270,35 @@ async def start_incoming_sign_task(
     """Готовит титул покупателя (+ИоП) и стартует облачное подписание."""
     if not document.message_id or not document.entity_id:
         raise ValueError("У документа нет message_id/entity_id")
-    function, version = await _resolve_incoming_function_and_version(
-        client, document
+    existing = await _active_task(
+        session,
+        operation=OPERATION_SIGN_INCOMING,
+        incoming_document_id=int(document.id),
     )
+    if existing is not None:
+        return existing
+    function, version = await _resolve_incoming_function_and_version(client, document)
+    from dz_fastapi.services.supplier_document_dedup import effective_category
+
+    category = effective_category(document)
     acceptance_date = now_moscow().strftime("%d.%m.%Y")
-    user_data = build_utd970_buyer_title_user_data(
-        integration,
-        acceptance_date=acceptance_date,
-        total_code=total_code,
-    )
+    if category == "ukd":
+        type_named_id = "UniversalCorrectionDocument"
+        user_data = build_ucd_buyer_title_user_data(
+            integration,
+            approval_date=acceptance_date,
+            operation_content="1",
+        )
+    else:
+        type_named_id = "UniversalTransferDocument"
+        user_data = build_utd970_buyer_title_user_data(
+            integration,
+            acceptance_date=acceptance_date,
+            total_code=total_code,
+        )
     title_content, title_file_name = await client.generate_title_xml(
         box_id_guid=document.box_id_guid,
-        document_type_named_id="UniversalTransferDocument",
+        document_type_named_id=type_named_id,
         document_function=function,
         document_version=version,
         title_index=1,
@@ -293,6 +352,7 @@ async def start_incoming_sign_task(
             "function": function,
             "version": version,
             "total_code": total_code,
+            "type_named_id": type_named_id,
         },
     )
     session.add(task)
@@ -312,6 +372,13 @@ async def start_reject_incoming_task(
     """Отказ в подписи входящего: XML отказа → CloudSign → SMS."""
     if not document.message_id or not document.entity_id:
         raise ValueError("У документа нет message_id/entity_id")
+    existing = await _active_task(
+        session,
+        operation=OPERATION_REJECT_INCOMING,
+        incoming_document_id=int(document.id),
+    )
+    if existing is not None:
+        return existing
     reason = str(comment or "").strip()
     if not reason:
         raise ValueError("Укажите причину отказа в подписи")
@@ -370,9 +437,7 @@ async def _apply_reject_incoming(
         "XmlSignatureRejections": [
             {
                 "ParentEntityId": files[0]["parent_entity_id"],
-                "SignedContent": _signed_content(
-                    files[0], signatures[0]
-                ),
+                "SignedContent": _signed_content(files[0], signatures[0]),
             }
         ],
     }
@@ -381,9 +446,7 @@ async def _apply_reject_incoming(
         operation_id=_task_operation_id(task, "reject-incoming"),
     )
     if task.incoming_document_id:
-        document = await session.get(
-            DiadocIncomingDocument, task.incoming_document_id
-        )
+        document = await session.get(DiadocIncomingDocument, task.incoming_document_id)
         if document is not None:
             document.rejected_at = now_moscow()
             session.add(document)
@@ -401,6 +464,13 @@ async def start_revoke_outgoing_task(
     """Готовит запрос на аннулирование и стартует облачное подписание."""
     if not document.message_id or not document.entity_id:
         raise ValueError("У документа нет message_id/entity_id")
+    existing = await _active_task(
+        session,
+        operation=OPERATION_REVOKE_OUTGOING,
+        outgoing_document_id=int(document.id),
+    )
+    if existing is not None:
+        return existing
     revocation_content = await client.generate_revocation_request_xml(
         box_id_guid=document.from_box_id_guid,
         message_id=document.message_id,
@@ -453,11 +523,16 @@ async def start_send_outgoing_task(
 
     if not document.is_draft:
         raise ValueError("Документ уже отправлен")
+    existing = await _active_task(
+        session,
+        operation=OPERATION_SEND_OUTGOING,
+        outgoing_document_id=int(document.id),
+    )
+    if existing is not None:
+        return existing
     path = os.path.abspath(document.local_file_path)
     if not os.path.exists(path):
-        raise ValueError(
-            "Файл документа не найден на диске — пересоздайте черновик"
-        )
+        raise ValueError("Файл документа не найден на диске — пересоздайте черновик")
     with open(path, "rb") as handle:
         content = handle.read()
     files = [
@@ -521,22 +596,18 @@ async def _apply_sign_incoming(
                 {
                     "ParentEntityId": file_item["parent_entity_id"],
                     "NeedReceipt": False,
-                    "SignedContent": _signed_content(
-                        file_item, signature
-                    ),
+                    "SignedContent": _signed_content(file_item, signature),
                 }
             )
         elif file_item.get("kind") == "receipt":
             receipts.append(
                 {
                     "ParentEntityId": file_item["parent_entity_id"],
-                    "SignedContent": _signed_content(
-                        file_item, signature
-                    ),
+                    "SignedContent": _signed_content(file_item, signature),
                 }
             )
     if buyer_titles:
-        patch["UniversalTransferDocumentBuyerTitles"] = buyer_titles
+        patch["RecipientTitles"] = buyer_titles
     if receipts:
         patch["Receipts"] = receipts
     response = await client.post_message_patch(
@@ -544,9 +615,7 @@ async def _apply_sign_incoming(
         operation_id=_task_operation_id(task, "sign-incoming"),
     )
     if task.incoming_document_id:
-        document = await session.get(
-            DiadocIncomingDocument, task.incoming_document_id
-        )
+        document = await session.get(DiadocIncomingDocument, task.incoming_document_id)
         if document is not None:
             document.signed_at = now_moscow()
             session.add(document)
@@ -567,9 +636,7 @@ async def _apply_revoke_outgoing(
         "RevocationRequests": [
             {
                 "ParentEntityId": files[0]["parent_entity_id"],
-                "SignedContent": _signed_content(
-                    files[0], signatures[0]
-                ),
+                "SignedContent": _signed_content(files[0], signatures[0]),
             }
         ],
     }
@@ -578,14 +645,10 @@ async def _apply_revoke_outgoing(
         operation_id=_task_operation_id(task, "revoke-outgoing"),
     )
     if task.outgoing_document_id:
-        document = await session.get(
-            DiadocOutgoingDocument, task.outgoing_document_id
-        )
+        document = await session.get(DiadocOutgoingDocument, task.outgoing_document_id)
         if document is not None:
             document.status = "revocation_requested"
-            document.docflow_status_text = (
-                "Отправлен запрос на аннулирование"
-            )
+            document.docflow_status_text = "Отправлен запрос на аннулирование"
             session.add(document)
     return {"patch_response_keys": sorted(response.keys())}
 
@@ -599,9 +662,7 @@ async def _apply_send_outgoing(
 ) -> dict[str, Any]:
     from dz_fastapi.services.diadoc_outgoing import _extract_first_entity_id, _extract_message_id
 
-    document = await session.get(
-        DiadocOutgoingDocument, task.outgoing_document_id
-    )
+    document = await session.get(DiadocOutgoingDocument, task.outgoing_document_id)
     if document is None:
         raise ValueError("Исходящий документ не найден")
     operation_id = hashlib.md5(
@@ -624,12 +685,8 @@ async def _apply_send_outgoing(
         },
         operation_id=operation_id,
     )
-    document.message_id = (
-        _extract_message_id(response) or document.message_id
-    )
-    document.entity_id = (
-        _extract_first_entity_id(response) or document.entity_id
-    )
+    document.message_id = _extract_message_id(response) or document.message_id
+    document.entity_id = _extract_first_entity_id(response) or document.entity_id
     document.is_draft = False
     document.status = "sent"
     document.sent_at = now_moscow()
@@ -647,9 +704,7 @@ async def confirm_cloud_sign_task(
 ) -> DiadocCloudSignTask:
     """SMS-код → подписи → целевое действие по типу операции."""
     if task.state != "waiting_code":
-        raise ValueError(
-            f"Задача в состоянии {task.state} — подтверждать нечего"
-        )
+        raise ValueError(f"Задача в состоянии {task.state} — подтверждать нечего")
     code = str(confirmation_code or "").strip()
     if not code:
         raise ValueError("Введите код подтверждения из SMS")
@@ -660,10 +715,7 @@ async def confirm_cloud_sign_task(
         )
         expected = len(list(task.files or []))
         if len(signatures) < expected:
-            raise ValueError(
-                f"Диадок вернул {len(signatures)} подписей вместо "
-                f"{expected}"
-            )
+            raise ValueError(f"Диадок вернул {len(signatures)} подписей вместо " f"{expected}")
         if task.operation == OPERATION_SIGN_INCOMING:
             details = await _apply_sign_incoming(
                 session, client=client, task=task, signatures=signatures
@@ -683,37 +735,25 @@ async def confirm_cloud_sign_task(
         elif task.operation == "etrn_t1_send":
             from dz_fastapi.services.etrn import apply_t1_sign
 
-            details = await apply_t1_sign(
-                session, client=client, task=task, signatures=signatures
-            )
+            details = await apply_t1_sign(session, client=client, task=task, signatures=signatures)
         elif task.operation == "etrn_t3_send":
             from dz_fastapi.services.etrn import apply_t3_sign
 
-            details = await apply_t3_sign(
-                session, client=client, task=task, signatures=signatures
-            )
+            details = await apply_t3_sign(session, client=client, task=task, signatures=signatures)
         elif task.operation == "etrn_t6_send":
             from dz_fastapi.services.etrn import apply_t6_sign
 
-            details = await apply_t6_sign(
-                session, client=client, task=task, signatures=signatures
-            )
+            details = await apply_t6_sign(session, client=client, task=task, signatures=signatures)
         elif task.operation == "gis_mt_auth":
             from dz_fastapi.services.gis_mt import apply_gis_mt_auth
 
-            details = await apply_gis_mt_auth(
-                session, task=task, signatures=signatures
-            )
+            details = await apply_gis_mt_auth(session, task=task, signatures=signatures)
         elif task.operation == "gis_mt_withdraw":
             from dz_fastapi.services.gis_mt import apply_gis_mt_withdraw
 
-            details = await apply_gis_mt_withdraw(
-                session, task=task, signatures=signatures
-            )
+            details = await apply_gis_mt_withdraw(session, task=task, signatures=signatures)
         else:
-            raise ValueError(
-                f"Неизвестная операция задачи: {task.operation}"
-            )
+            raise ValueError(f"Неизвестная операция задачи: {task.operation}")
     except Exception as exc:
         task.error_details = str(exc)[:2000]
         # Код мог быть неверным — оставляем waiting_code для повторного
