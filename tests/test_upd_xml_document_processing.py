@@ -306,3 +306,62 @@ def test_overdelivery_is_split_into_linked_and_free_rows():
     ]
     assert result[1]['is_excess'] is True
     assert 'is_excess' not in result[2]
+
+
+@pytest.mark.asyncio
+async def test_relink_posted_receipt_to_earlier_order(
+    test_session, created_providers, created_autopart
+):
+    from dz_fastapi.services.receipt_relink import relink_receipt_to_orders
+
+    provider = created_providers[0]
+    order, item, _ = await prepare(test_session, provider, created_autopart)
+    receipt = SupplierReceipt(
+        provider_id=provider.id,
+        document_number='R-1',
+        document_date=date.today(),
+        posted_at=now_moscow(),
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+    test_session.add(
+        SupplierReceiptItem(
+            receipt_id=receipt.id,
+            autopart_id=created_autopart.id,
+            oem_number=created_autopart.oem_number,
+            brand_name=created_autopart.brand.name,
+            received_quantity=5,
+            total_price_with_vat=500,
+        )
+    )
+    await test_session.commit()
+    item_id, order_id = item.id, order.id
+
+    preview = await relink_receipt_to_orders(
+        test_session, receipt_id=receipt.id
+    )
+    assert [m['received_quantity'] for m in preview['matches']] == [3]
+    assert preview['matches'][0]['excess'] == 2
+    assert preview['applied'] is False
+
+    applied = await relink_receipt_to_orders(
+        test_session, receipt_id=receipt.id, apply=True
+    )
+    assert applied['applied'] is True
+    test_session.expire_all()
+    rows = (
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).order_by(SupplierReceiptItem.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(r.supplier_order_item_id, r.received_quantity) for r in rows] == [
+        (item_id, 3),
+        (None, 2),
+    ]
+    assert rows[0].supplier_order_id == order_id
+    refreshed = await test_session.get(SupplierOrderItem, item_id)
+    assert refreshed.received_quantity == 3

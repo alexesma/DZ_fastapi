@@ -2508,6 +2508,59 @@ async def post_supplier_receipt_endpoint(
 
 
 @router.post(
+    "/supplier-receipts/{receipt_id}/relink",
+    status_code=status.HTTP_200_OK,
+)
+async def relink_supplier_receipt_endpoint(
+    receipt_id: int,
+    apply: bool = False,
+    session: AsyncSession = Depends(get_session),
+):
+    """Перепроверить: подобрать заказы поставщику для строк без привязки.
+
+    По умолчанию — только предпросмотр (apply=false)."""
+    from dz_fastapi.services.receipt_relink import relink_receipt_to_orders
+
+    try:
+        return await relink_receipt_to_orders(
+            session, receipt_id=receipt_id, apply=apply
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/supplier-receipts-relink",
+    status_code=status.HTTP_200_OK,
+)
+async def relink_supplier_receipts_batch_endpoint(
+    provider_id: int | None = None,
+    limit: int = 200,
+    apply: bool = False,
+    session: AsyncSession = Depends(get_session),
+):
+    """Перепроверить все поступления с непривязанными строками."""
+    from dz_fastapi.services.receipt_relink import find_receipts_to_relink, relink_receipt_to_orders
+
+    receipt_ids = await find_receipts_to_relink(
+        session, provider_id=provider_id, limit=max(1, min(limit, 500))
+    )
+    results = []
+    for receipt_id in receipt_ids:
+        results.append(
+            await relink_receipt_to_orders(
+                session, receipt_id=receipt_id, apply=apply
+            )
+        )
+    return {
+        "checked": len(results),
+        "with_matches": sum(1 for r in results if r["matches"]),
+        "applied": apply,
+        "receipts": [r for r in results if r["matches"] or r["unmatched"]],
+    }
+
+
+@router.post(
     "/supplier-receipts/{receipt_id}/send-upd-email",
     status_code=status.HTTP_200_OK,
 )
