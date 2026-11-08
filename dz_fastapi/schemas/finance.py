@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, condecimal
 
@@ -167,6 +167,7 @@ class CustomerPaymentOut(CustomerPaymentBase):
 class SupplierPaymentBase(BaseModel):
     provider_id: int
     supplier_order_id: Optional[int] = None
+    supplier_document_id: Optional[int] = None
     amount: MoneyDecimal
     payment_date: date
     payment_method: PaymentMethod = PaymentMethod.BANK_TRANSFER
@@ -180,6 +181,7 @@ class SupplierPaymentCreate(SupplierPaymentBase):
 
 class SupplierPaymentUpdate(BaseModel):
     supplier_order_id: Optional[int] = None
+    supplier_document_id: Optional[int] = None
     amount: Optional[MoneyDecimal] = None
     payment_date: Optional[date] = None
     payment_method: Optional[PaymentMethod] = None
@@ -268,6 +270,12 @@ class ProviderDebtOut(BaseModel):
     owed: Decimal  # к оплате (total_ordered - total_paid, ≥ 0)
     last_payment_date: Optional[date] = None
     payment_terms_days: int
+    # По входящим документам (счета, акты)
+    documents_total: Decimal = Decimal("0.00")
+    documents_paid: Decimal = Decimal("0.00")
+    documents_owed: Decimal = Decimal("0.00")
+    documents_overdue: Decimal = Decimal("0.00")
+    documents_without_amount: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -353,3 +361,50 @@ class AutoMatchResult(BaseModel):
     matched: int
     skipped: int
     errors: int
+
+
+# ─── Входящие документы поставщиков ───────────────────────────────────────────
+
+SupplierDocumentType = Literal["invoice", "act", "upd", "other"]
+SupplierDocumentStatus = Literal["open", "paid", "cancelled"]
+
+
+class SupplierDocumentCreate(BaseModel):
+    provider_id: int
+    doc_type: SupplierDocumentType = "invoice"
+    number: Optional[str] = Field(default=None, max_length=100)
+    doc_date: Optional[date] = None
+    due_date: Optional[date] = None
+    amount: Optional[MoneyDecimal] = None
+    notes: Optional[str] = None
+
+
+class SupplierDocumentUpdate(BaseModel):
+    doc_type: Optional[SupplierDocumentType] = None
+    number: Optional[str] = Field(default=None, max_length=100)
+    doc_date: Optional[date] = None
+    due_date: Optional[date] = None
+    amount: Optional[MoneyDecimal] = None
+    status: Optional[SupplierDocumentStatus] = None
+    notes: Optional[str] = None
+
+
+class SupplierDocumentOut(BaseModel):
+    id: int
+    provider_id: int
+    provider_name: Optional[str] = None
+    doc_type: str
+    number: Optional[str] = None
+    doc_date: Optional[date] = None
+    due_date: Optional[date] = None
+    amount: Optional[Decimal] = None
+    status: str
+    paid: Decimal = Decimal("0.00")
+    owed: Decimal = Decimal("0.00")
+    is_overdue: bool = False
+    diadoc_document_id: Optional[int] = None
+    file_name: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

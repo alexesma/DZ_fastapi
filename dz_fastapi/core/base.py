@@ -46,6 +46,7 @@ from dz_fastapi.models.finance import (  # noqa
     CustomerPayment,
     PaymentInvoice,
     PaymentInvoiceItem,
+    SupplierDocument,
     SupplierPayment,
 )
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxForceProcessAudit

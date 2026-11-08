@@ -14,6 +14,7 @@ from dz_fastapi.models.finance import (
     InvoiceStatus,
     PaymentInvoice,
     PaymentInvoiceItem,
+    SupplierDocument,
     SupplierPayment,
 )
 from dz_fastapi.models.partner import Customer, Provider
@@ -26,6 +27,8 @@ from dz_fastapi.schemas.finance import (
     PaymentInvoiceItemUpdate,
     PaymentInvoiceUpdate,
     ProviderDebtOut,
+    SupplierDocumentCreate,
+    SupplierDocumentUpdate,
     SupplierPaymentCreate,
     SupplierPaymentUpdate,
 )
@@ -618,8 +621,14 @@ async def get_creditors_report(
         for row in (await session.execute(ordered_q)).all()
     }
 
+    documents_rows = await _supplier_documents_debt_by_provider(session)
+
     # Все поставщики с хоть какой-то активностью
-    provider_ids = set(payments_rows.keys()) | set(ordered_rows.keys())
+    provider_ids = (
+        set(payments_rows.keys())
+        | set(ordered_rows.keys())
+        | set(documents_rows.keys())
+    )
     if not provider_ids:
         return []
 
@@ -642,7 +651,9 @@ async def get_creditors_report(
         total_ordered = ordered_rows.get(pid, Decimal("0.00"))
         owed = max(Decimal("0.00"), total_ordered - total_paid)
 
-        if only_owed and owed == 0:
+        docs = documents_rows.get(pid) or {}
+        docs_owed = docs.get("owed", Decimal("0.00"))
+        if only_owed and owed == 0 and docs_owed == 0:
             continue
 
         result.append(
@@ -656,8 +667,161 @@ async def get_creditors_report(
                     pay_row.last_payment_date if pay_row else None
                 ),
                 payment_terms_days=prov.payment_terms_days,
+                documents_total=docs.get("total", Decimal("0.00")),
+                documents_paid=docs.get("paid", Decimal("0.00")),
+                documents_owed=docs_owed,
+                documents_overdue=docs.get("overdue", Decimal("0.00")),
+                documents_without_amount=docs.get("no_amount", 0),
             )
         )
 
     result.sort(key=lambda x: x.owed, reverse=True)
     return result
+
+
+# ─── Входящие документы поставщиков (счета, акты) ─────────────────────────────
+
+
+def _document_paid_map_query():
+    return (
+        select(
+            SupplierPayment.supplier_document_id,
+            func.coalesce(func.sum(SupplierPayment.amount), 0).label("paid"),
+        )
+        .where(SupplierPayment.supplier_document_id.isnot(None))
+        .group_by(SupplierPayment.supplier_document_id)
+    )
+
+
+def document_owed(
+    document: SupplierDocument, paid: Decimal, today: date
+) -> tuple[Decimal, bool]:
+    """Остаток к оплате по документу и признак просрочки."""
+    if document.status != "open" or document.amount is None:
+        return Decimal("0.00"), False
+    owed = max(Decimal("0.00"), Decimal(str(document.amount)) - paid)
+    overdue = bool(
+        owed > 0 and document.due_date and document.due_date < today
+    )
+    return owed, overdue
+
+
+async def _supplier_documents_debt_by_provider(
+    session: AsyncSession,
+) -> dict:
+    from dz_fastapi.core.time import now_moscow
+
+    today = now_moscow().date()
+    paid_rows = {
+        row.supplier_document_id: Decimal(str(row.paid))
+        for row in (await session.execute(_document_paid_map_query())).all()
+    }
+    documents = (
+        (
+            await session.execute(
+                select(SupplierDocument).where(
+                    SupplierDocument.status != "cancelled"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    result: dict = {}
+    for doc in documents:
+        bucket = result.setdefault(
+            doc.provider_id,
+            {
+                "total": Decimal("0.00"),
+                "paid": Decimal("0.00"),
+                "owed": Decimal("0.00"),
+                "overdue": Decimal("0.00"),
+                "no_amount": 0,
+            },
+        )
+        if doc.amount is None:
+            bucket["no_amount"] += 1
+            continue
+        paid = paid_rows.get(doc.id, Decimal("0.00"))
+        owed, overdue = document_owed(doc, paid, today)
+        bucket["total"] += Decimal(str(doc.amount))
+        bucket["paid"] += min(paid, Decimal(str(doc.amount)))
+        bucket["owed"] += owed
+        if overdue:
+            bucket["overdue"] += owed
+    return result
+
+
+async def create_supplier_document(
+    session: AsyncSession, data: SupplierDocumentCreate
+) -> SupplierDocument:
+    document = SupplierDocument(**data.model_dump())
+    session.add(document)
+    await session.commit()
+    await session.refresh(document)
+    return document
+
+
+async def get_supplier_document(
+    session: AsyncSession, document_id: int
+) -> Optional[SupplierDocument]:
+    return (
+        await session.execute(
+            select(SupplierDocument).where(
+                SupplierDocument.id == document_id
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def list_supplier_documents(
+    session: AsyncSession,
+    provider_id: Optional[int] = None,
+    status: Optional[str] = None,
+    doc_type: Optional[str] = None,
+    only_unpaid: bool = False,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[tuple[SupplierDocument, Decimal]]:
+    stmt = select(SupplierDocument).order_by(
+        SupplierDocument.doc_date.desc().nullslast(),
+        SupplierDocument.id.desc(),
+    )
+    if provider_id is not None:
+        stmt = stmt.where(SupplierDocument.provider_id == provider_id)
+    if status:
+        stmt = stmt.where(SupplierDocument.status == status)
+    if doc_type:
+        stmt = stmt.where(SupplierDocument.doc_type == doc_type)
+    if only_unpaid:
+        stmt = stmt.where(SupplierDocument.status == "open")
+    documents = (
+        (await session.execute(stmt.offset(skip).limit(limit)))
+        .scalars()
+        .all()
+    )
+    paid_rows = {
+        row.supplier_document_id: Decimal(str(row.paid))
+        for row in (await session.execute(_document_paid_map_query())).all()
+    }
+    return [(d, paid_rows.get(d.id, Decimal("0.00"))) for d in documents]
+
+
+async def update_supplier_document(
+    session: AsyncSession,
+    document: SupplierDocument,
+    data: SupplierDocumentUpdate,
+) -> SupplierDocument:
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(document, key, value)
+    session.add(document)
+    await session.commit()
+    await session.refresh(document)
+    return document
+
+
+async def delete_supplier_document(
+    session: AsyncSession, document: SupplierDocument
+) -> None:
+    await session.delete(document)
+    await session.commit()

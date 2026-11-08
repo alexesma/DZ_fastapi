@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
@@ -26,6 +27,7 @@ from dz_fastapi.services.supplier_document_dedup import (
     apply_diadoc_metadata_identity,
     evaluate_diadoc_document,
 )
+from dz_fastapi.services.supplier_documents import register_supplier_document_from_diadoc
 from dz_fastapi.services.supplier_order_responses import process_stored_supplier_document_message
 from dz_fastapi.services.supplier_receipt_corrections import (
     get_correction,
@@ -41,6 +43,7 @@ DIADOC_PROVIDER_SOURCE_SYSTEMS = (
     "DIADOC_BOX",
     "DIADOC_COUNTERAGENT_BOX",
 )
+logger = logging.getLogger("dz_fastapi")
 _REVIEW_ONLY_PREFIX = "Строки документа не полностью сопоставлены"
 _INVALID_FILENAME_CHARS_RE = re.compile(r"[^A-Za-z0-9._-]+")
 _DOTNET_TICKS_EPOCH = datetime(1, 1, 1, tzinfo=timezone.utc)
@@ -599,6 +602,13 @@ async def sync_diadoc_incoming_documents(
         await session.flush()
         result["synced"] += 1
 
+        try:
+            async with session.begin_nested():
+                await register_supplier_document_from_diadoc(
+                    session, document
+                )
+        except Exception:  # реестр не должен ломать загрузку документов
+            logger.exception("Supplier document registry failed")
         too_old = process_not_before is not None and (
             document.document_date is None
             or document.document_date < process_not_before

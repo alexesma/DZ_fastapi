@@ -15,24 +15,30 @@ from dz_fastapi.crud.finance import (
     add_invoice_item,
     create_customer_payment,
     create_invoice,
+    create_supplier_document,
     create_supplier_payment,
     delete_customer_payment,
     delete_invoice,
     delete_invoice_item,
+    delete_supplier_document,
     delete_supplier_payment,
+    document_owed,
     get_creditors_report,
     get_customer_debt,
     get_customer_payment,
     get_debtors_report,
     get_invoice,
     get_invoice_item,
+    get_supplier_document,
     get_supplier_payment,
     list_customer_payments,
     list_invoices,
+    list_supplier_documents,
     list_supplier_payments,
     update_customer_payment,
     update_invoice,
     update_invoice_item,
+    update_supplier_document,
     update_supplier_payment,
 )
 from dz_fastapi.models.finance import InvoiceStatus
@@ -58,6 +64,9 @@ from dz_fastapi.schemas.finance import (
     ProviderDebtOut,
     ReconciliationActLineOut,
     ReconciliationActOut,
+    SupplierDocumentCreate,
+    SupplierDocumentOut,
+    SupplierDocumentUpdate,
     SupplierPaymentCreate,
     SupplierPaymentOut,
     SupplierPaymentUpdate,
@@ -613,6 +622,94 @@ async def customer_reconciliation_act_print_endpoint(
     if act is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     return HTMLResponse(render_reconciliation_act_html(act))
+
+
+def _supplier_document_out(document, paid: Decimal) -> SupplierDocumentOut:
+    from dz_fastapi.core.time import now_moscow
+
+    owed, overdue = document_owed(document, paid, now_moscow().date())
+    out = SupplierDocumentOut.model_validate(document)
+    out.provider_name = document.provider.name if document.provider else None
+    out.paid = paid
+    out.owed = owed
+    out.is_overdue = overdue
+    return out
+
+
+@router.get(
+    "/supplier-documents",
+    response_model=List[SupplierDocumentOut],
+    summary="Входящие документы поставщиков (счета, акты)",
+)
+async def list_supplier_documents_endpoint(
+    provider_id: Optional[int] = Query(default=None),
+    status_filter: Optional[str] = Query(default=None, alias="status"),
+    doc_type: Optional[str] = Query(default=None),
+    only_unpaid: bool = Query(default=False),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = await list_supplier_documents(
+        session,
+        provider_id=provider_id,
+        status=status_filter,
+        doc_type=doc_type,
+        only_unpaid=only_unpaid,
+        skip=skip,
+        limit=limit,
+    )
+    return [_supplier_document_out(doc, paid) for doc, paid in rows]
+
+
+@router.post(
+    "/supplier-documents",
+    response_model=SupplierDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить входящий документ поставщика",
+)
+async def create_supplier_document_endpoint(
+    data: SupplierDocumentCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    document = await create_supplier_document(session, data)
+    return _supplier_document_out(document, Decimal("0.00"))
+
+
+@router.patch(
+    "/supplier-documents/{document_id}",
+    response_model=SupplierDocumentOut,
+    summary="Изменить входящий документ поставщика",
+)
+async def update_supplier_document_endpoint(
+    document_id: int,
+    data: SupplierDocumentUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    document = await get_supplier_document(session, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    document = await update_supplier_document(session, document, data)
+    rows = await list_supplier_documents(
+        session, provider_id=document.provider_id, limit=500
+    )
+    paid = next((p for d, p in rows if d.id == document.id), Decimal("0.00"))
+    return _supplier_document_out(document, paid)
+
+
+@router.delete(
+    "/supplier-documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить входящий документ поставщика",
+)
+async def delete_supplier_document_endpoint(
+    document_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    document = await get_supplier_document(session, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    await delete_supplier_document(session, document)
 
 
 @router.get(

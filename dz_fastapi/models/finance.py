@@ -4,6 +4,7 @@ Finance models:
   - PaymentMethod       — способ оплаты
   - PaymentInvoice      — счёт на оплату (клиенту)
   - CustomerPayment     — поступление оплаты от клиента
+  - SupplierDocument    — входящий документ поставщика (счёт/акт)
   - SupplierPayment     — оплата поставщику
   - BankAccount         — расчётный счёт организации
   - BankStatement       — загруженная выписка банка
@@ -226,6 +227,44 @@ class CustomerPayment(Base):
     )
 
 
+class SupplierDocument(Base):
+    """Входящий документ поставщика к оплате: счёт, акт, УПД и т.п."""
+
+    __tablename__ = "supplierdocument"
+
+    provider_id = Column(
+        Integer,
+        ForeignKey("provider.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    doc_type = Column(String(32), nullable=False, default="invoice")
+    number = Column(String(100), nullable=True)
+    doc_date = Column(Date, nullable=True)
+    due_date = Column(Date, nullable=True)
+    # None — сумма ещё не внесена (например, счёт пришёл PDF-файлом)
+    amount = Column(DECIMAL(12, 2), nullable=True)
+    status = Column(String(16), nullable=False, default="open")
+    diadoc_document_id = Column(
+        Integer,
+        ForeignKey("diadocincomingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    file_name = Column(String(512), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    provider = relationship("Provider", lazy="joined")
+
+
 class SupplierPayment(Base):
     """Оплата поставщику."""
 
@@ -241,6 +280,13 @@ class SupplierPayment(Base):
     supplier_order_id = Column(
         Integer,
         ForeignKey("supplierorder.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Привязка к входящему документу поставщика (счёт/акт) — опционально
+    supplier_document_id = Column(
+        Integer,
+        ForeignKey("supplierdocument.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
