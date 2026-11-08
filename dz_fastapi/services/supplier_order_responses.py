@@ -3641,6 +3641,61 @@ def _build_full_document_items_payload(
     return payload
 
 
+def _split_overdelivered_payloads(
+    items_payload: list[dict[str, object]],
+    order_items_by_id: dict[int, SupplierOrderItem],
+) -> list[dict[str, object]]:
+    """Поставка больше заказа: в заказ идёт только остаток, лишнее — отдельной
+    строкой без привязки (свободный остаток), а не теряется и не блокирует
+    проведение документа."""
+    consumed: dict[int, int] = {}
+    result: list[dict[str, object]] = []
+    for payload in items_payload:
+        raw_item_id = payload.get("supplier_order_item_id")
+        qty = _safe_int(payload.get("received_quantity")) or 0
+        item = None
+        if raw_item_id not in (None, ""):
+            try:
+                item = order_items_by_id.get(int(raw_item_id))
+            except (TypeError, ValueError):
+                item = None
+        if item is None or qty <= 0:
+            result.append(payload)
+            continue
+        accepted = (
+            int(item.confirmed_quantity)
+            if item.confirmed_quantity is not None
+            else int(item.quantity or 0)
+        )
+        item_id = int(item.id)
+        remaining = max(
+            accepted - int(item.received_quantity or 0) - consumed.get(item_id, 0),
+            0,
+        )
+        linked_qty = min(qty, remaining)
+        excess = qty - linked_qty
+        consumed[item_id] = consumed.get(item_id, 0) + linked_qty
+        if excess <= 0:
+            result.append(payload)
+            continue
+        if linked_qty > 0:
+            result.append({**payload, "received_quantity": linked_qty})
+        result.append(
+            {
+                **payload,
+                "supplier_order_item_id": None,
+                "supplier_order_id": None,
+                "customer_order_item_id": None,
+                "ordered_quantity": None,
+                "confirmed_quantity": None,
+                "received_quantity": excess,
+                "is_excess": True,
+                "comment": "Сверх заказа: излишек поставки",
+            }
+        )
+    return result
+
+
 async def _document_receipt_is_safe_to_post(
     session: AsyncSession,
     items_payload: list[dict[str, object]],
@@ -3675,6 +3730,8 @@ async def _document_receipt_is_safe_to_post(
             resolved_part_id = resolved.get("autopart_id") or payload.get("autopart_id")
             if resolved_part_id is None:
                 return False
+            if payload.get("is_excess"):
+                continue
             row_oem = _normalize_oem_key(payload.get("oem_number"))
             row_brand = _canonical_brand_key_for_value(
                 payload.get("brand_name"), brand_aliases
@@ -7022,6 +7079,9 @@ async def process_stored_supplier_document_message(
             applied_rows_by_order=document_all_applied_rows_by_order,
             all_orders_by_id=all_orders_for_doc,
             unmatched_rows=document_all_unmatched_rows,
+        )
+        doc_items_payload = _split_overdelivered_payloads(
+            doc_items_payload, all_order_items_for_doc
         )
         if not doc_items_payload:
             import_error_reasons.append(

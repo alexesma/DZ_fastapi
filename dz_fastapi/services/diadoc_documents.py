@@ -475,7 +475,6 @@ async def process_diadoc_incoming_document(
         provider_id=target_provider_id,
         supplier_response_config_id=resolved_config_id,
         message_id=int(message_row.id),
-        date_from=document.document_date,
     )
     document.provider_id = target_provider_id
     document.supplier_order_message_id = int(message_row.id)

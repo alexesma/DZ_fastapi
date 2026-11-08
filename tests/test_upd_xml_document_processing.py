@@ -15,7 +15,10 @@ from dz_fastapi.models.partner import (
     SupplierResponseConfig,
 )
 from dz_fastapi.services.diadoc_documents import process_diadoc_incoming_document
-from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import (
+    _split_overdelivered_payloads,
+    process_supplier_response_messages,
+)
 
 MASK = r"^(UPD_Dop_\d{4}_.+\.xls|ON_NSCHFDOP.*\.xml)$"
 
@@ -287,3 +290,19 @@ async def test_fix_script_service_corrects_date_and_logs_in_comment(
     assert receipt.document_date == date(2026, 10, 29)
     assert receipt.posted_at is not None
     assert "Дата документа исправлена" in receipt.comment
+
+
+def test_overdelivery_is_split_into_linked_and_free_rows():
+    item = SimpleNamespace(id=5, confirmed_quantity=None, quantity=100, received_quantity=10)
+    payloads = [
+        {'supplier_order_item_id': 5, 'received_quantity': 409, 'oem_number': 'X'},
+        {'supplier_order_item_id': None, 'received_quantity': 3, 'oem_number': 'Y'},
+    ]
+    result = _split_overdelivered_payloads(payloads, {5: item})
+    assert [(r['supplier_order_item_id'], r['received_quantity']) for r in result] == [
+        (5, 90),
+        (None, 319),
+        (None, 3),
+    ]
+    assert result[1]['is_excess'] is True
+    assert 'is_excess' not in result[2]
