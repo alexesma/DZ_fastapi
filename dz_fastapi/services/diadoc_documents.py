@@ -1,7 +1,7 @@
 import hashlib
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 import aiofiles
@@ -514,6 +514,7 @@ async def sync_diadoc_incoming_documents(
     download_content: bool = True,
     register_supplier_message: bool = False,
     process_supplier_message: bool = False,
+    process_not_before: date | None = None,
 ) -> dict[str, Any]:
     payload = await client.get_documents(
         box_id_guid=box_id_guid,
@@ -610,8 +611,14 @@ async def sync_diadoc_incoming_documents(
         await session.flush()
         result["synced"] += 1
 
+        too_old = process_not_before is not None and (
+            document.document_date is None
+            or document.document_date < process_not_before
+        )
+        do_register = register_supplier_message and not too_old
+        do_process = process_supplier_message and not too_old
         try:
-            if download_content or process_supplier_message:
+            if download_content or do_process:
                 before_path = document.local_file_path
                 await ensure_diadoc_document_content(
                     session,
@@ -626,7 +633,7 @@ async def sync_diadoc_incoming_documents(
             ):
                 await detect_document_direction(session, document)
             if (
-                (register_supplier_message or process_supplier_message)
+                (do_register or do_process)
                 and document.provider_id is not None
                 and document.supplier_order_message_id is None
             ):
@@ -645,7 +652,7 @@ async def sync_diadoc_incoming_documents(
                     document=document,
                 )
                 result["registered_supplier_messages"] += 1
-            if process_supplier_message:
+            if do_process:
                 if document.provider_id is None:
                     result["processing_skipped"] += 1
                 else:

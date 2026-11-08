@@ -1800,6 +1800,7 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                         download_content=bool(integration.inbound_download_content),
                         register_supplier_message=bool(integration.inbound_process_enabled),
                         process_supplier_message=bool(integration.inbound_process_enabled),
+                        process_not_before=integration.inbound_process_from,
                     )
                     for key, value in result.items():
                         if isinstance(value, (int, float)) and key in (

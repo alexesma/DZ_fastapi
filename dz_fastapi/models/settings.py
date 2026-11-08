@@ -120,6 +120,8 @@ class DiadocIntegrationSettings(Base):
     inbound_sync_count = Column(Integer, default=50, nullable=False)
     inbound_download_content = Column(Boolean, default=True, nullable=False)
     inbound_process_enabled = Column(Boolean, default=True, nullable=False)
+    # Документы старше этой даты только синхронизируются, без обработки.
+    inbound_process_from = Column(Date, nullable=True)
     # ЭТрН: подписание Т1/Т3 из DragonZap (по умолчанию — только чтение,
     # титулы подписываются в 1С). Т6 (стоимость) — отдельный флаг.
     etrn_enabled = Column(Boolean, default=False, nullable=False)

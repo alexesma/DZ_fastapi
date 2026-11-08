@@ -1,6 +1,6 @@
 import base64
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 from io import BytesIO
 
 import pandas as pd
@@ -36,7 +36,10 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.models.user import UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
-from dz_fastapi.services.diadoc_documents import _build_diadoc_storage_relative_path
+from dz_fastapi.services.diadoc_documents import (
+    _build_diadoc_storage_relative_path,
+    sync_diadoc_incoming_documents,
+)
 from dz_fastapi.services.diadoc_oauth import build_diadoc_oauth_state
 
 
@@ -1915,3 +1918,57 @@ def test_diadoc_storage_path_shortens_long_filename():
     name = os.path.basename(path)
     assert len(name) <= 255
     assert name.endswith('.xml')
+
+
+@pytest.mark.asyncio
+async def test_diadoc_sync_skips_processing_before_cutoff_date(
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    box = "counteragent-box-cutoff"
+    test_session.add(
+        ProviderExternalReference(
+            provider_id=provider.id,
+            source_system="DIADOC_COUNTERAGENT_BOX",
+            external_supplier_name=box,
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    class FakeClient:
+        async def get_documents(self, **kwargs):
+            return {
+                "TotalCount": 2,
+                "HasMoreResults": False,
+                "Documents": [
+                    {
+                        "MessageId": f"m-{n}",
+                        "EntityId": f"e-{n}",
+                        "IndexKey": f"i-{n}",
+                        "CounteragentBoxId": box,
+                        "FileName": f"doc{n}.xml",
+                        "DocumentDate": date_str,
+                        "DocumentNumber": f"N-{n}",
+                    }
+                    for n, date_str in ((1, '01.10.2026'), (2, '01.11.2026'))
+                ],
+            }
+
+    result = await sync_diadoc_incoming_documents(
+        test_session,
+        client=FakeClient(),
+        environment='staging',
+        box_id_guid='box-guid',
+        filter_category='Any.Inbound',
+        count=10,
+        download_content=False,
+        process_supplier_message=True,
+        process_not_before=date(2026, 10, 15),
+    )
+    # старый документ (01.10) не обрабатывается, свежий (01.11) — доходит
+    # до обработки (и падает без конфигурации, что не важно для теста)
+    assert result['created'] == 2
+    assert len(result['errors']) == 1
+    assert result['errors'][0].startswith('m-2/')
