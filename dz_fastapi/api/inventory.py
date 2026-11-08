@@ -11,7 +11,7 @@ StockMovement, StockReserve, ShipmentDocument, and transfers.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 from typing import List, Optional
@@ -1462,6 +1462,34 @@ async def get_autopart_lots(
         only_active=only_active,
     )
     return [_lot_to_out(lot) for lot in lots]
+
+
+@router.get(
+    "/gtd-report",
+    summary="Отчёт по ГТД: приход, отгрузка, остаток и поставщики без ГТД",
+)
+async def gtd_report_endpoint(
+    gtd_number: Optional[str] = Query(default=None),
+    provider_id: Optional[int] = Query(default=None),
+    only_remaining: bool = Query(default=False),
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.gtd_report import build_gtd_report
+
+    return await build_gtd_report(
+        session,
+        gtd_number=gtd_number,
+        provider_id=provider_id,
+        only_remaining=only_remaining,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
