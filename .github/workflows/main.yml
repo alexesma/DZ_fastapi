@@ -313,7 +313,10 @@ jobs:
             sleep 5
           done
           # Выполняем миграции одноразовым контейнером из нового web-образа.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm --no-deps \
+          # -T запрещает compose читать stdin SSH-сессии. Без него контейнер
+          # миграции поглощал остаток heredoc, и deploy завершался успешно,
+          # так и не выполнив команды запуска приложения ниже.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run -T --rm --no-deps \
             -e RUN_MIGRATIONS_ON_STARTUP=0 \
             -e RUN_SEED_ON_STARTUP=0 \
             web poetry run alembic upgrade heads
@@ -327,6 +330,23 @@ jobs:
           else
             echo "FTP_PASSWORD не задан в infra/dev/.env — сервис ftp пропущен"
           fi
+          # Не считаем деплой успешным, пока API и интерфейс реально не
+          # отвечают на локальных портах сервера.
+          for i in $(seq 1 60); do
+            if curl --fail --silent --max-time 5 http://127.0.0.1:8000/health >/dev/null \
+              && curl --fail --silent --max-time 5 http://127.0.0.1:3000/ >/dev/null; then
+              echo "DragonZap успешно запущен"
+              exit 0
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "DragonZap не ответил после запуска"
+              sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
+              sudo docker logs dz_fastapi --tail 200 || true
+              sudo docker logs dz_frontend --tail 100 || true
+              exit 1
+            fi
+            sleep 5
+          done
         REMOTE_SCRIPT
 
     - name: Stop deploy SSH agent
