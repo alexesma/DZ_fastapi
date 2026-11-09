@@ -1036,11 +1036,14 @@ async def merge_duplicate_receipts_endpoint(
         else await find_diadoc_documents_with_duplicate_receipts(session)
     )
     results = []
+    # id читаем до цикла: после commit/expire_all объект пользователя
+    # устаревает, и обращение к его атрибутам вне greenlet падает.
+    acting_user_id = int(current_user.id)
     for doc_id in ids:
         outcome = await merge_diadoc_duplicate_receipt(
             session,
             document_id=doc_id,
-            user_id=int(current_user.id),
+            user_id=acting_user_id,
             apply=apply,
         )
         if outcome["status"] != "none":
