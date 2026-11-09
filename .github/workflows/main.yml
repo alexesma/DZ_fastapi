@@ -291,13 +291,11 @@ jobs:
         ssh -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
           "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' <<'REMOTE_SCRIPT'
           cd /root/DZ_fastapi/infra/dev/
-          # Останавливаем старые контейнеры
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml down
-          # Скачиваем свежие образы, не удаляя локальный Docker-кэш.
+          # Скачиваем свежие образы, не останавливая работающий сайт заранее.
+          # Постоянные контейнеры будут заменены только после успешных миграций.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml pull
-          # Сначала запускаем только БД. Приложение может падать на старой схеме
-          # до миграций, поэтому не делаем exec в постоянно рестартящий web.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate db
+          # Гарантируем, что БД запущена, но не перезапускаем её при каждом деплое.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d db
           echo "Ждем запуска базы данных..."
           for i in $(seq 1 60); do
             db_health=$(sudo docker inspect -f '{{.State.Health.Status}}' dz_db_dev 2>/dev/null || true)
@@ -313,13 +311,13 @@ jobs:
             sleep 5
           done
           # Выполняем миграции одноразовым контейнером из нового web-образа.
-          # -T запрещает compose читать stdin SSH-сессии. Без него контейнер
-          # миграции поглощал остаток heredoc, и deploy завершался успешно,
-          # так и не выполнив команды запуска приложения ниже.
+          # Явно направляем stdin из /dev/null: иначе compose передавал
+          # контейнеру остаток SSH-heredoc, и команды запуска ниже не доходили
+          # до удалённого shell, хотя шаг завершался с кодом 0.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run -T --rm --no-deps \
             -e RUN_MIGRATIONS_ON_STARTUP=0 \
             -e RUN_SEED_ON_STARTUP=0 \
-            web poetry run alembic upgrade heads
+            web poetry run alembic upgrade heads </dev/null
           # После миграций запускаем постоянные контейнеры приложения, scheduler и фронта.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate web scheduler frontend
           # FTP-канал обмена с 1С. Поднимается только если в infra/dev/.env
@@ -348,6 +346,24 @@ jobs:
             sleep 5
           done
         REMOTE_SCRIPT
+
+    - name: Verify DragonZap externally
+      run: |
+        set -euo pipefail
+        for attempt in $(seq 1 60); do
+          if curl --fail --silent --show-error --max-time 10 \
+            https://dragonzap.online/api/health >/dev/null \
+            && curl --fail --silent --show-error --max-time 10 \
+            https://dragonzap.online/ >/dev/null; then
+            echo "DragonZap доступен снаружи"
+            exit 0
+          fi
+          if [ "$attempt" -eq 60 ]; then
+            echo "DragonZap недоступен снаружи после деплоя"
+            exit 1
+          fi
+          sleep 5
+        done
 
     - name: Stop deploy SSH agent
       if: always()
