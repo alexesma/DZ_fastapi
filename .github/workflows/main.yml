@@ -227,34 +227,69 @@ jobs:
       with:
         fetch-depth: 0
         submodules: recursive
-    # На сервере нужны только compose-файлы: код живёт в образах.
-    # Копирование всего checkout оставляло на проде .git/objects; из-за
-    # overwrite старые Git-объекты не удалялись и выросли до десятков ГБ.
-    - name: Copy docker-compose.yml via ssh
-      uses: appleboy/scp-action@master
-    # Передаём параметры для action appleboy/scp-action:
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USER }}
-        key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        source: "infra/dev/docker-compose.yaml,infra/dev/docker-compose.prod.yaml"
-        target: "/root/DZ_fastapi"
-        strip_components: 0
-        overwrite: true
+    # Используем штатные OpenSSH/scp из runner. В отличие от appleboy/*@master
+    # этот вариант не скачивает drone-scp/drone-ssh с GitHub Releases во время
+    # деплоя и не падает из-за временного 5xx на releases.githubusercontent.com.
+    - name: Configure deploy SSH key
+      env:
+        DEPLOY_HOST: ${{ secrets.HOST }}
+        DEPLOY_SSH_KEY: ${{ secrets.SSH_KEY }}
+        DEPLOY_SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+        DEPLOY_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      run: |
+        set -euo pipefail
+        install -m 700 -d "$HOME/.ssh"
+        key_file="$RUNNER_TEMP/deploy_key"
+        askpass_file="$RUNNER_TEMP/ssh_askpass"
+        printf '%s\n' "$DEPLOY_SSH_KEY" > "$key_file"
+        chmod 600 "$key_file"
+        if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+        else
+          : > "$HOME/.ssh/known_hosts"
+          for attempt in 1 2 3 4 5; do
+            if ssh-keyscan -T 15 -H "$DEPLOY_HOST" > "$HOME/.ssh/known_hosts"; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Не удалось получить SSH host key сервера"
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
+        fi
+        test -s "$HOME/.ssh/known_hosts"
+        chmod 600 "$HOME/.ssh/known_hosts"
+        printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "$DEPLOY_SSH_PASSPHRASE"' > "$askpass_file"
+        chmod 700 "$askpass_file"
+        eval "$(ssh-agent -s)"
+        SSH_ASKPASS="$askpass_file" SSH_ASKPASS_REQUIRE=force DISPLAY=:0 \
+          ssh-add "$key_file" </dev/null
+        printf 'SSH_AUTH_SOCK=%s\n' "$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+        printf 'SSH_AGENT_PID=%s\n' "$SSH_AGENT_PID" >> "$GITHUB_ENV"
+        rm -f "$key_file" "$askpass_file"
 
-    - name: Executing remote ssh commands to deploy
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USER }}
-        key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        command_timeout: 30m
-        # Параметр script передаёт в action appleboy/ssh-action команды,
-        # которые нужно выполнить на сервере,
-        # с которым установлено соединение
-        script: |
+    # На сервере нужны только compose-файлы: код живёт в образах.
+    - name: Copy compose files via scp
+      env:
+        DEPLOY_HOST: ${{ secrets.HOST }}
+        DEPLOY_USER: ${{ secrets.USER }}
+      run: |
+        set -euo pipefail
+        ssh -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+          "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /root/DZ_fastapi/infra/dev'
+        scp -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+          infra/dev/docker-compose.yaml infra/dev/docker-compose.prod.yaml \
+          "$DEPLOY_USER@$DEPLOY_HOST:/root/DZ_fastapi/infra/dev/"
+
+    - name: Execute remote deploy commands
+      env:
+        DEPLOY_HOST: ${{ secrets.HOST }}
+        DEPLOY_USER: ${{ secrets.USER }}
+      run: |
+        set -euo pipefail
+        ssh -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+          "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' <<'REMOTE_SCRIPT'
           cd /root/DZ_fastapi/infra/dev/
           # Останавливаем старые контейнеры
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml down
@@ -292,6 +327,14 @@ jobs:
           else
             echo "FTP_PASSWORD не задан в infra/dev/.env — сервис ftp пропущен"
           fi
+        REMOTE_SCRIPT
+
+    - name: Stop deploy SSH agent
+      if: always()
+      run: |
+        if [ -n "${SSH_AGENT_PID:-}" ]; then
+          ssh-agent -k || true
+        fi
 
   send_success_message:
     runs-on: ubuntu-latest
@@ -299,12 +342,14 @@ jobs:
     if: success()
     steps:
       - name: Send Telegram success message
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "✅ *Деплой успешно выполнен!* 🎉"
-          debug: true
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=✅ Деплой успешно выполнен! 🎉"
 
   send_failure_message:
     runs-on: ubuntu-latest
@@ -312,9 +357,11 @@ jobs:
     if: failure()
     steps:
       - name: Send Telegram failure message
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ *Деплой завершился с ошибкой!* ⚠️"
-          debug: true
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=❌ Деплой завершился с ошибкой! ⚠️"
