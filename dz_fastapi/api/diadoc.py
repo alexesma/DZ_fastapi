@@ -1012,6 +1012,43 @@ async def list_diadoc_inbound_documents_endpoint(
 
 
 @router.post(
+    "/merge-duplicate-receipts",
+    status_code=status.HTTP_200_OK,
+)
+async def merge_duplicate_receipts_endpoint(
+    apply: bool = Query(default=False),
+    document_id: int | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Дубли поступлений: документ пришёл по почте и через Диадок.
+
+    По умолчанию только предпросмотр; apply=true распроводит и удаляет
+    дубль из Диадока, оставляя более раннее поступление из письма."""
+    from dz_fastapi.services.supplier_document_dedup import (
+        find_diadoc_documents_with_duplicate_receipts,
+        merge_diadoc_duplicate_receipt,
+    )
+
+    ids = (
+        [document_id]
+        if document_id is not None
+        else await find_diadoc_documents_with_duplicate_receipts(session)
+    )
+    results = []
+    for doc_id in ids:
+        outcome = await merge_diadoc_duplicate_receipt(
+            session,
+            document_id=doc_id,
+            user_id=int(current_user.id),
+            apply=apply,
+        )
+        if outcome["status"] != "none":
+            results.append(outcome)
+    return {"applied": apply, "found": len(results), "items": results}
+
+
+@router.post(
     "/inbound-documents/{document_id}/register",
     response_model=DiadocInboundDocumentRegisterResult,
     status_code=status.HTTP_200_OK,

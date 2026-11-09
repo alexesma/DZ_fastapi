@@ -27,7 +27,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -621,6 +621,38 @@ async def _email_message_for_key(
         )
         if rows:
             return rows[0]
+    number = str(document.document_number or "").strip().lower()
+    if number and document.document_date is not None:
+        # Письма, обработанные до введения ключа дедупликации, и документы в
+        # таблицах без XML: сверяем по номеру и дате уже созданного поступления.
+        existing = (
+            (
+                await session.execute(
+                    select(SupplierOrderMessage)
+                    .join(
+                        SupplierReceipt,
+                        SupplierReceipt.source_message_id
+                        == SupplierOrderMessage.id,
+                    )
+                    .options(selectinload(SupplierOrderMessage.receipts))
+                    .where(
+                        SupplierOrderMessage.provider_id
+                        == document.provider_id,
+                        SupplierOrderMessage.source_uid.is_not(None),
+                        func.lower(func.trim(SupplierReceipt.document_number))
+                        == number,
+                        SupplierReceipt.document_date == document.document_date,
+                        SupplierOrderMessage.id
+                        != (document.supplier_order_message_id or 0),
+                    )
+                    .order_by(SupplierOrderMessage.id.asc())
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if existing is not None:
+            return existing
     return None
 
 
@@ -1153,3 +1185,159 @@ async def resolve_amount_mismatch(
             )
             await session.commit()
     return result
+
+
+async def find_email_receipt_for_document(
+    session: AsyncSession,
+    document: DiadocIncomingDocument,
+    *,
+    exclude_message_id: Optional[int] = None,
+) -> Optional[SupplierReceipt]:
+    """Поступление, созданное из письма по тому же документу (номер+дата)."""
+    number = str(document.document_number or "").strip().lower()
+    if not number or document.document_date is None or not document.provider_id:
+        return None
+    stmt = (
+        select(SupplierReceipt)
+        .join(
+            SupplierOrderMessage,
+            SupplierOrderMessage.id == SupplierReceipt.source_message_id,
+        )
+        .where(
+            SupplierReceipt.provider_id == document.provider_id,
+            func.lower(func.trim(SupplierReceipt.document_number)) == number,
+            SupplierReceipt.document_date == document.document_date,
+            SupplierOrderMessage.source_uid.is_not(None),
+        )
+        .order_by(SupplierReceipt.id.asc())
+        .limit(1)
+    )
+    if exclude_message_id:
+        stmt = stmt.where(SupplierReceipt.source_message_id != exclude_message_id)
+    return (await session.execute(stmt)).scalars().first()
+
+
+async def merge_diadoc_duplicate_receipt(
+    session: AsyncSession,
+    *,
+    document_id: int,
+    user_id: Optional[int] = None,
+    apply: bool = False,
+) -> dict[str, Any]:
+    """Убирает поступление из Диадока, дублирующее поступление из письма.
+
+    Остаётся более раннее поступление из письма; дубль из Диадока
+    распроводится (остатки откатываются штатным unpost) и удаляется, документ
+    Диадока привязывается к письму. По умолчанию — только предпросмотр.
+    """
+    from dz_fastapi.services.supplier_workflow import (
+        delete_supplier_receipt,
+        unpost_supplier_receipt,
+    )
+
+    document = (
+        await session.execute(
+            select(DiadocIncomingDocument).where(
+                DiadocIncomingDocument.id == document_id
+            )
+        )
+    ).scalar_one_or_none()
+    if document is None:
+        raise LookupError("Документ не найден")
+    result: dict[str, Any] = {
+        "document_id": int(document.id),
+        "document_number": document.document_number,
+        "status": "none",
+    }
+    if document.supplier_order_message_id is None:
+        return result
+    own_message = (
+        await session.execute(
+            select(SupplierOrderMessage)
+            .options(selectinload(SupplierOrderMessage.receipts))
+            .where(SupplierOrderMessage.id == document.supplier_order_message_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if own_message is None or not own_message.receipts:
+        return result
+    if own_message.source_uid is not None:
+        return result  # это письмо, а не Диадок
+    email_receipt = await find_email_receipt_for_document(
+        session, document, exclude_message_id=int(own_message.id)
+    )
+    if email_receipt is None:
+        return result
+    dup_ids = [int(r.id) for r in own_message.receipts]
+    result.update(
+        status="duplicate",
+        diadoc_receipt_ids=dup_ids,
+        kept_receipt_id=int(email_receipt.id),
+        diadoc_posted=any(r.posted_at is not None for r in own_message.receipts),
+    )
+    if not apply:
+        return result
+
+    email_message_id = int(email_receipt.source_message_id)
+    kept_id = int(email_receipt.id)
+    own_message_id = int(own_message.id)
+    posted_ids = [
+        int(r.id) for r in own_message.receipts if r.posted_at is not None
+    ]
+    try:
+        for receipt_id in posted_ids:
+            await unpost_supplier_receipt(
+                session,
+                receipt_id=receipt_id,
+                user=SimpleNamespace(id=user_id),
+            )
+        for receipt_id in dup_ids:
+            await delete_supplier_receipt(session, receipt_id=receipt_id)
+    except (ValueError, LookupError) as exc:
+        await session.rollback()
+        result.update(status="failed", reason=str(exc))
+        return result
+
+    session.expire_all()  # удалённые поступления не должны оставаться в коллекциях
+    document = (
+        await session.execute(
+            select(DiadocIncomingDocument).where(
+                DiadocIncomingDocument.id == document_id
+            )
+        )
+    ).scalar_one()
+    email_message = await session.get(SupplierOrderMessage, email_message_id)
+    old_message = await session.get(SupplierOrderMessage, own_message_id)
+    _link_to_message(document, email_message)
+    document.status = "processed"
+    document.import_error_details = None
+    session.add(document)
+    if old_message is not None:
+        old_message.message_type = MESSAGE_TYPE_DUPLICATE
+        old_message.import_error_details = (
+            f"Дубль поступления из письма #{kept_id}"
+        )[:500]
+        session.add(old_message)
+    await session.commit()
+    result["status"] = "merged"
+    return result
+
+
+async def find_diadoc_documents_with_duplicate_receipts(
+    session: AsyncSession, *, limit: int = 500
+) -> list[int]:
+    rows = (
+        await session.execute(
+            select(DiadocIncomingDocument.id)
+            .where(
+                DiadocIncomingDocument.supplier_order_message_id.is_not(None),
+                DiadocIncomingDocument.duplicate_kind.is_(None),
+                DiadocIncomingDocument.status.in_(
+                    ("processed", "registered", "error")
+                ),
+            )
+            .order_by(DiadocIncomingDocument.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [int(r) for r in rows]

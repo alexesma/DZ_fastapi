@@ -16,7 +16,7 @@ from typing import Any, Iterable, Optional
 import aiofiles
 import httpx
 import pandas as pd
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
@@ -3994,6 +3994,35 @@ async def _create_single_document_receipt(
     """
     if not items_payload:
         return None, 0
+    number_key = str(document_number or "").strip().lower()
+    if number_key and document_date is not None:
+        duplicate_id = (
+            await session.execute(
+                select(SupplierReceipt.id)
+                .where(
+                    SupplierReceipt.provider_id == provider_id,
+                    func.lower(func.trim(SupplierReceipt.document_number))
+                    == number_key,
+                    SupplierReceipt.document_date == document_date,
+                    SupplierReceipt.source_message_id.is_distinct_from(
+                        message_row.id
+                    ),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if duplicate_id is not None:
+            # Тот же документ уже оприходован (например, пришёл и по почте,
+            # и через Диадок): второе поступление не создаём.
+            logger.warning(
+                "Duplicate supplier document %s %s skipped: receipt #%s "
+                "already exists (message %s)",
+                document_number,
+                document_date,
+                duplicate_id,
+                message_row.id,
+            )
+            return None, 0
     warehouse = await resolve_warehouse_for_provider(
         session,
         provider_id=provider_id,

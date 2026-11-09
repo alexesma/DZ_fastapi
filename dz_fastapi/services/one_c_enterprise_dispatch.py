@@ -69,6 +69,7 @@ _EVENT_IDS_RE = re.compile(r"\bevents:([0-9,]+)\s*$")
 _DISPATCH_LOCK_KEY = 148_271_002
 _MAX_BATCH_SIZE = 50
 _MAX_CANDIDATE_SCAN = 500
+ACTIVATION_MODES = {"new", "resume", "history"}
 
 
 def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
@@ -82,6 +83,7 @@ def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
         "send_stock_documents": bool(config.send_stock_documents) if config else False,
         "batch_size": config.batch_size if config else 1,
         "first_event_id": config.first_event_id if config else None,
+        "activation_mode": config.activation_mode if config else "new",
     }
 
 
@@ -96,19 +98,54 @@ async def set_config(
     send_returns: bool = False,
     send_stock_documents: bool = False,
     include_history: bool = False,
+    activation_mode: str | None = None,
     batch_size: int | None = None,
 ) -> OneCEnterpriseConfig:
-    """A new activation starts at the current queue tail unless history is chosen."""
+    """Configure dispatch with an explicit, repeatable activation boundary."""
     if batch_size is not None and not 1 <= batch_size <= _MAX_BATCH_SIZE:
         raise ValueError("Размер партии EnterpriseData должен быть от 1 до 50")
+    mode = activation_mode or ("history" if include_history else "new")
+    if mode not in ACTIVATION_MODES:
+        raise ValueError("Режим запуска должен быть new, resume или history")
     config = await session.get(OneCEnterpriseConfig, 1, with_for_update=True)
     if config is None:
         config = OneCEnterpriseConfig(id=1)
         session.add(config)
-    if enabled and not config.enabled and config.first_event_id is None:
-        if include_history:
+    if enabled and not config.enabled:
+        if mode in {"history", "resume"}:
+            audit = await history_audit(session)
+            selected_gaps = []
+            if send_receipts:
+                if audit["posted_receipts"]["without_event"]:
+                    selected_gaps.append("не подготовлены все поступления")
+                if audit["providers_missing_contract"]:
+                    selected_gaps.append("не заполнены договоры поставщиков")
+                if audit["suspicious_auto_receipt_count"]:
+                    selected_gaps.append("есть поступления с аномальным количеством")
+                if audit["missing_price_receipt_count"]:
+                    selected_gaps.append("есть поступления без цены")
+            if send_shipments and audit["posted_shipments"]["without_event"]:
+                selected_gaps.append("не подготовлены все реализации")
+            additional = audit["additional_documents"]
+            if send_customer_orders and additional["customer_orders"]["without_event"]:
+                selected_gaps.append("не подготовлены все заказы клиентов")
+            if send_supplier_orders and additional["supplier_orders"]["without_event"]:
+                selected_gaps.append("не подготовлены все заказы поставщикам")
+            if send_returns and (
+                additional["customer_returns"]["without_event"]
+                or additional["supplier_returns"]["without_event"]
+            ):
+                selected_gaps.append("не подготовлены все возвраты")
+            if send_stock_documents and additional["stock_documents"]["without_event"]:
+                selected_gaps.append("не подготовлены все складские документы")
+            if selected_gaps:
+                raise ValueError("История не готова: " + "; ".join(selected_gaps))
+        if mode == "history":
             config.first_event_id = 1
-        else:
+        elif mode == "new":
+            last_id = await session.scalar(select(func.max(OneCExchangeEvent.id))) or 0
+            config.first_event_id = last_id + 1
+        elif config.first_event_id is None:
             last_id = await session.scalar(select(func.max(OneCExchangeEvent.id))) or 0
             config.first_event_id = last_id + 1
     config.enabled = enabled
@@ -118,6 +155,7 @@ async def set_config(
     config.send_supplier_orders = send_supplier_orders
     config.send_returns = send_returns
     config.send_stock_documents = send_stock_documents
+    config.activation_mode = mode
     if batch_size is not None:
         config.batch_size = batch_size
     config.updated_at = now_moscow()
@@ -549,6 +587,7 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
                     OneCExchangeEvent.event_type.in_((EVENT_POSTED, EVENT_CANCELLED)),
                     OneCExchangeEvent.ed_message_no.is_(None),
                     OneCExchangeEvent.ed_last_error.is_(None),
+                    OneCExchangeEvent.ed_excluded_at.is_(None),
                 )
                 .order_by(
                     OneCExchangeEvent.payload["document_date"].as_string(),
@@ -826,6 +865,14 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         .group_by(SupplierReceiptItem.receipt_id)
         .subquery()
     )
+    excluded_problem = exists(
+        select(OneCExchangeEvent.id).where(
+            OneCExchangeEvent.entity_type == ENTITY_RECEIPT,
+            OneCExchangeEvent.entity_id == SupplierReceipt.id,
+            OneCExchangeEvent.event_type == EVENT_POSTED,
+            OneCExchangeEvent.ed_excluded_at.is_not(None),
+        )
+    )
     suspicious_query = (
         select(
             SupplierReceipt.id,
@@ -845,6 +892,7 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             SupplierReceipt.comment.like("Авто-черновик поступления из ответа поставщика%"),
             ordered_quantities.c.quantity > 0,
             receipt_quantities.c.quantity > 10 * ordered_quantities.c.quantity,
+            ~excluded_problem,
         )
     )
     suspicious_count = await session.scalar(
@@ -861,6 +909,7 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             SupplierReceipt.posted_at.is_not(None),
             SupplierReceiptItem.received_quantity > 0,
             (SupplierReceiptItem.price.is_(None) | (SupplierReceiptItem.price <= 0)),
+            ~excluded_problem,
         )
         .group_by(SupplierReceipt.id, Provider.name)
     )
@@ -909,6 +958,12 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             for row in missing_price_receipts
         ],
         "missing_price_receipt_count": missing_price_count or 0,
+        "quarantined_event_count": await session.scalar(
+            select(func.count(OneCExchangeEvent.id)).where(
+                OneCExchangeEvent.ed_excluded_at.is_not(None)
+            )
+        )
+        or 0,
         "stock_lots_by_source": [
             {
                 "source": str(row[0]),
@@ -933,6 +988,106 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             for row in other_lots
         ],
         "movements_by_type": [{"type": str(row[0]), "count": row[1]} for row in movements],
+    }
+
+
+async def quarantine_history_problems(session: AsyncSession) -> dict[str, Any]:
+    """Put known invalid historical receipts in a reversible EnterpriseData quarantine."""
+    ordered_quantities = (
+        select(
+            SupplierOrderItem.supplier_order_id.label("order_id"),
+            func.sum(SupplierOrderItem.quantity).label("quantity"),
+        )
+        .group_by(SupplierOrderItem.supplier_order_id)
+        .subquery()
+    )
+    receipt_quantities = (
+        select(
+            SupplierReceiptItem.receipt_id.label("receipt_id"),
+            func.sum(SupplierReceiptItem.received_quantity).label("quantity"),
+        )
+        .group_by(SupplierReceiptItem.receipt_id)
+        .subquery()
+    )
+    suspicious_ids = set(
+        (
+            await session.execute(
+                select(SupplierReceipt.id)
+                .join(receipt_quantities, receipt_quantities.c.receipt_id == SupplierReceipt.id)
+                .join(
+                    ordered_quantities,
+                    ordered_quantities.c.order_id == SupplierReceipt.supplier_order_id,
+                )
+                .where(
+                    SupplierReceipt.posted_at.is_not(None),
+                    SupplierReceipt.comment.like(
+                        "Авто-черновик поступления из ответа поставщика%"
+                    ),
+                    ordered_quantities.c.quantity > 0,
+                    receipt_quantities.c.quantity > 10 * ordered_quantities.c.quantity,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    missing_price_ids = set(
+        (
+            await session.execute(
+                select(SupplierReceipt.id)
+                .join(
+                    SupplierReceiptItem,
+                    SupplierReceiptItem.receipt_id == SupplierReceipt.id,
+                )
+                .where(
+                    SupplierReceipt.posted_at.is_not(None),
+                    SupplierReceiptItem.received_quantity > 0,
+                    (
+                        SupplierReceiptItem.price.is_(None)
+                        | (SupplierReceiptItem.price <= 0)
+                    ),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quarantined: list[int] = []
+    event_ids: list[int] = []
+    for receipt_id in sorted(suspicious_ids | missing_price_ids):
+        event = await session.scalar(
+            select(OneCExchangeEvent).where(
+                OneCExchangeEvent.entity_type == ENTITY_RECEIPT,
+                OneCExchangeEvent.entity_id == receipt_id,
+                OneCExchangeEvent.event_type == EVENT_POSTED,
+            )
+        )
+        if event is None:
+            event = await enqueue_one_c_event(
+                session,
+                entity_type=ENTITY_RECEIPT,
+                entity_id=receipt_id,
+                event_type=EVENT_POSTED,
+                payload=await build_receipt_snapshot(session, receipt_id),
+                ed_only=True,
+            )
+        reasons = []
+        if receipt_id in suspicious_ids:
+            reasons.append("аномальное количество относительно заказа поставщику")
+        if receipt_id in missing_price_ids:
+            reasons.append("нулевая или отсутствующая цена поставщика")
+        event.ed_excluded_at = now_moscow()
+        event.ed_exclusion_reason = "; ".join(reasons)
+        quarantined.append(receipt_id)
+        event_ids.append(event.id)
+    await session.flush()
+    return {
+        "quarantined_receipt_ids": quarantined,
+        "event_ids": event_ids,
+        "count": len(quarantined),
+        "suspicious_count": len(suspicious_ids),
+        "missing_price_count": len(missing_price_ids),
     }
 
 

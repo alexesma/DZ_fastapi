@@ -17,7 +17,7 @@ import logging
 import os
 import time
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
@@ -67,6 +67,7 @@ from dz_fastapi.services.one_c_enterprise_dispatch import (
     config_data,
     dispatch_next,
     history_audit,
+    quarantine_history_problems,
     reconcile_transport,
     set_config,
 )
@@ -121,7 +122,12 @@ class EnterpriseAutoSettingsUpdate(BaseModel):
     send_returns: bool = False
     send_stock_documents: bool = False
     include_history: bool = False
+    activation_mode: Literal["new", "resume", "history"] | None = None
     batch_size: int | None = Field(default=None, ge=1, le=50)
+
+
+class EnterpriseEventExclusion(BaseModel):
+    reason: str = Field(min_length=3, max_length=1000)
 
 
 def _one_c_credentials() -> tuple[str, str]:
@@ -344,20 +350,115 @@ async def enterprise_data_auto_update(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
-    config = await set_config(
-        session,
-        enabled=data.enabled,
-        send_receipts=data.send_receipts,
-        send_shipments=data.send_shipments,
-        send_customer_orders=data.send_customer_orders,
-        send_supplier_orders=data.send_supplier_orders,
-        send_returns=data.send_returns,
-        send_stock_documents=data.send_stock_documents,
-        include_history=data.include_history,
-        batch_size=data.batch_size,
-    )
+    if data.enabled:
+        transport = await asyncio.to_thread(get_enterprise_data_status)
+        negotiated = set(transport.get("negotiated_sending") or [])
+        required: set[str] = set()
+        if data.send_receipts:
+            required.add("Документ.ПоступлениеТоваровУслуг")
+        if data.send_shipments:
+            required.add("Документ.РеализацияТоваровУслуг")
+        if data.send_customer_orders:
+            required.add("Документ.ЗаказКлиента")
+        if data.send_supplier_orders:
+            required.add("Документ.ЗаказПоставщику")
+        if data.send_returns:
+            required.update(
+                {
+                    "Документ.ВозвратТоваровОтПокупателя",
+                    "Документ.ВозвратТоваровПоставщику",
+                }
+            )
+        if data.send_stock_documents:
+            required.update(
+                {"Документ.ОприходованиеТоваров", "Документ.СписаниеТоваров"}
+            )
+        unsupported = sorted(required - negotiated)
+        if unsupported:
+            raise HTTPException(
+                status_code=409,
+                detail="УНФ не подтвердила приём: " + ", ".join(unsupported),
+            )
+    try:
+        config = await set_config(
+            session,
+            enabled=data.enabled,
+            send_receipts=data.send_receipts,
+            send_shipments=data.send_shipments,
+            send_customer_orders=data.send_customer_orders,
+            send_supplier_orders=data.send_supplier_orders,
+            send_returns=data.send_returns,
+            send_stock_documents=data.send_stock_documents,
+            include_history=data.include_history,
+            activation_mode=data.activation_mode,
+            batch_size=data.batch_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.commit()
     return config_data(config)
+
+
+@router.post(
+    "/enterprise-data/history/quarantine-problems",
+    summary="Исключить проблемные исторические поступления из автообмена",
+)
+async def enterprise_data_quarantine_history_problems(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await session.get(OneCEnterpriseConfig, 1)
+    if config is not None and config.enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="Перед изменением карантина остановите автоотправку",
+        )
+    result = await quarantine_history_problems(session)
+    await session.commit()
+    return result
+
+
+@router.post(
+    "/enterprise-data/events/{event_id}/exclude",
+    summary="Исключить событие из EnterpriseData",
+)
+async def enterprise_data_exclude_event(
+    event_id: int,
+    data: EnterpriseEventExclusion,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    event = await session.get(OneCExchangeEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Событие не найдено")
+    if event.ed_message_no is not None and event.ed_transport_confirmed_at is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Событие уже передано и ожидает подтверждения УНФ",
+        )
+    event.ed_excluded_at = now_moscow()
+    event.ed_exclusion_reason = data.reason.strip()
+    await session.commit()
+    return serialize_one_c_event(event, include_payload=False)
+
+
+@router.post(
+    "/enterprise-data/events/{event_id}/restore",
+    summary="Вернуть событие из карантина EnterpriseData",
+)
+async def enterprise_data_restore_event(
+    event_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    event = await session.get(OneCExchangeEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Событие не найдено")
+    event.ed_excluded_at = None
+    event.ed_exclusion_reason = None
+    event.ed_last_error = None
+    await session.commit()
+    return serialize_one_c_event(event, include_payload=False)
 
 
 @router.post(
@@ -597,6 +698,7 @@ async def list_one_c_events(
     event_status: Optional[OneCExchangeEventStatus] = Query(default=None, alias="status"),
     entity_type: Optional[str] = Query(default=None),
     enterprise_error: bool = Query(default=False),
+    enterprise_excluded: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
@@ -610,6 +712,8 @@ async def list_one_c_events(
         stmt = stmt.where(OneCExchangeEvent.entity_type == entity_type)
     if enterprise_error:
         stmt = stmt.where(OneCExchangeEvent.ed_last_error.is_not(None))
+    if enterprise_excluded:
+        stmt = stmt.where(OneCExchangeEvent.ed_excluded_at.is_not(None))
     rows = (await session.execute(stmt.limit(limit))).scalars().all()
     return {"items": [serialize_one_c_event(row, include_payload=False) for row in rows]}
 
@@ -732,6 +836,8 @@ async def list_exchange_cards(
                     "posted": event.ed_unf_posted,
                     "received_at": event.ed_unf_received_at,
                     "error": event.ed_last_error,
+                    "excluded_at": event.ed_excluded_at,
+                    "exclusion_reason": event.ed_exclusion_reason,
                 },
                 "diadoc": diadoc,
             }

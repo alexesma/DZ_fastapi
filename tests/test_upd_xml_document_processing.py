@@ -432,3 +432,105 @@ async def test_reprocess_draft_rebuilds_receipt_with_free_excess(
     assert sorted(
         (r.supplier_order_item_id is not None, r.received_quantity) for r in rows
     ) == [(False, 2), (True, 3)]
+
+
+@pytest.mark.asyncio
+async def test_diadoc_document_linked_to_email_receipt_by_number_and_date(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    from dz_fastapi.models.partner import SupplierOrderMessage
+
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    message = SupplierOrderMessage(
+        provider_id=provider.id,
+        message_type="SHIPPING_DOC",
+        source_uid="uid-1",
+        subject="УПД по почте",
+        received_at=now_moscow(),
+    )
+    test_session.add(message)
+    await test_session.flush()
+    test_session.add(
+        SupplierReceipt(
+            provider_id=provider.id,
+            source_message_id=message.id,
+            document_number="ТМРНБ-26-190198",
+            document_date=date(2026, 4, 9),
+            posted_at=now_moscow(),
+        )
+    )
+    path = tmp_path / "ON_NSCHFDOPPR_dup.xml"
+    path.write_bytes(upd_xml(created_autopart.oem_number))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="mdup", entity_id="edup",
+        provider_id=provider.id, file_name=path.name, document_number="тмрнб-26-190198",
+        document_date=date(2026, 4, 9), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    assert result.get("dedup_action") == "linked"
+    assert len(await receipts(test_session)) == 1
+
+
+@pytest.mark.asyncio
+async def test_merge_diadoc_duplicate_receipt_keeps_email_receipt(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    from dz_fastapi.models.partner import SupplierOrderMessage
+    from dz_fastapi.services.supplier_document_dedup import merge_diadoc_duplicate_receipt
+
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    path = tmp_path / "ON_NSCHFDOPPR_merge.xml"
+    path.write_bytes(upd_xml(created_autopart.oem_number))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="mm", entity_id="em",
+        provider_id=provider.id, file_name=path.name, document_number="ТМРНБ-26-190198",
+        document_date=date(2026, 4, 9), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    first = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    diadoc_receipt_id = first["receipt_ids"][0]
+    message = SupplierOrderMessage(
+        provider_id=provider.id,
+        message_type="SHIPPING_DOC",
+        source_uid="uid-9",
+        received_at=now_moscow(),
+    )
+    test_session.add(message)
+    await test_session.flush()
+    email_receipt = SupplierReceipt(
+        provider_id=provider.id,
+        source_message_id=message.id,
+        document_number="ТМРНБ-26-190198",
+        document_date=date(2026, 4, 9),
+        posted_at=now_moscow(),
+    )
+    test_session.add(email_receipt)
+    await test_session.commit()
+    email_receipt_id = email_receipt.id
+
+    preview = await merge_diadoc_duplicate_receipt(test_session, document_id=doc.id)
+    assert preview["status"] == "duplicate"
+    assert preview["kept_receipt_id"] == email_receipt_id
+    assert preview["diadoc_receipt_ids"] == [diadoc_receipt_id]
+    assert len(await receipts(test_session)) == 2
+
+    merged = await merge_diadoc_duplicate_receipt(
+        test_session, document_id=doc.id, apply=True
+    )
+    assert merged["status"] == "merged", merged
+    test_session.expire_all()
+    remaining = await receipts(test_session)
+    assert [r.id for r in remaining] == [email_receipt_id]

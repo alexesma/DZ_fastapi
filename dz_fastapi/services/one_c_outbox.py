@@ -1113,6 +1113,8 @@ def serialize_one_c_event(
         "ed_sent_at": event.ed_sent_at,
         "ed_transport_confirmed_at": event.ed_transport_confirmed_at,
         "ed_last_error": event.ed_last_error,
+        "ed_excluded_at": event.ed_excluded_at,
+        "ed_exclusion_reason": event.ed_exclusion_reason,
         "ed_unf_ref": event.ed_unf_ref,
         "ed_unf_number": event.ed_unf_number,
         "ed_unf_date": event.ed_unf_date,

@@ -68,6 +68,10 @@ class OneCExchangeEvent(Base):
     ed_sent_at = Column(DateTime(timezone=True), nullable=True)
     ed_transport_confirmed_at = Column(DateTime(timezone=True), nullable=True)
     ed_last_error = Column(Text, nullable=True)
+    # Явный карантин отличается от технической ошибки: документ остаётся в
+    # журнале и может быть возвращён в очередь после исправления исходных данных.
+    ed_excluded_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    ed_exclusion_reason = Column(Text, nullable=True)
     # Что УНФ прислала обратно о нашем документе: её номер, дата и признак
     # проведения (None — в сообщении этого признака не было).
     ed_unf_ref = Column(String(36), nullable=True)
@@ -120,6 +124,7 @@ class OneCEnterpriseConfig(Base):
     send_stock_documents = Column(Boolean, nullable=False, default=False)
     batch_size = Column(Integer, nullable=False, default=1)
     first_event_id = Column(Integer, nullable=True)
+    activation_mode = Column(String(20), nullable=False, default="new")
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
 
 

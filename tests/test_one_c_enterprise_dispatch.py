@@ -221,6 +221,77 @@ async def test_activation_skips_old_events_unless_history_requested(test_session
 
 
 @pytest.mark.asyncio
+async def test_new_activation_resets_an_old_history_boundary(test_session):
+    old = _event(11)
+    test_session.add(old)
+    await test_session.flush()
+    config = await dispatch.set_config(
+        test_session,
+        enabled=False,
+        send_receipts=True,
+        send_shipments=False,
+        activation_mode="history",
+    )
+    config.first_event_id = 1
+    await test_session.flush()
+
+    config = await dispatch.set_config(
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
+        activation_mode="new",
+    )
+
+    assert config.first_event_id == old.id + 1
+    assert config.activation_mode == "new"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_skips_quarantined_event(test_session, monkeypatch):
+    excluded = _event(42)
+    excluded.ed_excluded_at = now_moscow()
+    excluded.ed_exclusion_reason = "ошибочная история"
+    ready = _event(43)
+    test_session.add_all([excluded, ready])
+    await test_session.flush()
+    await dispatch.set_config(
+        test_session,
+        enabled=True,
+        send_receipts=True,
+        send_shipments=False,
+        include_history=True,
+    )
+
+    monkeypatch.setattr(
+        dispatch,
+        "get_exchange_status",
+        lambda: {"incoming_files": [], "pending_body": None, "last_confirmed_body": None},
+    )
+
+    async def payload(*_args):
+        return {"document_id": ready.entity_id}
+
+    monkeypatch.setattr(dispatch, "_current_payload", payload)
+
+    async def company(_session):
+        return {"short_name": "Test"}
+
+    monkeypatch.setattr(dispatch, "_company", company)
+    monkeypatch.setattr(dispatch, "event_body_objects", lambda *_: [ET.Element("Document")])
+    monkeypatch.setattr(
+        dispatch,
+        "send_body_message",
+        lambda *_args, **_kwargs: {"message_no": 15},
+    )
+
+    result = await dispatch.dispatch_next(test_session)
+
+    assert result["sent_event_ids"] == [ready.id]
+    assert excluded.ed_message_no is None
+
+
+@pytest.mark.asyncio
 async def test_manual_message_is_recovered_from_ftp_confirmation(test_session):
     event = _event(20)
     test_session.add(event)
@@ -290,6 +361,14 @@ async def test_misparsed_email_receipt_is_blocked_before_transfer(
     assert audit["suspicious_auto_receipt_count"] == 1
     assert audit["missing_price_receipts"][0]["receipt_id"] == receipt.id
     assert audit["missing_price_receipt_count"] == 1
+
+    quarantined = await dispatch.quarantine_history_problems(test_session)
+    assert quarantined["count"] == 1
+    assert quarantined["quarantined_receipt_ids"] == [receipt.id]
+    after = await dispatch.history_audit(test_session)
+    assert after["suspicious_auto_receipt_count"] == 0
+    assert after["missing_price_receipt_count"] == 0
+    assert after["quarantined_event_count"] == 1
 
 
 @pytest.mark.asyncio
