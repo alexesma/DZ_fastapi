@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import raiseload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.partner import (
@@ -227,27 +228,26 @@ async def cancel_superseded_customer_pricelist_outbox(
     current_pricelist_id: int,
 ) -> int:
     """Cancel unclaimed letters for older files of the same configuration."""
-    old_pricelists = list(
+    old_pricelist_ids = list(
         (
             await session.scalars(
-                select(CustomerPriceList).where(
+                select(CustomerPriceList.id).where(
                     CustomerPriceList.customer_config_id == customer_config_id,
                     CustomerPriceList.id != current_pricelist_id,
                 )
             )
         ).all()
     )
-    if not old_pricelists:
+    if not old_pricelist_ids:
         return 0
 
-    old_by_id = {item.id: item for item in old_pricelists}
     rows = list(
         (
             await session.scalars(
                 select(EmailOutbox)
                 .where(
                     EmailOutbox.source_type == "customer_pricelist",
-                    EmailOutbox.source_id.in_(old_by_id),
+                    EmailOutbox.source_id.in_(old_pricelist_ids),
                     EmailOutbox.status == EMAIL_OUTBOX_STATUS.PENDING,
                     EmailOutbox.claimed_at.is_(None),
                 )
@@ -265,14 +265,113 @@ async def cancel_superseded_customer_pricelist_outbox(
         affected_pricelist_ids.add(int(row.source_id))
         session.add(row)
 
-    for pricelist_id in affected_pricelist_ids:
-        pricelist = old_by_id[pricelist_id]
-        pricelist.generation_status = "rejected"
-        pricelist.send_error = "Отменено: сформирован более новый прайс-лист"
+    superseded_at = now_moscow()
+    affected_pricelists = list(
+        (
+            await session.scalars(
+                select(CustomerPriceList)
+                .options(raiseload("*"))
+                .where(CustomerPriceList.id.in_(affected_pricelist_ids))
+            )
+        ).all()
+    )
+    for pricelist in affected_pricelists:
+        summary = dict(pricelist.generation_summary or {})
+        delivery = dict(summary.get("delivery") or {})
+        delivery.update(
+            {
+                "status": "superseded",
+                "superseded_at": superseded_at.isoformat(),
+                "superseded_by_pricelist_id": int(current_pricelist_id),
+            }
+        )
+        summary["delivery"] = delivery
+        pricelist.generation_summary = summary
+        pricelist.generation_status = "superseded"
+        pricelist.decision_reason = "Автоматически заменён более новым прайс-листом"
+        pricelist.send_error = None
         session.add(pricelist)
 
     await session.flush()
     return len(rows)
+
+
+async def record_customer_pricelist_delivery_channel(
+    session: AsyncSession,
+    *,
+    customer_pricelist_id: int,
+    kind: str,
+    status: str,
+    from_email: str | None,
+    transport: str | None = None,
+    account_id: int | None = None,
+    recipients: list[str] | None = None,
+    error: str | None = None,
+) -> None:
+    """Persist one delivery channel without adding another database table.
+
+    Direct API sends do not pass through EmailOutbox, so previously the UI
+    could only see the pending SMTP relay half of a multi-sender delivery.
+    The compact audit below lives with the exact generated file and is later
+    combined with recipient-level EmailOutbox state by ``_sync...``.
+    """
+    pricelist = await session.get(CustomerPriceList, int(customer_pricelist_id))
+    if pricelist is None:
+        return
+    summary = dict(pricelist.generation_summary or {})
+    delivery = dict(summary.get("delivery") or {})
+    channels = [dict(item) for item in delivery.get("channels") or []]
+    channel_key = (
+        str(kind or ""),
+        int(account_id) if account_id is not None else None,
+        str(from_email or "").casefold(),
+    )
+    channels = [
+        item
+        for item in channels
+        if (
+            str(item.get("kind") or ""),
+            int(item["account_id"]) if item.get("account_id") is not None else None,
+            str(item.get("from_email") or "").casefold(),
+        )
+        != channel_key
+    ]
+    now = now_moscow()
+    channel = {
+        "kind": str(kind),
+        "status": str(status),
+        "from_email": from_email,
+        "transport": transport,
+        "account_id": account_id,
+        "recipients": list(recipients or []),
+        "updated_at": now.isoformat(),
+    }
+    if status == "sent":
+        channel["sent_at"] = now.isoformat()
+        pricelist.published_at = pricelist.published_at or now
+    if error:
+        channel["error"] = str(error)[:2000]
+    channels.append(channel)
+    delivery["channels"] = channels
+    delivery["status"] = str(status)
+    delivery["updated_at"] = now.isoformat()
+    summary["delivery"] = delivery
+    pricelist.generation_summary = summary
+    session.add(pricelist)
+    await session.flush()
+
+
+def customer_pricelist_has_successful_delivery(
+    pricelist: CustomerPriceList,
+) -> bool:
+    """Return whether at least one recorded channel accepted the file."""
+    summary = pricelist.generation_summary or {}
+    delivery = summary.get("delivery") or {}
+    return any(
+        item.get("status") == "sent"
+        for item in delivery.get("channels") or []
+        if isinstance(item, dict)
+    )
 
 
 async def list_pending_outbox(
@@ -507,29 +606,91 @@ async def _sync_customer_pricelist_delivery_status(
     if not rows:
         return
 
+    summary = dict(customer_pricelist.generation_summary or {})
+    delivery = dict(summary.get("delivery") or {})
+    direct_channels = [
+        dict(item)
+        for item in delivery.get("channels") or []
+        if item.get("kind") != "relay"
+    ]
+    relay_channels: list[dict[str, Any]] = []
+    rows_by_sender: dict[str, list[EmailOutbox]] = {}
+    for item in rows:
+        rows_by_sender.setdefault(str(item.from_email or "relay"), []).append(item)
+    for sender, sender_rows in rows_by_sender.items():
+        statuses = {
+            str(getattr(item.status, "value", item.status)) for item in sender_rows
+        }
+        if EMAIL_OUTBOX_STATUS.PENDING.value in statuses:
+            channel_status = "queued"
+        elif EMAIL_OUTBOX_STATUS.ERROR.value in statuses:
+            channel_status = "failed"
+        elif statuses == {EMAIL_OUTBOX_STATUS.CANCELLED.value}:
+            channel_status = "cancelled"
+        else:
+            channel_status = "sent"
+        relay_channels.append(
+            {
+                "kind": "relay",
+                "status": channel_status,
+                "from_email": sender,
+                "transport": "smtp_relay",
+                "recipients": [
+                    {
+                        "email": item.to_email,
+                        "status": str(getattr(item.status, "value", item.status)),
+                        "attempts": int(item.attempts or 0),
+                        "error": item.last_error,
+                        "sent_at": item.sent_at.isoformat() if item.sent_at else None,
+                    }
+                    for item in sender_rows
+                ],
+                "updated_at": now_moscow().isoformat(),
+            }
+        )
+    delivery["channels"] = direct_channels + relay_channels
+    summary["delivery"] = delivery
+    customer_pricelist.generation_summary = summary
+
     pending = [
         item for item in rows if item.status == EMAIL_OUTBOX_STATUS.PENDING
     ]
     failed = [
         item for item in rows if item.status == EMAIL_OUTBOX_STATUS.ERROR
     ]
+    direct_sent = any(
+        item.get("status") == "sent" for item in direct_channels
+    )
+    relay_sent = any(
+        item.status == EMAIL_OUTBOX_STATUS.SENT for item in rows
+    )
+    any_sent = direct_sent or relay_sent
     if pending:
-        customer_pricelist.generation_status = "queued"
+        customer_pricelist.generation_status = (
+            "partially_sent" if any_sent else "queued"
+        )
         customer_pricelist.sent_at = None
         customer_pricelist.send_error = None
+        delivery["status"] = customer_pricelist.generation_status
     elif failed:
-        customer_pricelist.generation_status = "send_failed"
+        customer_pricelist.generation_status = (
+            "partially_sent" if any_sent else "send_failed"
+        )
         customer_pricelist.sent_at = None
         customer_pricelist.send_error = "; ".join(
             f"{item.to_email}: {item.last_error or 'ошибка отправки'}"
             for item in failed
         )[:2000]
-    else:
+        delivery["status"] = customer_pricelist.generation_status
+    elif any_sent:
         customer_pricelist.generation_status = "sent"
-        customer_pricelist.sent_at = max(
-            item.sent_at for item in rows if item.sent_at is not None
+        sent_dates = [item.sent_at for item in rows if item.sent_at is not None]
+        customer_pricelist.sent_at = max(sent_dates) if sent_dates else now_moscow()
+        customer_pricelist.published_at = (
+            customer_pricelist.published_at or customer_pricelist.sent_at
         )
         customer_pricelist.send_error = None
+        delivery["status"] = "sent"
         if customer_pricelist.customer_config_id:
             config = await session.get(
                 CustomerPriceListConfig,
@@ -538,6 +699,16 @@ async def _sync_customer_pricelist_delivery_status(
             if config is not None:
                 config.last_sent_at = customer_pricelist.sent_at
                 session.add(config)
+    else:
+        # All recipient rows can be cancelled when a newer file supersedes
+        # this one. Cancellation is not a successful delivery.
+        customer_pricelist.generation_status = "superseded"
+        customer_pricelist.sent_at = None
+        customer_pricelist.send_error = None
+        delivery["status"] = "superseded"
+    delivery["updated_at"] = now_moscow().isoformat()
+    summary["delivery"] = delivery
+    customer_pricelist.generation_summary = summary
     session.add(customer_pricelist)
 
 

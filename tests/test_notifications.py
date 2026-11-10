@@ -17,7 +17,7 @@ from dz_fastapi.models.partner import (
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.notification import PricelistStaleActionRequest, RelayOfflineActionRequest
 from dz_fastapi.services.notifications import notify_admin_all
-from dz_fastapi.services.relay_health import record_relay_heartbeat
+from dz_fastapi.services.relay_health import get_email_relay_health_state, record_relay_heartbeat
 from dz_fastapi.services.scheduler import (
     check_email_relay_health_task,
     check_provider_pricelist_staleness_task,
@@ -124,6 +124,11 @@ async def test_relay_offline_notification_snoozes_and_closes_after_recovery(
     )
     test_session.add_all([admin, pending])
     await test_session.commit()
+
+    state = await get_email_relay_health_state(test_session)
+    assert state["status"] == "offline"
+    assert state["pending_count"] == 1
+    assert state["oldest_pending_at"] == pending.created_at
 
     await check_email_relay_health_task(app)
     notification = (

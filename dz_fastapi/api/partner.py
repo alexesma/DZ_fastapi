@@ -148,6 +148,7 @@ from dz_fastapi.services import publication_rules as publication_rules_service
 from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.customer_pricelist_jobs import enqueue_job, get_job_state, job_response
 from dz_fastapi.services.email import download_price_provider
+from dz_fastapi.services.email_outbox import customer_pricelist_has_successful_delivery
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.monitoring import provider_config_intake_problems
 from dz_fastapi.services.order_timing import get_today_order_windows_status
@@ -4200,14 +4201,19 @@ async def approve_customer_pricelist_draft(
             body="Добрый день, высылаем Вам наш прайс-лист",
         )
     except Exception as exc:
-        pricelist.generation_status = "send_failed"
+        await session.refresh(pricelist)
+        pricelist.generation_status = (
+            "partially_sent"
+            if customer_pricelist_has_successful_delivery(pricelist)
+            else "send_failed"
+        )
         pricelist.send_error = str(exc)
         session.add(pricelist)
         await session.commit()
         raise HTTPException(status_code=502, detail=str(exc))
     sent_at = now_moscow()
-    if delivery_result == "queued":
-        pricelist.generation_status = "queued"
+    if delivery_result in {"queued", "partially_sent"}:
+        pricelist.generation_status = delivery_result
         pricelist.sent_at = None
     else:
         pricelist.generation_status = "sent"

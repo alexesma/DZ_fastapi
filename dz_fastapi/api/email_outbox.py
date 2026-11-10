@@ -25,7 +25,7 @@ from dz_fastapi.services.email_outbox import (
     renew_outbox_claim,
     serialize_outbox_for_relay,
 )
-from dz_fastapi.services.relay_health import record_relay_heartbeat
+from dz_fastapi.services.relay_health import get_email_relay_health_state, record_relay_heartbeat
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -94,6 +94,17 @@ async def outbox_list(
         stmt = stmt.where(EmailOutbox.status == status_filter)
     rows = (await session.execute(stmt)).scalars().all()
     return list(rows)
+
+
+@router.get(
+    "/relay-health",
+    summary="Текущее состояние внешнего почтового релея",
+)
+async def outbox_relay_health(
+    _=Depends(require_reclamation_access),
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_email_relay_health_state(session)
 
 
 @router.post(

@@ -2507,7 +2507,9 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                                     CustomerPriceList.customer_config_id.in_(config_ids),
                                     CustomerPriceList.generated_at.is_not(None),
                                     or_(
-                                        CustomerPriceList.generation_status.in_(("queued", "sent")),
+                                        CustomerPriceList.generation_status.in_(
+                                            ("queued", "partially_sent", "sent")
+                                        ),
                                         # прайс собран и действует без рассылки (нет получателей)
                                         CustomerPriceList.published_at.is_not(None),
                                     ),

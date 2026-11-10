@@ -45,17 +45,11 @@ def _is_relay_notification(item: AppNotification) -> bool:
 
 
 async def check_email_relay_health(session: AsyncSession) -> dict[str, object]:
+    state = await get_email_relay_health_state(session)
     now = now_moscow()
-    timeout = timedelta(seconds=RELAY_HEARTBEAT_TIMEOUT_SECONDS)
-    pending_count, oldest_pending_at = (
-        await session.execute(
-            select(func.count(EmailOutbox.id), func.min(EmailOutbox.created_at)).where(
-                EmailOutbox.status == EMAIL_OUTBOX_STATUS.PENDING
-            )
-        )
-    ).one()
-    pending_count = int(pending_count or 0)
-    last_seen_at = await session.scalar(select(func.max(RelayHeartbeat.last_seen_at)))
+    pending_count = int(state["pending_count"])
+    oldest_pending_at = state["oldest_pending_at"]
+    last_seen_at = state["last_seen_at"]
     open_notifications = list(
         (
             await session.scalars(
@@ -65,12 +59,8 @@ async def check_email_relay_health(session: AsyncSession) -> dict[str, object]:
     )
     relay_notifications = [item for item in open_notifications if _is_relay_notification(item)]
 
-    heartbeat_stale = last_seen_at is None or last_seen_at < now - timeout
-    pending_is_old = oldest_pending_at is not None and oldest_pending_at < now - timeout
-    relay_offline = heartbeat_stale and (
-        last_seen_at is not None
-        or (pending_count > 0 and pending_is_old)
-    )
+    heartbeat_stale = bool(state["heartbeat_stale"])
+    relay_offline = state["status"] == "offline"
 
     if not relay_offline:
         for item in relay_notifications:
@@ -112,4 +102,39 @@ async def check_email_relay_health(session: AsyncSession) -> dict[str, object]:
         "pending_count": pending_count,
         "last_seen_at": last_seen_at.isoformat() if last_seen_at else None,
         "notifications_open": max(len(relay_notifications), 1),
+    }
+
+
+async def get_email_relay_health_state(
+    session: AsyncSession,
+) -> dict[str, object]:
+    """Return relay state without creating or closing notifications."""
+    now = now_moscow()
+    timeout = timedelta(seconds=RELAY_HEARTBEAT_TIMEOUT_SECONDS)
+    pending_count, oldest_pending_at = (
+        await session.execute(
+            select(func.count(EmailOutbox.id), func.min(EmailOutbox.created_at)).where(
+                EmailOutbox.status == EMAIL_OUTBOX_STATUS.PENDING
+            )
+        )
+    ).one()
+    pending_count = int(pending_count or 0)
+    last_seen_at = await session.scalar(select(func.max(RelayHeartbeat.last_seen_at)))
+    heartbeat_stale = last_seen_at is None or last_seen_at < now - timeout
+    pending_is_old = oldest_pending_at is not None and oldest_pending_at < now - timeout
+    relay_offline = heartbeat_stale and (
+        last_seen_at is not None
+        or (pending_count > 0 and pending_is_old)
+    )
+    return {
+        "status": (
+            "offline"
+            if relay_offline
+            else "online" if last_seen_at and not heartbeat_stale else "idle"
+        ),
+        "pending_count": pending_count,
+        "oldest_pending_at": oldest_pending_at,
+        "last_seen_at": last_seen_at,
+        "heartbeat_stale": heartbeat_stale,
+        "timeout_seconds": RELAY_HEARTBEAT_TIMEOUT_SECONDS,
     }

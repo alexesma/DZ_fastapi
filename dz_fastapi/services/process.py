@@ -120,7 +120,9 @@ from dz_fastapi.services.email import (
 )
 from dz_fastapi.services.email_outbox import (
     cancel_superseded_customer_pricelist_outbox,
+    customer_pricelist_has_successful_delivery,
     enqueue_email,
+    record_customer_pricelist_delivery_channel,
 )
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
 from dz_fastapi.services.regulatory import (
@@ -3395,6 +3397,11 @@ async def send_pricelist(
                 relay_recipients.append(recipient)
     if not relay_recipients:
         raise RuntimeError("Для отправки прайс-листа не заданы получатели")
+    if relay_accounts and (not attachment_local_path or customer_pricelist_id is None):
+        raise RuntimeError(
+            "Для отправки прайс-листа через внешний релей "
+            "не сохранён файл или идентификатор прайса"
+        )
 
     # Direct transports run first. If one fails, relay messages have not yet
     # been queued, which avoids a misleading partly queued state.
@@ -3421,50 +3428,69 @@ async def send_pricelist(
                 EMAIL_NAME,
             )
         sender_key = str(getattr(account, "id", None) or "env")
-        sent = await loop.run_in_executor(
-            None,
-            partial(
-                send_email_with_attachment,
-                to_email=to_email,
-                subject=subject,
-                body=body,
-                attachment_bytes=attachment_bytes,
-                attachment_filename=attachment_filename,
-                resend_idempotency_key=(
-                    f"customer-pricelist/{customer_pricelist_id}/sender/{sender_key}"
-                    if customer_pricelist_id is not None
-                    else None
+        try:
+            sent = await loop.run_in_executor(
+                None,
+                partial(
+                    send_email_with_attachment,
+                    to_email=to_email,
+                    subject=subject,
+                    body=body,
+                    attachment_bytes=attachment_bytes,
+                    attachment_filename=attachment_filename,
+                    resend_idempotency_key=(
+                        f"customer-pricelist/{customer_pricelist_id}/sender/{sender_key}"
+                        if customer_pricelist_id is not None
+                        else None
+                    ),
+                    **kwargs,
                 ),
-                **kwargs,
-            ),
-        )
+            )
+        except Exception as exc:
+            if customer_pricelist_id is not None:
+                await record_customer_pricelist_delivery_channel(
+                    session,
+                    customer_pricelist_id=int(customer_pricelist_id),
+                    kind="direct",
+                    status="failed",
+                    from_email=(account.email if account else EMAIL_NAME),
+                    transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                    account_id=(getattr(account, "id", None) if account else None),
+                    recipients=relay_recipients,
+                    error=str(exc),
+                )
+            raise
         if not sent:
             sender = account.email if account else EMAIL_NAME
+            if customer_pricelist_id is not None:
+                await record_customer_pricelist_delivery_channel(
+                    session,
+                    customer_pricelist_id=int(customer_pricelist_id),
+                    kind="direct",
+                    status="failed",
+                    from_email=sender,
+                    transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                    account_id=(getattr(account, "id", None) if account else None),
+                    recipients=relay_recipients,
+                    error="Почтовый транспорт не подтвердил отправку",
+                )
             raise RuntimeError(
                 "Почтовый транспорт не подтвердил отправку прайс-листа "
                 f"с адреса {sender or 'не указан'}"
             )
+        if customer_pricelist_id is not None:
+            await record_customer_pricelist_delivery_channel(
+                session,
+                customer_pricelist_id=int(customer_pricelist_id),
+                kind="direct",
+                status="sent",
+                from_email=(account.email if account else EMAIL_NAME),
+                transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                account_id=(getattr(account, "id", None) if account else None),
+                recipients=relay_recipients,
+            )
 
     if relay_accounts:
-        if not attachment_local_path or customer_pricelist_id is None:
-            raise RuntimeError(
-                "Для отправки прайс-листа через внешний релей "
-                "не сохранён файл или идентификатор прайса"
-            )
-        cancelled_count = await cancel_superseded_customer_pricelist_outbox(
-            session,
-            customer_config_id=int(config.id),
-            current_pricelist_id=int(customer_pricelist_id),
-        )
-        if cancelled_count:
-            logger.info(
-                "Cancelled superseded customer pricelist relay messages: "
-                "config=%s current_pricelist_id=%s count=%s",
-                config.id,
-                customer_pricelist_id,
-                cancelled_count,
-            )
-
         for account in relay_accounts:
             for recipient in relay_recipients:
                 await enqueue_email(
@@ -3484,6 +3510,16 @@ async def send_pricelist(
                     source_id=customer_pricelist_id,
                     commit=False,
                 )
+            await record_customer_pricelist_delivery_channel(
+                session,
+                customer_pricelist_id=int(customer_pricelist_id),
+                kind="relay",
+                status="queued",
+                from_email=account.email,
+                transport="smtp_relay",
+                account_id=account.id,
+                recipients=relay_recipients,
+            )
             logger.info(
                 "Customer pricelist queued for external email relay: "
                 "pricelist_id=%s config=%s from=%s recipients=%s outbox_count=%s",
@@ -3493,7 +3529,26 @@ async def send_pricelist(
                 ",".join(relay_recipients),
                 len(relay_recipients),
             )
-        return "queued"
+    # A newly accepted delivery supersedes any older unclaimed relay rows,
+    # even when the configuration has since switched to a direct transport.
+    # Previously such rows stayed pending forever and were sent much later
+    # when the Windows relay came back online.
+    if customer_pricelist_id is not None:
+        cancelled_count = await cancel_superseded_customer_pricelist_outbox(
+            session,
+            customer_config_id=int(config.id),
+            current_pricelist_id=int(customer_pricelist_id),
+        )
+        if cancelled_count:
+            logger.info(
+                "Cancelled superseded customer pricelist relay messages: "
+                "config=%s current_pricelist_id=%s count=%s",
+                config.id,
+                customer_pricelist_id,
+                cancelled_count,
+            )
+    if relay_accounts:
+        return "partially_sent" if direct_accounts else "queued"
     logger.debug("Final send email")
     return "sent"
 
@@ -4865,9 +4920,9 @@ async def _process_customer_pricelist_unlocked(
                 body="Добрый день, высылаем Вам наш прайс-лист",
             )
             handled_at = now_moscow()
-            if delivery_result == "queued":
+            if delivery_result in {"queued", "partially_sent"}:
                 customer_pricelist.sent_at = None
-                customer_pricelist.generation_status = "queued"
+                customer_pricelist.generation_status = delivery_result
             else:
                 customer_pricelist.sent_at = handled_at
                 customer_pricelist.published_at = handled_at
@@ -4875,7 +4930,12 @@ async def _process_customer_pricelist_unlocked(
                 config.last_sent_at = handled_at
             customer_pricelist.send_error = None
         except Exception as exc:
-            customer_pricelist.generation_status = "send_failed"
+            await session.refresh(customer_pricelist)
+            customer_pricelist.generation_status = (
+                "partially_sent"
+                if customer_pricelist_has_successful_delivery(customer_pricelist)
+                else "send_failed"
+            )
             customer_pricelist.send_error = str(exc)
             session.add(customer_pricelist)
             await session.commit()

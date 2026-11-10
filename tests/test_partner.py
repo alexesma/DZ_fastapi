@@ -3493,7 +3493,7 @@ async def test_smtp_customer_pricelist_uses_external_relay(
     await mark_outbox_sent(test_session, outbox_id=outbox_rows[0].id)
     await test_session.refresh(customer_pricelist)
     await test_session.refresh(config)
-    assert customer_pricelist.generation_status == "queued"
+    assert customer_pricelist.generation_status == "partially_sent"
     assert customer_pricelist.sent_at is None
     assert config.last_sent_at is None
 
@@ -3594,7 +3594,7 @@ async def test_customer_pricelist_queues_every_recipient_from_every_selected_mai
         await mark_outbox_sent(test_session, outbox_id=row.id)
     await test_session.refresh(customer_pricelist)
     await test_session.refresh(config)
-    assert customer_pricelist.generation_status == "queued"
+    assert customer_pricelist.generation_status == "partially_sent"
     assert config.last_sent_at is None
 
     await mark_outbox_sent(test_session, outbox_id=outbox_rows[-1].id)
@@ -3695,9 +3695,106 @@ async def test_customer_pricelist_relay_cancels_superseded_unclaimed_messages(
     )
     assert result == "queued"
     assert old_outbox.status == EMAIL_OUTBOX_STATUS.CANCELLED
-    assert old_pricelist.generation_status == "rejected"
+    assert old_pricelist.generation_status == "superseded"
+    assert old_pricelist.decision_reason == (
+        "Автоматически заменён более новым прайс-листом"
+    )
+    assert old_pricelist.send_error is None
     assert len(current_rows) == 1
     assert current_rows[0].status == EMAIL_OUTBOX_STATUS.PENDING
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_tracks_direct_and_relay_delivery_separately(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    customer = created_customers[0]
+    direct_account = EmailAccount(
+        name="Customer price direct",
+        email="price-direct@example.com",
+        password="not-used-by-resend",
+        transport="resend_api",
+        resend_api_key="re_test",
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    relay_account = EmailAccount(
+        name="Customer price relay",
+        email="price-relay@example.com",
+        password="secret",
+        transport="smtp",
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        smtp_use_ssl=True,
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    test_session.add_all([direct_account, relay_account])
+    await test_session.flush()
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="DIRECT AND RELAY CONFIG",
+        outgoing_email_account_id=direct_account.id,
+        outgoing_email_account_ids=[direct_account.id, relay_account.id],
+    )
+    test_session.add(config)
+    await test_session.flush()
+    customer_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        customer_config_id=config.id,
+        date=date.today(),
+        generation_status="generated",
+    )
+    test_session.add(customer_pricelist)
+    await test_session.commit()
+    artifact_path = tmp_path / "direct-and-relay.xlsx"
+    artifact_path.write_bytes(b"test-price")
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: True,
+    )
+
+    result = await process_service.send_pricelist(
+        session=test_session,
+        df_excel=None,
+        customer=customer,
+        config=config,
+        to_emails=["client@example.com"],
+        subject="Прайс лист",
+        body="Тело письма",
+        attachment_bytes=b"test-price",
+        attachment_filename="direct-and-relay.xlsx",
+        attachment_local_path=str(artifact_path),
+        attachment_content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        customer_pricelist_id=customer_pricelist.id,
+    )
+
+    assert result == "partially_sent"
+    await test_session.refresh(customer_pricelist)
+    channels = customer_pricelist.generation_summary["delivery"]["channels"]
+    assert {(item["kind"], item["status"]) for item in channels} == {
+        ("direct", "sent"),
+        ("relay", "queued"),
+    }
+    outbox = (
+        await test_session.scalars(
+            select(EmailOutbox).where(
+                EmailOutbox.source_type == "customer_pricelist",
+                EmailOutbox.source_id == customer_pricelist.id,
+            )
+        )
+    ).one()
+
+    await mark_outbox_sent(test_session, outbox_id=outbox.id)
+    await test_session.refresh(customer_pricelist)
+    assert customer_pricelist.generation_status == "sent"
+    assert customer_pricelist.sent_at is not None
 
 
 @pytest.mark.asyncio

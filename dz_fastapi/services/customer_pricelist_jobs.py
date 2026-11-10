@@ -15,6 +15,7 @@ from dz_fastapi.crud.partner import crud_customer, crud_customer_pricelist_confi
 from dz_fastapi.models.partner import Customer, CustomerPriceList, CustomerPriceListConfig
 from dz_fastapi.models.pricelist_job import CustomerPricelistJob
 from dz_fastapi.schemas.partner import CustomerPriceListCreate
+from dz_fastapi.services.email_outbox import customer_pricelist_has_successful_delivery
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_ARTIFACT_ROOT,
     process_customer_pricelist,
@@ -72,7 +73,9 @@ async def enqueue_job(session, *, customer_id, config_id, action, user_id, price
         )
         if not artifact_exists(pricelist):
             raise HTTPException(404, "Готовый файл не найден. Обновите прайс")
-        if pricelist.generation_status not in ("draft", "sent", "queued"):
+        if pricelist.generation_status not in (
+            "draft", "sent", "queued", "partially_sent"
+        ):
             raise HTTPException(409, "Этот прайс нельзя отправить. Сформируйте новую версию")
     job = CustomerPricelistJob(
         customer_id=customer_id,
@@ -141,7 +144,9 @@ async def get_job_state(session, customer_id, config_id):
             CustomerPriceList.customer_id == customer_id,
             CustomerPriceList.customer_config_id == config_id,
             CustomerPriceList.generated_at.is_not(None),
-            CustomerPriceList.generation_status.in_(("draft", "sent", "queued", "send_failed")),
+            CustomerPriceList.generation_status.in_(
+                ("draft", "sent", "queued", "partially_sent", "send_failed")
+            ),
             CustomerPriceList.artifact_path.is_not(None),
         )
         .order_by(CustomerPriceList.generated_at.desc(), CustomerPriceList.id.desc())
@@ -195,7 +200,9 @@ async def _send_saved(session, job, token, progress):
         )
         if not artifact_exists(pricelist):
             raise HTTPException(404, "Файл больше недоступен. Обновите прайс")
-        if pricelist.generation_status not in ("draft", "sent", "queued"):
+        if pricelist.generation_status not in (
+            "draft", "sent", "queued", "partially_sent"
+        ):
             raise HTTPException(409, "Версия прайса больше недоступна для отправки")
         quality = (pricelist.generation_summary or {}).get("quality_control") or {}
         if quality.get("enabled") and quality.get("status") == "failed":
@@ -222,7 +229,12 @@ async def _send_saved(session, job, token, progress):
                 body="Добрый день, высылаем Вам наш прайс-лист",
             )
         except Exception:
-            pricelist.generation_status = "send_failed"
+            await session.refresh(pricelist)
+            pricelist.generation_status = (
+                "partially_sent"
+                if customer_pricelist_has_successful_delivery(pricelist)
+                else "send_failed"
+            )
             pricelist.send_error = (
                 "Ошибка отправки; перед повтором проверьте очередь и почтовый сервис"
             )
