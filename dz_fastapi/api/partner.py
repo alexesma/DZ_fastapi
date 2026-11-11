@@ -978,6 +978,14 @@ async def update_provider(
             )
             if enabled and not times:
                 raise HTTPException(status_code=400, detail="Укажите время отправки поставщику")
+    if (
+        {"order_stub_enabled", "order_stub_email"} & provider_in.model_fields_set
+        and current_user.role != UserRole.ADMIN
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Заглушку отправки заказов может менять только администратор",
+        )
     one_c_contract_fields = {
         "one_c_contract_name", "one_c_contract_number",
         "one_c_contract_date", "one_c_contract_guid",

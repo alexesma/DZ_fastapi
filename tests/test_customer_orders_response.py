@@ -35,7 +35,6 @@ from dz_fastapi.models.partner import (
     SupplierReceiptItem,
     SupplierResponseConfig,
 )
-from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.customer_orders import (
     _apply_response_updates_csv,
     _apply_response_updates_excel,
@@ -765,6 +764,58 @@ async def test_manual_search_supplier_order_bypasses_stub(
 
 
 @pytest.mark.asyncio
+async def test_send_supplier_orders_uses_provider_stub_email(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.order_stub_enabled = True
+    provider.order_stub_email = "provider-stub@example.com"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=order.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+            price=50.0,
+        )
+    )
+    await test_session.commit()
+
+    sent_calls = []
+
+    async def fake_send_email_attachment_async(
+        to_email, subject, body, attachment, filename, use_tls, **kwargs
+    ):
+        sent_calls.append(to_email)
+
+    async def fake_get_out_account(session, purpose):
+        return None
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        fake_send_email_attachment_async,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._get_out_account",
+        fake_get_out_account,
+    )
+
+    result = await send_supplier_orders(test_session, [order.id])
+
+    assert result == {"sent": 1, "failed": 0}
+    assert sent_calls == ["provider-stub@example.com"]
+
+
+@pytest.mark.asyncio
 async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     monkeypatch,
     test_session,
@@ -787,16 +838,7 @@ async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
             price=50.0,
         )
     )
-    test_session.add(
-        CustomerOrderInboxSettings(
-            lookback_days=1,
-            mark_seen=False,
-            error_file_retention_days=5,
-            supplier_response_lookback_days=14,
-            supplier_order_stub_enabled=False,
-            supplier_order_stub_email="info@dragonzap.ru",
-        )
-    )
+    provider.order_stub_enabled = False
     await test_session.commit()
 
     sent_calls = []
@@ -878,16 +920,7 @@ async def test_send_supplier_orders_uses_subject_and_recipient_from_pricelist_co
             price=50.0,
         )
     )
-    test_session.add(
-        CustomerOrderInboxSettings(
-            lookback_days=1,
-            mark_seen=False,
-            error_file_retention_days=5,
-            supplier_response_lookback_days=14,
-            supplier_order_stub_enabled=False,
-            supplier_order_stub_email="info@dragonzap.ru",
-        )
-    )
+    provider.order_stub_enabled = False
     await test_session.commit()
 
     sent_calls = []

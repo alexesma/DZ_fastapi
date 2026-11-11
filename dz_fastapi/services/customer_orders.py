@@ -181,6 +181,20 @@ async def _supplier_order_override_email_from_settings(
     return _supplier_order_override_email()
 
 
+async def _supplier_order_stub_address_from_settings(
+    session: AsyncSession,
+) -> Optional[str]:
+    """Общий адрес заглушки; включается она в карточке поставщика."""
+    try:
+        inbox_settings = await crud_customer_order_inbox_settings.get_or_create(session)
+    except Exception:
+        return _supplier_order_override_email()
+    configured_email = str(
+        getattr(inbox_settings, "supplier_order_stub_email", "") or ""
+    ).strip()
+    return configured_email or _supplier_order_override_email()
+
+
 async def _notify_admins(
     session: AsyncSession,
     *,
@@ -6086,14 +6100,24 @@ async def send_supplier_orders(
     smtp_kwargs = {}
     if account:
         smtp_kwargs = build_email_delivery_kwargs(account)
-    automatic_order_override_email = await _supplier_order_override_email_from_settings(session)
+    default_stub_email = await _supplier_order_stub_address_from_settings(session)
 
     for order in orders:
         order.last_send_attempt_at = now_moscow()
         order.last_send_error = None
         provider = order.provider
         is_manual_search_order = order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
-        override_email = None if is_manual_search_order else automatic_order_override_email
+        # Заглушка задаётся в карточке поставщика; ручные заказы из поиска
+        # предложений всегда идут поставщику.
+        stub_enabled = bool(getattr(provider, "order_stub_enabled", True))
+        override_email = (
+            None
+            if is_manual_search_order or not stub_enabled
+            else (
+                str(getattr(provider, "order_stub_email", "") or "").strip()
+                or default_stub_email
+            )
+        )
         original_recipient = (
             str(getattr(order.provider_config, "order_email_to", "") or "").strip()
             or _build_supplier_order_recipient(

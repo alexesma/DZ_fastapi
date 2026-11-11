@@ -302,6 +302,12 @@ class Provider(Client):
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
+    # Заглушка отправки заказов: пока включена, автоматические заказы
+    # этому поставщику уходят на адрес заглушки, а не на его почту.
+    order_stub_enabled = Column(
+        Boolean, default=True, nullable=False, server_default="true"
+    )
+    order_stub_email = Column(String(255), nullable=True)
     split_orders_by_pricelist = Column(Boolean, default=False, nullable=False)
     # Рекламации/возвраты поставщику: принимает ли возвраты вообще,
     # его срок возврата (дней от нашего поступления), список брендов,
