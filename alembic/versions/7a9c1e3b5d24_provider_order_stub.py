@@ -1,6 +1,6 @@
 """Per-provider supplier order stub (test mode for order sending).
 
-Revision ID: e2f3a4b5c6d7
+Revision ID: 7a9c1e3b5d24
 Revises: f0b1c2d3e4a5
 Create Date: 2026-11-11 10:00:00.000000
 """
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "e2f3a4b5c6d7"
+revision: str = "7a9c1e3b5d24"
 down_revision: Union[str, Sequence[str], None] = "f0b1c2d3e4a5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
