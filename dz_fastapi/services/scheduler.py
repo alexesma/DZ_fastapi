@@ -78,7 +78,11 @@ from dz_fastapi.services.diadoc_events import (
     sync_event_feed,
 )
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
-from dz_fastapi.services.diadoc_status import refresh_diadoc_outgoing_statuses
+from dz_fastapi.services.diadoc_status import (
+    EVENT_FEED_FRESH_WITHIN,
+    EVENT_FEED_RECHECK_AFTER,
+    refresh_diadoc_outgoing_statuses,
+)
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.inbox_email import cleanup_inbox_emails, fetch_and_store_emails
 from dz_fastapi.services.monitoring import (
@@ -2042,11 +2046,31 @@ async def sync_diadoc_outbound_status_task(app: FastAPI):
                     trace.details["skipped_not_connected"] = True
                     return
                 integration, client = await get_diadoc_client_for_session(session)
+                environment = str(integration.environment or "staging")
+                # Если лента событий читается, статусы приходят из неё, а
+                # опрос остаётся редкой страховкой.
+                recheck_after = None
+                if integration.box_id_guid and bool(integration.inbound_sync_enabled):
+                    event_cursor = await get_event_cursor(
+                        session,
+                        environment=environment,
+                        box_id_guid=str(integration.box_id_guid),
+                    )
+                    if (
+                        event_cursor is not None
+                        and event_cursor.initialized_at is not None
+                        and event_cursor.last_polled_at is not None
+                        and event_cursor.last_polled_at
+                        >= now_moscow() - EVENT_FEED_FRESH_WITHIN
+                    ):
+                        recheck_after = EVENT_FEED_RECHECK_AFTER
                 result = await refresh_diadoc_outgoing_statuses(
                     session,
                     client=client,
-                    environment=str(integration.environment or "staging"),
+                    environment=environment,
+                    recheck_after=recheck_after,
                 )
+                result["event_feed_active"] = recheck_after is not None
                 trace.details["summary"] = result
                 integration.outbound_last_sync_at = now_moscow()
                 integration.outbound_last_error = (

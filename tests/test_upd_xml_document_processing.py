@@ -534,3 +534,82 @@ async def test_merge_diadoc_duplicate_receipt_keeps_email_receipt(
     test_session.expire_all()
     remaining = await receipts(test_session)
     assert [r.id for r in remaining] == [email_receipt_id]
+
+
+@pytest.mark.asyncio
+async def test_merge_posts_kept_draft_when_only_duplicate_was_posted(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    from types import SimpleNamespace
+
+    from sqlalchemy.orm import selectinload
+
+    from dz_fastapi.models.partner import SupplierOrderMessage, SupplierReceiptItem
+    from dz_fastapi.services.supplier_document_dedup import merge_diadoc_duplicate_receipt
+    from dz_fastapi.services.supplier_workflow import post_supplier_receipt
+
+    provider = created_providers[0]
+    order, item, config = await prepare(test_session, provider, created_autopart)
+    path = tmp_path / "ON_NSCHFDOPPR_merge2.xml"
+    path.write_bytes(upd_xml(created_autopart.oem_number))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="mm2", entity_id="em2",
+        provider_id=provider.id, file_name=path.name, document_number="ТМРНБ-26-190198",
+        document_date=date(2026, 4, 9), local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    first = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id,
+        response_config_id=config.id, download_content_if_missing=False,
+    )
+    diadoc_receipt_id = first["receipt_ids"][0]
+    diadoc_receipt = (
+        await test_session.execute(
+            select(SupplierReceipt)
+            .options(selectinload(SupplierReceipt.items))
+            .where(SupplierReceipt.id == diadoc_receipt_id)
+        )
+    ).scalar_one()
+    source_item = diadoc_receipt.items[0]
+    warehouse_id = diadoc_receipt.warehouse_id
+    item_data = {
+        column.name: getattr(source_item, column.name)
+        for column in SupplierReceiptItem.__table__.columns
+        if column.name not in {"id", "receipt_id", "supplier_order_item_id", "supplier_order_id"}
+    }
+    if diadoc_receipt.posted_at is None:
+        await post_supplier_receipt(
+            test_session, receipt_id=diadoc_receipt_id, user=SimpleNamespace(id=None)
+        )
+    message = SupplierOrderMessage(
+        provider_id=provider.id,
+        message_type="SHIPPING_DOC",
+        source_uid="uid-10",
+        received_at=now_moscow(),
+    )
+    test_session.add(message)
+    await test_session.flush()
+    email_receipt = SupplierReceipt(
+        provider_id=provider.id,
+        warehouse_id=warehouse_id,
+        source_message_id=message.id,
+        document_number="ТМРНБ-26-190198",
+        document_date=date(2026, 4, 9),
+    )
+    test_session.add(email_receipt)
+    await test_session.flush()
+    test_session.add(SupplierReceiptItem(receipt_id=email_receipt.id, **item_data))
+    await test_session.commit()
+    email_receipt_id = email_receipt.id
+
+    merged = await merge_diadoc_duplicate_receipt(
+        test_session, document_id=doc.id, apply=True
+    )
+    assert merged["status"] == "merged", merged
+    assert merged["kept_posted"] is True
+    test_session.expire_all()
+    remaining = await receipts(test_session)
+    assert [r.id for r in remaining] == [email_receipt_id]
+    assert remaining[0].posted_at is not None

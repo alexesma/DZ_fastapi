@@ -86,6 +86,13 @@ class DiadocStatusOut(BaseModel):
     inbound_continuation_index_key: str | None = None
     outbound_last_sync_at: datetime | None = None
     outbound_last_error: str | None = None
+    # Лента событий: без неё новые документы приходят только обходом списка.
+    event_feed_initialized: bool = False
+    event_feed_last_polled_at: datetime | None = None
+    events_pending: int = 0
+    events_retrying: int = 0
+    events_failed: int = 0
+    events_failed_examples: list[dict] = Field(default_factory=list)
 
 
 class DiadocSettingsUpdate(BaseModel):
@@ -126,6 +133,9 @@ class DiadocInboundSyncRequest(BaseModel):
     download_content: bool = True
     register_supplier_message: bool = False
     process_supplier_message: bool = False
+    # По умолчанию ручная синхронизация, как и автоматическая, не создаёт
+    # поступления по документам старше «обрабатывать с» из настроек.
+    ignore_process_from: bool = False
 
 
 class DiadocInboundSyncResult(BaseModel):
@@ -226,6 +236,11 @@ class DiadocInboundDocumentOut(BaseModel):
     direction: str | None = None
     parsed_details: dict[str, Any] = Field(default_factory=dict)
     needs_decision: bool = False
+    # Шаг товарного документа: received | recognized | receipt | posted |
+    # signed | rejected; None — документ не превращается в поступление.
+    stage: str | None = None
+    # Почему документ требует внимания сотрудника (None — не требует)
+    attention_reason: str | None = None
     customer_id: int | None = None
     customer_name: str | None = None
     document_kind: str | None = None
@@ -447,6 +462,29 @@ class DiadocCloudSignTaskOut(BaseModel):
     completed_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DiadocAcceptanceLineOut(BaseModel):
+    # missing | shortage | surplus | extra | marking
+    kind: str
+    label: str
+    document_quantity: int = 0
+    received_quantity: int = 0
+    marking_errors: int = 0
+
+
+class DiadocAcceptanceOut(BaseModel):
+    """Сверка входящего УПД с проведённой приёмкой."""
+
+    checked: bool = False
+    has_discrepancies: bool = False
+    # 1 — принято без расхождений, 2 — с расхождениями, 3 — не принято
+    suggested_total_code: str = "1"
+    lines: list[DiadocAcceptanceLineOut] = Field(default_factory=list)
+    lines_total: int = 0
+    reason: str | None = None
+    can_sign_incoming: bool = False
+    sign_block_reason: str | None = None
 
 
 class DiadocInboundSignStartIn(BaseModel):

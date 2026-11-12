@@ -266,8 +266,13 @@ async def start_incoming_sign_task(
     document: DiadocIncomingDocument,
     include_receipt: bool = True,
     total_code: str = "1",
+    audit: dict[str, Any] | None = None,
 ) -> DiadocCloudSignTask:
-    """Готовит титул покупателя (+ИоП) и стартует облачное подписание."""
+    """Готовит титул покупателя (+ИоП) и стартует облачное подписание.
+
+    ``audit`` — кто запустил подпись и что показала сверка с приёмкой:
+    сохраняется в параметрах задачи для разбора спорных случаев.
+    """
     if not document.message_id or not document.entity_id:
         raise ValueError("У документа нет message_id/entity_id")
     existing = await _active_task(
@@ -353,6 +358,7 @@ async def start_incoming_sign_task(
             "version": version,
             "total_code": total_code,
             "type_named_id": type_named_id,
+            **(audit or {}),
         },
     )
     session.add(task)

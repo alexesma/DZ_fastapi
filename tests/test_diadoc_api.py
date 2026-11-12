@@ -2014,3 +2014,64 @@ async def test_pick_response_config_by_filename_pattern(
         )
         is None
     )
+
+
+def test_inbound_stage_and_attention_follow_the_receipt():
+    from datetime import date
+
+    from dz_fastapi.api.diadoc import _inbound_stage_and_attention
+
+    def check(document, **kwargs):
+        return _inbound_stage_and_attention(document, needs_decision=False, **kwargs)
+
+    document = DiadocIncomingDocument(
+        environment="staging",
+        box_id_guid="box",
+        message_id="message",
+        entity_id="entity",
+        direction="supplier",
+        status="synced",
+        document_date=date(2026, 11, 5),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    assert check(document) == ("received", "Контрагент не сопоставлен с поставщиком")
+
+    document.provider_id = 1
+    assert check(document) == ("recognized", "Поступление не создано")
+    # Документы до даты начала автообработки незавершёнными не считаются.
+    assert check(document, process_from=date(2026, 11, 10)) == ("recognized", None)
+
+    message = SupplierOrderMessage(provider_id=1)
+    receipt = SupplierReceipt(provider_id=1)
+    message.receipts = [receipt]
+    document.supplier_order_message = message
+    assert check(document) == ("receipt", "Поступление не проведено")
+
+    receipt.posted_at = now_moscow()
+    assert check(document) == ("posted", "Проведён, ждёт подписи")
+
+    document.signed_at = now_moscow()
+    assert check(document) == ("signed", None)
+
+    document.status = "error"
+    document.import_error_details = "Не найден шаблон"
+    assert check(document) == ("signed", "Не найден шаблон")
+
+
+def test_non_goods_document_has_no_stage():
+    from dz_fastapi.api.diadoc import _inbound_stage_and_attention
+
+    document = DiadocIncomingDocument(
+        environment="staging",
+        box_id_guid="box",
+        message_id="message",
+        entity_id="entity",
+        direction="customer",
+        status="customer_doc",
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument"},
+    )
+    assert _inbound_stage_and_attention(document, needs_decision=False) == (None, None)
+    assert _inbound_stage_and_attention(document, needs_decision=True) == (
+        None,
+        "Требует решения",
+    )

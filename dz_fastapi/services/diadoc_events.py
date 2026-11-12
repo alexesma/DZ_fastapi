@@ -5,12 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
-from dz_fastapi.models.diadoc import DiadocBoxEvent, DiadocEventCursor, DiadocIncomingDocument
+from dz_fastapi.models.diadoc import (
+    DiadocBoxEvent,
+    DiadocEventCursor,
+    DiadocIncomingDocument,
+    DiadocOutgoingDocument,
+)
 from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_document_by_id
 
@@ -107,7 +112,8 @@ async def fetch_event_page(
     payload = await client.get_new_events(
         box_id_guid=cursor.box_id_guid,
         after_index_key=cursor.index_key,
-        document_direction="Inbound",
+        # Без фильтра по направлению: события исходящих (подпись, отказ,
+        # аннулирование контрагентом) нужны для статусов наших отправок.
         limit=limit,
         order_by="Ascending",
     )
@@ -208,6 +214,119 @@ async def _refresh_incoming_docflows(
     return updated
 
 
+async def _refresh_outgoing_by_message(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    environment: str,
+    box_id_guid: str,
+    message_id: str | None,
+) -> int:
+    """Обновляет статусы наших исходящих документов из сообщения события."""
+    if not message_id:
+        return 0
+    from dz_fastapi.services.diadoc_status import refresh_outgoing_document_status
+
+    documents = list(
+        (
+            await session.execute(
+                select(DiadocOutgoingDocument).where(
+                    DiadocOutgoingDocument.environment == environment,
+                    DiadocOutgoingDocument.from_box_id_guid == box_id_guid,
+                    DiadocOutgoingDocument.message_id == message_id,
+                    DiadocOutgoingDocument.entity_id.is_not(None),
+                    DiadocOutgoingDocument.is_draft.is_(False),
+                )
+            )
+        ).scalars()
+    )
+    for document in documents:
+        await refresh_outgoing_document_status(session, client=client, document=document)
+    return len(documents)
+
+
+# После стольких неудач событие перестаёт повторяться само: постоянная
+# ошибка (битый документ, удалённое сообщение) иначе крутится бесконечно и
+# каждый запуск тратит запросы к Диадоку. Вернуть в работу — retry_failed_events.
+MAX_EVENT_ATTEMPTS = 8
+
+
+async def event_queue_summary(
+    session: AsyncSession, *, environment: str, box_id_guid: str | None
+) -> dict[str, Any]:
+    """Состояние ленты для экрана настроек: курсор и очередь событий."""
+    summary: dict[str, Any] = {
+        "initialized": False,
+        "last_polled_at": None,
+        "pending": 0,
+        "error": 0,
+        "failed": 0,
+        "failed_examples": [],
+    }
+    if not box_id_guid:
+        return summary
+    cursor = await get_event_cursor(
+        session, environment=environment, box_id_guid=box_id_guid
+    )
+    if cursor is not None:
+        summary["initialized"] = cursor.initialized_at is not None
+        summary["last_polled_at"] = cursor.last_polled_at
+    scope = (
+        DiadocBoxEvent.environment == environment,
+        DiadocBoxEvent.box_id_guid == box_id_guid,
+    )
+    counts = (
+        await session.execute(
+            select(DiadocBoxEvent.status, func.count())
+            .where(*scope, DiadocBoxEvent.status.in_(("pending", "error", "failed")))
+            .group_by(DiadocBoxEvent.status)
+        )
+    ).all()
+    for status_name, count in counts:
+        summary[str(status_name)] = int(count)
+    failed_rows = (
+        await session.execute(
+            select(DiadocBoxEvent)
+            .where(*scope, DiadocBoxEvent.status == "failed")
+            .order_by(DiadocBoxEvent.id.desc())
+            .limit(5)
+        )
+    ).scalars()
+    summary["failed_examples"] = [
+        {
+            "event_id": row.event_id,
+            "message_id": row.message_id,
+            "attempts": int(row.attempt_count or 0),
+            "error": row.last_error,
+        }
+        for row in failed_rows
+    ]
+    return summary
+
+
+async def retry_failed_events(
+    session: AsyncSession, *, environment: str, box_id_guid: str
+) -> int:
+    """Возвращает остановленные события в очередь с обнулённым счётчиком."""
+    rows = list(
+        (
+            await session.execute(
+                select(DiadocBoxEvent).where(
+                    DiadocBoxEvent.environment == environment,
+                    DiadocBoxEvent.box_id_guid == box_id_guid,
+                    DiadocBoxEvent.status == "failed",
+                )
+            )
+        ).scalars()
+    )
+    for row in rows:
+        row.status = "pending"
+        row.attempt_count = 0
+        session.add(row)
+    await session.flush()
+    return len(rows)
+
+
 async def process_pending_events(
     session: AsyncSession,
     *,
@@ -232,7 +351,15 @@ async def process_pending_events(
             )
         ).scalars()
     )
-    result = {"processed": 0, "failed": 0, "documents": 0, "docflows": 0, "errors": []}
+    result = {
+        "processed": 0,
+        "failed": 0,
+        "gave_up": 0,
+        "documents": 0,
+        "docflows": 0,
+        "outgoing": 0,
+        "errors": [],
+    }
     for row in rows:
         row.attempt_count += 1
         try:
@@ -271,16 +398,31 @@ async def process_pending_events(
             result["docflows"] += await _refresh_incoming_docflows(
                 session, client=client, documents=documents
             )
+            result["outgoing"] += await _refresh_outgoing_by_message(
+                session,
+                client=client,
+                environment=environment,
+                box_id_guid=box_id_guid,
+                message_id=message_id,
+            )
             row.status = "processed"
             row.processed_at = now_moscow()
             row.last_error = None
             result["processed"] += 1
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to process Diadoc box event %s", row.event_id)
-            row.status = "error"
+            gave_up = int(row.attempt_count or 0) >= MAX_EVENT_ATTEMPTS
+            row.status = "failed" if gave_up else "error"
             row.last_error = str(exc)[:2000]
             result["failed"] += 1
-            result["errors"].append(f"{row.event_id}: {exc}")
+            if gave_up:
+                result["gave_up"] += 1
+                result["errors"].append(
+                    f"{row.event_id}: {exc} (попыток: {row.attempt_count}, "
+                    "повторы остановлены)"
+                )
+            else:
+                result["errors"].append(f"{row.event_id}: {exc}")
         session.add(row)
         await session.flush()
     return result

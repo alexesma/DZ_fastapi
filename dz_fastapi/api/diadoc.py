@@ -26,6 +26,7 @@ from dz_fastapi.models.partner import Customer, Provider, SupplierReceiptCorrect
 from dz_fastapi.models.shipment_correction import ShipmentCorrection
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.diadoc import (
+    DiadocAcceptanceOut,
     DiadocCloudSignConfirmIn,
     DiadocCloudSignTaskOut,
     DiadocCounteragentListOut,
@@ -65,6 +66,7 @@ from dz_fastapi.schemas.partner import (
     ProviderExternalReferenceCreate,
     ProviderExternalReferenceOut,
 )
+from dz_fastapi.services.diadoc_acceptance import acceptance_summary
 from dz_fastapi.services.diadoc_boxes import flatten_counteragent
 from dz_fastapi.services.diadoc_cloud_sign import (
     confirm_cloud_sign_task,
@@ -82,6 +84,7 @@ from dz_fastapi.services.diadoc_documents import (
     resolve_provider_by_diadoc_counteragent_box,
     sync_diadoc_incoming_documents,
 )
+from dz_fastapi.services.diadoc_events import event_queue_summary, retry_failed_events
 from dz_fastapi.services.diadoc_integration import (
     DiadocNotConnectedError,
     get_diadoc_client_for_session,
@@ -240,9 +243,82 @@ async def _correction_statuses(session: AsyncSession, rows: list[DiadocIncomingD
     return result
 
 
+_ATTENTION_SCAN_LIMIT = 1000
+
+
+def _inbound_stage_and_attention(
+    document: DiadocIncomingDocument,
+    *,
+    needs_decision: bool,
+    process_from: date | None = None,
+) -> tuple[str | None, str | None]:
+    """Шаг документа на пути «получен → подписан» и причина внимания.
+
+    Шаг есть только у товарных документов поставщика (УПД): остальные
+    (счета, акты, документы клиентов) в поступления не превращаются.
+    ``process_from`` — дата начала автообработки: более ранние документы
+    не считаются незавершёнными, их вели до подключения обмена.
+    """
+    status_value = str(document.status or "").lower()
+    attention: str | None = None
+    if status_value in ("error", "technical_error"):
+        attention = str(document.import_error_details or "").strip()[:300] or (
+            "Ошибка обработки документа"
+        )
+    elif needs_decision:
+        attention = "Требует решения"
+    is_goods_flow = (
+        effective_category(document) == "upd"
+        and document.direction != "customer"
+        and not document.duplicate_kind
+        and not document.duplicate_of_document_id
+        and status_value not in ("skipped", "customer_doc", "duplicate")
+    )
+    if not is_goods_flow:
+        return None, attention
+    if document.rejected_at is not None:
+        return "rejected", attention
+    supplier_message = getattr(document, "supplier_order_message", None)
+    receipts = list(getattr(supplier_message, "receipts", []) or [])
+    posted = bool(receipts) and all(
+        getattr(receipt, "posted_at", None) is not None for receipt in receipts
+    )
+    signed = document.signed_at is not None or "withrecipientsignature" in str(
+        document.recipient_response_status or ""
+    ).lower()
+    recognized = bool(document.provider_id) and document.direction == "supplier"
+    if signed:
+        stage = "signed"
+    elif posted:
+        stage = "posted"
+    elif receipts:
+        stage = "receipt"
+    elif recognized:
+        stage = "recognized"
+    else:
+        stage = "received"
+    reference = document.document_date or (
+        document.delivery_at.date() if document.delivery_at else None
+    )
+    before_start = bool(process_from and reference and reference < process_from)
+    if attention is None and not signed and not before_start:
+        if document.direction in (None, "unknown"):
+            attention = "Не определено направление документа"
+        elif not document.provider_id:
+            attention = "Контрагент не сопоставлен с поставщиком"
+        elif not receipts:
+            attention = "Поступление не создано"
+        elif not posted:
+            attention = "Поступление не проведено"
+        else:
+            attention = "Проведён, ждёт подписи"
+    return stage, attention
+
+
 def _incoming_document_to_out(
     document: DiadocIncomingDocument,
     correction_statuses: dict[int, str] | None = None,
+    process_from: date | None = None,
 ) -> DiadocInboundDocumentOut:
     provider = getattr(document, "provider", None)
     supplier_message = getattr(document, "supplier_order_message", None)
@@ -252,6 +328,10 @@ def _incoming_document_to_out(
         if getattr(receipt, "id", None) is not None
     )
     sign_block_reason = _incoming_sign_block_reason(document, correction_statuses or {})
+    needs_decision = _needs_decision(document, correction_statuses or {})
+    stage, attention_reason = _inbound_stage_and_attention(
+        document, needs_decision=needs_decision, process_from=process_from
+    )
     return DiadocInboundDocumentOut(
         id=int(document.id),
         environment=DiadocEnvironment(normalize_diadoc_environment(document.environment)),
@@ -296,7 +376,9 @@ def _incoming_document_to_out(
         supplier_receipt_ids=receipt_ids,
         direction=document.direction,
         parsed_details=dict(document.parsed_details or {}),
-        needs_decision=_needs_decision(document, correction_statuses or {}),
+        needs_decision=needs_decision,
+        stage=stage,
+        attention_reason=attention_reason,
         customer_id=document.customer_id,
         customer_name=(
             str(getattr(document.customer, "name", "") or "").strip() or None
@@ -531,7 +613,40 @@ async def get_diadoc_status(
     _: User = Depends(require_admin),
 ):
     integration = await crud_diadoc_integration_settings.get_or_create(session)
-    return _integration_to_status(integration)
+    result = _integration_to_status(integration)
+    queue = await event_queue_summary(
+        session,
+        environment=normalize_diadoc_environment(integration.environment),
+        box_id_guid=integration.box_id_guid,
+    )
+    result.event_feed_initialized = queue["initialized"]
+    result.event_feed_last_polled_at = queue["last_polled_at"]
+    result.events_pending = queue["pending"]
+    result.events_retrying = queue["error"]
+    result.events_failed = queue["failed"]
+    result.events_failed_examples = queue["failed_examples"]
+    return result
+
+
+@router.post(
+    "/events/retry-failed",
+    status_code=status.HTTP_200_OK,
+)
+async def retry_failed_diadoc_events(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Возвращает в очередь события, остановленные после предела повторов."""
+    integration = await crud_diadoc_integration_settings.get_or_create(session)
+    if not integration.box_id_guid:
+        raise HTTPException(status_code=400, detail="Ящик Диадока не выбран")
+    count = await retry_failed_events(
+        session,
+        environment=normalize_diadoc_environment(integration.environment),
+        box_id_guid=integration.box_id_guid,
+    )
+    await session.commit()
+    return {"requeued": count}
 
 
 @router.post(
@@ -973,6 +1088,11 @@ async def sync_diadoc_inbound_documents(
             download_content=payload.download_content,
             register_supplier_message=payload.register_supplier_message,
             process_supplier_message=payload.process_supplier_message,
+            process_not_before=(
+                None
+                if payload.ignore_process_from
+                else integration.inbound_process_from
+            ),
         )
         integration.last_sync_at = now_moscow()
         integration.inbound_last_sync_at = integration.last_sync_at
@@ -997,6 +1117,10 @@ async def list_diadoc_inbound_documents_endpoint(
     provider_id: int | None = Query(default=None),
     registered_only: bool | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=300),
+    attention_only: bool = Query(
+        default=False,
+        description="Только документы, требующие внимания сотрудника",
+    ),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
@@ -1005,10 +1129,17 @@ async def list_diadoc_inbound_documents_endpoint(
         document_id=document_id,
         provider_id=provider_id,
         registered_only=registered_only,
-        limit=limit,
+        # Признак вычисляется по связанным данным, поэтому отбираем из
+        # более широкой выборки последних документов.
+        limit=_ATTENTION_SCAN_LIMIT if attention_only else limit,
     )
     statuses = await _correction_statuses(session, rows)
-    return [_incoming_document_to_out(row, statuses) for row in rows]
+    integration = await crud_diadoc_integration_settings.get_or_create(session)
+    process_from = integration.inbound_process_from
+    result = [_incoming_document_to_out(row, statuses, process_from) for row in rows]
+    if attention_only:
+        result = [row for row in result if row.attention_reason][:limit]
+    return result
 
 
 @router.post(
@@ -1363,15 +1494,13 @@ async def refresh_diadoc_outbound_document_status(
         _raise_diadoc_http_error(exc)
 
 
-@router.post(
-    "/inbound-documents/{document_id}/sign/start",
-    response_model=DiadocCloudSignTaskOut,
-    status_code=status.HTTP_200_OK,
-    summary="Подписать входящий УПД или УКД облачной подписью (шаг 1: SMS)",
+@router.get(
+    "/inbound-documents/{document_id}/acceptance",
+    response_model=DiadocAcceptanceOut,
+    summary="Сверка входящего УПД с проведённой приёмкой перед подписью",
 )
-async def start_sign_inbound_document(
+async def get_inbound_document_acceptance(
     document_id: int,
-    payload: DiadocInboundSignStartIn | None = Body(default=None),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
@@ -1382,8 +1511,53 @@ async def start_sign_inbound_document(
         document,
         await _correction_statuses(session, [document]),
     )
+    summary: dict[str, Any] = {}
+    if effective_category(document) == "upd":
+        summary = await acceptance_summary(session, document)
+    return DiadocAcceptanceOut(
+        **summary,
+        can_sign_incoming=sign_block_reason is None,
+        sign_block_reason=sign_block_reason,
+    )
+
+
+@router.post(
+    "/inbound-documents/{document_id}/sign/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Подписать входящий УПД или УКД облачной подписью (шаг 1: SMS)",
+)
+async def start_sign_inbound_document(
+    document_id: int,
+    payload: DiadocInboundSignStartIn | None = Body(default=None),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    # Читаем до запросов: после commit объект пользователя устаревает.
+    initiated_by_user_id = int(current_user.id)
+    initiated_by = str(getattr(current_user, "email", "") or "")
+    document = await get_diadoc_incoming_document(session, document_id=document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    sign_block_reason = _incoming_sign_block_reason(
+        document,
+        await _correction_statuses(session, [document]),
+    )
     if sign_block_reason is not None:
         raise HTTPException(status_code=409, detail=sign_block_reason)
+    options = payload or DiadocInboundSignStartIn()
+    acceptance: dict[str, Any] = {}
+    if effective_category(document) == "upd":
+        acceptance = await acceptance_summary(session, document)
+        if acceptance["has_discrepancies"] and options.total_code == "1":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Приёмка расходится с документом (строк: "
+                    f"{acceptance['lines_total']}). Подпишите с расхождениями "
+                    "или откажите в подписи"
+                ),
+            )
     try:
         integration, client = await get_diadoc_client_for_session(session)
         if normalize_diadoc_environment(integration.environment) != normalize_diadoc_environment(
@@ -1395,7 +1569,6 @@ async def start_sign_inbound_document(
                     "Document environment does not match current " "Diadoc integration environment"
                 ),
             )
-        options = payload or DiadocInboundSignStartIn()
         task = await start_incoming_sign_task(
             session,
             client=client,
@@ -1403,6 +1576,12 @@ async def start_sign_inbound_document(
             document=document,
             include_receipt=options.include_receipt,
             total_code=options.total_code,
+            audit={
+                "initiated_by_user_id": initiated_by_user_id,
+                "initiated_by": initiated_by,
+                "acceptance_checked": bool(acceptance.get("checked")),
+                "acceptance_discrepancies": int(acceptance.get("lines_total") or 0),
+            },
         )
         return DiadocCloudSignTaskOut.model_validate(task)
     except HTTPException:

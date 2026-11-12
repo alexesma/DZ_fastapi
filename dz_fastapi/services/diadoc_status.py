@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
@@ -20,6 +21,12 @@ logger = logging.getLogger("dz_fastapi")
 TERMINAL_OUTGOING_STATUSES = {"completed", "rejected", "revoked"}
 
 DEFAULT_STATUS_REFRESH_LIMIT = 100
+
+# Когда статусы приходят из ленты событий, опрос остаётся страховкой:
+# документ перепроверяется не чаще этого интервала.
+EVENT_FEED_RECHECK_AFTER = timedelta(hours=6)
+# Лента считается работающей, если её читали не раньше этого времени назад.
+EVENT_FEED_FRESH_WITHIN = timedelta(minutes=30)
 
 
 def _extract_transformed_message_id(
@@ -108,11 +115,16 @@ async def refresh_diadoc_outgoing_statuses(
     client: DiadocClient,
     environment: str,
     limit: int = DEFAULT_STATUS_REFRESH_LIMIT,
+    recheck_after: timedelta | None = None,
 ) -> dict[str, Any]:
     """Обновляет статусы незавершённых исходящих документов.
 
     Сначала самые давно не проверявшиеся. Ошибка по одному документу не
     останавливает остальные.
+
+    ``recheck_after`` задаётся, когда статусы приходят из ленты событий:
+    тогда опрашиваются только черновики, ни разу не проверенные документы,
+    документы с технической ошибкой и те, что давно не перепроверялись.
     """
     stmt = (
         select(DiadocOutgoingDocument)
@@ -128,6 +140,15 @@ async def refresh_diadoc_outgoing_statuses(
         )
         .limit(max(1, int(limit)))
     )
+    if recheck_after is not None:
+        stmt = stmt.where(
+            or_(
+                DiadocOutgoingDocument.is_draft.is_(True),
+                DiadocOutgoingDocument.status == "technical_error",
+                DiadocOutgoingDocument.status_checked_at.is_(None),
+                DiadocOutgoingDocument.status_checked_at < now_moscow() - recheck_after,
+            )
+        )
     documents = list((await session.execute(stmt)).scalars().all())
     result: dict[str, Any] = {
         "checked": 0,

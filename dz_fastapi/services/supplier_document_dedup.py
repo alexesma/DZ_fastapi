@@ -45,6 +45,9 @@ MESSAGE_TYPE_MISMATCH = "DOCUMENT_MISMATCH"
 MISMATCH_NOTIFICATION_TYPE = "supplier_document_mismatch_action"
 
 _NUMBER_CLEAN_RE = re.compile(r"[^0-9A-Za-zА-Яа-яЁё]+")
+# Акт сверки приходит неформализованным файлом (xls/pdf): по имени.
+_RECONCILIATION_NAME_RE = re.compile(r"сверк|sverk|reconcil", re.IGNORECASE)
+_NON_RECEIPT_CATEGORIES = {"invoice", "payment_invoice", "other_non_receipt"}
 
 _DIADOC_KIND_BY_TYPE = {
     "universaltransferdocument": "upd",
@@ -157,6 +160,8 @@ def classify_diadoc_document(
         return "torg12"
     if type_key in _DIADOC_KIND_BY_TYPE:
         return _DIADOC_KIND_BY_TYPE[type_key]
+    if _RECONCILIATION_NAME_RE.search(name):
+        return "other_non_receipt"
     if "waybill" in type_key or type_key in {"orderrequest"}:
         return "transport"
     if type_key in _ACT_TYPES:
@@ -754,6 +759,22 @@ async def evaluate_diadoc_document(
         session.add(document)
         await session.commit()
         return {"action": "customer"}
+    if direction == DIRECTION_UNKNOWN and (
+        category in _NON_RECEIPT_CATEGORIES
+        and not is_correction_document(
+            meta.get("TypeNamedId"), document.file_name
+        )
+    ):
+        # Счёт на оплату или акт сверки поступлением не станет при любом
+        # направлении: решение администратора не нужно.
+        document.status = "skipped"
+        document.import_error_details = (
+            "Не поступление (счёт на оплату, акт сверки или другой "
+            "документ): в поступления не передаётся"
+        )
+        session.add(document)
+        await session.commit()
+        return {"action": "skipped"}
     if direction == DIRECTION_UNKNOWN:
         document.status = "direction_unknown"
         document.import_error_details = (
@@ -1232,6 +1253,7 @@ async def merge_diadoc_duplicate_receipt(
     """
     from dz_fastapi.services.supplier_workflow import (
         delete_supplier_receipt,
+        post_supplier_receipt,
         unpost_supplier_receipt,
     )
 
@@ -1284,7 +1306,18 @@ async def merge_diadoc_duplicate_receipt(
     posted_ids = [
         int(r.id) for r in own_message.receipts if r.posted_at is not None
     ]
+    kept_is_draft = email_receipt.posted_at is None
     try:
+        if posted_ids and kept_is_draft:
+            # Проведён был только дубль. Сначала проводим остающееся
+            # поступление: иначе товар исчезнет с остатка, а при ошибке
+            # проведения дубль останется нетронутым.
+            await post_supplier_receipt(
+                session,
+                receipt_id=kept_id,
+                user=SimpleNamespace(id=user_id),
+            )
+            result["kept_posted"] = True
         for receipt_id in posted_ids:
             await unpost_supplier_receipt(
                 session,

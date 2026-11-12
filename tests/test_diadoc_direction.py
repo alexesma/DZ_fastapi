@@ -141,7 +141,7 @@ async def test_dual_bound_without_xml_needs_manual_decision(
     provider, customer = created_providers[0], created_customers[0]
     await setup(test_session, provider, customer)
     doc = await make_doc(
-        test_session, tmp_path, provider, b"%PDF-1.4", "scheta.pdf", "Nonformalized"
+        test_session, tmp_path, provider, b"PK-not-xml", "nakladnaya.xlsx", "Nonformalized"
     )
     result = await process_diadoc_incoming_document(
         test_session, document=doc, download_content_if_missing=False
@@ -192,3 +192,26 @@ async def test_dual_bound_payment_invoice_pdf_is_supplier(
     )
     assert await detect_document_direction(test_session, doc) == DIRECTION_SUPPLIER
     assert doc.customer_id is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "file_name",
+    ["Счет на оплату №77 от 15.06.2026.pdf", "scheta.pdf", "BuhSverka_11112026.xls"],
+)
+async def test_dual_bound_non_goods_document_is_skipped_without_decision(
+    test_session, created_providers, created_customers, tmp_path, file_name
+):
+    provider, customer = created_providers[0], created_customers[0]
+    await setup(test_session, provider, customer)
+    doc = await make_doc(
+        test_session, tmp_path, provider, b"%PDF-1.4", file_name, "Nonformalized"
+    )
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, download_content_if_missing=False
+    )
+    assert result["dedup_action"] == "skipped"
+    await test_session.refresh(doc)
+    assert doc.status == "skipped"
+    assert doc.supplier_order_message_id is None
+    assert (await test_session.execute(select(SupplierReceipt))).scalars().all() == []
