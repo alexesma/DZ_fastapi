@@ -1020,6 +1020,7 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         marking_codes=[
             "010460123456789021ABC123",
             "010460123456789021ABC124",
+            "010460123456789021ABC125",
         ],
     )
     test_session.add(stock_lot)
@@ -1028,10 +1029,11 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         ShipmentDocumentItemLotAllocation(
             shipment_document_item_id=shipment_item.id,
             stock_lot_id=stock_lot.id,
-            quantity=2,
+            quantity=3,
             marking_codes=[
                 "010460123456789021ABC123",
                 "010460123456789021ABC124",
+                "010460123456789021ABC125",
             ],
         )
     )

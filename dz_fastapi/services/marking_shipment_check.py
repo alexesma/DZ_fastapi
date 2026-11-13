@@ -6,8 +6,9 @@
 каждой строке кодов столько же, сколько штук (если товар маркируемый), коды
 закреплены именно за этой отгрузкой и — при выполненном входе в ГИС МТ —
 в ГИС МТ они в обороте (INTRODUCED) и принадлежат нам, иначе передача
-права собственности покупателю не пройдёт. Проведение и отправку УПД
-проверка не блокирует: решение за администратором.
+права собственности покупателю не пройдёт. Нехватка кодов и коды, не
+закреплённые за отгрузкой, блокируют формализованный УПД: иначе покупатель
+получит товар без передачи права собственности на код.
 """
 from __future__ import annotations
 
@@ -26,6 +27,36 @@ from dz_fastapi.services.marking_receipt_check import (
     _issue,
     _own_inn,
 )
+
+# Расхождения, с которыми формализованный УПД отправлять нельзя.
+# Причины по ГИС МТ появляются, только если сверка с ним выполнена.
+BLOCKING_REASONS = frozenset(
+    {
+        "quantity_mismatch",
+        "registry_state",
+        "gis_not_found",
+        "gis_status",
+        "gis_owner",
+    }
+)
+
+
+def split_marking_issues(
+    issues: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    """Делит замечания на блокирующие отправку УПД и предупреждения."""
+    blockers: list[str] = []
+    warnings: list[str] = []
+    for issue in issues:
+        text = f"КИЗ: {issue['message']}"
+        if (
+            issue.get("severity") == SEVERITY_ERROR
+            and issue.get("reason") in BLOCKING_REASONS
+        ):
+            blockers.append(text)
+        else:
+            warnings.append(text)
+    return blockers, warnings
 
 
 async def check_shipment_marking(
@@ -56,6 +87,9 @@ async def check_shipment_marking(
                 )
             ).scalars().all()
         )
+    from dz_fastapi.services.marking_codes import autoparts_marked_by_category
+
+    marked_autoparts |= await autoparts_marked_by_category(session, autopart_ids)
     registry: dict[str, ProductMarkingCode] = {}
     if all_codes:
         registry = {

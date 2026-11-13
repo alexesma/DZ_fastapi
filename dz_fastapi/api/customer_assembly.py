@@ -16,6 +16,7 @@ from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.inventory import (
     CrossDockingLabel,
     CustomerOrderPickLabel,
+    ProductMarkingCode,
     ReserveStatus,
     ShipmentDocument,
     ShipmentDocumentItem,
@@ -39,7 +40,12 @@ from dz_fastapi.services.customer_order_stock_switch import (
     SWITCH_KEY,
     switch_unpicked_crosses_after_receipt,
 )
+from dz_fastapi.services.marking_code_parse import parse_marking_code
 from dz_fastapi.services.scan_codes import find_autoparts
+from dz_fastapi.services.shipment_marking_scan import (
+    ShipmentMarkingScanError,
+    record_shipment_marking_scan,
+)
 
 router = APIRouter(
     prefix="/customer-orders/assembly",
@@ -438,13 +444,36 @@ async def update_box(document_id: int, box_id: int, payload: BoxContents,
 
 @router.post("/realizations/{document_id}/boxes/{box_id}/scan")
 async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
-                        session: AsyncSession = Depends(get_session)):
+                        session: AsyncSession = Depends(get_session),
+                        user: User = Depends(get_current_user)):
     """Скан этикетки позиции кладёт её свободное количество в коробку.
 
     Скан штрихкода товара добавляет одну штуку позиции с этим товаром.
     """
+    user_id = user.id
     await _draft(session, document_id)
     code = payload.code.strip()
+    # Код маркировки из нашего учёта закрепляем за отгрузкой: в УПД уйдёт
+    # код именно той штуки, что легла в коробку.
+    marking_item_id = None
+    parsed = parse_marking_code(code)
+    if parsed is not None and (await session.execute(
+        select(ProductMarkingCode.id).where(ProductMarkingCode.code == parsed.ki)
+    )).scalar_one_or_none() is not None:
+        document = (await session.execute(
+            select(ShipmentDocument).where(ShipmentDocument.id == document_id)
+            .options(selectinload(ShipmentDocument.items))
+            .execution_options(populate_existing=True)
+        )).scalar_one()
+        try:
+            scan = await record_shipment_marking_scan(
+                session, document, code, user_id=user_id)
+        except ShipmentMarkingScanError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if scan["duplicate"]:
+            raise HTTPException(status_code=409,
+                                detail="Этот код маркировки уже отсканирован")
+        marking_item_id = scan["item_id"]
     box = (await session.execute(
         select(ShipmentPackage).where(ShipmentPackage.id == box_id,
                                       ShipmentPackage.document_id == document_id)
@@ -466,7 +495,9 @@ async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
         select(CrossDockingLabel.id).where(CrossDockingLabel.barcode == code)
     )).scalars().all())
     by_label = bool(pick_ids or cross_ids)
-    if by_label:
+    if marking_item_id is not None:
+        matches = [row for row in items if row.id == marking_item_id]
+    elif by_label:
         matches = [row for row in items
                    if row.assembly_pick_label_id in pick_ids
                    or row.cross_docking_label_id in cross_ids]
@@ -489,6 +520,14 @@ async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
         placed[item_id] = placed.get(item_id, 0) + int(qty)
     target = next((row for row in matches
                    if placed.get(row.id, 0) < row.quantity), None)
+    if target is None and marking_item_id is not None:
+        # Позиция уже разложена (например, по этикетке): штуку не добавляем,
+        # но код маркировки за отгрузкой закреплён.
+        await session.refresh(box, ["items"])
+        await session.commit()
+        return {"box": _box_out(box), "shipment_item_id": marking_item_id,
+                "added": 0, "label": False, "marking_code": True,
+                "title": "код маркировки"}
     if target is None:
         elsewhere = sorted({number for item_id, number, pkg, _q in placed_rows
                             if item_id in {row.id for row in matches}
@@ -519,7 +558,8 @@ async def scan_into_box(document_id: int, box_id: int, payload: BoxScan,
         if part is not None:
             title = f"{part.brand.name if part.brand else ''} {part.oem_number}".strip()
     return {"box": _box_out(box), "shipment_item_id": target.id, "added": add,
-            "label": by_label, "title": title}
+            "label": by_label, "title": title,
+            "marking_code": marking_item_id is not None}
 
 
 @router.post("/realizations/{document_id}/boxes/{box_id}/seal")

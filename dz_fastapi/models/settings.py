@@ -157,6 +157,12 @@ class GisMtSettings(Base):
     auth_uuid = Column(String(128), nullable=True)
     last_error = Column(String(2000), nullable=True)
     last_check_at = Column(DateTime(timezone=True), nullable=True)
+    # Назначать коды маркировки при проведении отгрузки автоматически
+    # (первые свободные из партии). Выключается, когда коды сканируют при
+    # сборке: тогда в УПД идут только отсканированные коды.
+    shipment_codes_auto_fifo = Column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),

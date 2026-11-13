@@ -14,7 +14,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Iterable, Optional
 
-from sqlalchemy import select
+from sqlalchemy import Text, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
@@ -425,6 +425,99 @@ async def apply_gis_mt_withdraw(
     return {"gis_document_id": document_id, "withdrawn": withdrawn}
 
 
+LOGIN_REMINDER_TITLE = "Нужен вход в ГИС МТ"
+LOGIN_REMINDER_LINK = "/warehouse/marking"
+
+
+async def _pending_marking_work(session: AsyncSession) -> dict[str, int]:
+    """Документы, для которых понадобится сверка с ГИС МТ."""
+    from dz_fastapi.models.inventory import (
+        ShipmentDocument,
+        ShipmentDocumentItem,
+        ShipmentDocumentStatus,
+    )
+    from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
+
+    receipts = await session.scalar(
+        select(func.count(func.distinct(SupplierReceipt.id)))
+        .join(SupplierReceiptItem, SupplierReceiptItem.receipt_id == SupplierReceipt.id)
+        .where(
+            SupplierReceipt.posted_at.is_(None),
+            SupplierReceiptItem.marking_codes.is_not(None),
+            cast(SupplierReceiptItem.marking_codes, Text).notin_(("null", "[]")),
+        )
+    )
+    marked_autoparts = select(ProductMarkingCode.autopart_id).where(
+        ProductMarkingCode.autopart_id.is_not(None)
+    )
+    shipments = await session.scalar(
+        select(func.count(func.distinct(ShipmentDocument.id)))
+        .join(ShipmentDocumentItem, ShipmentDocumentItem.document_id == ShipmentDocument.id)
+        .where(
+            ShipmentDocument.status == ShipmentDocumentStatus.DRAFT,
+            ShipmentDocumentItem.autopart_id.in_(marked_autoparts),
+        )
+    )
+    return {
+        "pending_receipts": int(receipts or 0),
+        "pending_shipments": int(shipments or 0),
+    }
+
+
+async def remind_gis_mt_login(session: AsyncSession) -> dict[str, Any]:
+    """Напоминает администраторам войти в ГИС МТ, если есть что сверять.
+
+    Токен живёт около 10 часов и получается по SMS, поэтому сам не
+    продлевается. Напоминание — не чаще раза в день и только когда вход уже
+    использовался, а в работе есть документы с кодами маркировки.
+    """
+    from dz_fastapi.models.notification import AppNotification, AppNotificationLevel
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    settings_row = (
+        await session.execute(select(GisMtSettings).limit(1))
+    ).scalars().first()
+    result: dict[str, Any] = {"reminded": False}
+    if settings_row is None or settings_row.token_expires_at is None:
+        result["reason"] = "never_logged_in"
+        return result
+    if gis_mt_token_is_active(settings_row):
+        result["reason"] = "token_active"
+        return result
+    pending = await _pending_marking_work(session)
+    result.update(pending)
+    if not (pending["pending_receipts"] or pending["pending_shipments"]):
+        result["reason"] = "nothing_pending"
+        return result
+    today = now_moscow().replace(hour=0, minute=0, second=0, microsecond=0)
+    already = await session.scalar(
+        select(func.count(AppNotification.id)).where(
+            AppNotification.title == LOGIN_REMINDER_TITLE,
+            AppNotification.created_at >= today,
+        )
+    )
+    if already:
+        result["reason"] = "already_reminded_today"
+        return result
+    parts = []
+    if pending["pending_receipts"]:
+        parts.append(f"поступлений с кодами к проведению: {pending['pending_receipts']}")
+    if pending["pending_shipments"]:
+        parts.append(f"отгрузок маркируемого товара в работе: {pending['pending_shipments']}")
+    await create_admin_notifications(
+        session,
+        title=LOGIN_REMINDER_TITLE,
+        message=(
+            "Токен ГИС МТ истёк, коды маркировки не сверяются с Честным "
+            "знаком. В работе: " + "; ".join(parts) + "."
+        ),
+        level=AppNotificationLevel.WARNING,
+        link=LOGIN_REMINDER_LINK,
+    )
+    result["reminded"] = True
+    return result
+
+
 async def get_gis_mt_status(session: AsyncSession) -> dict[str, Any]:
     settings_row = await get_or_create_gis_mt_settings(session)
     return {
@@ -433,7 +526,23 @@ async def get_gis_mt_status(session: AsyncSession) -> dict[str, Any]:
         "product_group": settings_row.product_group,
         "last_check_at": settings_row.last_check_at,
         "last_error": settings_row.last_error,
+        **await _pending_marking_work(session),
+        "shipment_codes_auto_fifo": bool(
+            True
+            if settings_row.shipment_codes_auto_fifo is None
+            else settings_row.shipment_codes_auto_fifo
+        ),
     }
+
+
+async def update_shipment_codes_auto_fifo(
+    session: AsyncSession, *, enabled: bool
+) -> dict[str, Any]:
+    settings_row = await get_or_create_gis_mt_settings(session)
+    settings_row.shipment_codes_auto_fifo = bool(enabled)
+    session.add(settings_row)
+    await session.commit()
+    return await get_gis_mt_status(session)
 
 
 async def update_gis_mt_product_group(

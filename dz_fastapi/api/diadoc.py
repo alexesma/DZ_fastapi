@@ -1887,6 +1887,35 @@ async def get_diadoc_outbound_readiness_for_shipments(
     return [DiadocShipmentFormalizedReadinessOut(**row) for row in rows]
 
 
+async def _assert_shipment_codes_pass_gis_mt(
+    session: AsyncSession, shipment_id: int
+) -> None:
+    """Перед отправкой УПД сверяет коды отгрузки с ГИС МТ.
+
+    Сверка идёт, только когда выполнен вход в ГИС МТ: без токена отправку не
+    держим (вход требует SMS), а предупреждение видно в готовности УПД.
+    """
+    from dz_fastapi.services.diadoc_outgoing import _load_shipment_document
+    from dz_fastapi.services.marking_shipment_check import (
+        check_shipment_marking,
+        split_marking_issues,
+    )
+
+    document = await _load_shipment_document(session, shipment_id=shipment_id)
+    if document is None:
+        return
+    marking = await check_shipment_marking(session, document, use_gis=True)
+    if not marking["gis_checked"]:
+        return
+    blockers, _warnings = split_marking_issues(marking["issues"])
+    if blockers:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(blockers[:10])
+            + (f" (и ещё {len(blockers) - 10})" if len(blockers) > 10 else ""),
+        )
+
+
 @router.post(
     "/outbound-documents/from-shipment/{shipment_id}",
     response_model=DiadocOutgoingDocumentOut,
@@ -1923,6 +1952,7 @@ async def create_diadoc_outbound_document_from_shipment(
                     "Shipment is not ready for formalized UTD"
                 )
                 raise HTTPException(status_code=400, detail=detail)
+            await _assert_shipment_codes_pass_gis_mt(session, shipment_id)
             shipment_payload = await build_formalized_diadoc_payload_from_shipment(
                 session,
                 client=client,

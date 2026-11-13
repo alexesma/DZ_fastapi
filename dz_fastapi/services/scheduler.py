@@ -1026,6 +1026,18 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # ── 8b2. Напоминание о входе в ГИС МТ (токен живёт ~10 часов) ────────
+    scheduler.add_job(
+        func=remind_gis_mt_login_task,
+        trigger="cron",
+        args=[app],
+        id="remind_gis_mt_login",
+        name="Remind admins to sign in to GIS MT",
+        hour="9,13",
+        minute=10,
+        replace_existing=True,
+    )
+
     # ── 8c. Перепроверка поступлений: привязка к поздним заказам ──────────
     # Рабочий день 08–19 МСК, каждые 30 мин (запрос лёгкий: только
     # поставщики с неполученными складскими позициями заказов)
@@ -2020,6 +2032,24 @@ async def relink_recent_receipts_task(app: FastAPI):
                 trace.details["linked_rows"] = linked
             except Exception:
                 logger.exception("relink_recent_receipts_task failed")
+                await session.rollback()
+
+
+async def remind_gis_mt_login_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="remind_gis_mt_login",
+        job_name="Remind admins to sign in to GIS MT",
+    ) as trace:
+        from dz_fastapi.services.gis_mt import remind_gis_mt_login
+
+        async with app.state.session_factory() as session:
+            try:
+                trace.details.update(await remind_gis_mt_login(session))
+            except Exception as exc:  # noqa: BLE001
+                logger.error("GIS MT login reminder failed: %s", exc, exc_info=True)
+                trace.details["error"] = str(exc)[:2000]
                 await session.rollback()
 
 

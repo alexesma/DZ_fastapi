@@ -109,6 +109,7 @@ from dz_fastapi.services.marking_codes import (
     return_marking_codes_from_customer,
     return_marking_codes_to_supplier,
 )
+from dz_fastapi.services.shipment_marking_scan import assign_scanned_codes, shipment_codes_auto_fifo
 from dz_fastapi.services.stock_order_packages import assert_stock_order_packing_ready
 
 logger = logging.getLogger(__name__)
@@ -2409,6 +2410,7 @@ async def post_shipment_document(
     movements_created = 0
     reserves_released = 0
     lot_ids: list[int] = []
+    auto_fifo_codes = await shipment_codes_auto_fifo(session)
 
     for item in doc.items:
         # 1. Снимаем резерв
@@ -2471,6 +2473,7 @@ async def post_shipment_document(
         cost_total = Decimal("0.00")
         costed_quantity = 0
         has_known_cost = False
+        item_allocations: list[ShipmentDocumentItemLotAllocation] = []
 
         for movement in movements:
             if movement.stock_lot_id is None:
@@ -2505,13 +2508,8 @@ async def post_shipment_document(
                 total_cost_price=total_cost,
             )
             session.add(allocation)
-            await session.flush()
-            await allocate_marking_codes_for_shipment_allocation(
-                session,
-                allocation=allocation,
-                shipment_document_id=doc.id,
-                shipment_document_item_id=item.id,
-            )
+            item_allocations.append(allocation)
+        await session.flush()
 
         item.cost_total = _quantize_money(cost_total) if has_known_cost else None
         if costed_quantity == int(item.quantity or 0) and costed_quantity > 0:
@@ -2519,8 +2517,30 @@ async def post_shipment_document(
         else:
             item.cost_price = None
 
+        # Коды маркировки: сначала отсканированные при сборке, затем — если
+        # автоназначение не выключено — первые свободные из партии.
+        await assign_scanned_codes(
+            session,
+            document_id=doc.id,
+            item=item,
+            allocations=item_allocations,
+        )
+        if auto_fifo_codes:
+            for allocation in item_allocations:
+                await allocate_marking_codes_for_shipment_allocation(
+                    session,
+                    allocation=allocation,
+                    shipment_document_id=doc.id,
+                    shipment_document_item_id=item.id,
+                )
+
         # 3. Запоминаем первый задействованный лот в строке
-        first_lot_id = next((m.stock_lot_id for m in movements if m.stock_lot_id), None)
+        # Партия строки (из неё в УПД берётся ГТД) — по фактическому списанию,
+        # которое скан кода маркировки мог перенести на другую партию.
+        first_lot_id = next(
+            (a.stock_lot_id for a in item_allocations if a.stock_lot_id),
+            next((m.stock_lot_id for m in movements if m.stock_lot_id), None),
+        )
         if first_lot_id and not item.lot_id:
             item.lot_id = first_lot_id
         lot_ids.extend(m.stock_lot_id for m in movements if m.stock_lot_id)

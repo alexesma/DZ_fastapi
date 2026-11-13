@@ -5381,6 +5381,120 @@ async def gis_mt_set_product_group(
     )
 
 
+@router.put(
+    "/gis-mt/shipment-codes-auto-fifo",
+    summary="Автоназначение кодов маркировки при проведении отгрузки",
+)
+async def gis_mt_set_shipment_codes_auto_fifo(
+    enabled: bool = Query(...),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    from dz_fastapi.services.gis_mt import update_shipment_codes_auto_fifo
+
+    return await update_shipment_codes_auto_fifo(session, enabled=enabled)
+
+
+@router.get(
+    "/shipments/{doc_id}/marking-scan",
+    summary="Коды маркировки отгрузки: нужно, назначено, отсканировано",
+)
+async def shipment_marking_scan_state(
+    doc_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.shipment_marking_scan import shipment_marking_state
+
+    doc = await _load_shipment(session, doc_id)
+    return await shipment_marking_state(session, doc)
+
+
+@router.post(
+    "/shipments/{doc_id}/marking-scan",
+    summary="Скан кода маркировки при сборке отгрузки",
+)
+async def shipment_marking_scan(
+    doc_id: int,
+    code: str = Body(..., embed=True, min_length=1, max_length=512),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    from dz_fastapi.services.shipment_marking_scan import (
+        ShipmentMarkingScanError,
+        record_shipment_marking_scan,
+        shipment_marking_state,
+    )
+
+    user_id = current_user.id
+    doc = await _load_shipment(session, doc_id)
+    try:
+        result = await record_shipment_marking_scan(
+            session, doc, code, user_id=user_id
+        )
+    except ShipmentMarkingScanError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    await session.commit()
+    session.expire_all()
+    doc = await _load_shipment(session, doc_id)
+    return {**result, "state": await shipment_marking_state(session, doc)}
+
+
+@router.delete(
+    "/shipments/{doc_id}/marking-scan/{scan_id}",
+    summary="Убрать ошибочный скан кода маркировки",
+)
+async def shipment_marking_scan_delete(
+    doc_id: int,
+    scan_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.inventory import ShipmentMarkingScan
+    from dz_fastapi.services.shipment_marking_scan import shipment_marking_state
+
+    scan = await session.get(ShipmentMarkingScan, scan_id)
+    if scan is None or scan.shipment_document_id != doc_id:
+        raise HTTPException(status_code=404, detail="Скан не найден")
+    await session.delete(scan)
+    await session.commit()
+    doc = await _load_shipment(session, doc_id)
+    return await shipment_marking_state(session, doc)
+
+
+@router.post(
+    "/shipments/{doc_id}/marking-scan/auto-assign",
+    summary="Назначить недостающие коды автоматически (администратор)",
+)
+async def shipment_marking_auto_assign(
+    doc_id: int,
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    from dz_fastapi.services.marking_codes import allocate_marking_codes_for_shipment_allocation
+    from dz_fastapi.services.shipment_marking_scan import shipment_marking_state
+
+    doc = await _load_shipment(session, doc_id)
+    if doc.status != ShipmentDocumentStatus.POSTED:
+        raise HTTPException(
+            status_code=409,
+            detail="Коды назначаются только проведённой отгрузке",
+        )
+    assigned = 0
+    for item in doc.items:
+        for allocation in item.allocations:
+            assigned += len(
+                await allocate_marking_codes_for_shipment_allocation(
+                    session,
+                    allocation=allocation,
+                    shipment_document_id=doc.id,
+                    shipment_document_item_id=item.id,
+                )
+            )
+    await session.commit()
+    session.expire_all()
+    doc = await _load_shipment(session, doc_id)
+    return {"assigned": assigned, "state": await shipment_marking_state(session, doc)}
+
+
 @router.post(
     "/gis-mt/auth/start",
     summary="Вход в ГИС МТ через облачную подпись (шаг 1: SMS)",

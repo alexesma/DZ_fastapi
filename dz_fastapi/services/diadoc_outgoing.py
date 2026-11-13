@@ -35,7 +35,7 @@ from dz_fastapi.models.partner import (
     Provider,
     ProviderExternalReference,
 )
-from dz_fastapi.models.settings import DiadocIntegrationSettings
+from dz_fastapi.models.settings import DiadocIntegrationSettings, GisMtSettings
 from dz_fastapi.models.shipment_correction import ShipmentCorrection, ShipmentCorrectionStatus
 from dz_fastapi.services.customer_return_ukd import (
     DEFAULT_WHOLESALE_VAT_RATE,
@@ -653,12 +653,33 @@ async def build_shipment_formalized_readiness(
             "Заполните профиль формализованного УПД в разделе Документы → Диадок."
         )
 
-    from dz_fastapi.services.marking_shipment_check import check_shipment_marking
+    from dz_fastapi.services.marking_shipment_check import (
+        check_shipment_marking,
+        split_marking_issues,
+    )
 
     marking = await check_shipment_marking(session, document, use_gis=False)
-    for issue in marking["issues"]:
-        warnings.append(f"КИЗ: {issue['message']}")
-    if marking["issues"]:
+    marking_blockers, marking_warnings = split_marking_issues(marking["issues"])
+    if marking["codes_total"]:
+        from dz_fastapi.services.gis_mt import gis_mt_token_is_active
+
+        gis_settings = (
+            await session.execute(select(GisMtSettings).limit(1))
+        ).scalars().first()
+        if gis_settings is None or not gis_mt_token_is_active(gis_settings):
+            marking_warnings.append(
+                "КИЗ: вход в ГИС МТ не выполнен — статус и владелец кодов "
+                "перед отправкой не будут проверены."
+            )
+    # Маркируемый товар без кода на каждую штуку в УПД не отправляем.
+    missing_required_fields.extend(marking_blockers)
+    warnings.extend(marking_warnings)
+    if marking_blockers:
+        recommended_actions.append(
+            "Отсканируйте коды маркировки собранных штук в карточке отгрузки "
+            "(блок «Коды маркировки»)."
+        )
+    elif marking_warnings:
         recommended_actions.append(
             "Проверьте коды маркировки отгрузки (кнопка «Проверить КИЗ» " "в блоке готовности УПД)."
         )

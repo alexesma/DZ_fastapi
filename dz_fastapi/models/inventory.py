@@ -2658,6 +2658,43 @@ class ReceiptScanCount(Base):
     )
 
 
+class ShipmentMarkingScan(Base):
+    """Код маркировки, отсканированный при сборке отгрузки.
+
+    В УПД покупателю должен уйти код именно той штуки, что лежит в посылке,
+    поэтому отсканированный код закрепляется за строкой отгрузки.
+    """
+
+    __tablename__ = "shipmentmarkingscan"
+
+    shipment_document_id = Column(
+        Integer, ForeignKey("shipmentdocument.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    shipment_document_item_id = Column(
+        Integer, ForeignKey("shipmentdocumentitem.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    marking_code_id = Column(
+        Integer, ForeignKey("productmarkingcode.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    code = Column(String(255), nullable=False)
+    scanned_at = Column(
+        DateTime(timezone=True), nullable=False, default=now_moscow
+    )
+    scanned_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "shipment_document_id", "marking_code_id",
+            name="uq_shipment_marking_scan",
+        ),
+    )
+
+
 class ReceiptMarkingScan(Base):
     """Код маркировки, отсканированный при пересчёте поступления.
 

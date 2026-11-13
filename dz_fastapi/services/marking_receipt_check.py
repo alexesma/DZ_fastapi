@@ -317,9 +317,22 @@ async def check_receipt_marking(
     Без действующего токена ГИС МТ проверка остаётся локальной.
     Коммит — на вызывающем. Возвращает True, если что-то записали.
     """
-    from dz_fastapi.services.marking_codes import normalize_marking_codes
+    from dz_fastapi.services.marking_codes import (
+        autoparts_marked_by_category,
+        normalize_marking_codes,
+    )
 
-    items = [i for i in (receipt.items or []) if i.marking_codes]
+    # Маркируемый по карточке товар проверяем, даже если поставщик не
+    # прислал коды: «кодов 0 из N» — тоже расхождение.
+    marked = await autoparts_marked_by_category(
+        session,
+        [i.autopart_id for i in (receipt.items or []) if not i.marking_codes],
+    )
+    items = [
+        i
+        for i in (receipt.items or [])
+        if i.marking_codes or (i.autopart_id in marked)
+    ]
     if not items:
         return False
 
@@ -447,7 +460,9 @@ async def check_receipts_marking_local(
 
 def summarize_receipt_marking(receipt: SupplierReceipt) -> dict[str, Any]:
     """Итог по документу для бейджа: статус и счётчики."""
-    items = [i for i in (receipt.items or []) if i.marking_codes]
+    items = [
+        i for i in (receipt.items or []) if i.marking_codes or i.marking_check
+    ]
     if not items:
         return {
             "marking_status": CHECK_NONE,

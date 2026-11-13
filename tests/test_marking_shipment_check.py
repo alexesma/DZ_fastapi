@@ -99,3 +99,21 @@ async def test_gis_status_and_owner(test_session, monkeypatch):
         by_reason.setdefault(issue["reason"], []).append(issue["code"])
     assert by_reason["gis_status"] == [retired]
     assert by_reason["gis_owner"] == [foreign]
+
+
+def test_gis_mt_errors_block_the_upd_and_outage_does_not():
+    from dz_fastapi.services.marking_shipment_check import split_marking_issues
+
+    blockers, warnings = split_marking_issues(
+        [
+            {"reason": "gis_status", "severity": "error", "message": "выбыл"},
+            {"reason": "gis_owner", "severity": "error", "message": "чужой"},
+            {
+                "reason": "gis_unavailable",
+                "severity": "warning",
+                "message": "ГИС МТ не ответил",
+            },
+        ]
+    )
+    assert blockers == ["КИЗ: выбыл", "КИЗ: чужой"]
+    assert warnings == ["КИЗ: ГИС МТ не ответил"]

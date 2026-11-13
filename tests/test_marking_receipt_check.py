@@ -190,3 +190,30 @@ async def test_local_check_is_upgraded_when_gis_becomes_available(
     assert check["gis_checked"] is False
     assert reasons(receipt.items[0]) == ["gis_unavailable"]
     assert check["status"] == "warning"
+
+
+@pytest.mark.asyncio
+async def test_marked_by_category_item_without_codes_is_a_discrepancy(
+    test_session, created_autopart, created_providers
+):
+    from dz_fastapi.models.nomenclature import HonestSignCategory, autopart_honest_sign_association
+
+    category = HonestSignCategory(name="Моторные масла")
+    test_session.add(category)
+    await test_session.flush()
+    await test_session.execute(
+        autopart_honest_sign_association.insert().values(
+            autopart_id=created_autopart.id,
+            honest_sign_category_id=category.id,
+        )
+    )
+    receipt = await make_receipt(
+        test_session,
+        created_providers[0],
+        [(None, 2, created_autopart.id)],
+    )
+    # Поставщик не прислал коды, но товар маркируемый по карточке.
+    assert await mrc.check_receipt_marking(test_session, receipt, use_gis=False)
+    (item,) = receipt.items
+    assert reasons(item) == ["quantity_mismatch"]
+    assert mrc.summarize_receipt_marking(receipt)["marking_status"] == "error"

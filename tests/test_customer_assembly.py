@@ -2,12 +2,19 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import event, update
+from sqlalchemy import event, select, update
 from sqlalchemy.engine import Engine
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import StorageLocation
-from dz_fastapi.models.inventory import CrossDockingLabel, StockByLocation, StockLot
+from dz_fastapi.models.inventory import (
+    CrossDockingLabel,
+    MarkingCodeStatus,
+    ProductMarkingCode,
+    ShipmentMarkingScan,
+    StockByLocation,
+    StockLot,
+)
 from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
@@ -261,6 +268,33 @@ async def test_assembly_partial_realizations_and_box_limits(
         ]},
     )
     assert contents.status_code == 200, contents.text
+
+    # Код маркировки из нашего учёта закрепляется за отгрузкой; позиция уже
+    # разложена, поэтому штука в коробку не добавляется.
+    if await test_session.get(User, 1) is None:
+        test_session.add(User(
+            id=1, name="Test Admin", email="test-admin@example.com",
+            password_hash="unused", role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        ))
+    kiz = "010460000000001721BOXSCAN000001"
+    test_session.add(ProductMarkingCode(
+        code=kiz, status=MarkingCodeStatus.IN_STOCK,
+        autopart_id=created_autopart.id,
+    ))
+    await test_session.commit()
+    marked = await async_client.post(scan_url, json={"code": kiz})
+    assert marked.status_code == 200, marked.text
+    assert marked.json()["marking_code"] is True
+    assert marked.json()["added"] == 0
+    repeated = await async_client.post(scan_url, json={"code": kiz})
+    assert repeated.status_code == 409
+    saved = (await test_session.execute(
+        select(ShipmentMarkingScan.code).where(
+            ShipmentMarkingScan.shipment_document_id == shipment_id)
+    )).scalars().all()
+    assert saved == [kiz]
+
     blocked_reduce = await async_client.patch(
         f"/inventory/shipments/{shipment_id}/items/{second['id']}/",
         json={"quantity": 1},

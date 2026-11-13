@@ -16,15 +16,37 @@ from dz_fastapi.models.inventory import (
     MarkingMovementType,
     ProductMarkingCode,
     ProductMarkingCodeMovement,
+    ShipmentDocument,
     ShipmentDocumentItemLotAllocation,
+    ShipmentDocumentStatus,
+    ShipmentMarkingScan,
     StockLot,
 )
+from dz_fastapi.models.nomenclature import autopart_honest_sign_association
 from dz_fastapi.models.partner import SupplierReceiptItem
 from dz_fastapi.services.marking_code_parse import parse_marking_code
 
 logger = logging.getLogger(__name__)
 
 _MARKING_CODE_WHITESPACE_RE = re.compile(r"[\r\n\t ]+")
+
+
+async def autoparts_marked_by_category(
+    session: AsyncSession, autopart_ids: Iterable[int]
+) -> set[int]:
+    """Товары с категорией «Честного знака» в карточке — маркируемые.
+
+    Признак не зависит от того, были ли коды в документе поставщика.
+    """
+    ids = {int(value) for value in autopart_ids if value}
+    if not ids:
+        return set()
+    rows = await session.execute(
+        select(autopart_honest_sign_association.c.autopart_id)
+        .where(autopart_honest_sign_association.c.autopart_id.in_(ids))
+        .distinct()
+    )
+    return {int(value) for value in rows.scalars().all()}
 
 
 def normalize_marking_codes_with_full(
@@ -512,15 +534,31 @@ async def allocate_marking_codes_for_shipment_allocation(
     shipment_document_id: int | None = None,
     shipment_document_item_id: int | None = None,
 ) -> list[str]:
-    quantity = max(int(allocation.quantity or 0), 0)
+    """Автоназначение: первые свободные коды партии на свободные места.
+
+    Коды, уже закреплённые за списанием (отсканированные при сборке),
+    сохраняются; коды, отсканированные в других непроведённых отгрузках,
+    не занимаются. Возвращает только что назначенные коды.
+    """
+    existing = list(allocation.marking_codes or [])
+    quantity = max(int(allocation.quantity or 0), 0) - len(existing)
     if quantity <= 0 or allocation.stock_lot_id is None:
         return []
 
+    scanned_elsewhere = (
+        select(ShipmentMarkingScan.marking_code_id)
+        .join(
+            ShipmentDocument,
+            ShipmentDocument.id == ShipmentMarkingScan.shipment_document_id,
+        )
+        .where(ShipmentDocument.status == ShipmentDocumentStatus.DRAFT)
+    )
     rows = await session.execute(
         select(ProductMarkingCode)
         .where(
             ProductMarkingCode.stock_lot_id == allocation.stock_lot_id,
             ProductMarkingCode.status == MarkingCodeStatus.IN_STOCK,
+            ProductMarkingCode.id.notin_(scanned_elsewhere),
         )
         .order_by(ProductMarkingCode.id.asc())
         .limit(quantity)
@@ -538,7 +576,7 @@ async def allocate_marking_codes_for_shipment_allocation(
         )
 
     now = now_moscow()
-    allocation.marking_codes = codes
+    allocation.marking_codes = [*existing, *codes]
     for row in marking_rows:
         row.status = MarkingCodeStatus.SHIPPED
         row.shipment_allocation_id = allocation.id
