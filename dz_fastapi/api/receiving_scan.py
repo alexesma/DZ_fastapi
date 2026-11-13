@@ -19,9 +19,11 @@ from dz_fastapi.services.inventory_stock import (
     resolve_receipt_item_autopart_id,
     transfer_stock_with_lot_trace,
 )
+from dz_fastapi.services.marking_aggregate import AggregateError
 from dz_fastapi.services.receipt_marking_scan import (
     NotMarkingCode,
     marking_scan_state,
+    record_aggregate_scan,
     record_marking_scan,
 )
 
@@ -155,10 +157,15 @@ async def scan_marking_code(receipt_id: int, payload: MarkingScanPayload,
     user_id = user.id
     receipt = await _load_receipt(session, receipt_id)
     try:
-        result = await record_marking_scan(
+        result = await record_aggregate_scan(
             session, receipt, payload.code, user_id=user_id)
+        if result is None:
+            result = await record_marking_scan(
+                session, receipt, payload.code, user_id=user_id)
     except NotMarkingCode as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except AggregateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.commit()
     return result
 

@@ -5421,6 +5421,7 @@ async def shipment_marking_scan(
 ):
     from dz_fastapi.services.shipment_marking_scan import (
         ShipmentMarkingScanError,
+        record_shipment_aggregate_scan,
         record_shipment_marking_scan,
         shipment_marking_state,
     )
@@ -5428,9 +5429,13 @@ async def shipment_marking_scan(
     user_id = current_user.id
     doc = await _load_shipment(session, doc_id)
     try:
-        result = await record_shipment_marking_scan(
+        result = await record_shipment_aggregate_scan(
             session, doc, code, user_id=user_id
         )
+        if result is None:
+            result = await record_shipment_marking_scan(
+                session, doc, code, user_id=user_id
+            )
     except ShipmentMarkingScanError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.commit()

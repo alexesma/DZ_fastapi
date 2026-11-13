@@ -31,6 +31,12 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.partner import SupplierReceiptItem
 from dz_fastapi.models.settings import GisMtSettings
+from dz_fastapi.services.marking_aggregate import (
+    AggregateError,
+    expand_aggregate,
+    gis_mt_client_or_none,
+    parse_transport_code,
+)
 from dz_fastapi.services.marking_code_parse import parse_marking_code
 
 SOURCE_SCAN = "shipment_scan"
@@ -492,6 +498,72 @@ async def record_shipment_marking_scan(
         "item_id": item.id,
         "duplicate": False,
         "replaced_auto_code": replaced,
+    }
+
+
+async def record_shipment_aggregate_scan(
+    session: AsyncSession,
+    document: ShipmentDocument,
+    raw: object,
+    *,
+    user_id: Optional[int] = None,
+) -> Optional[dict[str, Any]]:
+    """Скан упаковки при сборке: закрепляет за отгрузкой каждую её штуку.
+
+    Возвращает ``None``, если это не упаковка. Штуки, которые закрепить
+    нельзя (нет в учёте, уже отгружены), перечисляются в ``errors``.
+    """
+    transport = parse_transport_code(raw)
+    code = transport
+    if code is None:
+        parsed = parse_marking_code(raw)
+        if parsed is None:
+            return None
+        known = (
+            await session.execute(
+                select(ProductMarkingCode.id).where(
+                    ProductMarkingCode.code == parsed.ki
+                )
+            )
+        ).scalar_one_or_none()
+        # Групповая упаковка выглядит как обычный код, но в учёте её нет.
+        if known is not None or await gis_mt_client_or_none(session) is None:
+            return None
+        code = parsed.ki
+    try:
+        units = await expand_aggregate(session, code)
+    except AggregateError as exc:
+        if transport is None:
+            return None
+        raise ShipmentMarkingScanError(str(exc)) from exc
+    if not units:
+        if transport is None:
+            return None
+        raise ShipmentMarkingScanError("ГИС МТ не знает вложений этой упаковки")
+
+    accepted = duplicates = 0
+    errors: list[dict[str, str]] = []
+    for unit in units:
+        try:
+            async with session.begin_nested():
+                result = await record_shipment_marking_scan(
+                    session, document, unit, user_id=user_id
+                )
+        except ShipmentMarkingScanError as exc:
+            errors.append({"code": unit, "message": str(exc)})
+            continue
+        if result["duplicate"]:
+            duplicates += 1
+        else:
+            accepted += 1
+    return {
+        "aggregate": True,
+        "code": code,
+        "units": len(units),
+        "accepted": accepted,
+        "duplicates": duplicates,
+        "errors": errors[:20],
+        "errors_total": len(errors),
     }
 
 

@@ -14,9 +14,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.autopart import ScannedCodeAlias
-from dz_fastapi.models.inventory import ReceiptMarkingScan
+from dz_fastapi.models.inventory import ReceiptMarkingScan, ReceiptScanCount
 from dz_fastapi.models.partner import SupplierReceipt
 from dz_fastapi.services.inventory_stock import resolve_receipt_item_autopart_id
+from dz_fastapi.services.marking_aggregate import (
+    AggregateError,
+    expand_aggregate,
+    gis_mt_client_or_none,
+    parse_transport_code,
+)
 from dz_fastapi.services.marking_code_parse import parse_marking_code
 from dz_fastapi.services.marking_codes import normalize_marking_codes
 
@@ -151,4 +157,87 @@ async def record_marking_scan(
         "autopart_id": autopart_id,
         "receipt_item_id": item.id if item is not None else None,
         "document_has_codes": bool(document),
+    }
+
+
+async def record_aggregate_scan(
+    session: AsyncSession,
+    receipt: SupplierReceipt,
+    raw: object,
+    *,
+    user_id: Optional[int] = None,
+) -> Optional[dict[str, Any]]:
+    """Скан упаковки: раскрывает её через ГИС МТ и засчитывает каждую штуку.
+
+    Возвращает ``None``, если это не упаковка и скан надо обработать как
+    обычный код. Подтверждённые штуки сразу считаются принятыми.
+    """
+    transport = parse_transport_code(raw)
+    code = transport
+    if code is None:
+        parsed = parse_marking_code(raw)
+        document = _document_codes(receipt)
+        # Групповая упаковка выглядит как обычный код, но в документе её нет.
+        if parsed is None or not document or parsed.ki in document:
+            return None
+        if await gis_mt_client_or_none(session) is None:
+            return None
+        code = parsed.ki
+    try:
+        units = await expand_aggregate(session, code)
+    except AggregateError:
+        if transport is None:
+            return None
+        raise
+    if not units:
+        if transport is None:
+            return None
+        raise AggregateError("ГИС МТ не знает вложений этой упаковки")
+
+    confirmed = extra = duplicates = 0
+    counted: dict[int, int] = {}
+    for unit in units:
+        try:
+            result = await record_marking_scan(
+                session, receipt, unit, user_id=user_id
+            )
+        except NotMarkingCode:
+            continue
+        if result["duplicate"]:
+            duplicates += 1
+        elif result["status"] == SCAN_CONFIRMED:
+            confirmed += 1
+            item_id = result["receipt_item_id"]
+            counted[item_id] = counted.get(item_id, 0) + 1
+        else:
+            extra += 1
+    if counted:
+        rows = {
+            row.receipt_item_id: row
+            for row in (
+                await session.execute(
+                    select(ReceiptScanCount)
+                    .where(ReceiptScanCount.receipt_item_id.in_(counted))
+                    .with_for_update()
+                )
+            )
+            .scalars()
+            .all()
+        }
+        for item_id, quantity in counted.items():
+            row = rows.get(item_id)
+            if row is None:
+                row = ReceiptScanCount(
+                    receipt_item_id=item_id, accepted_qty=0, placed_qty=0
+                )
+                session.add(row)
+            row.accepted_qty = int(row.accepted_qty or 0) + quantity
+        await session.flush()
+    return {
+        "aggregate": True,
+        "code": code,
+        "units": len(units),
+        "confirmed": confirmed,
+        "extra": extra,
+        "duplicates": duplicates,
     }
