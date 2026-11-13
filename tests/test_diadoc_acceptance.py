@@ -5,10 +5,7 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.partner import SupplierReceiptItem
-from dz_fastapi.services.diadoc_acceptance import (
-    acceptance_summary,
-    compare_upd_with_receipt,
-)
+from dz_fastapi.services.diadoc_acceptance import acceptance_summary, compare_upd_with_receipt
 from dz_fastapi.services.upd_xml import UpdXmlItem
 
 

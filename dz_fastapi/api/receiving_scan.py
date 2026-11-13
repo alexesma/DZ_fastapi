@@ -11,12 +11,18 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.models.autopart import AutoPart, StorageLocation
-from dz_fastapi.models.inventory import ReceiptScanCount, StockByLocation
+from dz_fastapi.models.inventory import ReceiptMarkingScan, ReceiptScanCount, StockByLocation
 from dz_fastapi.models.partner import SupplierReceipt
+from dz_fastapi.models.user import User
 from dz_fastapi.services.inventory_stock import (
     RECEIVING_LOCATION_CODE,
     resolve_receipt_item_autopart_id,
     transfer_stock_with_lot_trace,
+)
+from dz_fastapi.services.receipt_marking_scan import (
+    NotMarkingCode,
+    marking_scan_state,
+    record_marking_scan,
 )
 
 router = APIRouter(
@@ -30,6 +36,10 @@ class CountPayload(BaseModel):
     autopart_id: int
     quantity: int = Field(ge=0)
     mode: Literal["set", "add"] = "add"
+
+
+class MarkingScanPayload(BaseModel):
+    code: str = Field(min_length=1, max_length=512)
 
 
 class PlacePayload(BaseModel):
@@ -49,7 +59,9 @@ async def _load_receipt(session: AsyncSession, receipt_id: int) -> SupplierRecei
     return receipt
 
 
-async def _lines(session: AsyncSession, receipt: SupplierReceipt) -> list[dict]:
+async def _lines(session: AsyncSession, receipt: SupplierReceipt,
+                 marking: dict | None = None) -> list[dict]:
+    by_item = (marking or {}).get("by_item") or {}
     item_ids = [item.id for item in receipt.items]
     counts = {row.receipt_item_id: row for row in (await session.execute(
         select(ReceiptScanCount).where(
@@ -64,8 +76,15 @@ async def _lines(session: AsyncSession, receipt: SupplierReceipt) -> list[dict]:
             "oem": item.oem_number, "brand": item.brand_name,
             "name": item.autopart_name, "document_qty": 0,
             "accepted_qty": 0, "placed_qty": 0,
+            "marking_expected": 0, "marking_confirmed": 0,
+            "marking_missing": [],
         })
         row["item_ids"].append(item.id)
+        codes = by_item.get(item.id)
+        if codes:
+            row["marking_expected"] += codes["expected"]
+            row["marking_confirmed"] += codes["confirmed"]
+            row["marking_missing"] += codes["missing_codes"]
         row["document_qty"] += int(item.received_quantity or 0)
         count = counts.get(item.id)
         if count is not None:
@@ -78,12 +97,16 @@ async def _lines(session: AsyncSession, receipt: SupplierReceipt) -> list[dict]:
 async def receiving_plan(receipt_id: int,
                          session: AsyncSession = Depends(get_session)):
     receipt = await _load_receipt(session, receipt_id)
+    marking = await marking_scan_state(session, receipt)
+    lines = await _lines(session, receipt, marking)
+    marking.pop("by_item")
     return {
         "id": receipt.id,
         "document_number": receipt.document_number,
         "provider": receipt.provider.name if receipt.provider else None,
         "posted": receipt.posted_at is not None,
-        "lines": await _lines(session, receipt),
+        "lines": lines,
+        "marking": marking,
     }
 
 
@@ -122,6 +145,34 @@ async def count_received(receipt_id: int, payload: CountPayload,
     await session.commit()
     row["accepted_qty"] = target
     return row
+
+
+@router.post("/receipts/{receipt_id}/marking-scan")
+async def scan_marking_code(receipt_id: int, payload: MarkingScanPayload,
+                            session: AsyncSession = Depends(get_session),
+                            user: User = Depends(get_current_user)):
+    """Сверка кода маркировки со скана с кодами из документа поставщика."""
+    user_id = user.id
+    receipt = await _load_receipt(session, receipt_id)
+    try:
+        result = await record_marking_scan(
+            session, receipt, payload.code, user_id=user_id)
+    except NotMarkingCode as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
+@router.delete("/receipts/{receipt_id}/marking-scan/{scan_id}",
+               status_code=204)
+async def delete_marking_scan(receipt_id: int, scan_id: int,
+                              session: AsyncSession = Depends(get_session)):
+    """Убрать ошибочный скан (например, код из чужой коробки)."""
+    scan = await session.get(ReceiptMarkingScan, scan_id)
+    if scan is None or scan.receipt_id != receipt_id:
+        raise HTTPException(status_code=404, detail="Скан не найден")
+    await session.delete(scan)
+    await session.commit()
 
 
 @router.post("/receipts/{receipt_id}/place")

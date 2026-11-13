@@ -2656,3 +2656,35 @@ class ReceiptScanCount(Base):
         CheckConstraint("accepted_qty >= 0", name="ck_receipt_scan_accepted"),
         CheckConstraint("placed_qty >= 0", name="ck_receipt_scan_placed"),
     )
+
+
+class ReceiptMarkingScan(Base):
+    """Код маркировки, отсканированный при пересчёте поступления.
+
+    ``receipt_item_id`` заполнен, если код есть в документе поставщика
+    (статус «подтверждён»); у лишнего кода строки нет.
+    """
+
+    __tablename__ = "receiptmarkingscan"
+
+    receipt_id = Column(
+        Integer, ForeignKey("supplierreceipt.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    receipt_item_id = Column(
+        Integer, ForeignKey("supplierreceiptitem.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True)
+    code = Column(String(255), nullable=False)
+    full_code = Column(Text, nullable=True)
+    scanned_at = Column(
+        DateTime(timezone=True), nullable=False, default=now_moscow
+    )
+    scanned_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("receipt_id", "code", name="uq_receipt_marking_scan"),
+    )
