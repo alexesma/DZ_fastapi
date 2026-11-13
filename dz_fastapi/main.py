@@ -40,6 +40,7 @@ from dz_fastapi.api.process_architecture import router as process_architecture_r
 from dz_fastapi.api.receiving_scan import router as receiving_scan_router
 from dz_fastapi.api.reclamation import router as reclamation_router
 from dz_fastapi.api.regulatory import router as regulatory_router
+from dz_fastapi.api.resend_webhook import router as resend_webhook_router
 from dz_fastapi.api.scan import router as scan_router
 from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.shipment_corrections import router as shipment_corrections_router
@@ -197,6 +198,7 @@ AUTH_REQUIRED = [Depends(get_current_user)]
 
 app.include_router(autopart_router)
 app.include_router(auth_router)
+app.include_router(resend_webhook_router)
 # Business APIs are private by default. Keep only health, auth endpoints,
 # /site-chat (protected by widget secret), and /1c/exchange BasicAuth outside
 # the common browser-session dependency.

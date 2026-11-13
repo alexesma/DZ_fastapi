@@ -61,6 +61,7 @@ from dz_fastapi.crud.inbox_email import (
     mark_processed,
     update_inbox_email_rule,
 )
+from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inbox_email import InboxEmail, InboxForceProcessAudit
 from dz_fastapi.schemas.inbox_email import RULE_META, FetchInboxResponse
 from dz_fastapi.services.email import (
@@ -71,6 +72,7 @@ from dz_fastapi.services.email import (
     _FetchedAttachment,
     _FetchedInboxMessage,
 )
+from dz_fastapi.services.resend_api import fetch_received_email_by_id
 from dz_fastapi.services.runtime_memory import trim_process_memory
 
 logger = logging.getLogger("dz_fastapi")
@@ -1037,6 +1039,158 @@ async def fetch_and_store_emails(
     )
 
 
+async def ingest_resend_received_email(
+    session: AsyncSession,
+    *,
+    event_data: dict,
+) -> dict[str, object]:
+    """Store one signed ``email.received`` Resend event immediately.
+
+    The scheduled API poll remains as a recovery path. Both paths use the
+    Resend email UUID as ``InboxEmail.uid``, so webhook retries and a later
+    poll are harmless.
+    """
+    email_id = str(event_data.get("email_id") or "").strip()
+    if not email_id:
+        raise ValueError("Resend webhook не содержит email_id")
+
+    raw_recipients = event_data.get("to") or []
+    if isinstance(raw_recipients, str):
+        raw_recipients = [raw_recipients]
+    recipients = {
+        _extract_email(str(value or "")).strip().lower()
+        for value in raw_recipients
+        if str(value or "").strip()
+    }
+    if not recipients:
+        raise ValueError("Resend webhook не содержит получателя")
+
+    accounts = (
+        (
+            await session.execute(
+                select(EmailAccount).where(
+                    EmailAccount.is_active.is_(True),
+                    EmailAccount.transport == "resend_api",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    matched_accounts = [
+        account
+        for account in accounts
+        if str(account.email or "").strip().lower() in recipients
+    ]
+    if not matched_accounts:
+        return {
+            "status": "ignored",
+            "reason": "recipient_not_configured",
+            "email_id": email_id,
+        }
+
+    stored_ids: list[int] = []
+    duplicate_ids: list[int] = []
+    auto_processed_ids: list[int] = []
+    for account in matched_accounts:
+        existing = await _get_existing_inbox_email_by_uid(
+            session,
+            email_account_id=int(account.id),
+            uid=email_id,
+            folder="RESEND",
+        )
+        if existing is not None:
+            duplicate_ids.append(int(existing.id))
+            continue
+
+        item = await fetch_received_email_by_id(
+            api_key=account.resend_api_key,
+            email_id=email_id,
+            timeout=account.resend_timeout,
+        )
+        sender_raw = str(item.get("from") or event_data.get("from") or "")
+        sender_email = _extract_email(sender_raw)
+        sender_name = (
+            sender_raw.replace(f"<{sender_email}>", "").strip().strip('"')
+            if sender_email and sender_email in sender_raw
+            else None
+        )
+        received_at = item.get("created_at")
+        if not isinstance(received_at, datetime):
+            raw_created_at = str(
+                received_at or event_data.get("created_at") or ""
+            ).strip()
+            try:
+                received_at = datetime.fromisoformat(
+                    raw_created_at.replace("Z", "+00:00")
+                )
+            except ValueError:
+                received_at = now_moscow()
+
+        message = _FetchedInboxMessage(
+            uid=email_id,
+            from_=sender_raw,
+            subject=str(item.get("subject") or event_data.get("subject") or ""),
+            attachments=[
+                _FetchedAttachment(
+                    attachment.get("filename"),
+                    attachment.get("payload") or b"",
+                )
+                for attachment in (item.get("attachments") or [])
+            ],
+            date=received_at,
+            folder_name="RESEND",
+            email_account_id=int(account.id),
+        )
+        attachment_info = await _build_attachment_info_for_message(
+            message,
+            account_id=int(account.id),
+        )
+        plain_body = str(item.get("text") or "").strip()
+        html_body = str(item.get("html") or "").strip()
+        body_full = plain_body or html_body or None
+        body_preview = (
+            re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body_full))[:500]
+            if body_full
+            else None
+        )
+        inbox_email = await create_inbox_email(
+            session,
+            email_account_id=int(account.id),
+            uid=email_id,
+            folder="RESEND",
+            from_email=sender_email,
+            from_name=sender_name or None,
+            subject=message.subject,
+            body_preview=body_preview,
+            body_full=body_full,
+            has_attachments=bool(attachment_info),
+            attachment_info=attachment_info,
+            received_at=received_at,
+        )
+        if await auto_detect_and_process(
+            session,
+            inbox_email=inbox_email,
+            fetched_msg=message,
+            account=account,
+        ):
+            auto_processed_ids.append(int(inbox_email.id))
+        stored_ids.append(int(inbox_email.id))
+
+        for attachment in message.attachments:
+            attachment.payload = b""
+        message.attachments.clear()
+
+    await session.commit()
+    return {
+        "status": "stored" if stored_ids else "duplicate",
+        "email_id": email_id,
+        "stored_ids": stored_ids,
+        "duplicate_ids": duplicate_ids,
+        "auto_processed_ids": auto_processed_ids,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Определение правила по уже существующим настройкам системы
 # ---------------------------------------------------------------------------
@@ -1051,7 +1205,8 @@ async def _detect_rule_from_existing_configs(
     """
     Пытается определить тип правила на основе УЖЕ существующих настроек:
       1. ProviderPricelistConfig — поставщики с настроенными прайс-листами
-      2. CustomerOrderConfig     — клиенты с настроенными заказами
+      2. SupplierResponseConfig  — ответы поставщиков на наши заказы
+      3. CustomerOrderConfig     — клиенты с настроенными заказами
 
     Возвращает строку rule_type или None если совпадений нет.
     Не создаёт никаких новых записей — только читает существующие конфиги.
@@ -1104,7 +1259,27 @@ async def _detect_rule_from_existing_configs(
         )
 
     # ------------------------------------------------------------------
-    # 2. Проверяем конфиги заказов клиентов: CustomerOrderConfig
+    # 2. Проверяем конфиги ответов поставщиков. Раньше общий Inbox не
+    # учитывал уже настроенные SupplierResponseConfig: письмо было видно,
+    # но оставалось без правила, хотя отдельный регламент умел его разобрать.
+    try:
+        response_configs = await _find_matching_supplier_response_configs(
+            session,
+            inbox_email=inbox_email,
+            rule_type="order_reply",
+        )
+        if response_configs:
+            logger.info(
+                "Письмо id=%s → order_reply (config_ids=%s)",
+                inbox_email.id,
+                [int(config.id) for config in response_configs],
+            )
+            return "order_reply"
+    except Exception as e:
+        logger.warning("Ошибка при поиске SupplierResponseConfig: %s", e)
+
+    # ------------------------------------------------------------------
+    # 3. Проверяем конфиги заказов клиентов: CustomerOrderConfig
     # ------------------------------------------------------------------
     try:
         matched_config_ids = await _find_matching_customer_order_configs(

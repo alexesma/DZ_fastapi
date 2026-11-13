@@ -375,3 +375,83 @@ async def test_fetch_supplier_responses_can_filter_sender_client_side(
     fetched_message, fetched_account = result[0]
     assert fetched_message.external_id == "wanted-message"
     assert fetched_account.id == account.id
+
+
+@pytest.mark.asyncio
+async def test_resend_supplier_fetch_uses_its_own_cursor(monkeypatch):
+    response_cursor = datetime(2026, 11, 13, 8, 0, 0)
+    customer_order_cursor = datetime(2026, 11, 13, 9, 0, 0)
+    received_at = datetime(2026, 11, 13, 8, 30, 0)
+    account = SimpleNamespace(
+        id=105,
+        email="order@dragonzap.online",
+        imap_host=None,
+        transport="resend_api",
+        imap_folder="INBOX",
+        imap_additional_folders=[],
+        resend_supplier_response_last_received_at=response_cursor,
+        resend_last_received_at=customer_order_cursor,
+    )
+    message = SimpleNamespace(
+        uid=None,
+        external_id="resend-response-1",
+        received_at=received_at,
+        date=None,
+        from_="supplier@example.com",
+        subject="RE: Заказ поставщику № 866",
+    )
+    captured = {}
+
+    async def fake_get_active_by_purpose(_session, _purpose):
+        return [account]
+
+    async def fake_fetch_resend(
+        fetched_account,
+        date_from,
+        allowed_senders=None,
+        limit=None,
+        cursor_attribute="resend_last_received_at",
+    ):
+        del date_from, allowed_senders, limit
+        captured["cursor_attribute"] = cursor_attribute
+        captured["cursor_value"] = getattr(
+            fetched_account,
+            cursor_attribute,
+        )
+        return [message]
+
+    monkeypatch.setattr(
+        response_service.crud_email_account,
+        "get_active_by_purpose",
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_fetch_resend_messages",
+        fake_fetch_resend,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS",
+        False,
+    )
+    cursor_candidates = {}
+    fetch_health = {"healthy": False}
+
+    result = await response_service._fetch_supplier_response_messages(
+        None,
+        date_from=date(2026, 11, 13),
+        resend_cursor_attribute=(
+            "resend_supplier_response_last_received_at"
+        ),
+        resend_cursor_candidates=cursor_candidates,
+        fetch_health=fetch_health,
+    )
+
+    assert len(result) == 1
+    assert captured == {
+        "cursor_attribute": "resend_supplier_response_last_received_at",
+        "cursor_value": response_cursor,
+    }
+    assert cursor_candidates == {account.id: received_at}
+    assert fetch_health == {"healthy": True}

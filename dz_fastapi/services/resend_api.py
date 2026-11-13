@@ -167,6 +167,68 @@ async def download_received_attachment(
         return response.content
 
 
+async def fetch_received_email_by_id(
+    *,
+    api_key: str,
+    email_id: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Retrieve one received email, including attachment payloads.
+
+    Resend webhook events intentionally contain only metadata. Fetching the
+    canonical object here gives the existing order-response parser the plain
+    text/HTML body and the exact attachments while keeping the webhook itself
+    idempotent by ``email_id``.
+    """
+    normalized_id = str(email_id or "").strip()
+    if not normalized_id:
+        raise ValueError("Resend email_id не указан")
+
+    async with httpx.AsyncClient(
+        timeout=timeout or RESEND_API_TIMEOUT
+    ) as client:
+        response = await client.get(
+            f"{RESEND_API_BASE_URL}/emails/receiving/{normalized_id}",
+            headers=_build_headers(api_key),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        item_payload = (
+            payload.get("data")
+            if isinstance(payload, dict) and isinstance(payload.get("data"), dict)
+            else payload
+        )
+        item = dict(item_payload)
+
+    attachments_meta = await list_received_email_attachments(
+        api_key,
+        normalized_id,
+        timeout=timeout,
+    )
+    attachments = []
+    for attachment in attachments_meta:
+        download_url = attachment.get("download_url")
+        if not download_url:
+            continue
+        payload_bytes = await download_received_attachment(
+            download_url,
+            timeout=timeout,
+        )
+        attachments.append(
+            {
+                "id": attachment.get("id"),
+                "filename": attachment.get("filename"),
+                "content_type": attachment.get("content_type"),
+                "payload": payload_bytes,
+            }
+        )
+
+    item["id"] = item.get("id") or normalized_id
+    item["created_at"] = _parse_iso_datetime(item.get("created_at"))
+    item["attachments"] = attachments
+    return item
+
+
 async def fetch_received_emails_for_address(
     *,
     api_key: str,

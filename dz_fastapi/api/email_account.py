@@ -75,8 +75,15 @@ async def update_email_account(
     account = await crud_email_account.get(session, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    # The edit form never receives stored secrets. Empty secret fields mean
+    # "leave unchanged"; a replacement is only written when explicitly set.
+    if not update_data.get("password"):
+        update_data.pop("password", None)
+    if not update_data.get("resend_api_key"):
+        update_data.pop("resend_api_key", None)
     account = await crud_email_account.update(
-        db_obj=account, obj_in=payload, session=session, commit=True
+        db_obj=account, obj_in=update_data, session=session, commit=True
     )
     return EmailAccountResponse.model_validate(account)
 

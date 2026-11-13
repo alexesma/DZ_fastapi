@@ -1,5 +1,6 @@
 import pytest
 
+from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 
@@ -51,6 +52,9 @@ async def test_email_accounts_crud(async_client, test_session):
     assert response.status_code == 201
     account = response.json()
     account_id = account["id"]
+    assert "password" not in account
+    assert "resend_api_key" not in account
+    assert account["has_password"] is True
 
     response = await async_client.get("/email-accounts/")
     assert response.status_code == 200
@@ -62,6 +66,17 @@ async def test_email_accounts_crud(async_client, test_session):
     )
     assert response.status_code == 200
     assert response.json()["name"] == "Orders Inbox 2"
+
+    stored = await test_session.get(EmailAccount, account_id)
+    assert stored.password == "pass123"
+
+    response = await async_client.patch(
+        f"/email-accounts/{account_id}",
+        json={"password": "", "resend_api_key": ""},
+    )
+    assert response.status_code == 200
+    await test_session.refresh(stored)
+    assert stored.password == "pass123"
 
     response = await async_client.delete(f"/email-accounts/{account_id}")
     assert response.status_code == 204

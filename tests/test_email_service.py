@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from dz_fastapi.services import email as email_service
 from dz_fastapi.services.email import (
     GMAIL_API_SEND_URL,
     _attachment_name_matches_pattern,
@@ -80,6 +81,41 @@ def test_scheduled_price_email_since_date_uses_today(monkeypatch):
     monkeypatch.setattr("dz_fastapi.services.email.DEPTH_DAY_EMAIL", 3)
 
     assert _scheduled_price_email_since_date() == date.today()
+
+
+@pytest.mark.asyncio
+async def test_resend_inbox_message_uses_stable_email_id(monkeypatch):
+    async def fake_fetch(**_kwargs):
+        return [
+            {
+                "id": "resend-email-123",
+                "from": "Supplier <supplier@example.com>",
+                "subject": "RE: order 42",
+                "created_at": datetime(2026, 11, 13, 8, 0),
+                "attachments": [],
+            }
+        ]
+
+    monkeypatch.setattr(
+        email_service,
+        "fetch_received_emails_for_address",
+        fake_fetch,
+    )
+    account = SimpleNamespace(
+        id=5,
+        email="order@dragonzap.online",
+        resend_api_key="re_test",
+        resend_timeout=20,
+        resend_last_received_at=None,
+    )
+
+    messages, last_received_at = await email_service._fetch_resend_price_messages(
+        account
+    )
+
+    assert messages[0].uid == "resend-email-123"
+    assert messages[0].folder_name == "RESEND"
+    assert last_received_at == datetime(2026, 11, 13, 8, 0)
 
 
 def test_send_email_with_attachment_gmail_api(monkeypatch):

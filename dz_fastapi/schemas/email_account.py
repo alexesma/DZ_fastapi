@@ -107,6 +107,13 @@ class EmailAccountUpdate(BaseModel):
 
 class EmailAccountResponse(EmailAccountBase):
     id: int
+    # These fields are accepted while validating the ORM model, but are
+    # deliberately excluded from JSON responses. Previously every admin page
+    # load returned mailbox passwords and the complete Resend API key.
+    password: str = Field(default="", exclude=True)
+    resend_api_key: Optional[str] = Field(default=None, exclude=True)
+    has_password: bool = False
+    has_resend_api_key: bool = False
     transport: Literal["smtp", "gmail_api", "resend_api"] = "smtp"
     oauth_provider: Optional[str] = None
     oauth_connected_at: Optional[datetime] = None

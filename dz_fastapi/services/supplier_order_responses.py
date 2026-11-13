@@ -481,6 +481,8 @@ async def _fetch_supplier_response_messages(
     from_email_filters: Optional[Iterable[str]] = None,
     use_server_side_from_filters: bool = True,
     fetch_health: Optional[dict[str, bool]] = None,
+    resend_cursor_attribute: Optional[str] = None,
+    resend_cursor_candidates: Optional[dict[int, datetime]] = None,
 ) -> list[tuple[object, Optional[EmailAccount]]]:
     fetch_attempted = False
     fetch_failed = False
@@ -623,6 +625,7 @@ async def _fetch_supplier_response_messages(
                         _fetch_resend_messages(
                             account,
                             date_from,
+                            cursor_attribute=resend_cursor_attribute,
                         ),
                         timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                     )
@@ -630,6 +633,20 @@ async def _fetch_supplier_response_messages(
                     filtered_messages = _filter_messages_by_sender(
                         account_messages
                     )
+                    if resend_cursor_candidates is not None:
+                        received_values = [
+                            _get_message_received_at(message)
+                            for message in account_messages
+                        ]
+                        received_values = [
+                            value
+                            for value in received_values
+                            if isinstance(value, datetime)
+                        ]
+                        if received_values:
+                            resend_cursor_candidates[int(account.id)] = max(
+                                received_values
+                            )
                     logger.info(
                         (
                             "Supplier response inbox account done: "
@@ -4835,6 +4852,14 @@ async def process_supplier_response_messages(
         fetch_kwargs["from_email_filters"] = from_email_filters
     fetch_health: dict[str, bool] = {"healthy": False}
     fetch_kwargs["fetch_health"] = fetch_health
+    resend_cursor_attribute = {
+        "responses": "resend_supplier_response_last_received_at",
+        "documents": "resend_supplier_document_last_received_at",
+    }.get(file_payload_mode)
+    resend_cursor_candidates: dict[int, datetime] = {}
+    if resend_cursor_attribute:
+        fetch_kwargs["resend_cursor_attribute"] = resend_cursor_attribute
+        fetch_kwargs["resend_cursor_candidates"] = resend_cursor_candidates
     messages = await _fetch_supplier_response_messages(session, **fetch_kwargs)
     stats.fetched_messages = len(messages)
     logger.info(
@@ -4849,6 +4874,7 @@ async def process_supplier_response_messages(
 
     total_messages = len(messages)
     reload_runtime_configs = False
+    processing_failed = False
     for index, (msg, account) in enumerate(messages, start=1):
         if reload_runtime_configs:
             (
@@ -6526,6 +6552,7 @@ async def process_supplier_response_messages(
                 message_row.import_error_details,
             )
         except Exception as exc:
+            processing_failed = True
             await session.rollback()
             logger.error(
                 "Failed to process supplier response message subject=%s: %s",
@@ -6580,6 +6607,35 @@ async def process_supplier_response_messages(
                 exc,
                 exc_info=True,
             )
+
+    # Advance only the cursor belonging to this consumer and only after a
+    # completely successful pass.  Webhook/poll retries remain harmless due
+    # to SupplierOrderMessage.source_message_id deduplication.
+    if (
+        resend_cursor_attribute
+        and resend_cursor_candidates
+        and fetch_health["healthy"]
+        and not processing_failed
+        and date_to is None
+    ):
+        cursor_accounts = (
+            (
+                await session.execute(
+                    select(EmailAccount).where(
+                        EmailAccount.id.in_(resend_cursor_candidates)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for cursor_account in cursor_accounts:
+            candidate = resend_cursor_candidates.get(int(cursor_account.id))
+            current = getattr(cursor_account, resend_cursor_attribute, None)
+            if candidate is not None and (current is None or candidate > current):
+                setattr(cursor_account, resend_cursor_attribute, candidate)
+                session.add(cursor_account)
+        await session.commit()
 
     result = stats.as_dict()
     logger.info(

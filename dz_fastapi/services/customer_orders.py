@@ -630,6 +630,7 @@ async def _fetch_resend_messages(
     date_from: date,
     allowed_senders: Optional[set[str]] = None,
     limit: Optional[int] = None,
+    cursor_attribute: Optional[str] = "resend_last_received_at",
 ) -> List[SimpleMessage]:
     if not account.resend_api_key:
         return []
@@ -637,7 +638,11 @@ async def _fetch_resend_messages(
         api_key=account.resend_api_key,
         email=account.email,
         date_from=date_from,
-        received_after=getattr(account, "resend_last_received_at", None),
+        received_after=(
+            getattr(account, cursor_attribute, None)
+            if cursor_attribute
+            else None
+        ),
         timeout=getattr(account, "resend_timeout", None),
     )
     messages: List[SimpleMessage] = []

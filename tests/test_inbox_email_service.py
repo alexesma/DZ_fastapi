@@ -4,7 +4,10 @@ from datetime import date, datetime
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import func, select
 
+from dz_fastapi.models.email_account import EmailAccount
+from dz_fastapi.models.inbox_email import InboxEmail
 from dz_fastapi.services import inbox_email as inbox_email_service
 
 
@@ -89,6 +92,120 @@ def test_price_only_email_account_detection():
     assert not inbox_email_service._is_price_only_email_account(
         SimpleNamespace(purposes=[])
     )
+
+
+@pytest.mark.asyncio
+async def test_existing_supplier_response_config_detects_order_reply(monkeypatch):
+    inbox_email = SimpleNamespace(
+        id=77,
+        email_account_id=5,
+        from_email="supplier@example.com",
+        subject="RE: Заказ поставщику № 866",
+    )
+
+    async def no_provider(*_args, **_kwargs):
+        return None
+
+    async def no_order_configs(*_args, **_kwargs):
+        return []
+
+    async def response_configs(*_args, **_kwargs):
+        return [SimpleNamespace(id=12)]
+
+    monkeypatch.setattr(
+        "dz_fastapi.crud.partner.crud_provider.get_by_email_incoming_price",
+        no_provider,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "_find_matching_customer_order_configs",
+        no_order_configs,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "_find_matching_supplier_response_configs",
+        response_configs,
+    )
+
+    rule = await inbox_email_service._detect_rule_from_existing_configs(
+        SimpleNamespace(),
+        inbox_email=inbox_email,
+    )
+
+    assert rule == "order_reply"
+
+
+@pytest.mark.asyncio
+async def test_resend_webhook_ingest_is_idempotent(
+    monkeypatch,
+    test_session,
+):
+    account = EmailAccount(
+        name="Resend orders",
+        email="order@dragonzap.online",
+        password="",
+        transport="resend_api",
+        resend_api_key="re_test",
+        purposes=["orders_out"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.commit()
+    await test_session.refresh(account)
+
+    async def fake_fetch(**_kwargs):
+        return {
+            "id": "email_123",
+            "from": "Supplier <supplier@example.com>",
+            "to": ["order@dragonzap.online"],
+            "subject": "RE: order 866",
+            "created_at": datetime(2026, 11, 13, 8, 0),
+            "text": "Позиции 123 нет, остальные подтверждаем.",
+            "html": None,
+            "attachments": [],
+        }
+
+    async def fake_auto_detect(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        "fetch_received_email_by_id",
+        fake_fetch,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "auto_detect_and_process",
+        fake_auto_detect,
+    )
+    event = {
+        "email_id": "email_123",
+        "to": ["order@dragonzap.online"],
+        "from": "supplier@example.com",
+        "subject": "RE: order 866",
+    }
+
+    first = await inbox_email_service.ingest_resend_received_email(
+        test_session,
+        event_data=event,
+    )
+    second = await inbox_email_service.ingest_resend_received_email(
+        test_session,
+        event_data=event,
+    )
+    count = (
+        await test_session.execute(
+            select(func.count()).select_from(InboxEmail).where(
+                InboxEmail.email_account_id == account.id,
+                InboxEmail.uid == "email_123",
+            )
+        )
+    ).scalar_one()
+
+    assert first["status"] == "stored"
+    assert first["auto_processed_ids"]
+    assert second["status"] == "duplicate"
+    assert count == 1
 
 
 @pytest.mark.asyncio

@@ -1646,7 +1646,10 @@ async def _fetch_resend_price_messages(
     for item in emails:
         messages.append(
             _FetchedInboxMessage(
-                uid=None,
+                # Resend returns a stable UUID for every received message.
+                # Treat it exactly like an IMAP UID so the generic Inbox
+                # does not save the same message again on every poll.
+                uid=str(item.get("id") or "") or None,
                 from_=_extract_email(item.get("from")),
                 subject=str(item.get("subject") or ""),
                 attachments=[
@@ -1657,6 +1660,7 @@ async def _fetch_resend_price_messages(
                     for att in (item.get("attachments") or [])
                 ],
                 date=item.get("created_at"),
+                folder_name="RESEND",
                 email_account_id=getattr(account, "id", None),
             )
         )
