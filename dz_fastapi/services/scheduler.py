@@ -631,10 +631,10 @@ async def process_one_c_enterprise_handshake_task(app: FastAPI):
             await session.commit()
         if received["acknowledge_messages"]:
             await asyncio.to_thread(drop_inbox, received["acknowledge_messages"])
-        if received["unmatched"]:
+        if received["foreign"]:
             logger.warning(
-                "EnterpriseData inbox retained because documents were not " "matched: %s",
-                received["unmatched"],
+                "EnterpriseData: %s foreign UNF documents journaled",
+                received["foreign"],
             )
         if received["messages"]:
             logger.info("EnterpriseData numbers received from UNF: %s", received)

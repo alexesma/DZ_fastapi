@@ -34,6 +34,7 @@ from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_STATUS,
     SUPPLIER_ORDER_STATUS,
+    Customer,
     CustomerOrder,
     Provider,
     SupplierOrder,
@@ -226,6 +227,47 @@ async def _company(session: AsyncSession) -> dict[str, Any]:
     }
 
 
+async def _shipment_payload(
+    session: AsyncSession,
+    event: OneCExchangeEvent,
+    shipment: ShipmentDocument,
+) -> dict:
+    """Реализация с текущим договором клиента и ссылкой на его заказ в УНФ."""
+    payload = dict(event.payload)
+    party = dict(payload.get("customer") or {})
+    customer = await session.get(Customer, party.get("id")) if party.get("id") else None
+    if customer is not None:
+        party["one_c_contract"] = {
+            "name": customer.one_c_contract_name,
+            "number": customer.one_c_contract_number,
+            "date": customer.one_c_contract_date,
+            "guid": customer.one_c_contract_guid,
+        }
+        payload["customer"] = party
+    # На заказ ссылаемся, только если он уже ушёл в УНФ: иначе документ
+    # сослался бы на объект, которого там нет.
+    if shipment.customer_order_id:
+        order_event = await session.scalar(
+            select(OneCExchangeEvent)
+            .where(
+                OneCExchangeEvent.entity_type == ENTITY_CUSTOMER_ORDER,
+                OneCExchangeEvent.entity_id == shipment.customer_order_id,
+                OneCExchangeEvent.event_type == EVENT_POSTED,
+                OneCExchangeEvent.ed_message_no.is_not(None),
+            )
+            .order_by(OneCExchangeEvent.id.desc())
+            .limit(1)
+        )
+        if order_event is not None:
+            order_payload = order_event.payload or {}
+            payload["customer_order"] = {
+                "document_id": shipment.customer_order_id,
+                "document_date": order_payload.get("document_date")
+                or order_payload.get("created_at"),
+            }
+    return payload
+
+
 async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> dict:
     if event.entity_type == ENTITY_RECEIPT:
         receipt = await session.get(SupplierReceipt, event.entity_id)
@@ -282,7 +324,7 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
             raise ValueError("Реализация больше не проведена")
         if event.event_type == EVENT_CANCELLED:
             return event.payload
-        return event.payload
+        return await _shipment_payload(session, event, shipment)
     if event.entity_type == ENTITY_CUSTOMER_ORDER:
         if event.event_type == EVENT_CANCELLED:
             return event.payload

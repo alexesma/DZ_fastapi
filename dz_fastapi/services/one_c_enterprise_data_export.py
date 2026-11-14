@@ -163,6 +163,69 @@ def _supplier_contract_key(
     _optional(parent, "Номер", contract.get("number"))
 
 
+def _customer_contract(customer: dict[str, Any]) -> dict[str, Any] | None:
+    """Договор покупателя, если он задан в карточке клиента."""
+    contract = customer.get("one_c_contract") or {}
+    if contract.get("guid") or contract.get("name"):
+        return contract
+    return None
+
+
+def _customer_contract_key(
+    parent: ET.Element,
+    customer: dict[str, Any],
+    company: dict[str, Any],
+) -> None:
+    contract = customer.get("one_c_contract") or {}
+    customer_id = _required(customer.get("id"), "ID клиента для договора 1С")
+    name = contract.get("name") or contract.get("number") or "Основной договор"
+    _add(parent, "Ссылка", contract.get("guid") or _guid("customer-contract", customer_id))
+    _add(parent, "ВидДоговора", "СПокупателем")
+    _organization(parent, company)
+    _counterparty_key(_add(parent, "Контрагент"), customer, "customer")
+    _currency_key(_add(parent, "ВалютаВзаиморасчетов"))
+    _add(parent, "Наименование", name)
+    _optional(parent, "Дата", contract.get("date"))
+    _optional(parent, "Номер", contract.get("number"))
+
+
+def _customer_settlements(
+    parent: ET.Element,
+    customer: dict[str, Any],
+    company: dict[str, Any],
+) -> None:
+    data = _add(parent, "ДанныеВзаиморасчетов")
+    if _customer_contract(customer) is None:
+        return
+    _customer_contract_key(_add(data, "Договор"), customer, company)
+    _currency_key(_add(data, "ВалютаВзаиморасчетов"))
+
+
+def _customer_order_key(
+    parent: ET.Element,
+    order: dict[str, Any],
+    company: dict[str, Any],
+) -> None:
+    """Ссылка на заказ клиента, уже переданный в УНФ."""
+    node = _add(parent, "Заказ")
+    _add(node, "Ссылка", _guid("customer-order", order["document_id"]))
+    _add(node, "Дата", _datetime(order.get("document_date")))
+    _add(node, "Номер", _one_c_number(order["document_id"]))
+    _organization(node, company)
+
+
+def _incoming_document(key: ET.Element, payload: dict[str, Any]) -> None:
+    """Номер и дата документа поставщика: по ним бухгалтерия находит счёт-фактуру."""
+    number = str(payload.get("document_number") or "").strip()
+    if not number:
+        return
+    data = _add(key, "ДанныеВходящегоДокумента")
+    _add(data, "НомерВходящегоДокумента", number[:256])
+    date_value = payload.get("document_date")
+    if date_value:
+        _add(data, "ДатаВходящегоДокумента", _datetime(date_value)[:10])
+
+
 def _supplier_settlements(
     parent: ET.Element,
     provider: dict[str, Any],
@@ -298,7 +361,10 @@ def serialize_object(
     if object_type == "Справочник.Договоры":
         if company is None:
             raise ValueError("Для договора EnterpriseData нужны реквизиты организации")
-        _supplier_contract_key(_add(node, "КлючевыеСвойства"), payload, company)
+        if payload.get("kind") == "customer":
+            _customer_contract_key(_add(node, "КлючевыеСвойства"), payload, company)
+        else:
+            _supplier_contract_key(_add(node, "КлючевыеСвойства"), payload, company)
         return node
     if object_type == "Справочник.Номенклатура":
         _product_key(_add(node, "КлючевыеСвойства"), payload)
@@ -351,12 +417,15 @@ def serialize_object(
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
         _counterparty_key(_add(node, "Контрагент"), payload["customer"], "customer")
-        _add(node, "ДанныеВзаиморасчетов")
+        _customer_settlements(node, payload["customer"], company)
+        if payload.get("customer_order"):
+            _customer_order_key(node, payload["customer_order"], company)
         rows = _add(node, "Товары")
         for item in payload.get("items") or []:
             _goods_row(rows, item, require_unit=True, document_identity=document_identity)
     elif object_type == "Документ.ПоступлениеТоваровУслуг":
         key = node.find(_tag("КлючевыеСвойства"))
+        _incoming_document(key, payload)
         _counterparty_key(_add(key, "Контрагент"), payload["provider"], "provider")
         rows = _add(node, "Товары")
         for item in payload.get("items") or []:
@@ -547,6 +616,11 @@ def event_body_objects(
         )
     if party_key == "provider" and not (payload[party_key].get("one_c_contract") or {}).get("guid"):
         add_reference("Справочник.Договоры", payload[party_key])
+    if object_type == "Документ.РеализацияТоваровУслуг":
+        contract = _customer_contract(payload["customer"])
+        # Договор без ссылки УНФ создаём сами — раньше, чем на него сошлётся документ.
+        if contract is not None and not contract.get("guid"):
+            add_reference("Справочник.Договоры", {**payload["customer"], "kind": "customer"})
     for item in payload.get("items") or []:
         add_reference("Справочник.Номенклатура", item)
     objects.append(serialize_object(object_type, payload, company))

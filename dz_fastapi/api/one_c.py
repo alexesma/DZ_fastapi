@@ -306,6 +306,63 @@ async def enterprise_data_status(
     return await asyncio.to_thread(get_enterprise_data_status)
 
 
+@router.get(
+    "/enterprise-data/foreign-documents",
+    summary="Документы УНФ, которых нет в DragonZap",
+)
+async def enterprise_data_foreign_documents(
+    include_reviewed: bool = Query(default=False),
+    limit: int = Query(default=200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.models.one_c import OneCForeignDocument
+
+    query = select(OneCForeignDocument).order_by(OneCForeignDocument.id.desc())
+    if not include_reviewed:
+        query = query.where(OneCForeignDocument.reviewed_at.is_(None))
+    rows = (await session.execute(query.limit(limit))).scalars().all()
+    return [
+        {
+            "id": row.id,
+            "message_no": row.message_no,
+            "object_type": row.object_type,
+            "reason": row.reason,
+            "ref": row.ref,
+            "number": row.number,
+            "document_date": row.document_date,
+            "posted": row.posted,
+            "deleted": row.deleted,
+            "comment": row.comment,
+            "archive_file": row.archive_file,
+            "received_at": row.received_at,
+            "reviewed_at": row.reviewed_at,
+        }
+        for row in rows
+    ]
+
+
+@router.post(
+    "/enterprise-data/foreign-documents/{document_id}/reviewed",
+    summary="Отметить посторонний документ УНФ разобранным",
+)
+async def enterprise_data_foreign_document_reviewed(
+    document_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(require_admin),
+):
+    from dz_fastapi.models.one_c import OneCForeignDocument
+
+    user_id = user.id
+    row = await session.get(OneCForeignDocument, document_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    row.reviewed_at = now_moscow()
+    row.reviewed_by_user_id = user_id
+    await session.commit()
+    return {"id": document_id, "reviewed": True}
+
+
 @router.get("/enterprise-data/auto", summary="Автоотправка EnterpriseData")
 async def enterprise_data_auto_status(
     session: AsyncSession = Depends(get_session),

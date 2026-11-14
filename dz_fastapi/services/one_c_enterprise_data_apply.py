@@ -19,7 +19,7 @@ from dz_fastapi.models.inventory import (
     StockDocument,
     SyncStatus,
 )
-from dz_fastapi.models.one_c import OneCExchangeEvent
+from dz_fastapi.models.one_c import OneCExchangeEvent, OneCForeignDocument
 from dz_fastapi.models.partner import SupplierReceipt
 from dz_fastapi.services.one_c_enterprise_data import read_inbox
 from dz_fastapi.services.one_c_enterprise_data_export import (
@@ -90,8 +90,10 @@ async def apply_inbox(
 ) -> dict[str, Any]:
     """Переносит принятые от УНФ номера и статусы в события и очищает очередь.
 
-    Вызывающий делает commit и затем ``drop_inbox(outcome["messages"])``:
-    при сбое между ними повтор запишет те же значения.
+    Вызывающий делает commit и затем
+    ``drop_inbox(outcome["acknowledge_messages"])``: при сбое между ними
+    повтор запишет те же значения. Документы, которых нет среди наших событий,
+    обмен не останавливают: они записываются в журнал посторонних документов.
     """
     inbox = await asyncio.to_thread(read_inbox, directory)
     outcome: dict[str, Any] = {
@@ -99,6 +101,7 @@ async def apply_inbox(
         "acknowledge_messages": 0,
         "matched": 0,
         "unmatched": [],
+        "foreign": 0,
     }
     if not inbox:
         return outcome
@@ -108,9 +111,11 @@ async def apply_inbox(
         maps[entity_type] = _key_maps(await _sent_events(session, entity_type), entity_type)
 
     received = now_moscow()
-    can_ack_prefix = True
     for entry in inbox:
-        entry_unmatched = 0
+        for document in entry.get("foreign") or []:
+            outcome["foreign"] += await _journal_foreign(
+                session, entry, document, document.get("reason") or "unknown_type"
+            )
         for document in entry.get("documents") or []:
             entity_type = _ENTITY_BY_OBJECT.get(document.get("object_type"))
             if entity_type is None:
@@ -120,7 +125,9 @@ async def apply_inbox(
                 document.get("number") or ""
             )
             if event is None:
-                entry_unmatched += 1
+                outcome["foreign"] += await _journal_foreign(
+                    session, entry, document, "not_ours"
+                )
                 outcome["unmatched"].append(
                     {
                         "message_no": entry.get("message_no"),
@@ -129,7 +136,6 @@ async def apply_inbox(
                         "number": document.get("number"),
                     }
                 )
-                logger.warning("UNF document without DragonZap event: %s", document)
                 continue
             event.ed_unf_ref = document.get("ref")
             event.ed_unf_number = document.get("number")
@@ -141,12 +147,64 @@ async def apply_inbox(
             event.ed_unf_received_at = received
             await _apply_source_result(session, event, document, received)
             outcome["matched"] += 1
-        if can_ack_prefix and entry_unmatched == 0:
-            outcome["acknowledge_messages"] += 1
-        else:
-            can_ack_prefix = False
+        outcome["acknowledge_messages"] += 1
     await session.flush()
+    if outcome["foreign"]:
+        from dz_fastapi.models.notification import AppNotificationLevel
+        from dz_fastapi.services.notifications import create_admin_notifications
+
+        await create_admin_notifications(
+            session,
+            title="УНФ прислала посторонние документы",
+            message=(
+                f"Документов, которых нет в DragonZap: {outcome['foreign']}. "
+                "Обмен продолжается, документы записаны в журнал — их нужно "
+                "разобрать вручную."
+            ),
+            level=AppNotificationLevel.WARNING,
+            link="/documents/1c",
+            commit=False,
+        )
     return outcome
+
+
+async def _journal_foreign(
+    session: AsyncSession,
+    entry: dict[str, Any],
+    document: dict[str, Any],
+    reason: str,
+) -> int:
+    """Записывает посторонний документ; повтор того же сообщения не дублирует."""
+    message_no = int(entry.get("message_no") or 0)
+    same = select(OneCForeignDocument.id).where(
+        OneCForeignDocument.message_no == message_no,
+        OneCForeignDocument.object_type == str(document.get("object_type") or ""),
+    )
+    for column, key in (
+        (OneCForeignDocument.ref, "ref"),
+        (OneCForeignDocument.number, "number"),
+    ):
+        value = document.get(key)
+        same = same.where(column.is_(None) if value is None else column == value)
+    if await session.scalar(same.limit(1)) is not None:
+        return 0
+    session.add(
+        OneCForeignDocument(
+            message_no=message_no,
+            object_type=str(document.get("object_type") or "")[:160],
+            reason=reason,
+            ref=(document.get("ref") or None),
+            number=(document.get("number") or None),
+            document_date=(document.get("date") or None),
+            posted=document.get("posted"),
+            deleted=document.get("deleted"),
+            comment=document.get("comment"),
+            archive_file=entry.get("archive_file"),
+        )
+    )
+    await session.flush()
+    logger.warning("UNF document without DragonZap event journaled: %s", document)
+    return 1
 
 
 async def _apply_source_result(

@@ -410,3 +410,41 @@ async def test_history_backfill_is_idempotent_and_isolated_from_json_queue(
         test_session, channel=CHANNEL_JSON, entity_types=["supplier_receipt"]
     )
     assert batch is None
+
+
+@pytest.mark.asyncio
+async def test_sale_payload_takes_the_current_customer_contract(
+    test_session, created_customers
+):
+    from datetime import date
+
+    from dz_fastapi.models.inventory import ShipmentDocument, ShipmentDocumentStatus
+    from dz_fastapi.services.one_c_enterprise_dispatch import _shipment_payload
+
+    customer = created_customers[0]
+    shipment = ShipmentDocument(
+        status=ShipmentDocumentStatus.POSTED, customer_id=customer.id
+    )
+    test_session.add(shipment)
+    await test_session.flush()
+    event = OneCExchangeEvent(
+        entity_type="shipment",
+        entity_id=shipment.id,
+        event_type="posted",
+        # Снимок сделан до того, как в карточке клиента указали договор.
+        payload={"document_id": shipment.id, "customer": {"id": customer.id}},
+        idempotency_key=f"contract-test:{shipment.id}",
+        status=OneCExchangeEventStatus.PENDING,
+    )
+    test_session.add(event)
+    customer.one_c_contract_name = "Договор продажи"
+    customer.one_c_contract_number = "7"
+    customer.one_c_contract_date = date(2026, 2, 1)
+    await test_session.flush()
+
+    payload = await _shipment_payload(test_session, event, shipment)
+
+    assert payload["customer"]["one_c_contract"]["number"] == "7"
+    # Заказ в УНФ не передавался — ссылаться не на что.
+    assert "customer_order" not in payload
+    assert "one_c_contract" not in event.payload["customer"]

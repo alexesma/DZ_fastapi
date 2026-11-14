@@ -264,6 +264,27 @@ class ProviderUpdate(BaseModel):
 
 class CustomerBase(ClientBase):
     legal_name: Optional[str] = Field(default=None, max_length=512)
+    one_c_contract_name: Optional[str] = Field(default=None, max_length=255)
+    one_c_contract_number: Optional[str] = Field(default=None, max_length=100)
+    one_c_contract_date: Optional[date] = None
+    one_c_contract_guid: Optional[str] = Field(default=None, max_length=36)
+
+    @field_validator("one_c_contract_guid", mode="before")
+    @classmethod
+    def normalize_customer_contract_guid(cls, v):
+        return str(UUID(str(v))) if v else None
+
+    @field_validator(
+        "one_c_contract_name",
+        "one_c_contract_number",
+        "one_c_contract_date",
+        mode="before",
+    )
+    @classmethod
+    def blank_customer_contract_field(cls, v):
+        # Пустое поле формы — «не задано», а не ошибка разбора даты.
+        return None if isinstance(v, str) and not v.strip() else v
+
     email_outgoing_price: Optional[EmailStr] = None
     inn: Optional[str] = Field(default=None, max_length=32)
     kpp: Optional[str] = Field(default=None, max_length=32)

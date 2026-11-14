@@ -130,6 +130,12 @@ async def build_shipment_snapshot(
             "type_prices": _value(getattr(customer, "type_prices", None)),
             "credit_limit": _value(getattr(customer, "credit_limit", None)),
             "payment_terms_days": getattr(customer, "payment_terms_days", None),
+            "one_c_contract": {
+                "name": getattr(customer, "one_c_contract_name", None),
+                "number": getattr(customer, "one_c_contract_number", None),
+                "date": _value(getattr(customer, "one_c_contract_date", None)),
+                "guid": getattr(customer, "one_c_contract_guid", None),
+            },
         },
         "warehouse": {
             "id": getattr(document.warehouse, "id", None),

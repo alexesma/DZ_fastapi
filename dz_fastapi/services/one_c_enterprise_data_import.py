@@ -116,6 +116,36 @@ def body_objects(xml_bytes: bytes) -> list[ET.Element]:
     return objects
 
 
+FOREIGN_UNKNOWN_TYPE = "unknown_type"
+FOREIGN_NOT_OURS = "not_ours"
+
+
+def classify_documents(
+    xml_bytes: bytes,
+) -> tuple[list[IncomingDocument], list[dict[str, Any]]]:
+    """Делит объекты сообщения на наши документы и посторонние.
+
+    Наши — отслеживаемые типы с нашей ссылкой или номером DragonZap: по ним
+    возвращаются учётные номера. Посторонние — документы, заведённые в УНФ
+    вручную, и типы, которые мы не разбираем. Их нельзя молча потерять, но
+    и держать из-за них обмен нельзя: они уходят в журнал.
+    """
+    documents: list[IncomingDocument] = []
+    foreign: list[dict[str, Any]] = []
+    for node in body_objects(xml_bytes):
+        name = _local(node.tag)
+        if name in OWNED_OBJECTS:
+            continue
+        document = _document(node)
+        if name not in TRACKED_DOCUMENTS:
+            foreign.append({**document.as_dict(), "reason": FOREIGN_UNKNOWN_TYPE})
+        elif not document.ref and document.dragonzap_id() is None:
+            foreign.append({**document.as_dict(), "reason": FOREIGN_NOT_OURS})
+        else:
+            documents.append(document)
+    return documents, foreign
+
+
 def importable_documents(xml_bytes: bytes) -> Optional[list[IncomingDocument]]:
     """Документы для сопоставления или ``None``, если сообщение подтверждать нельзя."""
     documents: list[IncomingDocument] = []

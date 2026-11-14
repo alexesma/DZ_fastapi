@@ -227,3 +227,71 @@ def test_existing_one_c_contract_is_referenced_without_rewriting_it():
 def test_supplier_receipt_without_contract_fails_before_send():
     with pytest.raises(ValueError, match="договор 1С"):
         event_body_objects("supplier_receipt", "posted", {**DOCUMENT, "provider": PARTY}, COMPANY)
+
+
+def test_receipt_carries_the_supplier_document_number_and_date():
+    document = {**DOCUMENT, "document_number": "УПД-555/А"}
+    root = ET.fromstring(object_xml("Документ.ПоступлениеТоваровУслуг", document, COMPANY))
+    key = root.find(f"{{{DATA_NS}}}КлючевыеСвойства")
+    # Порядок задан схемой: данные входящего документа стоят перед контрагентом.
+    assert [child.tag.rsplit("}", 1)[-1] for child in key][-2:] == [
+        "ДанныеВходящегоДокумента",
+        "Контрагент",
+    ]
+    assert _value(
+        root, "КлючевыеСвойства/ДанныеВходящегоДокумента/НомерВходящегоДокумента"
+    ) == "УПД-555/А"
+    assert _value(
+        root, "КлючевыеСвойства/ДанныеВходящегоДокумента/ДатаВходящегоДокумента"
+    ) == "2026-10-26"
+
+    unnumbered = ET.fromstring(
+        object_xml(
+            "Документ.ПоступлениеТоваровУслуг",
+            {**DOCUMENT, "document_number": None},
+            COMPANY,
+        )
+    )
+    assert unnumbered.find(
+        f"{{{DATA_NS}}}КлючевыеСвойства/{{{DATA_NS}}}ДанныеВходящегоДокумента"
+    ) is None
+
+
+def test_sale_references_the_customer_contract_and_order():
+    customer = {
+        **PARTY,
+        "one_c_contract": {"name": "Договор продажи", "number": "7", "date": "2026-02-01"},
+    }
+    document = {
+        **DOCUMENT,
+        "customer": customer,
+        "customer_order": {"document_id": 9, "document_date": "2026-10-20T11:00:00"},
+    }
+    objects = event_body_objects("shipment", "posted", document, COMPANY)
+    kinds = [node.tag.rsplit("}", 1)[-1] for node in objects]
+    assert kinds == [
+        "Справочник.Контрагенты",
+        "Справочник.Договоры",
+        "Справочник.Номенклатура",
+        "Документ.РеализацияТоваровУслуг",
+    ]
+    contract, sale = objects[1], objects[-1]
+    assert _value(contract, "КлючевыеСвойства/ВидДоговора") == "СПокупателем"
+    assert _value(sale, "ДанныеВзаиморасчетов/Договор/Ссылка") == _value(
+        contract, "КлючевыеСвойства/Ссылка"
+    )
+    assert _value(sale, "Заказ/Ссылка") == event_document_ref("customer_order", 9)
+    assert _value(sale, "Заказ/Номер") == "DZ000000009"
+    # Схема: Контрагент → ДанныеВзаиморасчетов → Заказ → … → Товары.
+    order = [child.tag.rsplit("}", 1)[-1] for child in sale]
+    assert order.index("ДанныеВзаиморасчетов") < order.index("Заказ") < order.index("Товары")
+
+
+def test_sale_without_contract_and_order_is_sent_as_before():
+    objects = event_body_objects("shipment", "posted", DOCUMENT, COMPANY)
+    kinds = [node.tag.rsplit("}", 1)[-1] for node in objects]
+    assert "Справочник.Договоры" not in kinds
+    sale = objects[-1]
+    settlements = sale.find(f"{{{DATA_NS}}}ДанныеВзаиморасчетов")
+    assert settlements is not None and len(settlements) == 0
+    assert sale.find(f"{{{DATA_NS}}}Заказ") is None

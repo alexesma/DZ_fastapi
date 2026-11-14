@@ -425,6 +425,12 @@ class Customer(Client):
     id = Column(Integer, ForeignKey("client.id"), primary_key=True, unique=True)
     legal_name = Column(String(512), nullable=True)
     email_outgoing_price = Column(String(255), index=True, nullable=True, unique=True)
+    # Основной договор покупателя для реализаций в УНФ. Не задан — расчёты
+    # в УНФ лягут «без договора».
+    one_c_contract_name = Column(String(255), nullable=True)
+    one_c_contract_number = Column(String(100), nullable=True)
+    one_c_contract_date = Column(Date, nullable=True)
+    one_c_contract_guid = Column(String(36), nullable=True)
     inn = Column(String(32), nullable=True, index=True)
     kpp = Column(String(32), nullable=True, index=True)
     legal_address = Column(Text, nullable=True)

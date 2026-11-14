@@ -3,8 +3,9 @@
 import zipfile
 
 import pytest
+from sqlalchemy import select
 
-from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus
+from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus, OneCForeignDocument
 from dz_fastapi.services.one_c_enterprise_data import (
     drop_inbox,
     load_state,
@@ -90,7 +91,28 @@ def test_directory_acks_tracked_documents_and_queues_them(tmp_path):
     assert read_inbox(str(tmp_path)) == []
 
 
-def test_directory_keeps_message_with_foreign_objects_unacked(tmp_path):
+def test_directory_journals_foreign_objects_and_keeps_the_exchange_going(tmp_path):
+    # Документ, заведённый в УНФ вручную, раньше останавливал обмен: сообщение
+    # не подтверждалось и отправка наших документов вставала.
+    _write(tmp_path, _message("<Документ.ОприходованиеТоваров/>"))
+    result = process_exchange_directory(str(tmp_path))
+
+    assert result["response_file"] == "Message_ДЗ_НФ.zip"
+    assert not (tmp_path / "Message_НФ_ДЗ.zip").exists()
+    assert load_state(str(tmp_path))["received_no"] == 7
+    [entry] = read_inbox(str(tmp_path))
+    assert entry["documents"] == []
+    [foreign] = entry["foreign"]
+    assert foreign["object_type"] == "Документ.ОприходованиеТоваров"
+    assert foreign["reason"] == "not_ours"
+    # Исходное сообщение сохранено: после подтверждения УНФ его не повторит.
+    assert (tmp_path / entry["archive_file"]).exists()
+
+
+def test_message_stays_unacked_when_its_copy_cannot_be_saved(tmp_path, monkeypatch):
+    import dz_fastapi.services.one_c_enterprise_data as transport
+
+    monkeypatch.setattr(transport, "_keep_foreign_message", lambda *args: None)
     _write(tmp_path, _message("<Документ.ОприходованиеТоваров/>"))
     result = process_exchange_directory(str(tmp_path))
 
@@ -129,7 +151,17 @@ async def test_apply_inbox_stores_unf_number_on_matching_event(test_session, tmp
     await test_session.refresh(event)
 
     assert outcome["matched"] == 1 and len(outcome["unmatched"]) == 1
-    assert outcome["acknowledge_messages"] == 0
+    # Чужая реализация не держит очередь: она в журнале, сообщение подтверждено.
+    assert outcome["acknowledge_messages"] == 1
+    assert outcome["foreign"] == 1
+    [journaled] = (
+        await test_session.execute(select(OneCForeignDocument))
+    ).scalars().all()
+    assert (journaled.number, journaled.reason) == ("НФ-0000099", "not_ours")
+    assert journaled.message_no == 7
+    # Повторная обработка той же очереди запись не дублирует.
+    again = await apply_inbox(test_session, str(tmp_path))
+    assert again["foreign"] == 0
     assert event.ed_unf_number == "НФ-0000042"
     assert event.ed_unf_ref == ref
     assert event.ed_unf_posted is True

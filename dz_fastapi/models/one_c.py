@@ -128,6 +128,33 @@ class OneCEnterpriseConfig(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
 
 
+class OneCForeignDocument(Base):
+    """Документ УНФ, которого нет среди наших событий обмена.
+
+    Заведён в УНФ вручную либо имеет тип, который мы не разбираем. Обмен из-за
+    него не останавливается: документ записывается сюда, а исходное сообщение
+    лежит в каталоге обмена (``archive_file``), пока его не разберут.
+    """
+
+    __tablename__ = "onecforeigndocument"
+
+    message_no = Column(Integer, nullable=False, index=True)
+    object_type = Column(String(160), nullable=False)
+    reason = Column(String(32), nullable=False)
+    ref = Column(String(64), nullable=True)
+    number = Column(String(64), nullable=True)
+    document_date = Column(String(40), nullable=True)
+    posted = Column(Boolean, nullable=True)
+    deleted = Column(Boolean, nullable=True)
+    comment = Column(Text, nullable=True)
+    archive_file = Column(String(255), nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    reviewed_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class OneCExchangeBatch(Base):
     """One deterministic delivery attempt acknowledged as a whole by 1C."""
 

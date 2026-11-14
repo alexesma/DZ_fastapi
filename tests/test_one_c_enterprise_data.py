@@ -469,7 +469,7 @@ def test_process_directory_without_messages(tmp_path):
     assert "нет" in result["note"].lower()
 
 
-def test_message_with_body_is_flagged_not_silently_acked(tmp_path):
+def test_message_with_unknown_body_is_journaled_before_acking(tmp_path):
     with_body = HANDSHAKE.replace(
         b"</msg:Header>\n</Message>",
         b"</msg:Header>\n  <Document/>\n</Message>",
@@ -478,12 +478,16 @@ def test_message_with_body_is_flagged_not_silently_acked(tmp_path):
     result = process_exchange_directory(str(tmp_path))
 
     assert result["processed"][0]["handshake"] is False
-    # Разбор данных ещё не реализован: не подтверждаем и не убираем сообщение.
-    assert "данными" in result["note"].lower()
-    assert result["response_file"] is None
-    assert (tmp_path / "Message_НФ_ДЗ.zip").exists()
-    assert not (tmp_path / "processed" / "Message_НФ_ДЗ.zip").exists()
-    assert load_state(str(tmp_path))["received_no"] == 0
+    # Неизвестный объект не теряется молча: копия сообщения сохранена, объект
+    # стоит в очереди на запись в журнал — и только поэтому сообщение
+    # подтверждается, а обмен идёт дальше.
+    state = load_state(str(tmp_path))
+    assert state["received_no"] == 7
+    [entry] = state["inbox"]
+    assert [item["object_type"] for item in entry["foreign"]] == ["Document"]
+    assert (tmp_path / entry["archive_file"]).exists()
+    assert result["response_file"] == "Message_ДЗ_НФ.zip"
+    assert (tmp_path / "processed" / "Message_НФ_ДЗ.zip").exists()
 
 
 def test_status_inspects_incoming_header_without_acknowledging_it(tmp_path):
@@ -585,7 +589,7 @@ def test_send_body_message_requires_handshake(tmp_path):
         send_body_message(_shipment_objects(), directory=str(tmp_path))
 
 
-def test_data_message_header_records_what_unf_confirmed_without_acking_it(tmp_path):
+def test_data_message_header_records_what_unf_confirmed(tmp_path):
     from dz_fastapi.services.one_c_enterprise_data import send_body_message
 
     _state_with_handshake(tmp_path)
@@ -600,10 +604,8 @@ def test_data_message_header_records_what_unf_confirmed_without_acking_it(tmp_pa
     )
     _write_incoming(tmp_path, payload=with_body)
 
-    result = process_exchange_directory(str(tmp_path))
+    process_exchange_directory(str(tmp_path))
 
-    assert result["response_file"] is None
-    assert (tmp_path / "Message_НФ_ДЗ.zip").exists()
     state = load_state(str(tmp_path))
     assert state["peer_confirmed_our_no"] == 1
     assert state["pending_body"] is None

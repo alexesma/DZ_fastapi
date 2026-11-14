@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import uuid
 import zipfile
 from contextlib import contextmanager
@@ -35,7 +36,7 @@ from xml.etree import ElementTree as ET
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS
-from dz_fastapi.services.one_c_enterprise_data_import import importable_documents
+from dz_fastapi.services.one_c_enterprise_data_import import classify_documents
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -763,7 +764,16 @@ def _process_exchange_directory_unlocked(
         try:
             xml_bytes = read_message_file(path)
             message = parse_message(xml_bytes, file_name=name)
-            body_documents = importable_documents(xml_bytes) if message.has_body else None
+            body_documents, foreign_documents = (
+                classify_documents(xml_bytes) if message.has_body else ([], [])
+            )
+            foreign_archive = None
+            if foreign_documents:
+                # Исходное сообщение сохраняем до подтверждения: после него
+                # УНФ эти объекты больше не пришлёт.
+                foreign_archive = _keep_foreign_message(
+                    directory, name, message.message_no
+                )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Не удалось разобрать сообщение %s", name)
             result["processed"].append({"file": name, "error": str(exc)})
@@ -788,7 +798,7 @@ def _process_exchange_directory_unlocked(
                 "error"
             ] = "Коды отправителя или получателя не совпадают с узлом"
             continue
-        if message.has_body and body_documents is None:
+        if foreign_documents and foreign_archive is None:
             files_with_body.append(name)
         else:
             if latest is None or message.message_no >= latest.message_no:
@@ -801,12 +811,14 @@ def _process_exchange_directory_unlocked(
             # Документы, которые мы умеем сопоставить, сначала кладём в
             # очередь внутри состояния, и только потом подтверждаем.
             if message.message_no > int(state.get("received_no", 0)):
-                if body_documents:
+                if body_documents or foreign_documents:
                     state.setdefault("inbox", []).append(
                         {
                             "message_no": message.message_no,
                             "received_at": now_moscow().isoformat(),
                             "documents": [item.as_dict() for item in body_documents],
+                            "foreign": foreign_documents,
+                            "archive_file": foreign_archive,
                         }
                     )
                 state["received_no"] = message.message_no
@@ -834,8 +846,8 @@ def _process_exchange_directory_unlocked(
         # данными. Само сообщение с данными по-прежнему не подтверждаем.
         save_state(directory, state)
         result["note"] = (
-            "Получено сообщение С ДАННЫМИ — разбор данных ещё не реализован; "
-            "файл оставлен во входящем каталоге без подтверждения"
+            "В сообщении УНФ есть посторонние документы, а сохранить его копию "
+            "не удалось; файл оставлен во входящем каталоге без подтверждения"
         )
         return result
 
@@ -925,6 +937,22 @@ def drop_inbox(count: int, directory: Optional[str] = None) -> None:
         state = load_state(directory)
         state["inbox"] = list(state.get("inbox") or [])[count:]
         save_state(directory, state)
+
+
+FOREIGN_DIR = "foreign"
+
+
+def _keep_foreign_message(directory: str, name: str, message_no: int) -> Optional[str]:
+    """Копия сообщения с посторонними документами; ``None`` — не сохранилась."""
+    target_dir = os.path.join(directory, FOREIGN_DIR)
+    target_name = f"{int(message_no):06d}_{name}"
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+        shutil.copy2(os.path.join(directory, name), os.path.join(target_dir, target_name))
+    except OSError:
+        logger.exception("Не удалось сохранить сообщение %s с посторонними документами", name)
+        return None
+    return os.path.join(FOREIGN_DIR, target_name)
 
 
 def _archive_handshakes(directory: str, names: list[str]) -> None:
