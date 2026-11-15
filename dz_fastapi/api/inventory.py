@@ -5381,6 +5381,49 @@ async def gis_mt_set_product_group(
     )
 
 
+@router.get(
+    "/document-numbering",
+    summary="Собственная нумерация документов",
+)
+async def document_numbering_list(
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    from dz_fastapi.services.document_numbering import get_numbering
+
+    return await get_numbering(session)
+
+
+@router.put(
+    "/document-numbering/{kind}",
+    summary="Настроить серию номеров документов",
+)
+async def document_numbering_update(
+    kind: str,
+    enabled: bool = Body(...),
+    prefix: str = Body(default="", max_length=8),
+    digits: int = Body(default=6),
+    last_value: Optional[int] = Body(default=None),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    from dz_fastapi.services.document_numbering import update_numbering
+
+    try:
+        result = await update_numbering(
+            session,
+            kind,
+            enabled=enabled,
+            prefix=prefix,
+            digits=digits,
+            last_value=last_value,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
 @router.put(
     "/gis-mt/shipment-codes-auto-fifo",
     summary="Автоназначение кодов маркировки при проведении отгрузки",

@@ -234,6 +234,8 @@ async def _shipment_payload(
 ) -> dict:
     """Реализация с текущим договором клиента и ссылкой на его заказ в УНФ."""
     payload = dict(event.payload)
+    if shipment.number_assigned_at is not None:
+        payload["accounting_number"] = shipment.doc_number
     party = dict(payload.get("customer") or {})
     customer = await session.get(Customer, party.get("id")) if party.get("id") else None
     if customer is not None:

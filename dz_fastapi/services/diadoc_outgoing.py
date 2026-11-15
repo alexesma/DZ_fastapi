@@ -28,7 +28,6 @@ from dz_fastapi.models.inventory import (
     ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
 )
-from dz_fastapi.models.one_c import OneCEnterpriseConfig, OneCExchangeEvent
 from dz_fastapi.models.partner import (
     Customer,
     CustomerExternalReference,
@@ -598,31 +597,9 @@ async def build_shipment_formalized_readiness(
             "У отгрузки нет номера документа. Для формализованного УПД лучше иметь явный номер."
         )
 
-    one_c_config = await session.get(OneCEnterpriseConfig, 1)
-    if one_c_config is not None and one_c_config.enabled and one_c_config.send_shipments:
-        one_c_event = await session.scalar(
-            select(OneCExchangeEvent)
-            .where(
-                OneCExchangeEvent.entity_type == "shipment",
-                OneCExchangeEvent.entity_id == document.id,
-                OneCExchangeEvent.event_type == "posted",
-            )
-            .order_by(OneCExchangeEvent.id.desc())
-            .limit(1)
-        )
-        if one_c_event is None or one_c_event.ed_unf_posted is not True:
-            missing_required_fields.append(
-                "Сначала передайте реализацию в УНФ и дождитесь подтверждения проведения."
-            )
-        elif _is_blank_text(one_c_event.ed_unf_number):
-            missing_required_fields.append(
-                "УНФ подтвердила реализацию, но не вернула её учётный номер."
-            )
-        elif str(document.doc_number or "").strip() != str(one_c_event.ed_unf_number).strip():
-            missing_required_fields.append(
-                "Номер реализации ещё не синхронизирован с номером УНФ."
-            )
-
+    # УПД не ждёт УНФ: пробный обмен показал, что она не присылает обратно ни
+    # номер, ни статус документа, полученного от нас. Номер реализации выдаёт
+    # DragonZap при проведении.
     if any(
         _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None)) for item in items
     ):
@@ -826,38 +803,6 @@ def _append_common_formalized_sender_checks(
         warnings.append("В профиле Диадока не заполнено основание полномочий подписанта.")
 
 
-async def _append_unf_number_requirement(
-    session: AsyncSession,
-    *,
-    entity_type: str,
-    entity_id: int,
-    current_number: str | None,
-    enabled_for_type: bool,
-    missing_required_fields: list[str],
-) -> None:
-    config = await session.get(OneCEnterpriseConfig, 1)
-    if config is None or not config.enabled or not enabled_for_type:
-        return
-    event = await session.scalar(
-        select(OneCExchangeEvent)
-        .where(
-            OneCExchangeEvent.entity_type == entity_type,
-            OneCExchangeEvent.entity_id == entity_id,
-            OneCExchangeEvent.event_type == "posted",
-        )
-        .order_by(OneCExchangeEvent.id.desc())
-        .limit(1)
-    )
-    if event is None or event.ed_unf_posted is not True:
-        missing_required_fields.append(
-            "Сначала передайте документ в УНФ и дождитесь подтверждения проведения."
-        )
-    elif _is_blank_text(event.ed_unf_number):
-        missing_required_fields.append("УНФ не вернула учётный номер документа.")
-    elif str(current_number or "").strip() != str(event.ed_unf_number).strip():
-        missing_required_fields.append("Номер документа ещё не синхронизирован с УНФ.")
-
-
 async def build_customer_return_formalized_readiness(
     session: AsyncSession,
     *,
@@ -942,15 +887,6 @@ async def build_customer_return_formalized_readiness(
         warnings.append(
             "У возврата нет собственного номера документа. Лучше заполнить его перед отправкой."
         )
-    one_c_config = await session.get(OneCEnterpriseConfig, 1)
-    await _append_unf_number_requirement(
-        session,
-        entity_type="customer_return",
-        entity_id=int(document.id),
-        current_number=document.doc_number,
-        enabled_for_type=bool(one_c_config and one_c_config.send_returns),
-        missing_required_fields=missing_required_fields,
-    )
     if any(
         _is_blank_text(getattr(item, "gtd_number", None))
         and _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None))
@@ -1092,15 +1028,6 @@ async def build_supplier_return_formalized_readiness(
         warnings.append(
             "У возврата нет собственного номера документа. Лучше заполнить его перед отправкой."
         )
-    one_c_config = await session.get(OneCEnterpriseConfig, 1)
-    await _append_unf_number_requirement(
-        session,
-        entity_type="supplier_return",
-        entity_id=int(document.id),
-        current_number=document.doc_number,
-        enabled_for_type=bool(one_c_config and one_c_config.send_returns),
-        missing_required_fields=missing_required_fields,
-    )
     if any(
         _is_blank_text(getattr(item, "gtd_number", None))
         and _is_blank_text(getattr(getattr(item, "lot", None), "gtd_number", None))

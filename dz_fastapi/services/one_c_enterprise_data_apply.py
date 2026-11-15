@@ -240,7 +240,15 @@ async def _apply_source_result(
                     DiadocOutgoingDocument.document_number != unf_number,
                 ).limit(1)
             )
-            if existing_diadoc is not None:
+            if source.number_assigned_at is not None:
+                # Номер выдан нашей серией и мог уже уйти клиенту в УПД.
+                if unf_number != str(source.doc_number or "").strip():
+                    source.sync_status = SyncStatus.ERROR
+                    source_error = (
+                        f"В УНФ номер документа изменён на {unf_number}, а в DragonZap "
+                        f"он {source.doc_number}. Номер в DragonZap не меняется."
+                    )
+            elif existing_diadoc is not None:
                 source.sync_status = SyncStatus.ERROR
                 source_error = (
                     "УНФ вернула номер после формирования документа Диадока с другим номером. "

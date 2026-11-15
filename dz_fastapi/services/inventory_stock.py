@@ -2548,6 +2548,14 @@ async def post_shipment_document(
     doc.status = ShipmentDocumentStatus.POSTED
     doc.posted_at = now_moscow()
     doc.sync_status = SyncStatus.PENDING
+    if doc.number_assigned_at is None:
+        # Порядковый номер выдаём мы: УНФ документы по обмену не нумерует.
+        from dz_fastapi.services.document_numbering import KIND_SHIPMENT, next_document_number
+
+        own_number = await next_document_number(session, KIND_SHIPMENT)
+        if own_number is not None:
+            doc.doc_number = own_number
+            doc.number_assigned_at = doc.posted_at
     linked_stock_order = (
         await session.execute(select(StockOrder).where(StockOrder.shipment_document_id == doc.id))
     ).scalar_one_or_none()

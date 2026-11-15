@@ -293,9 +293,16 @@ def _document_key(
     key = _add(parent, "КлючевыеСвойства")
     _optional(key, "Ссылка", _guid(kind, payload["document_id"]))
     _add(key, "Дата", _datetime(payload.get("document_date") or payload.get("created_at")))
-    # The UNF number is generated from the stable DragonZap ID below. Historical
-    # supplier receipts may legitimately have no number on the source document.
-    _add(key, "Номер", _one_c_number(payload["document_id"]))
+    # УНФ хранит номер, который мы передали, и свой не присваивает. Если у
+    # документа есть собственный порядковый номер, передаём его; иначе номер
+    # строится из стабильного ID DragonZap (у поступлений поставщика своего
+    # номера нет).
+    own_number = str(payload.get("accounting_number") or "").strip()
+    _add(
+        key,
+        "Номер",
+        own_number if 0 < len(own_number) <= 11 else _one_c_number(payload["document_id"]),
+    )
     _organization(key, company)
 
 

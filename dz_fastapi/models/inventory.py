@@ -2009,6 +2009,9 @@ class ShipmentDocument(Base):
 
     created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     posted_at = Column(DateTime(timezone=True), nullable=True)
+    # Когда документу присвоен порядковый номер собственной серии. После
+    # этого номер не меняется ни при повторном проведении, ни ответом УНФ.
+    number_assigned_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("Customer", lazy="joined")
     customer_order = relationship("CustomerOrder", lazy="noload")
@@ -2656,6 +2659,19 @@ class ReceiptScanCount(Base):
         CheckConstraint("accepted_qty >= 0", name="ck_receipt_scan_accepted"),
         CheckConstraint("placed_qty >= 0", name="ck_receipt_scan_placed"),
     )
+
+
+class DocumentNumbering(Base):
+    """Серия собственных порядковых номеров документов (одна на вид и год)."""
+
+    __tablename__ = "documentnumbering"
+
+    kind = Column(String(40), nullable=False, unique=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    prefix = Column(String(8), nullable=False, default="")
+    digits = Column(Integer, nullable=False, default=6)
+    year = Column(Integer, nullable=False)
+    last_value = Column(Integer, nullable=False, default=0)
 
 
 class ShipmentMarkingScan(Base):

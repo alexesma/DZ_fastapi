@@ -113,6 +113,10 @@ async def build_shipment_snapshot(
     return {
         "document_id": document.id,
         "document_number": document.doc_number or f"DZ-{document.id}",
+        # Собственный порядковый номер: он же уходит в УНФ и в УПД.
+        "accounting_number": (
+            document.doc_number if document.number_assigned_at is not None else None
+        ),
         "document_date": _value(document.doc_date),
         "status": _value(document.status),
         "customer_order_id": document.customer_order_id,
