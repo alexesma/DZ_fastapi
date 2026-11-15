@@ -122,6 +122,12 @@ class DiadocIntegrationSettings(Base):
     inbound_process_enabled = Column(Boolean, default=True, nullable=False)
     # Документы старше этой даты только синхронизируются, без обработки.
     inbound_process_from = Column(Date, nullable=True)
+    # Конвейер исходящих УПД: после проведения реализации черновик УПД
+    # создаётся сам. Реализации, проведённые до включения, не трогаются.
+    outbound_auto_draft_enabled = Column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    outbound_auto_draft_from = Column(DateTime(timezone=True), nullable=True)
     # ЭТрН: подписание Т1/Т3 из DragonZap (по умолчанию — только чтение,
     # титулы подписываются в 1С). Т6 (стоимость) — отдельный флаг.
     etrn_enabled = Column(Boolean, default=False, nullable=False)

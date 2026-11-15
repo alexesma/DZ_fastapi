@@ -15,6 +15,9 @@ from dz_fastapi.models.shipment_correction import (
 )
 from dz_fastapi.schemas.shipment_correction import ShipmentCorrectionSave
 
+# Номер черновика, пока корректировка не проведена и не получила порядковый.
+DRAFT_NUMBER = "б/н"
+
 
 def _load_query():
     return select(ShipmentCorrection).options(
@@ -150,16 +153,18 @@ async def _set_correction_fields(
         raise ValueError("Корректировка поддерживает только НДС 22%")
     if doc.id and doc.shipment_id != shipment.id:
         raise ValueError("Нельзя изменить исходную реализацию корректировки")
-    duplicate_number = await session.scalar(
-        select(ShipmentCorrection.id)
-        .where(
-            ShipmentCorrection.doc_number == payload.doc_number.strip(),
-            ShipmentCorrection.id != (doc.id or -1),
+    doc_number = payload.doc_number.strip() or DRAFT_NUMBER
+    if doc_number != DRAFT_NUMBER:
+        duplicate_number = await session.scalar(
+            select(ShipmentCorrection.id)
+            .where(
+                ShipmentCorrection.doc_number == doc_number,
+                ShipmentCorrection.id != (doc.id or -1),
+            )
+            .limit(1)
         )
-        .limit(1)
-    )
-    if duplicate_number is not None:
-        raise ValueError("Номер корректировки уже используется")
+        if duplicate_number is not None:
+            raise ValueError("Номер корректировки уже используется")
 
     source_rows = {row.id: (index, row) for index, row in enumerate(
         shipment.items, start=1
@@ -199,7 +204,7 @@ async def _set_correction_fields(
         raise ValueError("Укажите изменённое количество или цену")
 
     doc.shipment_id = shipment.id
-    doc.doc_number = payload.doc_number.strip()
+    doc.doc_number = doc_number
     doc.doc_date = payload.doc_date
     doc.basis_number = payload.basis_number.strip()
     doc.basis_date = payload.basis_date
@@ -257,6 +262,30 @@ async def post_correction(
                 "После создания черновика реализация уже корректировалась. "
                 "Создайте новый черновик с актуальными количествами."
             )
+    if doc.doc_number == DRAFT_NUMBER:
+        # Порядковый номер выдаём при проведении: черновики номера не расходуют.
+        from dz_fastapi.services.document_numbering import (
+            KIND_SHIPMENT_CORRECTION,
+            next_document_number,
+        )
+
+        own_number = await next_document_number(session, KIND_SHIPMENT_CORRECTION)
+        if own_number is None:
+            raise ValueError(
+                "Укажите номер корректировки или включите собственную нумерацию "
+                "корректировок на странице обмена с 1С"
+            )
+        taken = await session.scalar(
+            select(ShipmentCorrection.id)
+            .where(ShipmentCorrection.doc_number == own_number)
+            .limit(1)
+        )
+        if taken is not None:
+            raise ValueError(
+                f"Номер {own_number} уже занят другой корректировкой. "
+                "Поправьте «следующий номер» в настройке нумерации."
+            )
+        doc.doc_number = own_number
     doc.status = ShipmentCorrectionStatus.POSTED
     doc.posted_at = now_moscow()
     await session.flush()

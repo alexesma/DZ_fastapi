@@ -1035,6 +1035,19 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # ── 8b1. Конвейер УПД: черновики по проведённым реализациям ──────────
+    scheduler.add_job(
+        func=auto_draft_outgoing_upd_task,
+        trigger="cron",
+        args=[app],
+        id="auto_draft_outgoing_upd",
+        name="Create UPD drafts for posted shipments",
+        hour="8-20",
+        minute="*/3",
+        second=40,
+        replace_existing=True,
+    )
+
     # ── 8b2. Напоминание о входе в ГИС МТ (токен живёт ~10 часов) ────────
     scheduler.add_job(
         func=remind_gis_mt_login_task,
@@ -2042,6 +2055,25 @@ async def relink_recent_receipts_task(app: FastAPI):
             except Exception:
                 logger.exception("relink_recent_receipts_task failed")
                 await session.rollback()
+
+
+async def auto_draft_outgoing_upd_task(app: FastAPI):
+    async with app.state.session_factory() as session:
+        try:
+            integration = await crud_diadoc_integration_settings.get_or_create(session)
+            if not integration.outbound_auto_draft_enabled or not integration.refresh_token:
+                return
+            from dz_fastapi.services.diadoc_outgoing_pipeline import auto_draft_posted_shipments
+
+            integration, client = await get_diadoc_client_for_session(session)
+            result = await auto_draft_posted_shipments(
+                session, client=client, integration=integration
+            )
+            if result["created"] or result["errors"]:
+                logger.info("Auto UPD drafts: %s", result)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Auto UPD draft task failed: %s", exc, exc_info=True)
+            await session.rollback()
 
 
 async def remind_gis_mt_login_task(app: FastAPI):

@@ -15,7 +15,9 @@ class ShipmentCorrectionItemIn(BaseModel):
 
 class ShipmentCorrectionSave(BaseModel):
     shipment_id: int
-    doc_number: str = Field(min_length=1, max_length=100)
+    # Пустой номер — корректировка получит номер собственной серии при
+    # проведении (если нумерация корректировок включена).
+    doc_number: str = Field(default="", max_length=100)
     doc_date: date
     basis_number: str = Field(min_length=1, max_length=120)
     basis_date: date

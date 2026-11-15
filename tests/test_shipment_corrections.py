@@ -319,3 +319,36 @@ async def test_formalized_ukd_uses_original_line_and_difference_amounts(
     assert 'OriginalNumber="1"' in client.xml
     assert f'<{difference_tag}>50.00</{difference_tag}>' in client.xml
     assert 'BaseDocumentNumber="ACT-1"' in client.xml
+
+
+async def test_correction_without_number_gets_one_from_our_series_on_posting(
+    async_client, test_session, created_autopart, created_customers,
+):
+    from dz_fastapi.services.document_numbering import KIND_SHIPMENT_CORRECTION, update_numbering
+
+    shipment, item = await _shipment(
+        test_session, created_autopart.id, created_customers[0].id
+    )
+    draft = await async_client.post(
+        "/inventory/shipment-corrections",
+        json=_payload(shipment.id, item.id, "", 3, "90.00"),
+    )
+    assert draft.status_code == 200, draft.text
+    # Черновик номера не расходует.
+    assert draft.json()["doc_number"] == "б/н"
+
+    # Нумерация выключена — без номера провести нельзя.
+    refused = await async_client.post(
+        f"/inventory/shipment-corrections/{draft.json()['id']}/post"
+    )
+    assert refused.status_code in (400, 409), refused.text
+
+    await update_numbering(
+        test_session, KIND_SHIPMENT_CORRECTION, enabled=True, prefix="КР-", digits=6
+    )
+    await test_session.commit()
+    posted = await async_client.post(
+        f"/inventory/shipment-corrections/{draft.json()['id']}/post"
+    )
+    assert posted.status_code == 200, posted.text
+    assert posted.json()["doc_number"] == "КР-000001"

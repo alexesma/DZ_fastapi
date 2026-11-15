@@ -2012,6 +2012,9 @@ class ShipmentDocument(Base):
     # Когда документу присвоен порядковый номер собственной серии. После
     # этого номер не меняется ни при повторном проведении, ни ответом УНФ.
     number_assigned_at = Column(DateTime(timezone=True), nullable=True)
+    # Конвейер УПД: почему черновик по этой реализации не создался.
+    edo_auto_error = Column(String(1000), nullable=True)
+    edo_auto_checked_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("Customer", lazy="joined")
     customer_order = relationship("CustomerOrder", lazy="noload")

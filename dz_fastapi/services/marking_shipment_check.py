@@ -59,6 +59,26 @@ def split_marking_issues(
     return blockers, warnings
 
 
+async def shipment_codes_gis_blockers(
+    session: AsyncSession, shipment_id: int
+) -> list[str]:
+    """Что мешает отправить УПД по данным ГИС МТ.
+
+    Сверка идёт, только когда выполнен вход в ГИС МТ: без токена отправку не
+    держим (вход требует SMS), а предупреждение видно в готовности УПД.
+    """
+    from dz_fastapi.services.diadoc_outgoing import _load_shipment_document
+
+    document = await _load_shipment_document(session, shipment_id=shipment_id)
+    if document is None:
+        return []
+    marking = await check_shipment_marking(session, document, use_gis=True)
+    if not marking["gis_checked"]:
+        return []
+    blockers, _warnings = split_marking_issues(marking["issues"])
+    return blockers
+
+
 async def check_shipment_marking(
     session: AsyncSession,
     document: ShipmentDocument,

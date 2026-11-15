@@ -16,10 +16,14 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import DocumentNumbering
 
 KIND_SHIPMENT = "shipment"
-# Серии ведутся по виду документа: новому виду (например, корректировкам
-# реализации) достаточно добавить запись сюда и вызвать next_document_number.
-KINDS = {KIND_SHIPMENT: "Реализации"}
-DEFAULT_PREFIX = {KIND_SHIPMENT: "ДЗ-"}
+KIND_SHIPMENT_CORRECTION = "shipment_correction"
+# Серии ведутся по виду документа: новому виду достаточно добавить запись
+# сюда и вызвать next_document_number при проведении.
+KINDS = {
+    KIND_SHIPMENT: "Реализации",
+    KIND_SHIPMENT_CORRECTION: "Корректировки реализаций (УКД)",
+}
+DEFAULT_PREFIX = {KIND_SHIPMENT: "ДЗ-", KIND_SHIPMENT_CORRECTION: "КР-"}
 DEFAULT_DIGITS = 6
 # Поле номера документа в УНФ вмещает 11 символов.
 MAX_NUMBER_LENGTH = 11

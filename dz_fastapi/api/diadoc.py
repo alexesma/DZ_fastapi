@@ -162,6 +162,8 @@ def _integration_to_status(
         inbound_download_content=bool(integration.inbound_download_content),
         inbound_process_enabled=bool(integration.inbound_process_enabled),
         inbound_process_from=integration.inbound_process_from,
+        outbound_auto_draft_enabled=bool(integration.outbound_auto_draft_enabled),
+        outbound_auto_draft_from=integration.outbound_auto_draft_from,
         etrn_enabled=bool(integration.etrn_enabled),
         etrn_t6_enabled=bool(integration.etrn_t6_enabled),
         access_token_expires_at=integration.access_token_expires_at,
@@ -769,6 +771,9 @@ async def update_diadoc_settings(
             integration.box_id_guid = None
         integration.environment = environment_value
         data.pop("environment", None)
+    if data.get("outbound_auto_draft_enabled") and not integration.outbound_auto_draft_enabled:
+        # Конвейер берёт только реализации, проведённые после включения.
+        integration.outbound_auto_draft_from = now_moscow()
     for key, value in data.items():
         setattr(integration, key, value)
     integration.last_error = None
@@ -1890,30 +1895,56 @@ async def get_diadoc_outbound_readiness_for_shipments(
 async def _assert_shipment_codes_pass_gis_mt(
     session: AsyncSession, shipment_id: int
 ) -> None:
-    """Перед отправкой УПД сверяет коды отгрузки с ГИС МТ.
+    """Перед отправкой УПД сверяет коды отгрузки с ГИС МТ."""
+    from dz_fastapi.services.marking_shipment_check import shipment_codes_gis_blockers
 
-    Сверка идёт, только когда выполнен вход в ГИС МТ: без токена отправку не
-    держим (вход требует SMS), а предупреждение видно в готовности УПД.
-    """
-    from dz_fastapi.services.diadoc_outgoing import _load_shipment_document
-    from dz_fastapi.services.marking_shipment_check import (
-        check_shipment_marking,
-        split_marking_issues,
-    )
-
-    document = await _load_shipment_document(session, shipment_id=shipment_id)
-    if document is None:
-        return
-    marking = await check_shipment_marking(session, document, use_gis=True)
-    if not marking["gis_checked"]:
-        return
-    blockers, _warnings = split_marking_issues(marking["issues"])
+    blockers = await shipment_codes_gis_blockers(session, shipment_id)
     if blockers:
         raise HTTPException(
             status_code=400,
             detail="; ".join(blockers[:10])
             + (f" (и ещё {len(blockers) - 10})" if len(blockers) > 10 else ""),
         )
+
+
+@router.get(
+    "/outbound-queue",
+    summary="Очередь УПД к подписи и реализации, по которым УПД не создался",
+)
+async def diadoc_outbound_queue(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.diadoc_outgoing_pipeline import signing_queue
+
+    integration = await crud_diadoc_integration_settings.get_or_create(session)
+    queue = await signing_queue(session)
+    return {
+        "enabled": bool(integration.outbound_auto_draft_enabled),
+        "since": integration.outbound_auto_draft_from,
+        **queue,
+    }
+
+
+@router.post(
+    "/outbound-queue/run",
+    summary="Создать черновики УПД по проведённым реализациям сейчас",
+)
+async def diadoc_outbound_queue_run(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.diadoc_outgoing_pipeline import auto_draft_posted_shipments
+
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        return await auto_draft_posted_shipments(
+            session, client=client, integration=integration
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
 
 
 @router.post(
