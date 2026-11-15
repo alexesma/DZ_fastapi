@@ -1,11 +1,14 @@
 """EnterpriseData dispatch must not conflate FTP reads with UNF posting."""
 
+from datetime import date
 from decimal import Decimal
 from xml.etree import ElementTree as ET
 
 import pytest
+from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.inventory import StockLot
 from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus
 from dz_fastapi.models.partner import (
     SupplierOrder,
@@ -369,6 +372,58 @@ async def test_misparsed_email_receipt_is_blocked_before_transfer(
     assert after["suspicious_auto_receipt_count"] == 0
     assert after["missing_price_receipt_count"] == 0
     assert after["quarantined_event_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_current_receipt_payload_repairs_raw_document_item_once(
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    provider.one_c_contract_name = "Тестовый договор"
+    provider.one_c_contract_number = "TEST-1"
+    provider.one_c_contract_date = date(2020, 1, 1)
+    receipt = SupplierReceipt(
+        provider_id=provider.id,
+        document_number="RAW-UNF-1",
+        document_date=date(2026, 11, 5),
+        posted_at=now_moscow(),
+    )
+    receipt.items = [
+        SupplierReceiptItem(
+            oem_number="126068",
+            brand_name="GRASS",
+            autopart_name="Позиция только из документа",
+            received_quantity=1,
+            price=Decimal("966.57"),
+        )
+    ]
+    test_session.add(receipt)
+    await test_session.flush()
+    event = _event(receipt.id)
+    event.payload = {
+        "provider": {"id": provider.id},
+        "items": [{"quantity": 1, "price": "966.57"}],
+    }
+
+    first = await dispatch._current_payload(test_session, event)
+    second = await dispatch._current_payload(test_session, event)
+
+    assert first["items"][0]["autopart"]["autopart_id"] is not None
+    assert second["items"][0]["autopart"]["autopart_id"] == (
+        first["items"][0]["autopart"]["autopart_id"]
+    )
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(StockLot.source_receipt_item_id == receipt.items[0].id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(lots) == 1
+    assert lots[0].remaining_quantity == 1
 
 
 @pytest.mark.asyncio
