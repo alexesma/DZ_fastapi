@@ -368,9 +368,15 @@ async def enterprise_data_auto_status(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
+    from dz_fastapi.services.one_c_exchange_health import exchange_health
+
     config = await session.get(OneCEnterpriseConfig, 1)
     transport = await asyncio.to_thread(get_enterprise_data_status)
-    return {"config": config_data(config), "transport": transport}
+    return {
+        "config": config_data(config),
+        "transport": transport,
+        "health": await exchange_health(session, transport),
+    }
 
 
 @router.get(
@@ -473,6 +479,30 @@ async def enterprise_data_quarantine_history_problems(
     result = await quarantine_history_problems(session)
     await session.commit()
     return result
+
+
+@router.post(
+    "/enterprise-data/retry-errors",
+    summary="Повторить подготовку всех документов с ошибкой",
+)
+async def enterprise_data_retry_errors(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """После исправления данных возвращает в очередь все неотправленные события."""
+    events = (
+        await session.execute(
+            select(OneCExchangeEvent).where(
+                OneCExchangeEvent.ed_last_error.is_not(None),
+                OneCExchangeEvent.ed_message_no.is_(None),
+                OneCExchangeEvent.ed_excluded_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    for event in events:
+        event.ed_last_error = None
+    await session.commit()
+    return {"requeued": len(events)}
 
 
 @router.post(

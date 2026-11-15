@@ -650,6 +650,15 @@ async def process_one_c_enterprise_handshake_task(app: FastAPI):
                 logger.warning("EnterpriseData auto-send: %s", outcome)
     except Exception:
         logger.exception("EnterpriseData auto-send failed")
+    try:
+        from dz_fastapi.services.one_c_exchange_health import notify_exchange_stall
+
+        async with app.state.session_factory() as session:
+            health = await notify_exchange_stall(session)
+            if health["notified"]:
+                logger.warning("EnterpriseData exchange is stalled: %s", health["reasons"])
+    except Exception:
+        logger.exception("EnterpriseData stall check failed")
 
 
 def start_scheduler(app: FastAPI):
