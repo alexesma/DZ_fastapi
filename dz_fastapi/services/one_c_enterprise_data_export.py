@@ -128,7 +128,10 @@ def _product_key(parent: ET.Element, item: dict[str, Any]) -> None:
     brand = product.get("brand") or item.get("brand")
     title = product.get("name") or item.get("name")
     name = " ".join(str(v).strip() for v in (brand, article, title) if v)
-    _optional(parent, "Ссылка", _guid("autopart", product_id) if product_id else None)
+    if not product_id:
+        label = " ".join(str(v).strip() for v in (brand, article) if v) or "без реквизитов"
+        raise ValueError(f"Не определена карточка номенклатуры для позиции {label}")
+    _add(parent, "Ссылка", _guid("autopart", product_id))
     _optional(parent, "НаименованиеПолное", name)
     _optional(parent, "КодВПрограмме", f"DZ-{product_id}" if product_id else None)
     _optional(parent, "Артикул", article)

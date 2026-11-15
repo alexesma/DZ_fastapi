@@ -306,10 +306,15 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
             and provider.one_c_contract_date
         ):
             raise ValueError("Для поставщика не задан договор УНФ")
+        from dz_fastapi.services.inventory_stock import ensure_posted_receipt_stock
+
+        await ensure_posted_receipt_stock(session, receipt_id=int(receipt.id))
+        await session.flush()
+        current = await build_receipt_snapshot(session, int(receipt.id))
         return {
-            **event.payload,
+            **current,
             "provider": {
-                **party,
+                **(current.get("provider") or party),
                 "one_c_contract": {
                     "name": provider.one_c_contract_name,
                     "number": provider.one_c_contract_number,

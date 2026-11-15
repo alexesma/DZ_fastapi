@@ -38,6 +38,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from sqlalchemy import asc, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -409,6 +410,8 @@ async def ensure_receiving_location(
 async def resolve_receipt_item_autopart_id(
     session: AsyncSession,
     item: SupplierReceiptItem,
+    *,
+    create_missing: bool = False,
 ) -> Optional[int]:
     if item.autopart_id is not None:
         return int(item.autopart_id)
@@ -430,29 +433,62 @@ async def resolve_receipt_item_autopart_id(
         .scalars()
         .all()
     )
-    if not parts:
-        return None
-    if len(parts) == 1:
+    brand_name = str(item.brand_name or "").strip()
+    normalized_brand = normalize_brand_name(brand_name) if brand_name else ""
+    if normalized_brand:
+        for part in parts:
+            brand = getattr(part, "brand", None)
+            if brand and normalize_brand_name(str(brand.name or "")) == normalized_brand:
+                item.autopart_id = int(part.id)
+                return int(part.id)
+    elif len(parts) == 1:
+        item.autopart_id = int(parts[0].id)
         return int(parts[0].id)
 
-    brand_name = str(item.brand_name or "").strip()
-    if not brand_name:
+    if not create_missing or not normalized_brand:
         return None
 
-    normalized_brand = normalize_brand_name(brand_name)
-    for part in parts:
-        brand = getattr(part, "brand", None)
-        if brand and normalize_brand_name(str(brand.name or "")) == normalized_brand:
-            return int(part.id)
-
-    brand_stmt = select(Brand.id).where(Brand.name.ilike(brand_name))
-    brand_id = (await session.execute(brand_stmt)).scalar_one_or_none()
-    if brand_id is None:
+    brand = await session.scalar(select(Brand).where(Brand.name == normalized_brand))
+    if brand is None:
+        try:
+            async with session.begin_nested():
+                brand = Brand(name=normalized_brand)
+                session.add(brand)
+                await session.flush()
+        except IntegrityError:
+            brand = await session.scalar(select(Brand).where(Brand.name == normalized_brand))
+    if brand is None:
         return None
-    for part in parts:
-        if int(part.brand_id or 0) == int(brand_id):
-            return int(part.id)
-    return None
+
+    autopart = await session.scalar(
+        select(AutoPart).where(
+            AutoPart.brand_id == brand.id,
+            AutoPart.oem_number == oem_number,
+        )
+    )
+    if autopart is None:
+        part_name = str(item.autopart_name or "").strip() or f"{normalized_brand} {oem_number}"
+        try:
+            async with session.begin_nested():
+                autopart = AutoPart(
+                    brand_id=brand.id,
+                    oem_number=oem_number,
+                    name=part_name,
+                )
+                session.add(autopart)
+                await session.flush()
+        except IntegrityError:
+            autopart = await session.scalar(
+                select(AutoPart).where(
+                    AutoPart.brand_id == brand.id,
+                    AutoPart.oem_number == oem_number,
+                )
+            )
+    if autopart is None:
+        return None
+
+    item.autopart_id = int(autopart.id)
+    return int(autopart.id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -932,13 +968,33 @@ async def receive_stock(
 
     _item_location_cache: dict[int, object] = {}
     received_at = now_moscow()
+    receipt_item_ids = [int(item.id) for item in (receipt.items or []) if item.id is not None]
+    existing_receipt_lot_item_ids: set[int] = set()
+    if not reverse and receipt_item_ids:
+        existing_receipt_lot_item_ids = set(
+            (
+                await session.execute(
+                    select(StockLot.source_receipt_item_id).where(
+                        StockLot.source_type == LotSourceType.RECEIPT,
+                        StockLot.source_receipt_item_id.in_(receipt_item_ids),
+                    )
+                )
+            ).scalars()
+        )
 
     for item in receipt.items or []:
-        autopart_id = await resolve_receipt_item_autopart_id(session, item)
+        autopart_id = await resolve_receipt_item_autopart_id(
+            session,
+            item,
+            create_missing=not reverse,
+        )
         if autopart_id is None:
             continue
+        item.autopart_id = int(autopart_id)
         quantity = max(int(item.received_quantity or 0), 0)
         if quantity <= 0:
+            continue
+        if not reverse and int(item.id) in existing_receipt_lot_item_ids:
             continue
 
         item_warehouse_id = getattr(item, "warehouse_id", None)
@@ -987,6 +1043,7 @@ async def receive_stock(
                 role_change_reason=role_change_reason,
             )
             lot_id = lot.id
+            existing_receipt_lot_item_ids.add(int(item.id))
             await register_receipt_marking_codes(
                 session,
                 receipt_item=item,
@@ -1074,6 +1131,32 @@ async def apply_receipt_to_stock_by_id(
             session, autopart_id=autopart_id,
             source_type="supplier_receipt", document_id=receipt.id,
         )
+
+
+async def ensure_posted_receipt_stock(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+) -> None:
+    """Repair missing receipt lots without duplicating already posted stock.
+
+    Older document imports allowed raw supplier rows without an ``autopart_id``
+    and silently skipped them while posting. ``receive_stock`` is idempotent by
+    receipt-item now, so rerunning it safely creates the missing catalogue cards
+    and lots while preserving the lots that already exist.
+    """
+    receipt = (
+        await session.execute(
+            select(SupplierReceipt)
+            .options(selectinload(SupplierReceipt.items))
+            .where(SupplierReceipt.id == receipt_id)
+        )
+    ).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError("Документ поступления не найден")
+    if receipt.posted_at is None:
+        raise ValueError("Сначала проведите поступление")
+    await receive_stock(session, receipt=receipt, reverse=False)
 
 
 async def _sync_receipt_customer_assembly(

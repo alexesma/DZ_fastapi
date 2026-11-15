@@ -102,6 +102,24 @@ def test_supplier_receipt_price_is_derived_from_total_when_missing():
         object_xml("Документ.ПоступлениеТоваровУслуг", nothing, COMPANY)
 
 
+def test_document_with_unresolved_catalogue_item_is_rejected_before_transfer():
+    raw_item = {
+        **ITEM,
+        "autopart": {
+            "autopart_id": None,
+            "brand": "GRASS",
+            "oem": "126068",
+            "name": "Позиция из документа поставщика",
+        },
+    }
+    with pytest.raises(ValueError, match="Не определена карточка номенклатуры.*GRASS 126068"):
+        object_xml(
+            "Документ.ПоступлениеТоваровУслуг",
+            {**DOCUMENT, "items": [raw_item]},
+            COMPANY,
+        )
+
+
 def test_warehouse_reference_carries_unf_guid_when_configured(monkeypatch):
     guid = "6f1c6a0e-4d5b-4c58-9a0b-1f2e3d4c5b6a"
     monkeypatch.setenv("ONE_C_PHYSICAL_WAREHOUSE_GUID", guid)

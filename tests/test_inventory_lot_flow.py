@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
 
 from dz_fastapi.models.autopart import AutoPart, StorageLocation
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
     LotSourceType,
     ShipmentDocument,
@@ -102,6 +103,66 @@ async def test_receive_stock_with_gtd_creates_receipt_lot(
     assert lots[0].gtd_number == "GTD-001"
     assert lots[0].remaining_quantity == 5
     assert lots[0].cost_price == Decimal("123.4500")
+
+
+@pytest.mark.asyncio
+async def test_receive_stock_creates_missing_catalogue_item_and_is_idempotent(
+    test_session: AsyncSession,
+    created_providers: list[Provider],
+):
+    receipt = SupplierReceipt(
+        provider_id=created_providers[0].id,
+        document_number="RAW-1",
+        document_date=date.today(),
+    )
+    raw_item = SupplierReceiptItem(
+        oem_number="AB-12.3",
+        brand_name="New Brand",
+        autopart_name="Позиция только из документа поставщика",
+        received_quantity=3,
+        price=Decimal("50.00"),
+    )
+    receipt.items = [raw_item]
+    test_session.add(receipt)
+    await test_session.flush()
+
+    await receive_stock(test_session, receipt=receipt, reverse=False)
+    await test_session.flush()
+
+    assert raw_item.autopart_id is not None
+    autopart = await test_session.get(AutoPart, raw_item.autopart_id)
+    brand = await test_session.get(Brand, autopart.brand_id)
+    assert brand.name == "NEW BRAND"
+    assert autopart.oem_number == "AB123"
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(StockLot.source_receipt_item_id == raw_item.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(lots) == 1
+    assert lots[0].remaining_quantity == 3
+
+    await receive_stock(test_session, receipt=receipt, reverse=False)
+    await test_session.flush()
+    repeated_lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(StockLot.source_receipt_item_id == raw_item.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(repeated_lots) == 1
+    assert await _sbl_qty(
+        test_session,
+        autopart_id=raw_item.autopart_id,
+        storage_location_id=lots[0].storage_location_id,
+    ) == 3
 
 
 @pytest.mark.asyncio
