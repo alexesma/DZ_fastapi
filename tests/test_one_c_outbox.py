@@ -6,7 +6,11 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import func, select
 
-from dz_fastapi.api.one_c import _payload_for_enterprise_data, enterprise_data_prepare_receipt
+from dz_fastapi.api.one_c import (
+    _payload_for_enterprise_data,
+    enterprise_data_prepare_receipt,
+    enterprise_data_send,
+)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import (
     ShipmentDocument,
@@ -175,6 +179,57 @@ async def test_manual_enterprise_send_payload_repairs_raw_receipt_once(
         .all()
     )
     assert len(lots) == 1
+
+
+@pytest.mark.asyncio
+async def test_manual_enterprise_send_keeps_receipt_repair_when_transport_is_busy(
+    test_session,
+    created_providers,
+    monkeypatch,
+):
+    provider = created_providers[0]
+    provider.one_c_contract_name = "Тестовый договор"
+    provider.one_c_contract_number = "MANUAL-BUSY"
+    provider.one_c_contract_date = date(2020, 1, 1)
+    receipt = SupplierReceipt(
+        provider_id=provider.id,
+        document_number="MANUAL-BUSY-1",
+        document_date=date(2026, 11, 5),
+        posted_at=now_moscow(),
+        items=[
+            SupplierReceiptItem(
+                oem_number="MANUALBUSY126068",
+                brand_name="MANUAL-BUSY-GRASS",
+                autopart_name="Строка для восстановления",
+                received_quantity=1,
+                price=Decimal("966.57"),
+            )
+        ],
+    )
+    test_session.add(receipt)
+    await test_session.commit()
+    prepared = await enterprise_data_prepare_receipt(receipt.id, test_session, None)
+
+    async def company(_session):
+        return {"short_name": "ДЗ"}
+
+    def busy_transport(*_args, **_kwargs):
+        raise TimeoutError("Файл обмена занят")
+
+    monkeypatch.setattr("dz_fastapi.api.one_c._company_for_enterprise_data", company)
+    monkeypatch.setattr("dz_fastapi.api.one_c.send_body_message", busy_transport)
+
+    with pytest.raises(HTTPException) as error:
+        await enterprise_data_send(prepared["id"], False, test_session, None)
+    assert error.value.status_code == 503
+
+    await test_session.refresh(receipt.items[0])
+    assert receipt.items[0].autopart_id is not None
+    assert await test_session.scalar(
+        select(func.count(StockLot.id)).where(
+            StockLot.source_receipt_item_id == receipt.items[0].id
+        )
+    ) == 1
 
 
 @pytest.mark.asyncio

@@ -703,6 +703,9 @@ async def enterprise_data_send(
         if shipment is None or shipment.status != ShipmentDocumentStatus.POSTED:
             raise HTTPException(status_code=409, detail="Реализация больше не проведена")
     company = await _company_for_enterprise_data(session)
+    entity_type = event.entity_type
+    entity_id = event.entity_id
+    event_db_id = event.id
     try:
         payload = await _payload_for_enterprise_data(
             event,
@@ -710,12 +713,18 @@ async def enterprise_data_send(
             repair_receipt=True,
         )
         objects = event_body_objects(event.entity_type, event.event_type, payload, company)
+        if entity_type == ENTITY_RECEIPT:
+            # Stock repair is an idempotent database operation and must survive
+            # a busy/unavailable FTP volume.  Otherwise an external transport
+            # problem silently rolls the repaired receipt back as well.
+            await session.commit()
         sent = await asyncio.to_thread(
             send_body_message,
             objects,
-            description=f"{event.entity_type}:{event.entity_id} event {event.id}",
+            description=f"{entity_type}:{entity_id} event {event_db_id}",
             replace_unread=replace_unread,
         )
+        event = await session.get(OneCExchangeEvent, event_db_id)
         event.ed_message_no = sent["message_no"]
         event.ed_sent_at = now_moscow()
         event.ed_transport_confirmed_at = None
@@ -724,6 +733,8 @@ async def enterprise_data_send(
         return sent
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (OSError, TimeoutError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(

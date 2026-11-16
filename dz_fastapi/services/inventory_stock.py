@@ -983,6 +983,16 @@ async def receive_stock(
         )
 
     for item in receipt.items or []:
+        # A historical repair only needs the rows which were skipped during
+        # the original posting.  Avoid resolving catalogue cards and inventory
+        # policies again for every already posted row; on a large document that
+        # made the manual UNF retry exceed the browser timeout.
+        if (
+            not reverse
+            and item.id is not None
+            and int(item.id) in existing_receipt_lot_item_ids
+        ):
+            continue
         autopart_id = await resolve_receipt_item_autopart_id(
             session,
             item,
@@ -994,9 +1004,6 @@ async def receive_stock(
         quantity = max(int(item.received_quantity or 0), 0)
         if quantity <= 0:
             continue
-        if not reverse and int(item.id) in existing_receipt_lot_item_ids:
-            continue
-
         item_warehouse_id = getattr(item, "warehouse_id", None)
         if item_warehouse_id and item_warehouse_id != doc_warehouse.id:
             if item_warehouse_id not in _item_location_cache:

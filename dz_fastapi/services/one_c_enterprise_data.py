@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import shutil
+import time
 import uuid
 import zipfile
 from contextlib import contextmanager
@@ -267,11 +268,28 @@ def save_state(directory: str, state: dict[str, Any]) -> None:
 
 
 @contextmanager
-def _exchange_lock(directory: str):
-    """Serialize scheduler and admin actions against the shared FTP volume."""
+def _exchange_lock(directory: str, *, timeout_seconds: float = 10.0):
+    """Serialize access to the shared FTP volume without waiting forever.
+
+    A worker that is stopped while handling the exchange normally releases the
+    OS lock automatically.  A slow or wedged worker must not make every manual
+    send hang until the browser timeout, though: fail with a useful error and
+    let the operator retry after the active exchange finishes.
+    """
     os.makedirs(directory, exist_ok=True)
     with open(os.path.join(directory, LOCK_FILE_NAME), "a+b") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        deadline = time.monotonic() + max(float(timeout_seconds), 0.0)
+        while True:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError as exc:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        "Файл обмена с УНФ занят дольше 10 секунд; "
+                        "дождитесь завершения текущей синхронизации и повторите отправку"
+                    ) from exc
+                time.sleep(0.05)
         try:
             yield
         finally:

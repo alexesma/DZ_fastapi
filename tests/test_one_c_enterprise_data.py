@@ -589,6 +589,18 @@ def test_send_body_message_requires_handshake(tmp_path):
         send_body_message(_shipment_objects(), directory=str(tmp_path))
 
 
+def test_exchange_lock_has_bounded_wait(tmp_path, monkeypatch):
+    from dz_fastapi.services import one_c_enterprise_data as exchange
+
+    def always_busy(*_args):
+        raise BlockingIOError
+
+    monkeypatch.setattr(exchange.fcntl, "flock", always_busy)
+    with pytest.raises(TimeoutError, match="занят дольше"):
+        with exchange._exchange_lock(str(tmp_path), timeout_seconds=0):
+            pass
+
+
 def test_data_message_header_records_what_unf_confirmed(tmp_path):
     from dz_fastapi.services.one_c_enterprise_data import send_body_message
 
