@@ -5438,6 +5438,31 @@ async def gis_mt_set_shipment_codes_auto_fifo(
     return await update_shipment_codes_auto_fifo(session, enabled=enabled)
 
 
+@router.post(
+    "/shipments/{doc_id}/upd-email",
+    summary="Отправить УПД клиенту на почту (для клиентов без ЭДО)",
+)
+async def shipment_upd_email(
+    doc_id: int,
+    to_email: Optional[str] = Body(default=None, embed=True, max_length=255),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    from dz_fastapi.services.shipment_upd_email import send_shipment_upd_email
+
+    user_id = current_user.id
+    try:
+        result = await send_shipment_upd_email(
+            session, doc_id, to_email=to_email, user_id=user_id
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
 @router.get(
     "/shipments/{doc_id}/marking-scan",
     summary="Коды маркировки отгрузки: нужно, назначено, отсканировано",

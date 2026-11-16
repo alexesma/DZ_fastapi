@@ -2061,6 +2061,17 @@ async def auto_draft_outgoing_upd_task(app: FastAPI):
     async with app.state.session_factory() as session:
         try:
             integration = await crud_diadoc_integration_settings.get_or_create(session)
+            if integration.outbound_upd_email_enabled:
+                # Письмо с УПД в Excel не зависит от ЭДО: уходит всем клиентам.
+                from dz_fastapi.services.shipment_upd_email import auto_email_posted_shipments
+
+                mailed = await auto_email_posted_shipments(
+                    session,
+                    enabled=True,
+                    since=integration.outbound_upd_email_from,
+                )
+                if mailed["sent"] or mailed["failed"]:
+                    logger.info("Auto UPD emails: %s", mailed)
             if not integration.outbound_auto_draft_enabled or not integration.refresh_token:
                 return
             from dz_fastapi.services.diadoc_outgoing_pipeline import auto_draft_posted_shipments

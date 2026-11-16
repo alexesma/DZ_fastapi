@@ -128,6 +128,12 @@ class DiadocIntegrationSettings(Base):
         Boolean, default=False, nullable=False, server_default="false"
     )
     outbound_auto_draft_from = Column(DateTime(timezone=True), nullable=True)
+    # УПД в Excel на почту клиенту после проведения — всем клиентам, с ЭДО
+    # и без. Реализации, проведённые до включения, не трогаются.
+    outbound_upd_email_enabled = Column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    outbound_upd_email_from = Column(DateTime(timezone=True), nullable=True)
     # ЭТрН: подписание Т1/Т3 из DragonZap (по умолчанию — только чтение,
     # титулы подписываются в 1С). Т6 (стоимость) — отдельный флаг.
     etrn_enabled = Column(Boolean, default=False, nullable=False)

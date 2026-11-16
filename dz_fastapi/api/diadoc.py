@@ -164,6 +164,8 @@ def _integration_to_status(
         inbound_process_from=integration.inbound_process_from,
         outbound_auto_draft_enabled=bool(integration.outbound_auto_draft_enabled),
         outbound_auto_draft_from=integration.outbound_auto_draft_from,
+        outbound_upd_email_enabled=bool(integration.outbound_upd_email_enabled),
+        outbound_upd_email_from=integration.outbound_upd_email_from,
         etrn_enabled=bool(integration.etrn_enabled),
         etrn_t6_enabled=bool(integration.etrn_t6_enabled),
         access_token_expires_at=integration.access_token_expires_at,
@@ -774,6 +776,8 @@ async def update_diadoc_settings(
     if data.get("outbound_auto_draft_enabled") and not integration.outbound_auto_draft_enabled:
         # Конвейер берёт только реализации, проведённые после включения.
         integration.outbound_auto_draft_from = now_moscow()
+    if data.get("outbound_upd_email_enabled") and not integration.outbound_upd_email_enabled:
+        integration.outbound_upd_email_from = now_moscow()
     for key, value in data.items():
         setattr(integration, key, value)
     integration.last_error = None
@@ -1627,6 +1631,40 @@ async def start_revoke_outbound_document(
 
 
 @router.post(
+    "/outbound-documents/send-signed-batch/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Подписать и отправить несколько черновиков одной SMS (шаг 1)",
+)
+async def start_send_signed_outbound_batch(
+    document_ids: list[int] = Body(..., embed=True, min_length=1),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.diadoc_cloud_sign import start_send_outgoing_batch_task
+
+    unique_ids = list(dict.fromkeys(int(value) for value in document_ids))
+    documents = []
+    for document_id in unique_ids:
+        document = await session.get(DiadocOutgoingDocument, document_id)
+        if document is None:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+        documents.append(document)
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_send_outgoing_batch_task(
+            session, client=client, documents=documents
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
     "/outbound-documents/{document_id}/send-signed/start",
     response_model=DiadocCloudSignTaskOut,
     status_code=status.HTTP_200_OK,
@@ -1922,6 +1960,7 @@ async def diadoc_outbound_queue(
     return {
         "enabled": bool(integration.outbound_auto_draft_enabled),
         "since": integration.outbound_auto_draft_from,
+        "email_enabled": bool(integration.outbound_upd_email_enabled),
         **queue,
     }
 

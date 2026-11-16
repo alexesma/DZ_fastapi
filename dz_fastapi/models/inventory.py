@@ -2015,6 +2015,13 @@ class ShipmentDocument(Base):
     # Конвейер УПД: почему черновик по этой реализации не создался.
     edo_auto_error = Column(String(1000), nullable=True)
     edo_auto_checked_at = Column(DateTime(timezone=True), nullable=True)
+    # УПД, отправленный клиенту без ЭДО на почту: когда, куда и кем.
+    upd_emailed_at = Column(DateTime(timezone=True), nullable=True)
+    upd_emailed_to = Column(String(255), nullable=True)
+    upd_emailed_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+    upd_email_error = Column(String(500), nullable=True)
 
     customer = relationship("Customer", lazy="joined")
     customer_order = relationship("CustomerOrder", lazy="noload")

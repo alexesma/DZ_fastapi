@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DiadocEnvironment(str, Enum):
@@ -78,6 +78,8 @@ class DiadocStatusOut(BaseModel):
     inbound_process_from: date | None = None
     outbound_auto_draft_enabled: bool = False
     outbound_auto_draft_from: datetime | None = None
+    outbound_upd_email_enabled: bool = False
+    outbound_upd_email_from: datetime | None = None
     etrn_enabled: bool = False
     etrn_t6_enabled: bool = False
     access_token_expires_at: datetime | None = None
@@ -120,6 +122,7 @@ class DiadocSettingsUpdate(BaseModel):
     inbound_process_enabled: bool | None = None
     inbound_process_from: date | None = None
     outbound_auto_draft_enabled: bool | None = None
+    outbound_upd_email_enabled: bool | None = None
     etrn_enabled: bool | None = None
     etrn_t6_enabled: bool | None = None
 
@@ -463,8 +466,36 @@ class DiadocCloudSignTaskOut(BaseModel):
     error_details: str | None = None
     created_at: datetime
     completed_at: datetime | None = None
+    # Итог пакетной подписи: что ушло и что осталось черновиком.
+    sent_document_ids: list[int] = Field(default_factory=list)
+    failed: list[dict] = Field(default_factory=list)
+    documents_total: int = 0
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _batch_result(cls, value):
+        params = getattr(value, "params", None)
+        if not isinstance(params, dict):
+            return value
+        data = {
+            name: getattr(value, name, None)
+            for name in (
+                "id",
+                "operation",
+                "state",
+                "incoming_document_id",
+                "outgoing_document_id",
+                "error_details",
+                "created_at",
+                "completed_at",
+            )
+        }
+        data["sent_document_ids"] = list(params.get("sent_document_ids") or [])
+        data["failed"] = list(params.get("failed") or [])
+        data["documents_total"] = len(params.get("document_ids") or [])
+        return data
 
 
 class DiadocAcceptanceLineOut(BaseModel):

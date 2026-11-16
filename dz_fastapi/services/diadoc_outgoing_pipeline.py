@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,6 +33,7 @@ logger = logging.getLogger("dz_fastapi")
 
 SOURCE_SHIPMENT = "shipment_document"
 _MAX_REASON = 1000
+NO_EDO_REASON = "У клиента нет ящика Диадока — документ по ЭДО не отправить"
 
 
 class UpdDraftBlocked(ValueError):
@@ -82,7 +83,7 @@ async def create_shipment_upd_draft(
         )
     )
     if not to_box:
-        raise UpdDraftBlocked("У клиента нет ящика Диадока — документ по ЭДО не отправить")
+        raise UpdDraftBlocked(NO_EDO_REASON)
     return await post_diadoc_outgoing_document(
         session,
         client=client,
@@ -196,6 +197,12 @@ async def signing_queue(session: AsyncSession, *, limit: int = 200) -> dict[str,
                 .where(
                     ShipmentDocument.status == ShipmentDocumentStatus.POSTED,
                     ShipmentDocument.edo_auto_error.is_not(None),
+                    # Клиент без ЭДО, которому УПД уже ушёл письмом, из очереди
+                    # уходит: больше с этим документом делать нечего.
+                    or_(
+                        ShipmentDocument.upd_emailed_at.is_(None),
+                        ShipmentDocument.edo_auto_error != NO_EDO_REASON,
+                    ),
                     ~_has_outgoing_document(),
                 )
                 .order_by(ShipmentDocument.id)
@@ -205,9 +212,37 @@ async def signing_queue(session: AsyncSession, *, limit: int = 200) -> dict[str,
         .scalars()
         .all()
     )
+    shipments = {}
+    draft_shipment_ids = [row.source_id for row in drafts if row.source_id]
+    if draft_shipment_ids:
+        shipments = {
+            row.id: row
+            for row in (
+                await session.execute(
+                    select(ShipmentDocument).where(
+                        ShipmentDocument.id.in_(draft_shipment_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        }
+
+    def mail(shipment_id):
+        shipment = shipments.get(shipment_id)
+        return {
+            "customer_email": getattr(
+                getattr(shipment, "customer", None), "email_contact", None
+            ),
+            "emailed_at": getattr(shipment, "upd_emailed_at", None),
+            "emailed_to": getattr(shipment, "upd_emailed_to", None),
+            "email_error": getattr(shipment, "upd_email_error", None),
+        }
+
     return {
         "drafts": [
             {
+                **mail(row.source_id),
                 "id": row.id,
                 "shipment_id": row.source_id,
                 "document_number": row.document_number,
@@ -226,6 +261,10 @@ async def signing_queue(session: AsyncSession, *, limit: int = 200) -> dict[str,
                 "posted_at": row.posted_at,
                 "customer_id": row.customer_id,
                 "customer_name": getattr(row.customer, "name", None),
+                "customer_email": getattr(row.customer, "email_contact", None),
+                "emailed_at": row.upd_emailed_at,
+                "emailed_to": row.upd_emailed_to,
+                "email_error": row.upd_email_error,
                 "reason": row.edo_auto_error,
                 "checked_at": row.edo_auto_checked_at,
             }

@@ -32,6 +32,9 @@ OPERATION_SIGN_INCOMING = "sign_incoming"
 OPERATION_REVOKE_OUTGOING = "revoke_outgoing"
 OPERATION_SEND_OUTGOING = "send_outgoing"
 OPERATION_REJECT_INCOMING = "reject_incoming"
+OPERATION_SEND_OUTGOING_BATCH = "send_outgoing_batch"
+# Сколько черновиков подписывается одной SMS.
+MAX_BATCH_DOCUMENTS = 30
 
 # Версия УПД по умолчанию: формат 5.03 обязателен с 01.04.2025.
 DEFAULT_UTD_VERSION = "utd970_05_03_01"
@@ -659,6 +662,114 @@ async def _apply_revoke_outgoing(
     return {"patch_response_keys": sorted(response.keys())}
 
 
+async def start_send_outgoing_batch_task(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    documents: list[DiadocOutgoingDocument],
+) -> DiadocCloudSignTask:
+    """Стартует подписание пачки черновиков одной SMS.
+
+    Облачная подпись принимает несколько файлов в одном запросе и возвращает
+    подписи в том же порядке, поэтому на всю пачку приходит один код.
+    """
+    import os
+
+    if not documents:
+        raise ValueError("Не выбрано ни одного документа")
+    if len(documents) > MAX_BATCH_DOCUMENTS:
+        raise ValueError(
+            f"За один раз можно подписать не больше {MAX_BATCH_DOCUMENTS} документов"
+        )
+    if len({(d.environment, d.from_box_id_guid) for d in documents}) > 1:
+        raise ValueError("Документы из разных ящиков Диадока подписываются отдельно")
+    files: list[dict[str, Any]] = []
+    for document in documents:
+        if not document.is_draft:
+            raise ValueError(
+                f"Документ {document.document_number or document.id} уже отправлен"
+            )
+        path = os.path.abspath(document.local_file_path)
+        if not os.path.exists(path):
+            raise ValueError(
+                f"Файл документа {document.document_number or document.id} "
+                "не найден на диске — пересоздайте черновик"
+            )
+        with open(path, "rb") as handle:
+            content = handle.read()
+        files.append(
+            {
+                "file_name": document.file_name,
+                "content_b64": _encode_file(content),
+                "kind": "outgoing_content",
+                "parent_entity_id": None,
+                "document_id": int(document.id),
+            }
+        )
+    token = await client.cloud_sign(
+        files=[
+            {"FileName": item["file_name"], "Content": {"Content": item["content_b64"]}}
+            for item in files
+        ]
+    )
+    first = documents[0]
+    task = DiadocCloudSignTask(
+        environment=first.environment,
+        operation=OPERATION_SEND_OUTGOING_BATCH,
+        state="waiting_code",
+        box_id_guid=first.from_box_id_guid,
+        cloud_sign_token=token,
+        files=files,
+        params={"document_ids": [int(d.id) for d in documents]},
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def _apply_send_outgoing_batch(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    task: DiadocCloudSignTask,
+    signatures: list[str],
+) -> dict[str, Any]:
+    """Отправляет каждый черновик пачки со своей подписью.
+
+    Код из SMS одноразовый, поэтому сбой одного документа не отменяет
+    остальные: отправленные фиксируются сразу, неотправленные возвращаются
+    списком с причиной и остаются черновиками.
+    """
+    sent: list[int] = []
+    failed: list[dict[str, Any]] = []
+    for file_item, signature in zip(list(task.files or []), signatures):
+        document_id = int(file_item["document_id"])
+        document = await session.get(DiadocOutgoingDocument, document_id)
+        try:
+            if document is None:
+                raise ValueError("Исходящий документ не найден")
+            if not document.is_draft:
+                raise ValueError("Документ уже отправлен")
+            await _send_signed_draft(
+                session, client=client, document=document, signature=signature
+            )
+            await session.commit()
+            sent.append(document_id)
+        except Exception as exc:  # noqa: BLE001
+            await session.rollback()
+            failed.append(
+                {
+                    "document_id": document_id,
+                    "file_name": file_item.get("file_name"),
+                    "error": str(exc)[:500],
+                }
+            )
+    # Внутри были commit и rollback — задача могла устареть в сессии.
+    await session.refresh(task)
+    return {"sent_document_ids": sent, "failed": failed}
+
+
 async def _apply_send_outgoing(
     session: AsyncSession,
     *,
@@ -666,11 +777,24 @@ async def _apply_send_outgoing(
     task: DiadocCloudSignTask,
     signatures: list[str],
 ) -> dict[str, Any]:
-    from dz_fastapi.services.diadoc_outgoing import _extract_first_entity_id, _extract_message_id
-
     document = await session.get(DiadocOutgoingDocument, task.outgoing_document_id)
     if document is None:
         raise ValueError("Исходящий документ не найден")
+    await _send_signed_draft(
+        session, client=client, document=document, signature=signatures[0]
+    )
+    return {"message_id": document.message_id}
+
+
+async def _send_signed_draft(
+    session: AsyncSession,
+    *,
+    client: DiadocClient,
+    document: DiadocOutgoingDocument,
+    signature: str,
+) -> None:
+    from dz_fastapi.services.diadoc_outgoing import _extract_first_entity_id, _extract_message_id
+
     operation_id = hashlib.md5(
         (
             f"send-draft|{document.environment}|{document.id}|"
@@ -685,7 +809,7 @@ async def _apply_send_outgoing(
             "DocumentSignatures": [
                 {
                     "ParentEntityId": document.entity_id,
-                    "Signature": signatures[0],
+                    "Signature": signature,
                 }
             ],
         },
@@ -698,7 +822,6 @@ async def _apply_send_outgoing(
     document.sent_at = now_moscow()
     document.raw_response = response
     session.add(document)
-    return {"message_id": document.message_id}
 
 
 async def confirm_cloud_sign_task(
@@ -732,6 +855,10 @@ async def confirm_cloud_sign_task(
             )
         elif task.operation == OPERATION_SEND_OUTGOING:
             details = await _apply_send_outgoing(
+                session, client=client, task=task, signatures=signatures
+            )
+        elif task.operation == OPERATION_SEND_OUTGOING_BATCH:
+            details = await _apply_send_outgoing_batch(
                 session, client=client, task=task, signatures=signatures
             )
         elif task.operation == OPERATION_REJECT_INCOMING:

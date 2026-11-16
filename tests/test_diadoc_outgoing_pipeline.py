@@ -120,7 +120,13 @@ async def test_disabled_pipeline_does_nothing(
 async def test_queue_endpoint_and_enabling(async_client, test_session):
     response = await async_client.get("/diadoc/outbound-queue")
     assert response.status_code == 200, response.text
-    assert response.json() == {"enabled": False, "since": None, "drafts": [], "blocked": []}
+    assert response.json() == {
+        "enabled": False,
+        "since": None,
+        "email_enabled": False,
+        "drafts": [],
+        "blocked": [],
+    }
 
     response = await async_client.put(
         "/diadoc/settings", json={"outbound_auto_draft_enabled": True}
