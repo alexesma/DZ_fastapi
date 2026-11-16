@@ -237,6 +237,7 @@ async def build_receipt_snapshot(
         await session.execute(
             select(SupplierReceipt)
             .where(SupplierReceipt.id == receipt_id)
+            .execution_options(populate_existing=True)
             .options(
                 selectinload(SupplierReceipt.provider),
                 selectinload(SupplierReceipt.warehouse),

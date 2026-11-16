@@ -270,7 +270,12 @@ async def _shipment_payload(
     return payload
 
 
-async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> dict:
+async def _current_payload(
+    session: AsyncSession,
+    event: OneCExchangeEvent,
+    *,
+    repair_receipt: bool = True,
+) -> dict:
     if event.entity_type == ENTITY_RECEIPT:
         receipt = await session.get(SupplierReceipt, event.entity_id)
         if receipt is None:
@@ -306,10 +311,11 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
             and provider.one_c_contract_date
         ):
             raise ValueError("Для поставщика не задан договор УНФ")
-        from dz_fastapi.services.inventory_stock import ensure_posted_receipt_stock
+        if repair_receipt:
+            from dz_fastapi.services.inventory_stock import ensure_posted_receipt_stock
 
-        await ensure_posted_receipt_stock(session, receipt_id=int(receipt.id))
-        await session.flush()
+            await ensure_posted_receipt_stock(session, receipt_id=int(receipt.id))
+            await session.flush()
         current = await build_receipt_snapshot(session, int(receipt.id))
         return {
             **current,
@@ -390,6 +396,25 @@ async def _current_payload(session: AsyncSession, event: OneCExchangeEvent) -> d
             raise ValueError("Складской документ больше не проведён")
         return event.payload
     raise ValueError("Тип документа не поддерживается EnterpriseData")
+
+
+async def current_event_payload(
+    session: AsyncSession,
+    event: OneCExchangeEvent,
+    *,
+    repair_receipt: bool = True,
+) -> dict:
+    """Build the current EnterpriseData payload for manual and automatic sends.
+
+    Preview callers can disable receipt repair to validate XML without changing
+    stock. A real send keeps repair enabled so historical document-only rows are
+    linked to catalogue cards exactly once before export.
+    """
+    return await _current_payload(
+        session,
+        event,
+        repair_receipt=repair_receipt,
+    )
 
 
 async def _ensure_configured_events(

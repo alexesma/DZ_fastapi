@@ -1,4 +1,5 @@
 import base64
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -11,6 +12,7 @@ from dz_fastapi.models.inventory import (
     ShipmentDocument,
     ShipmentDocumentItem,
     ShipmentDocumentStatus,
+    StockLot,
     SyncStatus,
 )
 from dz_fastapi.models.one_c import (
@@ -104,11 +106,75 @@ async def test_prepare_historical_receipt_for_enterprise_data_is_idempotent(
     # должна взять актуальную привязку из карточки поставщика.
     created_providers[0].one_c_contract_name = "Договор поставки"
     created_providers[0].one_c_contract_number = "42/26"
+    created_providers[0].one_c_contract_date = date(2020, 1, 1)
     await test_session.commit()
     event = await test_session.get(OneCExchangeEvent, first["id"])
     payload = await _payload_for_enterprise_data(event, test_session)
     assert payload["provider"]["one_c_contract"]["name"] == "Договор поставки"
     assert payload["provider"]["one_c_contract"]["number"] == "42/26"
+
+
+@pytest.mark.asyncio
+async def test_manual_enterprise_send_payload_repairs_raw_receipt_once(
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    provider.one_c_contract_name = "Тестовый договор"
+    provider.one_c_contract_number = "MANUAL-1"
+    provider.one_c_contract_date = date(2020, 1, 1)
+    receipt = SupplierReceipt(
+        provider_id=provider.id,
+        document_number="MANUAL-RAW-1",
+        document_date=date(2026, 11, 5),
+        posted_at=now_moscow(),
+    )
+    receipt.items = [
+        SupplierReceiptItem(
+            oem_number="MANUAL126068",
+            brand_name="MANUAL-GRASS",
+            autopart_name="Строка только из документа",
+            received_quantity=1,
+            price=Decimal("966.57"),
+        )
+    ]
+    test_session.add(receipt)
+    await test_session.commit()
+
+    prepared = await enterprise_data_prepare_receipt(receipt.id, test_session, None)
+    event = await test_session.get(OneCExchangeEvent, prepared["id"])
+    assert receipt.items[0].autopart_id is None
+
+    preview = await _payload_for_enterprise_data(event, test_session)
+    assert preview["items"][0]["autopart"]["autopart_id"] is None
+
+    first = await _payload_for_enterprise_data(
+        event,
+        test_session,
+        repair_receipt=True,
+    )
+    second = await _payload_for_enterprise_data(
+        event,
+        test_session,
+        repair_receipt=True,
+    )
+
+    assert first["items"][0]["autopart"]["autopart_id"] is not None
+    assert second["items"][0]["autopart"]["autopart_id"] == (
+        first["items"][0]["autopart"]["autopart_id"]
+    )
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(
+                    StockLot.source_receipt_item_id == receipt.items[0].id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(lots) == 1
 
 
 @pytest.mark.asyncio
