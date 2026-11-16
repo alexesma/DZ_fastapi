@@ -329,9 +329,34 @@ class SupplierOrderManualItemCreate(BaseModel):
     max_delivery_day: Optional[int] = None
 
 
+class SupplierOrderItemCreate(SupplierOrderManualItemCreate):
+    customer_order_item_id: Optional[int] = None
+
+
 class SupplierOrderManualCreate(BaseModel):
     provider_id: int
     items: List[SupplierOrderManualItemCreate] = Field(default_factory=list)
+
+
+class SupplierOrderItemUpdate(BaseModel):
+    customer_order_item_id: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, gt=0)
+    price: Optional[Decimal] = Field(default=None, ge=0)
+
+
+class SupplierOrderCustomerItemOption(BaseModel):
+    item_id: int
+    order_id: int
+    order_number: Optional[str] = None
+    received_at: datetime
+    customer_id: int
+    customer_name: str
+    oem: str
+    brand: str
+    name: Optional[str] = None
+    requested_qty: int
+    ship_qty: Optional[int] = None
+    status: CUSTOMER_ORDER_ITEM_STATUS
 
 
 class CustomerOrderResponse(BaseModel):
@@ -508,6 +533,11 @@ class SupplierOrderItemDetailResponse(BaseModel):
     requested_qty: Optional[int] = None
     ship_qty: Optional[int] = None
     reject_qty: Optional[int] = None
+    customer_order_id: Optional[int] = None
+    customer_order_number: Optional[str] = None
+    customer_received_at: Optional[datetime] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

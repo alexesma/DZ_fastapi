@@ -5192,6 +5192,323 @@ async def create_manual_supplier_order(
     return supplier_order
 
 
+def _assert_supplier_order_editable(order: SupplierOrder) -> None:
+    if order.sent_at is not None or order.status in {
+        SUPPLIER_ORDER_STATUS.SENT,
+        SUPPLIER_ORDER_STATUS.REMOVED,
+    }:
+        raise ValueError("Редактировать можно только заказ, который ещё не отправлен")
+
+
+async def _latest_supplier_item_offer(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    provider_config_id: int | None,
+    autopart_id: int,
+) -> tuple[Decimal | None, int, int | None]:
+    ranked_pricelists = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+            PriceList.provider_config_id.label("provider_config_id"),
+            func.row_number().over(
+                partition_by=PriceList.provider_config_id,
+                order_by=(
+                    PriceList.date.desc().nullslast(),
+                    PriceList.id.desc(),
+                ),
+            ).label("latest_rank"),
+        )
+        .where(
+            PriceList.provider_id == provider_id,
+            PriceList.is_active.is_(True),
+        )
+    )
+    if provider_config_id is not None:
+        ranked_pricelists = ranked_pricelists.where(
+            PriceList.provider_config_id == provider_config_id
+        )
+    latest_pricelists = ranked_pricelists.subquery()
+    stmt = (
+        select(
+            PriceListAutoPartAssociation.price,
+            PriceListAutoPartAssociation.multiplicity,
+            latest_pricelists.c.provider_config_id,
+        )
+        .join(
+            latest_pricelists,
+            latest_pricelists.c.pricelist_id
+            == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .where(
+            latest_pricelists.c.latest_rank == 1,
+            PriceListAutoPartAssociation.autopart_id == autopart_id,
+        )
+        .order_by(
+            latest_pricelists.c.pricelist_date.desc().nullslast(),
+            latest_pricelists.c.pricelist_id.desc(),
+        )
+        .limit(1)
+    )
+    row = (await session.execute(stmt)).first()
+    if row is None:
+        return None, 1, provider_config_id
+    return row.price, max(int(row.multiplicity or 1), 1), row.provider_config_id
+
+
+async def _supplier_order_autopart(
+    session: AsyncSession,
+    *,
+    autopart_id: int | None,
+    oem: str,
+    brand: str,
+) -> AutoPart | None:
+    autopart = await session.get(AutoPart, autopart_id) if autopart_id else None
+    if autopart is not None:
+        return autopart
+    return (
+        await session.execute(
+            select(AutoPart)
+            .join(Brand)
+            .where(
+                AutoPart.oem_number == preprocess_oem_number(oem),
+                func.lower(Brand.name) == normalize_brand_name(brand).lower(),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def _supplier_order_customer_item(
+    session: AsyncSession,
+    customer_order_item_id: int | None,
+    *,
+    current_supplier_item_id: int | None = None,
+) -> CustomerOrderItem | None:
+    if customer_order_item_id is None:
+        return None
+    item = await session.get(CustomerOrderItem, int(customer_order_item_id))
+    if item is None:
+        raise ValueError("Позиция заказа клиента не найдена")
+    existing = await session.scalar(
+        select(SupplierOrderItem.id).where(
+            SupplierOrderItem.customer_order_item_id == item.id,
+            *(
+                (SupplierOrderItem.id != current_supplier_item_id,)
+                if current_supplier_item_id is not None
+                else ()
+            ),
+        )
+    )
+    if existing is not None:
+        raise ValueError("Позиция клиента уже добавлена в другой заказ поставщику")
+    return item
+
+
+def _mark_customer_item_removed_from_supplier(item: CustomerOrderItem) -> None:
+    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+    item.ship_qty = 0
+    item.reject_qty = max(int(item.requested_qty or 0), 0)
+    item.supplier_id = None
+    item.provider_config_id = None
+    _set_reject_reason(
+        item,
+        "MANUAL_SUPPLIER_ORDER_REMOVAL",
+        "Менеджер удалил позицию из неотправленного заказа поставщику.",
+    )
+
+
+def _link_customer_item_to_supplier(
+    item: CustomerOrderItem,
+    *,
+    order: SupplierOrder,
+    supplier_item: SupplierOrderItem,
+    provider_config_id: int | None,
+) -> None:
+    requested_qty = max(int(item.requested_qty or 0), 0)
+    quantity = int(supplier_item.quantity or 0)
+    if requested_qty and quantity > requested_qty:
+        raise ValueError(
+            f"Нельзя заказать {quantity} шт.: клиент заказал {requested_qty} шт."
+        )
+    item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    item.supplier_id = int(order.provider_id)
+    item.provider_config_id = provider_config_id
+    item.autopart_id = supplier_item.autopart_id
+    item.matched_price = supplier_item.price
+    item.ship_qty = quantity
+    item.reject_qty = max(requested_qty - quantity, 0)
+    if item.reject_qty:
+        _set_reject_reason(
+            item,
+            "MANUAL_PARTIAL_SUPPLIER_ORDER",
+            f"Менеджер заказал у поставщика {quantity} из {requested_qty} шт.",
+        )
+    else:
+        _clear_reject_reason(item)
+
+
+async def add_supplier_order_item(
+    session: AsyncSession,
+    *,
+    order_id: int,
+    data: dict,
+) -> SupplierOrder:
+    order = await session.scalar(
+        select(SupplierOrder).where(SupplierOrder.id == order_id).with_for_update()
+    )
+    if order is None:
+        raise LookupError("Заказ поставщику не найден")
+    _assert_supplier_order_editable(order)
+
+    customer_item = await _supplier_order_customer_item(
+        session,
+        data.get("customer_order_item_id"),
+    )
+    oem = str(data.get("oem") or (customer_item.oem if customer_item else "")).strip()
+    brand = str(data.get("brand") or (customer_item.brand if customer_item else "")).strip()
+    name = str(data.get("name") or (customer_item.name if customer_item else "")).strip()
+    quantity = int(data.get("quantity") or 0)
+    if not oem or not brand or quantity <= 0:
+        raise ValueError("Укажите OEM, бренд и количество")
+    autopart = await _supplier_order_autopart(
+        session,
+        autopart_id=data.get("autopart_id") or (
+            customer_item.autopart_id if customer_item else None
+        ),
+        oem=oem,
+        brand=brand,
+    )
+    if autopart is None:
+        raise ValueError("Запчасть не найдена в каталоге DragonZap")
+    offer_price, multiplicity, offer_config_id = await _latest_supplier_item_offer(
+        session,
+        provider_id=int(order.provider_id),
+        provider_config_id=order.provider_config_id,
+        autopart_id=int(autopart.id),
+    )
+    price = data.get("price")
+    if price is None:
+        if offer_price is None:
+            raise ValueError(
+                "Позиция не найдена в актуальном прайсе поставщика; укажите цену вручную"
+            )
+        price = offer_price
+    if quantity % multiplicity != 0:
+        raise ValueError(f"Количество должно быть кратно {multiplicity}")
+    supplier_item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        customer_order_item_id=(customer_item.id if customer_item else None),
+        autopart_id=autopart.id,
+        oem_number=preprocess_oem_number(oem),
+        brand_name=brand,
+        autopart_name=name or autopart.name,
+        quantity=quantity,
+        price=Decimal(str(price)),
+        min_delivery_day=data.get("min_delivery_day"),
+        max_delivery_day=data.get("max_delivery_day"),
+    )
+    session.add(supplier_item)
+    await session.flush()
+    if customer_item is not None:
+        _link_customer_item_to_supplier(
+            customer_item,
+            order=order,
+            supplier_item=supplier_item,
+            provider_config_id=offer_config_id or order.provider_config_id,
+        )
+    await session.commit()
+    return order
+
+
+async def update_supplier_order_item(
+    session: AsyncSession,
+    *,
+    order_id: int,
+    item_id: int,
+    data: dict,
+) -> SupplierOrder:
+    order = await session.scalar(
+        select(SupplierOrder).where(SupplierOrder.id == order_id).with_for_update()
+    )
+    if order is None:
+        raise LookupError("Заказ поставщику не найден")
+    _assert_supplier_order_editable(order)
+    supplier_item = await session.scalar(
+        select(SupplierOrderItem).where(
+            SupplierOrderItem.id == item_id,
+            SupplierOrderItem.supplier_order_id == order.id,
+        )
+    )
+    if supplier_item is None:
+        raise LookupError("Позиция заказа поставщику не найдена")
+    old_customer_item = await session.get(
+        CustomerOrderItem,
+        supplier_item.customer_order_item_id,
+    ) if supplier_item.customer_order_item_id else None
+    customer_item = old_customer_item
+    if "customer_order_item_id" in data:
+        new_customer_id = data.get("customer_order_item_id")
+        if old_customer_item is not None and old_customer_item.id != new_customer_id:
+            _mark_customer_item_removed_from_supplier(old_customer_item)
+        customer_item = await _supplier_order_customer_item(
+            session,
+            new_customer_id,
+            current_supplier_item_id=supplier_item.id,
+        )
+        supplier_item.customer_order_item_id = (
+            customer_item.id if customer_item is not None else None
+        )
+    if data.get("quantity") is not None:
+        supplier_item.quantity = int(data["quantity"])
+    if data.get("price") is not None:
+        supplier_item.price = Decimal(str(data["price"]))
+    if customer_item is not None:
+        _link_customer_item_to_supplier(
+            customer_item,
+            order=order,
+            supplier_item=supplier_item,
+            provider_config_id=(
+                customer_item.provider_config_id or order.provider_config_id
+            ),
+        )
+    await session.commit()
+    return order
+
+
+async def delete_supplier_order_item(
+    session: AsyncSession,
+    *,
+    order_id: int,
+    item_id: int,
+) -> SupplierOrder:
+    order = await session.scalar(
+        select(SupplierOrder).where(SupplierOrder.id == order_id).with_for_update()
+    )
+    if order is None:
+        raise LookupError("Заказ поставщику не найден")
+    _assert_supplier_order_editable(order)
+    supplier_item = await session.scalar(
+        select(SupplierOrderItem).where(
+            SupplierOrderItem.id == item_id,
+            SupplierOrderItem.supplier_order_id == order.id,
+        )
+    )
+    if supplier_item is None:
+        raise LookupError("Позиция заказа поставщику не найдена")
+    if supplier_item.customer_order_item_id is not None:
+        customer_item = await session.get(
+            CustomerOrderItem,
+            supplier_item.customer_order_item_id,
+        )
+        if customer_item is not None:
+            _mark_customer_item_removed_from_supplier(customer_item)
+    await session.delete(supplier_item)
+    await session.commit()
+    return order
+
+
 async def _refresh_after_rollback(session: AsyncSession, *groups) -> None:
     """Перечитывает объекты, «просроченные» откатом транзакции.
 

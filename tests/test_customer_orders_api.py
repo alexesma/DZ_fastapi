@@ -28,6 +28,8 @@ from dz_fastapi.models.partner import (
     CustomerPriceListConfig,
     Order,
     OrderItem,
+    PriceList,
+    PriceListAutoPartAssociation,
     StockOrder,
     StockOrderItem,
     SupplierOrder,
@@ -600,6 +602,146 @@ async def test_supplier_order_list_rejected_pct_uses_order_value_base(
         "supplier": 3,
         "document_timeout": 2,
     }
+
+
+@pytest.mark.asyncio
+async def test_unsent_supplier_order_items_can_be_added_edited_and_removed(
+    async_client,
+    test_session,
+    created_autopart,
+    created_brand,
+    created_customers,
+    created_providers,
+):
+    await _create_user(test_session, "supplier-edit@example.com", UserRole.MANAGER)
+    await _login(async_client, "supplier-edit@example.com")
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="CLIENT-EDIT-1",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    customer_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem=created_autopart.oem_number,
+        brand=created_brand.name,
+        name=created_autopart.name,
+        requested_qty=2,
+        requested_price=Decimal("90.00"),
+        status="REJECTED",
+        reject_qty=2,
+    )
+    supplier_order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+        created_at=now_moscow(),
+    )
+    test_session.add_all([customer_item, supplier_order])
+    await test_session.flush()
+    pricelist = PriceList(
+        provider_id=created_providers[0].id,
+        date=now_moscow().date(),
+        is_active=True,
+    )
+    test_session.add(pricelist)
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id,
+            autopart_id=created_autopart.id,
+            quantity=10,
+            price=Decimal("42.50"),
+            multiplicity=1,
+        )
+    )
+    await test_session.commit()
+
+    options = await async_client.get(
+        f"/customer-orders/supplier/{supplier_order.id}/customer-item-options",
+        params={"oem": created_autopart.oem_number},
+    )
+    assert options.status_code == 200, options.text
+    assert options.json()[0]["item_id"] == customer_item.id
+
+    added = await async_client.post(
+        f"/customer-orders/supplier/{supplier_order.id}/items",
+        json={
+            "autopart_id": created_autopart.id,
+            "customer_order_item_id": customer_item.id,
+            "oem": created_autopart.oem_number,
+            "brand": created_brand.name,
+            "name": created_autopart.name,
+            "quantity": 2,
+        },
+    )
+    assert added.status_code == 201, added.text
+    added_item = added.json()["items"][0]
+    assert Decimal(added_item["price"]) == Decimal("42.50")
+    assert added_item["customer_order_id"] == customer_order.id
+    assert added_item["customer_order_number"] == "CLIENT-EDIT-1"
+    assert added_item["customer_name"] == created_customers[0].label_display_name
+
+    updated = await async_client.patch(
+        f"/customer-orders/supplier/{supplier_order.id}/items/{added_item['id']}",
+        json={"quantity": 1, "price": "44.00"},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["items"][0]["quantity"] == 1
+    assert Decimal(updated.json()["items"][0]["price"]) == Decimal("44.00")
+    await test_session.refresh(customer_item)
+    assert customer_item.ship_qty == 1
+    assert customer_item.reject_qty == 1
+
+    deleted = await async_client.delete(
+        f"/customer-orders/supplier/{supplier_order.id}/items/{added_item['id']}"
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["items"] == []
+    await test_session.refresh(customer_item)
+    assert customer_item.status.value == "REJECTED"
+    assert customer_item.ship_qty == 0
+    assert customer_item.reject_qty == 2
+    assert customer_item.reject_reason_code == "MANUAL_SUPPLIER_ORDER_REMOVAL"
+
+    # A position removed from the newest price list must not be ordered using
+    # an older snapshot merely because that older snapshot still has a price.
+    test_session.add(
+        PriceList(
+            provider_id=created_providers[0].id,
+            date=now_moscow().date() + timedelta(days=1),
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+    stale_offer = await async_client.post(
+        f"/customer-orders/supplier/{supplier_order.id}/items",
+        json={
+            "autopart_id": created_autopart.id,
+            "oem": created_autopart.oem_number,
+            "brand": created_brand.name,
+            "quantity": 1,
+        },
+    )
+    assert stale_offer.status_code == 400
+    assert "актуальном прайсе" in stale_offer.json()["detail"]
+
+    supplier_order.status = SUPPLIER_ORDER_STATUS.SENT
+    supplier_order.sent_at = now_moscow()
+    await test_session.commit()
+    blocked = await async_client.post(
+        f"/customer-orders/supplier/{supplier_order.id}/items",
+        json={
+            "autopart_id": created_autopart.id,
+            "oem": created_autopart.oem_number,
+            "brand": created_brand.name,
+            "quantity": 1,
+            "price": "42.50",
+        },
+    )
+    assert blocked.status_code == 400
+    assert "ещё не отправлен" in blocked.json()["detail"]
 
 
 @pytest.mark.asyncio

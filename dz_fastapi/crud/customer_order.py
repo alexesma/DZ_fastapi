@@ -454,6 +454,8 @@ class CRUDSupplierOrder:
             .options(
                 selectinload(SupplierOrder.items).selectinload(
                     SupplierOrderItem.customer_order_item
+                ).selectinload(CustomerOrderItem.order).selectinload(
+                    CustomerOrder.customer
                 ),
                 selectinload(SupplierOrder.items)
                 .selectinload(SupplierOrderItem.receipt_items)

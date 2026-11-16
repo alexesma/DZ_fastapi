@@ -25,10 +25,15 @@ from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     Client,
+    Customer,
+    CustomerOrder,
+    CustomerOrderItem,
     CustomerPriceListConfig,
     Provider,
     ProviderPriceListConfig,
+    SupplierOrder,
     SupplierOrderAttachment,
+    SupplierOrderItem,
     SupplierReceipt,
     SupplierResponseConfig,
 )
@@ -63,7 +68,10 @@ from dz_fastapi.schemas.customer_order import (
     StockOrderPackageScanRequest,
     StockOrderPackingResponse,
     StockOrderResponse,
+    SupplierOrderCustomerItemOption,
     SupplierOrderDetailResponse,
+    SupplierOrderItemCreate,
+    SupplierOrderItemUpdate,
     SupplierOrderManualCreate,
     SupplierOrderSummaryResponse,
     SupplierReceiptCandidateRow,
@@ -89,8 +97,10 @@ from dz_fastapi.services.cross_docking import (
 )
 from dz_fastapi.services.customer_assembly import accept_receipts_for_printed_labels, list_assembly
 from dz_fastapi.services.customer_orders import (
+    add_supplier_order_item,
     create_manual_customer_order,
     create_manual_supplier_order,
+    delete_supplier_order_item,
     force_accept_customer_order_price,
     force_process_partssoft_customer_order,
     forward_latest_customer_order_for_config,
@@ -106,6 +116,7 @@ from dz_fastapi.services.customer_orders import (
     soft_delete_customer_order,
     update_customer_order,
     update_customer_order_item_manual,
+    update_supplier_order_item,
 )
 from dz_fastapi.services.holidays import get_effective_holiday_set
 from dz_fastapi.services.inventory_stock import (
@@ -2815,6 +2826,8 @@ async def get_supplier_order_detail(
             item, sent_at=order.sent_at, deadline_at=deadline, now=current_time
         )
         order_item = item.customer_order_item
+        customer_order = order_item.order if order_item else None
+        customer = customer_order.customer if customer_order else None
         autopart = item.autopart
         brand_name = autopart.brand.name if autopart and autopart.brand else None
         items.append(
@@ -2861,6 +2874,15 @@ async def get_supplier_order_detail(
                 "requested_qty": (order_item.requested_qty if order_item else None),
                 "ship_qty": order_item.ship_qty if order_item else None,
                 "reject_qty": order_item.reject_qty if order_item else None,
+                "customer_order_id": customer_order.id if customer_order else None,
+                "customer_order_number": (
+                    customer_order.order_number if customer_order else None
+                ),
+                "customer_received_at": (
+                    customer_order.received_at if customer_order else None
+                ),
+                "customer_id": customer.id if customer else None,
+                "customer_name": customer.label_display_name if customer else None,
             }
         )
     return SupplierOrderDetailResponse(
@@ -2880,6 +2902,165 @@ async def get_supplier_order_detail(
         response_status_synced_at=order.response_status_synced_at,
         items=items,
     )
+
+
+@router.get(
+    "/supplier/{order_id}/customer-item-options",
+    response_model=List[SupplierOrderCustomerItemOption],
+    status_code=status.HTTP_200_OK,
+)
+async def list_supplier_order_customer_item_options(
+    order_id: int,
+    q: Optional[str] = None,
+    oem: Optional[str] = None,
+    current_item_id: Optional[int] = None,
+    limit: int = 30,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    order = await session.get(SupplierOrder, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Заказ поставщику не найден")
+    safe_limit = min(max(int(limit), 1), 100)
+    cutoff = now_moscow() - timedelta(days=90)
+    stmt = (
+        select(CustomerOrderItem, CustomerOrder, Customer)
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .join(Customer, Customer.id == CustomerOrder.customer_id)
+        .where(CustomerOrder.received_at >= cutoff)
+        .order_by(CustomerOrder.received_at.desc(), CustomerOrder.id.desc())
+        .limit(300)
+    )
+    query = str(q or "").strip()
+    if query:
+        like = f"%{query}%"
+        stmt = stmt.where(
+            or_(
+                Customer.name.ilike(like),
+                Customer.label_name.ilike(like),
+                CustomerOrder.order_number.ilike(like),
+                CustomerOrderItem.oem.ilike(like),
+            )
+        )
+    rows = (await session.execute(stmt)).all()
+    row_ids = [int(item.id) for item, _, _ in rows]
+    linked: dict[int, int] = {}
+    if row_ids:
+        linked = {
+            int(customer_item_id): int(supplier_item_id)
+            for customer_item_id, supplier_item_id in (
+                await session.execute(
+                    select(
+                        SupplierOrderItem.customer_order_item_id,
+                        SupplierOrderItem.id,
+                    ).where(
+                        SupplierOrderItem.customer_order_item_id.in_(row_ids)
+                    )
+                )
+            ).all()
+            if customer_item_id is not None
+        }
+    normalized_oem = preprocess_oem_number(oem or "")
+    result: list[SupplierOrderCustomerItemOption] = []
+    for item, customer_order, customer in rows:
+        linked_item_id = linked.get(int(item.id))
+        if linked_item_id is not None and linked_item_id != current_item_id:
+            continue
+        if normalized_oem and preprocess_oem_number(item.oem or "") != normalized_oem:
+            continue
+        result.append(
+            SupplierOrderCustomerItemOption(
+                item_id=item.id,
+                order_id=customer_order.id,
+                order_number=customer_order.order_number,
+                received_at=customer_order.received_at,
+                customer_id=customer.id,
+                customer_name=customer.label_display_name,
+                oem=item.oem,
+                brand=item.brand,
+                name=item.name,
+                requested_qty=item.requested_qty,
+                ship_qty=item.ship_qty,
+                status=item.status,
+            )
+        )
+        if len(result) >= safe_limit:
+            break
+    return result
+
+
+@router.post(
+    "/supplier/{order_id}/items",
+    response_model=SupplierOrderDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_supplier_order_item_endpoint(
+    order_id: int,
+    payload: SupplierOrderItemCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await add_supplier_order_item(
+            session,
+            order_id=order_id,
+            data=payload.model_dump(),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await get_supplier_order_detail(order_id, session, current_user)
+
+
+@router.patch(
+    "/supplier/{order_id}/items/{item_id}",
+    response_model=SupplierOrderDetailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_supplier_order_item_endpoint(
+    order_id: int,
+    item_id: int,
+    payload: SupplierOrderItemUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await update_supplier_order_item(
+            session,
+            order_id=order_id,
+            item_id=item_id,
+            data=payload.model_dump(exclude_unset=True),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await get_supplier_order_detail(order_id, session, current_user)
+
+
+@router.delete(
+    "/supplier/{order_id}/items/{item_id}",
+    response_model=SupplierOrderDetailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def delete_supplier_order_item_endpoint(
+    order_id: int,
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await delete_supplier_order_item(
+            session,
+            order_id=order_id,
+            item_id=item_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await get_supplier_order_detail(order_id, session, current_user)
 
 
 @router.post(
