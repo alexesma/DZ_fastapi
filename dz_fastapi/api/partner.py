@@ -1391,6 +1391,13 @@ async def get_customers_summary(
     has_pricelist_configs: Optional[bool] = Query(
         None, description="Фильтр: есть конфигурации прайс-листов"
     ),
+    include_counts: bool = Query(
+        True,
+        description=(
+            "Добавлять счётчики прайс-листов, конфигураций и источников. "
+            "Отключение ускоряет справочники выбора клиента."
+        ),
+    ),
     sort_by: Optional[str] = Query(
         None,
         description=(
@@ -1401,57 +1408,74 @@ async def get_customers_summary(
     sort_dir: Optional[str] = Query(None, description="Направление сортировки: asc или desc"),
     session: AsyncSession = Depends(get_session),
 ):
-    pricelist_counts = (
-        select(
-            CustomerPriceList.customer_id.label("customer_id"),
-            func.count(CustomerPriceList.id).label("price_lists_count"),
-        )
-        .group_by(CustomerPriceList.customer_id)
-        .subquery()
+    counts_required = (
+        include_counts
+        or has_price_lists is not None
+        or has_pricelist_configs is not None
+        or sort_by in {
+            "price_lists_count",
+            "pricelist_configs_count",
+            "pricelist_sources_count",
+        }
     )
 
-    config_counts = (
-        select(
-            CustomerPriceListConfig.customer_id.label("customer_id"),
-            func.count(CustomerPriceListConfig.id).label("configs_count"),
-        )
-        .group_by(CustomerPriceListConfig.customer_id)
-        .subquery()
+    base_columns = (
+        Customer.id.label("id"),
+        Customer.name.label("name"),
+        Customer.email_outgoing_price.label("email_outgoing_price"),
+        Customer.email_contact.label("email_contact"),
+        Customer.type_prices.label("type_prices"),
     )
+    price_lists_count = None
+    configs_count = None
+    sources_count = None
 
-    source_counts = (
-        select(
-            CustomerPriceListConfig.customer_id.label("customer_id"),
-            func.count(CustomerPriceListSource.id).label("sources_count"),
+    if counts_required:
+        pricelist_counts = (
+            select(
+                CustomerPriceList.customer_id.label("customer_id"),
+                func.count(CustomerPriceList.id).label("price_lists_count"),
+            )
+            .group_by(CustomerPriceList.customer_id)
+            .subquery()
         )
-        .join(
-            CustomerPriceListSource,
-            CustomerPriceListSource.customer_config_id == CustomerPriceListConfig.id,
-            isouter=True,
+        config_counts = (
+            select(
+                CustomerPriceListConfig.customer_id.label("customer_id"),
+                func.count(CustomerPriceListConfig.id).label("configs_count"),
+            )
+            .group_by(CustomerPriceListConfig.customer_id)
+            .subquery()
         )
-        .group_by(CustomerPriceListConfig.customer_id)
-        .subquery()
-    )
-
-    price_lists_count = func.coalesce(pricelist_counts.c.price_lists_count, 0)
-    configs_count = func.coalesce(config_counts.c.configs_count, 0)
-    sources_count = func.coalesce(source_counts.c.sources_count, 0)
-
-    stmt = (
-        select(
-            Customer.id.label("id"),
-            Customer.name.label("name"),
-            Customer.email_outgoing_price.label("email_outgoing_price"),
-            Customer.email_contact.label("email_contact"),
-            Customer.type_prices.label("type_prices"),
-            price_lists_count.label("price_lists_count"),
-            configs_count.label("pricelist_configs_count"),
-            sources_count.label("pricelist_sources_count"),
+        source_counts = (
+            select(
+                CustomerPriceListConfig.customer_id.label("customer_id"),
+                func.count(CustomerPriceListSource.id).label("sources_count"),
+            )
+            .join(
+                CustomerPriceListSource,
+                CustomerPriceListSource.customer_config_id == CustomerPriceListConfig.id,
+                isouter=True,
+            )
+            .group_by(CustomerPriceListConfig.customer_id)
+            .subquery()
         )
-        .outerjoin(pricelist_counts, pricelist_counts.c.customer_id == Customer.id)
-        .outerjoin(config_counts, config_counts.c.customer_id == Customer.id)
-        .outerjoin(source_counts, source_counts.c.customer_id == Customer.id)
-    )
+        price_lists_count = func.coalesce(pricelist_counts.c.price_lists_count, 0)
+        configs_count = func.coalesce(config_counts.c.configs_count, 0)
+        sources_count = func.coalesce(source_counts.c.sources_count, 0)
+        stmt = (
+            select(
+                *base_columns,
+                price_lists_count.label("price_lists_count"),
+                configs_count.label("pricelist_configs_count"),
+                sources_count.label("pricelist_sources_count"),
+            )
+            .outerjoin(pricelist_counts, pricelist_counts.c.customer_id == Customer.id)
+            .outerjoin(config_counts, config_counts.c.customer_id == Customer.id)
+            .outerjoin(source_counts, source_counts.c.customer_id == Customer.id)
+        )
+    else:
+        stmt = select(*base_columns)
 
     if search:
         stmt = stmt.where(Customer.name.ilike(f"%{search}%"))
@@ -1463,12 +1487,12 @@ async def get_customers_summary(
         )
     elif type_prices:
         stmt = stmt.where(Customer.type_prices == type_prices)
-    if has_price_lists is not None:
+    if has_price_lists is not None and price_lists_count is not None:
         if has_price_lists:
             stmt = stmt.where(price_lists_count > 0)
         else:
             stmt = stmt.where(price_lists_count == 0)
-    if has_pricelist_configs is not None:
+    if has_pricelist_configs is not None and configs_count is not None:
         if has_pricelist_configs:
             stmt = stmt.where(configs_count > 0)
         else:
@@ -1484,10 +1508,13 @@ async def get_customers_summary(
     sort_map = {
         "name": Customer.name,
         "id": Customer.id,
-        "price_lists_count": price_lists_count,
-        "pricelist_configs_count": configs_count,
-        "pricelist_sources_count": sources_count,
     }
+    if counts_required:
+        sort_map.update({
+            "price_lists_count": price_lists_count,
+            "pricelist_configs_count": configs_count,
+            "pricelist_sources_count": sources_count,
+        })
     sort_column = sort_map.get(sort_by) or Customer.name
     sort_direction = (sort_dir or "asc").lower()
     order_clause = sort_column.asc() if sort_direction != "desc" else sort_column.desc()

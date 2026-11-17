@@ -488,6 +488,28 @@ async def test_get_customers(
 
 
 @pytest.mark.asyncio
+async def test_get_customers_summary_without_counts_is_lightweight_selector(
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+):
+    response = await async_client.get(
+        "/customers/summary/",
+        params={
+            "customer_group": "wholesale",
+            "include_counts": "false",
+            "page_size": 200,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert [item["id"] for item in payload["items"]] == [created_customers[0].id]
+    assert payload["items"][0]["price_lists_count"] == 0
+    assert payload["items"][0]["pricelist_configs_count"] == 0
+    assert payload["items"][0]["pricelist_sources_count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_get_customer_success(
     test_session: AsyncSession,
     async_client: AsyncClient,
