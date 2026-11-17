@@ -20,7 +20,7 @@ from dz_fastapi.models.autopart import (
     AutoPurchaseRun,
     AutoPurchaseRunItem,
 )
-from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inventory import Warehouse
@@ -853,6 +853,56 @@ async def test_set_provider_pricelist_config_create(
     assert data["oem_col"] == CONFIG_DATA["oem_col"]
     assert data["qty_col"] == CONFIG_DATA["qty_col"]
     assert data["price_col"] == CONFIG_DATA["price_col"]
+
+
+@pytest.mark.asyncio
+async def test_pricelist_config_resolves_exclusion_and_multiple_order_emails(
+    created_providers: list[Provider],
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    main_brand = Brand(name="AUTO-GA", main_brand=True)
+    alias_brand = Brand(name="AG", main_brand=False)
+    test_session.add_all([main_brand, alias_brand])
+    await test_session.flush()
+    await test_session.execute(
+        brand_synonyms.insert().values(
+            brand_id=main_brand.id,
+            synonym_id=alias_brand.id,
+        )
+    )
+    part = AutoPart(brand_id=main_brand.id, oem_number="AG100", name="Фильтр")
+    test_session.add(part)
+    await test_session.commit()
+
+    response = await async_client.post(
+        f"/providers/{created_providers[0].id}/pricelist-config/",
+        json={
+            **CONFIG_DATA,
+            "order_emails": ["orders@auto-ga.ru", "backup@auto-ga.ru"],
+            "exclude_positions": [{"brand": "AG", "oem": "AG-100"}],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data["order_emails"] == [
+        "orders@auto-ga.ru",
+        "backup@auto-ga.ru",
+    ]
+    assert data["exclude_positions"] == [{
+        "autopart_id": str(part.id),
+        "brand": "AUTO-GA",
+        "oem": "AG100",
+        "name": "Фильтр",
+    }]
+
+    invalid = await async_client.patch(
+        f"/providers/{created_providers[0].id}/pricelist-config/{data['id']}/",
+        json={"exclude_positions": [{"brand": "RANDOM", "oem": "UNKNOWN"}]},
+    )
+    assert invalid.status_code == 422
+    assert "Выберите её из подсказок" in invalid.json()["detail"]
 
 
 @pytest.mark.asyncio

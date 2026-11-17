@@ -1,8 +1,13 @@
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
-from dz_fastapi.services.process import _apply_provider_filters, assign_brand
+from dz_fastapi.services.process import (
+    _apply_provider_filters,
+    apply_provider_filters_to_dataframe,
+    assign_brand,
+)
 
 BRAND_TEST_CASES = {
     "CHERY_HAVAL": [
@@ -145,3 +150,37 @@ def test_provider_mailing_whitelist_does_not_filter_imported_price():
     ]
 
     assert _apply_provider_filters(items, config) == items
+
+
+def test_provider_position_exclusion_uses_brand_synonym_family():
+    config = SimpleNamespace(
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        excluded_brands=[],
+        exclude_positions=[{"brand": "AUTO-GA", "oem": "AG-100"}],
+    )
+    aliases = {
+        "autoga": "autoga",
+        "ag": "autoga",
+    }
+    items = [
+        {"brand": "AUTO GA", "oem_number": "AG100", "price": 100, "quantity": 1},
+        {"brand": "AG", "oem_number": "AG-100", "price": 100, "quantity": 2},
+        {"brand": "AUTO-GA", "oem_number": "AG-200", "price": 100, "quantity": 1},
+    ]
+
+    assert _apply_provider_filters(
+        items,
+        config,
+        brand_aliases=aliases,
+    ) == [items[2]]
+
+    current_snapshot = pd.DataFrame(items)
+    filtered_snapshot = apply_provider_filters_to_dataframe(
+        current_snapshot,
+        config,
+        brand_aliases=aliases,
+    )
+    assert filtered_snapshot.to_dict(orient="records") == [items[2]]

@@ -167,8 +167,10 @@ from dz_fastapi.services.pricelist_review_queue import (
 )
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_ARTIFACT_ROOT,
+    canonical_provider_filter_brand,
     check_start_and_finish_date,
     customer_pricelist_sends_email,
+    load_provider_filter_brand_aliases,
     parse_exclude_positions_file,
     process_customer_pricelist,
     process_provider_pricelist,
@@ -184,6 +186,100 @@ from dz_fastapi.services.supplier_order_responses import (
 )
 
 logger = logging.getLogger("dz_fastapi")
+
+
+async def _canonicalize_pricelist_exclude_positions(
+    session: AsyncSession,
+    positions: list[dict] | None,
+) -> list[dict[str, str]]:
+    """Resolve exclusions to real catalogue cards and canonical names."""
+    raw_positions = [item for item in positions or [] if isinstance(item, dict)]
+    if not raw_positions:
+        return []
+
+    requested_ids: set[int] = set()
+    requested_oems: set[str] = set()
+    for item in raw_positions:
+        try:
+            requested_ids.add(int(item.get("autopart_id")))
+        except (TypeError, ValueError):
+            pass
+        normalized_oem = preprocess_oem_number(str(item.get("oem") or ""))
+        if normalized_oem:
+            requested_oems.add(normalized_oem)
+
+    conditions = []
+    if requested_ids:
+        conditions.append(AutoPart.id.in_(requested_ids))
+    if requested_oems:
+        conditions.append(AutoPart.oem_number.in_(requested_oems))
+    if not conditions:
+        raise HTTPException(
+            status_code=422,
+            detail="Для исключения выберите позицию из справочника",
+        )
+
+    rows = (
+        await session.execute(
+            select(
+                AutoPart.id,
+                AutoPart.oem_number,
+                AutoPart.name,
+                Brand.name.label("brand_name"),
+            )
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(or_(*conditions))
+        )
+    ).all()
+    rows_by_id = {int(row.id): row for row in rows}
+    rows_by_oem: dict[str, list] = {}
+    for row in rows:
+        rows_by_oem.setdefault(str(row.oem_number), []).append(row)
+
+    aliases = await load_provider_filter_brand_aliases(session)
+    result: list[dict[str, str]] = []
+    seen: set[int] = set()
+    for item in raw_positions:
+        selected = None
+        try:
+            selected = rows_by_id.get(int(item.get("autopart_id")))
+        except (TypeError, ValueError):
+            pass
+        if selected is None:
+            normalized_oem = preprocess_oem_number(str(item.get("oem") or ""))
+            requested_brand = canonical_provider_filter_brand(
+                item.get("brand"), aliases
+            )
+            for candidate in rows_by_oem.get(normalized_oem, []):
+                candidate_brand = canonical_provider_filter_brand(
+                    candidate.brand_name,
+                    aliases,
+                )
+                if candidate_brand == requested_brand:
+                    selected = candidate
+                    break
+        if selected is None:
+            brand = str(item.get("brand") or "").strip()
+            oem = str(item.get("oem") or "").strip()
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Позиция {brand} {oem} не найдена в справочнике. "
+                    "Выберите её из подсказок по артикулу."
+                ),
+            )
+        if int(selected.id) in seen:
+            continue
+        seen.add(int(selected.id))
+        result.append(
+            {
+                "autopart_id": str(int(selected.id)),
+                "brand": str(selected.brand_name),
+                "oem": str(selected.oem_number),
+                "name": str(selected.name or ""),
+            }
+        )
+    return result
 
 
 async def _clear_order_insights_config_selection(
@@ -1776,6 +1872,12 @@ async def set_provider_pricelist_config(
         is_active=bool(config_in.is_active),
     )
     await _validate_incoming_price_mailbox(session, config_in.incoming_email_account_id)
+    create_payload = config_in.model_dump()
+    create_payload["exclude_positions"] = await _canonicalize_pricelist_exclude_positions(
+        session,
+        create_payload.get("exclude_positions"),
+    )
+    config_in = ProviderPriceListConfigCreate.model_validate(create_payload)
 
     new_config = await crud_provider_pricelist_config.create(
         provider_id=provider_id, config_in=config_in, session=session
@@ -1826,6 +1928,13 @@ async def update_provider_pricelist_config(
         and config_in.incoming_email_account_id != previous_mailbox_id
     )
     update_payload = config_in.model_dump(exclude_unset=True)
+    if "exclude_positions" in update_payload:
+        update_payload["exclude_positions"] = (
+            await _canonicalize_pricelist_exclude_positions(
+                session,
+                update_payload.get("exclude_positions"),
+            )
+        )
     if update_payload.get("is_active") is False:
         update_payload["use_for_order_insights"] = False
     next_use_for_order_insights = bool(
@@ -1874,6 +1983,7 @@ async def update_provider_pricelist_config(
 )
 async def parse_provider_pricelist_excludes(
     file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
 ):
     filename = file.filename or ""
     if "." not in filename:
@@ -1882,6 +1992,7 @@ async def parse_provider_pricelist_excludes(
     file_content = await file.read()
     try:
         items = await asyncio.to_thread(parse_exclude_positions_file, extension, file_content)
+        items = await _canonicalize_pricelist_exclude_positions(session, items)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:

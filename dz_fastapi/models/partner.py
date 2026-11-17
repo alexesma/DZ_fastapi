@@ -949,6 +949,7 @@ class ProviderPriceListConfig(Base):
     # у части поставщиков заказ разбирает робот и требует код склада в теме.
     order_email_subject = Column(String(255), nullable=True)
     order_email_to = Column(String(500), nullable=True)
+    order_emails = Column(JSON, default=list, nullable=False)
     min_price = Column(Float, nullable=True)
     max_price = Column(Float, nullable=True)
     min_quantity = Column(Integer, nullable=True)

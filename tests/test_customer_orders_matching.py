@@ -696,22 +696,26 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "source_overrides,mailing_brands",
+    "source_overrides,mailing_brands,exclude_positions",
     [
-        ({"min_price": 150}, []),
-        ({}, ["TOYOTA"]),
+        ({"min_price": 150}, [], []),
+        ({}, ["TOYOTA"], []),
+        ({}, [], [{"brand": "HAVAL", "oem": "SMD359158"}]),
     ],
 )
 async def test_build_current_offers_respects_export_source_limits(
     monkeypatch,
     source_overrides,
     mailing_brands,
+    exclude_positions,
 ):
     source_fields = {
         "enabled": True,
         "provider_config_id": 101,
         "provider_config": SimpleNamespace(
             mailing_included_brands=mailing_brands,
+            exclude_positions=exclude_positions,
+            excluded_brands=[],
         ),
         "markup": 1,
         "brand_markups": {},

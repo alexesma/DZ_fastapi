@@ -103,6 +103,8 @@ from dz_fastapi.services.process import (
     _apply_source_filters,
     _apply_source_markups,
     _load_brand_filter_aliases,
+    apply_provider_filters_to_dataframe,
+    load_provider_filter_brand_aliases,
 )
 from dz_fastapi.services.resend_api import fetch_received_emails_for_address
 
@@ -769,10 +771,22 @@ async def _get_out_account(session: AsyncSession, purpose: str):
     return accounts[0] if accounts else None
 
 
-def _normalize_email_list(values: Optional[List[str]]) -> List[str]:
+def _normalize_email_list(values: object) -> List[str]:
     if not values:
         return []
-    return [str(v).strip().lower() for v in values if str(v).strip()]
+    if isinstance(values, str):
+        raw_values = re.split(r"[;,]", values)
+    elif isinstance(values, (list, tuple, set)):
+        raw_values = values
+    else:
+        raw_values = [values]
+    return list(
+        dict.fromkeys(
+            str(value).strip().lower()
+            for value in raw_values
+            if str(value).strip()
+        )
+    )
 
 
 def _config_sender_emails(config: CustomerOrderConfig) -> list[str]:
@@ -1798,6 +1812,11 @@ async def _build_current_offers(
     brand_filter_aliases = (
         await _load_brand_filter_aliases(session) if session is not None else {}
     )
+    provider_filter_brand_aliases = (
+        await load_provider_filter_brand_aliases(session)
+        if session is not None
+        else {}
+    )
     combined_data = []
     for source in sources:
         if not source.enabled:
@@ -1812,6 +1831,13 @@ async def _build_current_offers(
             latest_pl.id,
             session,
             oem_numbers=required_oems,
+        )
+        if df.empty:
+            continue
+        df = apply_provider_filters_to_dataframe(
+            df,
+            getattr(source, "provider_config", None),
+            brand_aliases=provider_filter_brand_aliases,
         )
         if df.empty:
             continue
@@ -6440,12 +6466,16 @@ async def send_supplier_orders(
                 or default_stub_email
             )
         )
-        original_recipient = (
-            str(getattr(order.provider_config, "order_email_to", "") or "").strip()
-            or _build_supplier_order_recipient(
-                provider,
-                use_override=False,
+        configured_recipients = _normalize_email_list(
+            getattr(order.provider_config, "order_emails", None)
+        )
+        if not configured_recipients:
+            configured_recipients = _normalize_email_list(
+                getattr(order.provider_config, "order_email_to", None)
             )
+        original_recipient = (
+            ",".join(configured_recipients)
+            or _build_supplier_order_recipient(provider, use_override=False)
         )
         to_email = override_email or original_recipient
         if not to_email:

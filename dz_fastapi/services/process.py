@@ -2627,31 +2627,97 @@ def _normalize_exclude_positions(exclude_positions):
     return normalized
 
 
+def canonical_provider_filter_brand(
+    value: object,
+    brand_aliases: dict[str, str] | None = None,
+) -> str:
+    """Normalize spelling and collapse a registered synonym family."""
+    normalized = normalize_mixed_cyrillic(str(value or "")).casefold()
+    normalized = re.sub(r"[^0-9a-zа-яё]+", "", normalized)
+    return (brand_aliases or {}).get(normalized, normalized)
+
+
+async def load_provider_filter_brand_aliases(
+    session: AsyncSession,
+) -> dict[str, str]:
+    """Map every catalog brand spelling to one synonym-family key."""
+    brands = (
+        await session.execute(select(Brand.id, Brand.name, Brand.main_brand))
+    ).all()
+    relations = (
+        await session.execute(
+            select(brand_synonyms.c.brand_id, brand_synonyms.c.synonym_id)
+        )
+    ).all()
+    names = {int(row.id): str(row.name or "") for row in brands}
+    main_ids = {int(row.id) for row in brands if bool(row.main_brand)}
+    adjacency: dict[int, set[int]] = {brand_id: set() for brand_id in names}
+    for brand_id, synonym_id in relations:
+        left = int(brand_id)
+        right = int(synonym_id)
+        adjacency.setdefault(left, set()).add(right)
+        adjacency.setdefault(right, set()).add(left)
+
+    aliases: dict[str, str] = {}
+    visited: set[int] = set()
+    for brand_id in names:
+        if brand_id in visited:
+            continue
+        component: set[int] = set()
+        pending = [brand_id]
+        while pending:
+            current = pending.pop()
+            if current in component:
+                continue
+            component.add(current)
+            pending.extend(adjacency.get(current, ()))
+        visited.update(component)
+        preferred = sorted(component & main_ids) or sorted(component)
+        canonical_name = names.get(preferred[0], "")
+        canonical_key = canonical_provider_filter_brand(canonical_name)
+        for component_id in component:
+            alias_key = canonical_provider_filter_brand(names.get(component_id, ""))
+            if alias_key:
+                aliases[alias_key] = canonical_key
+    return aliases
+
+
 def _normalize_excluded_brands(excluded_brands):
     return _normalize_brand_name_set(excluded_brands)
 
 
-def _apply_provider_filters(items, provider_list_conf):
+def _apply_provider_filters(
+    items,
+    provider_list_conf,
+    *,
+    brand_aliases: dict[str, str] | None = None,
+):
     if not items:
         return items
-    min_price = provider_list_conf.min_price
-    max_price = provider_list_conf.max_price
-    min_quantity = provider_list_conf.min_quantity
-    max_quantity = provider_list_conf.max_quantity
-    exclude_positions = _normalize_exclude_positions(provider_list_conf.exclude_positions)
-    excluded_brands = _normalize_excluded_brands(
-        getattr(provider_list_conf, "excluded_brands", [])
-    )
+    min_price = getattr(provider_list_conf, "min_price", None)
+    max_price = getattr(provider_list_conf, "max_price", None)
+    min_quantity = getattr(provider_list_conf, "min_quantity", None)
+    max_quantity = getattr(provider_list_conf, "max_quantity", None)
+    exclude_positions = {
+        (canonical_provider_filter_brand(brand, brand_aliases), preprocess_oem_number(oem))
+        for brand, oem in _normalize_exclude_positions(
+            getattr(provider_list_conf, "exclude_positions", None)
+        )
+    }
+    excluded_brands = {
+        canonical_provider_filter_brand(value, brand_aliases)
+        for value in getattr(provider_list_conf, "excluded_brands", []) or []
+    }
 
     filtered = []
     removed = 0
     for item in items:
         price = float(item.get("price", 0))
         quantity = int(item.get("quantity", 0))
-        brand = str(item.get("brand", "")).strip().upper()
-        oem = str(item.get("oem_number", "")).strip().upper()
+        brand = canonical_provider_filter_brand(item.get("brand", ""), brand_aliases)
+        oem = preprocess_oem_number(str(item.get("oem_number", "")))
 
-        if " ".join(brand.split()).casefold() in excluded_brands:
+        if brand in excluded_brands:
             removed += 1
             continue
 
@@ -2676,6 +2742,29 @@ def _apply_provider_filters(items, provider_list_conf):
     if removed:
         logger.debug(f"Removed {removed} items by provider filters")
     return filtered
+
+
+def apply_provider_filters_to_dataframe(
+    df: pd.DataFrame,
+    provider_list_conf: ProviderPriceListConfig | None,
+    *,
+    brand_aliases: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    """Apply current provider rules to an already imported price snapshot.
+
+    Configuration changes must affect customer exports and order allocation
+    immediately, without waiting for the supplier to send the next file.
+    """
+    if df.empty or provider_list_conf is None:
+        return df
+    filtered = _apply_provider_filters(
+        df.to_dict(orient="records"),
+        provider_list_conf,
+        brand_aliases=brand_aliases,
+    )
+    if not filtered:
+        return df.iloc[0:0].copy()
+    return pd.DataFrame.from_records(filtered, columns=df.columns)
 
 
 def parse_exclude_positions_file(file_extension, file_content):
@@ -2786,7 +2875,12 @@ async def process_provider_pricelist(
         logger.error(f"Error during data cleaning: {e}")
         raise HTTPException(status_code=400, detail="Error during data cleaning.")
 
-    deduplicated_data = _apply_provider_filters(deduplicated_data, provider_list_conf)
+    provider_filter_brand_aliases = await load_provider_filter_brand_aliases(session)
+    deduplicated_data = _apply_provider_filters(
+        deduplicated_data,
+        provider_list_conf,
+        brand_aliases=provider_filter_brand_aliases,
+    )
     stats["rows_after_filters"] = int(len(deduplicated_data))
     logger.info(
         "Prepared provider pricelist payload: provider_id=%s "
@@ -3730,6 +3824,7 @@ async def _process_customer_pricelist_unlocked(
     catalog_filter_rules_enabled = _uses_catalog_filter_rules(config)
     catalog_filter_cache: dict[str, Any] = {}
     brand_filter_aliases = await _load_brand_filter_aliases(session)
+    provider_filter_brand_aliases = await load_provider_filter_brand_aliases(session)
     source_pricelist_ids: list[int] = []
     source_filter_summary: list[dict[str, Any]] = []
     source_freshness_summary: list[dict[str, Any]] = []
@@ -3767,6 +3862,11 @@ async def _process_customer_pricelist_unlocked(
                         ProviderPriceListConfig,
                         provider_config_ids[0],
                     )
+            df = apply_provider_filters_to_dataframe(
+                df,
+                provider_config,
+                brand_aliases=provider_filter_brand_aliases,
+            )
             df = _apply_provider_mailing_brand_whitelist(df, provider_config)
             if df.empty:
                 continue
@@ -3835,6 +3935,11 @@ async def _process_customer_pricelist_unlocked(
                         filtered_df, session, catalog_filter_cache
                     )
                 source_rows_before = len(filtered_df)
+                filtered_df = apply_provider_filters_to_dataframe(
+                    filtered_df,
+                    source.provider_config,
+                    brand_aliases=provider_filter_brand_aliases,
+                )
                 provider_mailing_brands = list(
                     getattr(
                         source.provider_config,

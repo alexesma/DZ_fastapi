@@ -42,6 +42,7 @@ from dz_fastapi.services.customer_orders import (
     _build_supplier_order_recipient,
     _customer_order_auto_reply_enabled,
     _customer_order_reply_override_email,
+    _normalize_email_list,
     _parse_excel_order,
     _parse_xls_order,
     _select_order_attachment,
@@ -55,6 +56,16 @@ from dz_fastapi.services.supplier_order_responses import (
     expire_document_missing_items,
     process_supplier_response_messages,
 )
+
+
+def test_supplier_order_recipient_list_accepts_legacy_and_multiple_values():
+    assert _normalize_email_list("First@Example.com; second@example.com") == [
+        "first@example.com",
+        "second@example.com",
+    ]
+    assert _normalize_email_list(
+        ["first@example.com", "FIRST@example.com", "third@example.com"]
+    ) == ["first@example.com", "third@example.com"]
 
 
 @pytest.mark.asyncio
@@ -901,7 +912,8 @@ async def test_send_supplier_orders_uses_subject_and_recipient_from_pricelist_co
         price_col=4,
         name_price="Ixora APR",
         order_email_subject="UAI8184172/APR",
-        order_email_to="robot@example.com",
+        order_email_to="legacy@example.com",
+        order_emails=["robot@example.com", "copy@example.com"],
     )
     test_session.add(config)
     await test_session.flush()
@@ -943,7 +955,10 @@ async def test_send_supplier_orders_uses_subject_and_recipient_from_pricelist_co
     result = await send_supplier_orders(test_session, [order.id])
 
     assert result == {"sent": 1, "failed": 0}
-    assert sent_calls == [{"to_email": "robot@example.com", "subject": "UAI8184172/APR"}]
+    assert sent_calls == [{
+        "to_email": "robot@example.com,copy@example.com",
+        "subject": "UAI8184172/APR",
+    }]
 
 
 @pytest.mark.asyncio
