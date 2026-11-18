@@ -962,6 +962,138 @@ async def test_send_supplier_orders_uses_subject_and_recipient_from_pricelist_co
 
 
 @pytest.mark.asyncio
+async def test_send_supplier_orders_uses_config_from_customer_items_when_order_unbound(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    created_customers,
+):
+    provider = created_providers[0]
+    provider.email_contact = "manager@example.com"
+    provider.order_stub_enabled = False
+    config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=3,
+        price_col=4,
+        name_price="ZZ",
+        order_emails=["robot@example.com"],
+    )
+    test_session.add(config)
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="UNBOUND-1",
+        status="SENT",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    customer_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem=created_autopart.oem_number,
+        brand="TEST",
+        name="Item",
+        requested_qty=1,
+        requested_price=50,
+        ship_qty=1,
+        status="SUPPLIER",
+        provider_config_id=config.id,
+    )
+    test_session.add(customer_item)
+    order = SupplierOrder(
+        provider_id=provider.id,
+        provider_config_id=None,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=order.id,
+            customer_order_item_id=customer_item.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+            price=50.0,
+        )
+    )
+    await test_session.commit()
+
+    sent_calls = []
+
+    async def fake_send(to_email, subject, body, attachment, filename, use_tls, **kwargs):
+        sent_calls.append(to_email)
+
+    async def fake_get_out_account(session, purpose):
+        return None
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        fake_send,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._get_out_account",
+        fake_get_out_account,
+    )
+
+    result = await send_supplier_orders(test_session, [order.id])
+
+    assert result == {"sent": 1, "failed": 0}
+    assert sent_calls == ["robot@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_send_supplier_orders_marks_error_when_transport_returns_false(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = "manager@example.com"
+    provider.order_stub_enabled = False
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=order.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+            price=50.0,
+        )
+    )
+    await test_session.commit()
+
+    async def fake_send(*args, **kwargs):
+        return False
+
+    async def fake_get_out_account(session, purpose):
+        return None
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        fake_send,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._get_out_account",
+        fake_get_out_account,
+    )
+
+    result = await send_supplier_orders(test_session, [order.id])
+
+    await test_session.refresh(order)
+    assert result == {"sent": 0, "failed": 1}
+    assert order.status == SUPPLIER_ORDER_STATUS.ERROR
+    assert order.sent_at is None
+    assert "не отправлено" in order.last_send_error
+
+
+@pytest.mark.asyncio
 async def test_process_supplier_response_messages_updates_confirmed_quantities(
     monkeypatch,
     test_session,

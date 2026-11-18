@@ -2666,7 +2666,7 @@ async def _send_email_attachment_async(
     use_tls: bool,
     **kwargs,
 ):
-    await asyncio.to_thread(
+    return await asyncio.to_thread(
         send_email_with_attachment,
         to_email,
         subject,
@@ -6421,6 +6421,42 @@ async def process_customer_orders(
             )
 
 
+async def _resolve_supplier_order_config(
+    session: AsyncSession,
+    order: SupplierOrder,
+) -> Optional[ProviderPriceListConfig]:
+    """Настройка прайса для адресов, темы и пр. при отправке заказа.
+
+    Если у поставщика не включено деление заказов по прайсам, заказ хранится
+    без ``provider_config_id``; тогда настройку берём из позиций клиентского
+    заказа, по которым он собран. Однозначной считаем единственную настройку.
+    """
+    if order.provider_config is not None:
+        return order.provider_config
+    config_ids = {
+        int(config_id)
+        for config_id in (
+            await session.scalars(
+                select(CustomerOrderItem.provider_config_id)
+                .join(
+                    SupplierOrderItem,
+                    SupplierOrderItem.customer_order_item_id
+                    == CustomerOrderItem.id,
+                )
+                .where(
+                    SupplierOrderItem.supplier_order_id == order.id,
+                    CustomerOrderItem.provider_config_id.is_not(None),
+                )
+                .distinct()
+            )
+        ).all()
+        if config_id is not None
+    }
+    if len(config_ids) != 1:
+        return None
+    return await session.get(ProviderPriceListConfig, config_ids.pop())
+
+
 async def send_supplier_orders(
     session: AsyncSession,
     supplier_order_ids: List[int],
@@ -6466,12 +6502,13 @@ async def send_supplier_orders(
                 or default_stub_email
             )
         )
+        order_config = await _resolve_supplier_order_config(session, order)
         configured_recipients = _normalize_email_list(
-            getattr(order.provider_config, "order_emails", None)
+            getattr(order_config, "order_emails", None)
         )
         if not configured_recipients:
             configured_recipients = _normalize_email_list(
-                getattr(order.provider_config, "order_email_to", None)
+                getattr(order_config, "order_email_to", None)
             )
         original_recipient = (
             ",".join(configured_recipients)
@@ -6502,14 +6539,14 @@ async def send_supplier_orders(
             )
             subject = f"Заказ поставщику № {order.id}"
             provider_config_name = str(
-                getattr(order.provider_config, "name_price", "") or ""
+                getattr(order_config, "name_price", "") or ""
             ).strip()
             if provider_config_name:
                 subject = f"{subject} / {provider_config_name}"
             # Робот поставщика разбирает заказ по коду в теме — тема из
             # настроек прайса заменяет стандартную целиком.
             custom_subject = str(
-                getattr(order.provider_config, "order_email_subject", "") or ""
+                getattr(order_config, "order_email_subject", "") or ""
             ).strip()
             if custom_subject:
                 subject = custom_subject
@@ -6534,7 +6571,7 @@ async def send_supplier_orders(
                 len(attachment_bytes),
                 attachment_bytes[:8].hex(),
             )
-            await _send_email_attachment_async(
+            delivered = await _send_email_attachment_async(
                 to_email,
                 subject,
                 body,
@@ -6543,6 +6580,14 @@ async def send_supplier_orders(
                 True,
                 **smtp_kwargs,
             )
+            # Транспорт почты не бросает исключение, а возвращает False
+            # (например, SMTP-порт закрыт): без проверки заказ ложно
+            # помечался бы отправленным.
+            if delivered is False:
+                raise RuntimeError(
+                    "Письмо не отправлено: ошибка почтового транспорта, "
+                    "подробности в логе"
+                )
             order.status = SUPPLIER_ORDER_STATUS.SENT
             order.sent_at = now_moscow()
             order.last_send_error = None

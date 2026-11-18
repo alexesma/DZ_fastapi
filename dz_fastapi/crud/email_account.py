@@ -26,7 +26,9 @@ class CRUDEmailAccount(
         self, session: AsyncSession, purpose: str
     ) -> List[EmailAccount]:
         result = await session.execute(
-            select(EmailAccount).where(EmailAccount.is_active.is_(True))
+            select(EmailAccount)
+            .where(EmailAccount.is_active.is_(True))
+            .order_by(EmailAccount.id)
         )
         accounts = result.scalars().all()
         purpose = purpose.lower()
