@@ -18,6 +18,7 @@ from dz_fastapi.models.diadoc import (
 )
 from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_document_by_id
+from dz_fastapi.services.diadoc_marking_status import retain_gis_receipts
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -200,6 +201,7 @@ async def _refresh_incoming_docflows(
         row = by_id.get((document.message_id, document.entity_id))
         if row is None:
             continue
+        await session.refresh(document, ["last_docflow_payload"], with_for_update=True)
         state = derive_docflow_state(row, current_status=str(document.status or "synced"))
         document.docflow_is_finished = state["is_finished"]
         document.docflow_status_severity = state["docflow_status_severity"]
@@ -207,7 +209,7 @@ async def _refresh_incoming_docflows(
         document.recipient_response_status = state["recipient_response_status"]
         document.revocation_status = state["revocation_status"]
         document.docflow_checked_at = state["checked_at"]
-        document.last_docflow_payload = row
+        document.last_docflow_payload = retain_gis_receipts(document.last_docflow_payload, row)
         session.add(document)
         updated += 1
     await session.flush()

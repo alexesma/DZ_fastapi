@@ -919,6 +919,26 @@ async def test_pricelist_config_resolves_exclusion_and_multiple_order_emails(
         "name": "Фильтр",
     }]
 
+    updated = await async_client.patch(
+        (
+            f"/providers/{created_providers[0].id}/pricelist-config/"
+            f"{data['id']}/"
+        ),
+        json={
+            "order_emails": [
+                "orders@auto-ga.ru",
+                "backup@auto-ga.ru",
+                "third@auto-ga.ru",
+            ]
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["order_emails"] == [
+        "orders@auto-ga.ru",
+        "backup@auto-ga.ru",
+        "third@auto-ga.ru",
+    ]
+
     invalid = await async_client.patch(
         f"/providers/{created_providers[0].id}/pricelist-config/{data['id']}/",
         json={"exclude_positions": [{"brand": "RANDOM", "oem": "UNKNOWN"}]},
@@ -3486,6 +3506,7 @@ async def test_smtp_customer_pricelist_uses_external_relay(
         smtp_host="smtp.example.com",
         smtp_port=465,
         smtp_use_ssl=True,
+        smtp_via_relay=True,
         purposes=["prices_out"],
         is_active=True,
     )
@@ -3804,13 +3825,30 @@ async def test_customer_pricelist_tracks_direct_and_relay_delivery_separately(
         purposes=["prices_out"],
         is_active=True,
     )
-    test_session.add_all([direct_account, relay_account])
+    selectel_account = EmailAccount(
+        name="Customer price Selectel direct",
+        email="price-selectel@dragonzap.online",
+        password="secret",
+        transport="smtp",
+        smtp_host="smtp.mail.selcloud.ru",
+        smtp_port=1127,
+        smtp_use_ssl=True,
+        smtp_username="selectel-login",
+        smtp_via_relay=False,
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    test_session.add_all([direct_account, relay_account, selectel_account])
     await test_session.flush()
     config = CustomerPriceListConfig(
         customer_id=customer.id,
         name="DIRECT AND RELAY CONFIG",
         outgoing_email_account_id=direct_account.id,
-        outgoing_email_account_ids=[direct_account.id, relay_account.id],
+        outgoing_email_account_ids=[
+            direct_account.id,
+            selectel_account.id,
+            relay_account.id,
+        ],
     )
     test_session.add(config)
     await test_session.flush()
@@ -3854,6 +3892,10 @@ async def test_customer_pricelist_tracks_direct_and_relay_delivery_separately(
         ("direct", "sent"),
         ("relay", "queued"),
     }
+    assert sum(
+        item["kind"] == "direct" and item["status"] == "sent"
+        for item in channels
+    ) == 2
     outbox = (
         await test_session.scalars(
             select(EmailOutbox).where(

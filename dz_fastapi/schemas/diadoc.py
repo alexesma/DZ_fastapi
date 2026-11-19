@@ -231,6 +231,7 @@ class DiadocInboundDocumentOut(BaseModel):
     docflow_is_finished: bool | None = None
     docflow_status_severity: str | None = None
     docflow_status_text: str | None = None
+    gis_mt_receipts: list[dict[str, Any]] = Field(default_factory=list)
     recipient_response_status: str | None = None
     revocation_status: str | None = None
     docflow_checked_at: datetime | None = None
@@ -428,6 +429,7 @@ class DiadocOutgoingDocumentOut(BaseModel):
     docflow_is_finished: bool | None = None
     docflow_status_severity: str | None = None
     docflow_status_text: str | None = None
+    gis_mt_receipts: list[dict[str, Any]] = Field(default_factory=list)
     recipient_response_status: str | None = None
     revocation_status: str | None = None
     # Статус ГИС ЭПД: заполнен только у перевозочных документов

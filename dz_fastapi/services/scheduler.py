@@ -1048,6 +1048,18 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    scheduler.add_job(
+        func=poll_gis_withdrawals_task,
+        trigger="interval",
+        minutes=3,
+        args=[app],
+        id="poll_gis_withdrawals",
+        name="Check GIS MT withdrawals",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
     # ── 8b2. Напоминание о входе в ГИС МТ (токен живёт ~10 часов) ────────
     scheduler.add_job(
         func=remind_gis_mt_login_task,
@@ -2085,6 +2097,13 @@ async def auto_draft_outgoing_upd_task(app: FastAPI):
         except Exception as exc:  # noqa: BLE001
             logger.error("Auto UPD draft task failed: %s", exc, exc_info=True)
             await session.rollback()
+
+
+async def poll_gis_withdrawals_task(app: FastAPI):
+    from dz_fastapi.services.gis_mt import poll_withdrawals
+
+    async with app.state.session_factory() as session:
+        await poll_withdrawals(session)
 
 
 async def remind_gis_mt_login_task(app: FastAPI):

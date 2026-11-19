@@ -45,3 +45,20 @@ def test_email_account_response_defaults_imap_folder():
 
     assert payload.imap_folder == "INBOX"
     assert payload.imap_additional_folders == []
+
+
+def test_email_account_normalizes_direct_smtp_settings():
+    payload = EmailAccountCreate(
+        name="Selectel prices",
+        email="prices@dragonzap.online",
+        password="secret",
+        smtp_host=" smtp.mail.selcloud.ru ",
+        smtp_port=1127,
+        smtp_use_ssl=True,
+        smtp_username=" resource-login ",
+        smtp_via_relay=False,
+    )
+
+    assert payload.smtp_host == "smtp.mail.selcloud.ru"
+    assert payload.smtp_username == "resource-login"
+    assert payload.smtp_via_relay is False

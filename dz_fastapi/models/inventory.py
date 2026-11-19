@@ -157,6 +157,7 @@ class MarkingCodeStatus(StrEnum):
     RESERVED = "reserved"
     SHIPPED = "shipped"
     RETURNED_TO_SUPPLIER = "returned_to_supplier"
+    WITHDRAWAL_PENDING = "withdrawal_pending"
     WITHDRAWN = "withdrawn"
     ERROR = "error"
 

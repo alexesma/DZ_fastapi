@@ -15,6 +15,9 @@ class EmailAccountBase(BaseModel):
     email: EmailStr
     password: str = ""
     transport: Literal["smtp", "gmail_api", "resend_api"] = "smtp"
+    outbound_transport: Optional[
+        Literal["smtp", "gmail_api", "resend_api"]
+    ] = None
     resend_api_key: Optional[str] = None
     resend_timeout: int = 20
     imap_host: Optional[str] = None
@@ -24,6 +27,8 @@ class EmailAccountBase(BaseModel):
     smtp_host: Optional[str] = None
     smtp_port: int = 465
     smtp_use_ssl: bool = True
+    smtp_username: Optional[str] = None
+    smtp_via_relay: bool = True
     purposes: List[str] = Field(default_factory=list)
     is_active: bool = True
 
@@ -39,7 +44,7 @@ class EmailAccountBase(BaseModel):
             return ""
         return str(v)
 
-    @field_validator("imap_host", "smtp_host", mode="before")
+    @field_validator("imap_host", "smtp_host", "smtp_username", mode="before")
     def strip_optional_mail_fields(cls, v):
         if v is None:
             return None
@@ -66,6 +71,9 @@ class EmailAccountUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     transport: Optional[Literal["smtp", "gmail_api", "resend_api"]] = None
+    outbound_transport: Optional[
+        Literal["smtp", "gmail_api", "resend_api"]
+    ] = None
     resend_api_key: Optional[str] = None
     resend_timeout: Optional[int] = None
     imap_host: Optional[str] = None
@@ -75,6 +83,8 @@ class EmailAccountUpdate(BaseModel):
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_use_ssl: Optional[bool] = None
+    smtp_username: Optional[str] = None
+    smtp_via_relay: Optional[bool] = None
     purposes: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
@@ -83,6 +93,7 @@ class EmailAccountUpdate(BaseModel):
         "password",
         "imap_host",
         "smtp_host",
+        "smtp_username",
         mode="before",
     )
     def strip_update_mail_fields(cls, v):
@@ -140,3 +151,16 @@ class EmailAccountTestResponse(BaseModel):
 
 class EmailAccountGoogleTokenRequest(BaseModel):
     refresh_token: str
+
+
+class EmailAccountSelectelMigrationRequest(BaseModel):
+    smtp_username: str
+    smtp_password: str
+    account_ids: List[int] = Field(default_factory=list)
+
+    @field_validator("smtp_username", "smtp_password", mode="before")
+    def selectel_credentials_not_empty(cls, v):
+        value = str(v or "").strip()
+        if not value:
+            raise ValueError("Selectel SMTP credentials must not be empty")
+        return value

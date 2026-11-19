@@ -6,8 +6,10 @@ import os
 import re
 import smtplib
 import socket
+import threading
 import time
 import unicodedata
+from collections import deque
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
@@ -69,6 +71,24 @@ GMAIL_API_TIMEOUT = int(os.getenv("GMAIL_API_TIMEOUT", 20))
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_TIMEOUT = int(os.getenv("RESEND_API_TIMEOUT", "20"))
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL")
+SMTP_DEBUG = os.getenv("SMTP_DEBUG", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SELECTEL_SMTP_HOST = "smtp.mail.selcloud.ru"
+SELECTEL_SMTP_RATE_LIMIT = max(
+    int(os.getenv("SELECTEL_SMTP_RATE_LIMIT", "90")),
+    1,
+)
+SELECTEL_SMTP_RATE_WINDOW_SECONDS = max(
+    int(os.getenv("SELECTEL_SMTP_RATE_WINDOW_SECONDS", "300")),
+    1,
+)
+_selectel_smtp_rate_events: dict[str, deque[float]] = {}
+_selectel_smtp_rate_locks: dict[str, threading.Lock] = {}
+_selectel_smtp_rate_locks_guard = threading.Lock()
 
 DOWNLOAD_FOLDER = "uploads/pricelistprovider"
 PROCESSED_FOLDER = "processed"
@@ -562,9 +582,17 @@ def _normalize_recipients(
     return recipients
 
 
+def get_outbound_email_transport(account) -> str:
+    transport = (
+        getattr(account, "outbound_transport", None)
+        or getattr(account, "transport", "smtp")
+        or "smtp"
+    )
+    return str(transport).strip().lower()
+
+
 def build_email_delivery_kwargs(account) -> dict:
-    transport = getattr(account, "transport", "smtp") or "smtp"
-    transport = transport.strip().lower()
+    transport = get_outbound_email_transport(account)
     if transport == "gmail_api":
         return {
             "transport": "gmail_api",
@@ -584,7 +612,7 @@ def build_email_delivery_kwargs(account) -> dict:
         "transport": "smtp",
         "smtp_host": account.smtp_host,
         "smtp_port": account.smtp_port,
-        "smtp_user": account.email,
+        "smtp_user": getattr(account, "smtp_username", None) or account.email,
         "smtp_password": account.password,
         "from_email": account.email,
         "use_ssl": bool(account.smtp_use_ssl),
@@ -592,8 +620,7 @@ def build_email_delivery_kwargs(account) -> dict:
 
 
 def describe_email_delivery(account) -> str:
-    transport = getattr(account, "transport", "smtp") or "smtp"
-    transport = transport.strip().lower()
+    transport = get_outbound_email_transport(account)
     if transport == "gmail_api":
         return "transport=gmail_api oauth_provider=%s has_refresh_token=%s" % (
             getattr(account, "oauth_provider", None),
@@ -604,10 +631,15 @@ def describe_email_delivery(account) -> str:
             bool(getattr(account, "resend_api_key", None)),
             getattr(account, "resend_timeout", None),
         )
-    return "transport=smtp smtp_host=%s smtp_port=%s smtp_ssl=%s" % (
+    return (
+        "transport=smtp smtp_host=%s smtp_port=%s smtp_ssl=%s "
+        "smtp_user=%s via_relay=%s"
+    ) % (
         getattr(account, "smtp_host", None),
         getattr(account, "smtp_port", None),
         bool(getattr(account, "smtp_use_ssl", True)),
+        getattr(account, "smtp_username", None) or getattr(account, "email", None),
+        getattr(account, "smtp_via_relay", True) is not False,
     )
 
 
@@ -760,6 +792,40 @@ def _create_email_message(
     return msg
 
 
+def _wait_for_selectel_smtp_rate_limit(
+    smtp_host: str,
+    smtp_user: str,
+) -> None:
+    if smtp_host.strip().lower() != SELECTEL_SMTP_HOST:
+        return
+    limiter_key = f"{smtp_host.strip().lower()}:{smtp_user.strip().casefold()}"
+    with _selectel_smtp_rate_locks_guard:
+        lock = _selectel_smtp_rate_locks.setdefault(
+            limiter_key,
+            threading.Lock(),
+        )
+        events = _selectel_smtp_rate_events.setdefault(limiter_key, deque())
+
+    with lock:
+        while True:
+            now = time.monotonic()
+            cutoff = now - SELECTEL_SMTP_RATE_WINDOW_SECONDS
+            while events and events[0] <= cutoff:
+                events.popleft()
+            if len(events) < SELECTEL_SMTP_RATE_LIMIT:
+                events.append(now)
+                return
+            wait_seconds = max(
+                events[0] + SELECTEL_SMTP_RATE_WINDOW_SECONDS - now,
+                0.01,
+            )
+            logger.info(
+                "Selectel SMTP rate limit reached; waiting %.1f seconds",
+                wait_seconds,
+            )
+            time.sleep(wait_seconds)
+
+
 def _send_email_via_smtp(
     *,
     to_email,
@@ -803,6 +869,7 @@ def _send_email_via_smtp(
     )
 
     try:
+        _wait_for_selectel_smtp_rate_limit(smtp_host, smtp_user)
         logger.info(
             "Sending email via SMTP host=%s resolved_host=%s family=%s "
             "port=%s user=%s ssl=%s to=%s",
@@ -829,7 +896,7 @@ def _send_email_via_smtp(
                 resolved_host=resolved_host,
             )
         with smtp_ctx as smtp:
-            smtp.set_debuglevel(1)
+            smtp.set_debuglevel(1 if SMTP_DEBUG else 0)
             logger.debug(
                 "SMTP connection established for host=%s",
                 smtp_host,

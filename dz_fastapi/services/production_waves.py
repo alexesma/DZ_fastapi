@@ -904,16 +904,27 @@ async def complete_production_wave(
                 code_rows = (
                     (
                         await session.execute(
-                            select(ProductMarkingCode).where(
+                            select(ProductMarkingCode)
+                            .where(
                                 ProductMarkingCode.code.in_(codes),
                                 ProductMarkingCode.stock_lot_id == lot.id,
                             )
+                            .order_by(ProductMarkingCode.id)
+                            .with_for_update(of=ProductMarkingCode)
+                            .execution_options(populate_existing=True)
                         )
                     )
                     .scalars()
                     .all()
                 )
                 for code_row in code_rows:
+                    if code_row.status in (
+                        MarkingCodeStatus.WITHDRAWAL_PENDING,
+                        MarkingCodeStatus.WITHDRAWN,
+                    ):
+                        raise ValueError(
+                            f"Код {code_row.code} недоступен для производства после заявки на вывод"
+                        )
                     code_row.autopart_id = item.finished_autopart_id
                     code_row.warehouse_id = warehouse.id
                     code_row.storage_location_id = location.id

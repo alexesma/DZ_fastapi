@@ -122,9 +122,11 @@ async def register_receipt_marking_codes(
 
     now = now_moscow()
     existing_rows = await session.execute(
-        select(ProductMarkingCode).where(
-            ProductMarkingCode.code.in_(normalized_codes)
-        )
+        select(ProductMarkingCode)
+        .where(ProductMarkingCode.code.in_(normalized_codes))
+        .order_by(ProductMarkingCode.id)
+        .with_for_update(of=ProductMarkingCode)
+        .execution_options(populate_existing=True)
     )
     existing_by_code = {
         str(row.code): row for row in existing_rows.scalars().all()
@@ -139,6 +141,8 @@ async def register_receipt_marking_codes(
             )
             session.add(row)
             await session.flush()
+        if row.status == MarkingCodeStatus.WITHDRAWAL_PENDING:
+            raise ValueError(f"Код {code} ожидает подтверждения вывода из оборота")
         row.status = MarkingCodeStatus.IN_STOCK
         row.autopart_id = stock_lot.autopart_id
         row.warehouse_id = (
@@ -257,16 +261,22 @@ async def return_marking_codes_to_supplier(
     if quantity <= 0 or not lot_ids:
         return []
     rows = (
-        await session.execute(
-            select(ProductMarkingCode)
-            .where(
-                ProductMarkingCode.stock_lot_id.in_(lot_ids),
-                ProductMarkingCode.status == MarkingCodeStatus.IN_STOCK,
+        (
+            await session.execute(
+                select(ProductMarkingCode)
+                .where(
+                    ProductMarkingCode.stock_lot_id.in_(lot_ids),
+                    ProductMarkingCode.status == MarkingCodeStatus.IN_STOCK,
+                )
+                .order_by(ProductMarkingCode.id.asc())
+                .limit(quantity)
+                .with_for_update(of=ProductMarkingCode)
+                .execution_options(populate_existing=True)
             )
-            .order_by(ProductMarkingCode.id.asc())
-            .limit(quantity)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not rows:
         return []
     now = now_moscow()
@@ -562,6 +572,8 @@ async def allocate_marking_codes_for_shipment_allocation(
         )
         .order_by(ProductMarkingCode.id.asc())
         .limit(quantity)
+        .with_for_update(of=ProductMarkingCode)
+        .execution_options(populate_existing=True)
     )
     marking_rows = list(rows.scalars().all())
     codes = [str(row.code) for row in marking_rows]

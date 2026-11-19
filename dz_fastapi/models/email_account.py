@@ -8,7 +8,10 @@ class EmailAccount(Base):
     name = Column(String(255), nullable=False, unique=True)
     email = Column(String(255), nullable=False, unique=True, index=True)
     password = Column(String(255), nullable=False)
+    # Incoming and outgoing transports can differ.  This is required for
+    # Selectel, which sends mail over SMTP but does not provide an inbox.
     transport = Column(String(32), nullable=False, default="smtp")
+    outbound_transport = Column(String(32), nullable=True)
     resend_api_key = Column(String(2048), nullable=True)
     resend_timeout = Column(Integer, default=20)
     resend_last_received_at = Column(DateTime(timezone=True), nullable=True)
@@ -32,6 +35,13 @@ class EmailAccount(Base):
     smtp_host = Column(String(255), nullable=True)
     smtp_port = Column(Integer, default=465)
     smtp_use_ssl = Column(Boolean, default=True)
+    # Some transactional SMTP providers issue a login that differs from the
+    # visible From address.  Falling back to ``email`` keeps all existing
+    # mailbox accounts compatible.
+    smtp_username = Column(String(255), nullable=True)
+    # Existing SMTP accounts are consumed by the Windows relay.  A per-account
+    # switch lets server-side providers (for example Selectel) send directly.
+    smtp_via_relay = Column(Boolean, default=True, nullable=False)
 
     purposes = Column(JSON, default=[])
     is_active = Column(Boolean, default=True)

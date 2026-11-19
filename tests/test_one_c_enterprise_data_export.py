@@ -207,6 +207,30 @@ def test_stock_adjustment_reference_matches_serialized_document():
     )
 
 
+def test_stock_receipt_exports_cost_and_quantity_with_stable_references():
+    payload = {
+        **DOCUMENT,
+        "document_type": "manual_receipt",
+        # A stock receipt uses acquisition cost, even if a price is also present.
+        "items": [{**ITEM, "price": "999.00", "cost_price": "100.00"}],
+    }
+    first = event_body_objects("stock_document", "posted", payload, COMPANY)
+    second = event_body_objects("stock_document", "posted", payload, COMPANY)
+    assert [node.tag.rsplit("}", 1)[-1] for node in first] == [
+        "Справочник.Номенклатура", "Документ.ОприходованиеТоваров",
+    ]
+    document = first[-1]
+    assert _value(document, "Товары/Строка/Количество") == "2"
+    assert _value(document, "Товары/Строка/Цена") == "100.00"
+    assert _value(document, "Товары/Строка/Сумма") == "200.00"
+    assert _value(document, "Проведен") == "true"
+    assert _value(document, "Товары/Строка/ЕдиницаИзмерения/ДанныеКлассификатора/Код") == "796"
+    assert _value(document, "Товары/Строка/ДанныеНоменклатуры/Номенклатура/Ссылка") == (
+        _value(first[0], "КлючевыеСвойства/Ссылка")
+    )
+    assert [ET.tostring(node) for node in first] == [ET.tostring(node) for node in second]
+
+
 def test_supplier_receipt_sends_contract_before_document():
     objects = event_body_objects("supplier_receipt", "posted", DOCUMENT, COMPANY)
     kinds = [node.tag.rsplit("}", 1)[-1] for node in objects]

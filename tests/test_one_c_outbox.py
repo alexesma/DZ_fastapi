@@ -16,6 +16,9 @@ from dz_fastapi.models.inventory import (
     ShipmentDocument,
     ShipmentDocumentItem,
     ShipmentDocumentStatus,
+    StockDocument,
+    StockDocumentStatus,
+    StockDocumentType,
     StockLot,
     SyncStatus,
 )
@@ -38,6 +41,61 @@ from dz_fastapi.services.one_c_outbox import (
     get_or_create_delivery_batch,
     retry_one_c_event,
 )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("still_posted", [True, False])
+async def test_manual_stock_receipt_send_checks_source_and_tracks_transport(
+    test_session, monkeypatch, still_posted,
+):
+    document = StockDocument(
+        doc_type=StockDocumentType.MANUAL_RECEIPT,
+        status=StockDocumentStatus.POSTED if still_posted else StockDocumentStatus.CANCELLED,
+        document_number="STOCK-PILOT",
+    )
+    test_session.add(document)
+    await test_session.flush()
+    event = OneCExchangeEvent(
+        entity_type="stock_document", entity_id=document.id, event_type="posted",
+        idempotency_key=f"stock-pilot:{document.id}",
+        payload={
+            "document_id": document.id, "document_number": "STOCK-PILOT",
+            "document_date": "2026-11-17", "document_type": "manual_receipt",
+            "warehouse": {"name": "Основной склад"},
+            "items": [{
+                "autopart": {"autopart_id": 86033, "brand": "ROSTECO", "oem": "20668"},
+                "quantity": 2, "cost_price": "100.00",
+            }],
+        },
+    )
+    test_session.add(event)
+    await test_session.commit()
+    sent = []
+
+    async def company(_session):
+        return {"short_name": "Тест"}
+
+    def transport(objects, **kwargs):
+        sent.append(objects)
+        return {"message_no": 12}
+
+    monkeypatch.setattr("dz_fastapi.api.one_c._company_for_enterprise_data", company)
+    monkeypatch.setattr("dz_fastapi.api.one_c.send_body_message", transport)
+    if not still_posted:
+        with pytest.raises(HTTPException) as error:
+            await enterprise_data_send(event.id, False, test_session, None)
+        assert error.value.status_code == 422
+        assert not sent
+        return
+
+    result = await enterprise_data_send(event.id, False, test_session, None)
+    assert result["message_no"] == 12
+    assert sent[0][-1].tag.endswith("}Документ.ОприходованиеТоваров")
+    assert event.ed_message_no == 12
+    assert event.ed_transport_confirmed_at is None
+    assert event.ed_unf_received_at is None
+    assert event.status == OneCExchangeEventStatus.PENDING
+    assert document.sync_status == SyncStatus.PENDING
 
 
 async def _create_posted_shipment(

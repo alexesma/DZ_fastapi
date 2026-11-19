@@ -5612,6 +5612,26 @@ async def gis_mt_check(
 
 
 @router.post(
+    "/gis-mt/withdraw/{task_id:int}/check",
+    summary="Проверить результат вывода из оборота",
+)
+async def check_withdrawal_result(
+    task_id: int,
+    document_id: str | None = Body(None, embed=True, max_length=255),
+    session: AsyncSession = Depends(get_session),
+    _admin: User = Depends(require_admin),
+):
+    from dz_fastapi.services.gis_mt import refresh_withdrawal
+
+    try:
+        task = await refresh_withdrawal(session, task_id, document_id)
+        return {"state": task.state, "error": task.error_details}
+    except Exception as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
     "/gis-mt/withdraw/start",
     summary="Вывод кодов из оборота (шаг 1: SMS)",
 )

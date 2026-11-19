@@ -837,6 +837,10 @@ async def confirm_cloud_sign_task(
     code = str(confirmation_code or "").strip()
     if not code:
         raise ValueError("Введите код подтверждения из SMS")
+    if task.operation == "gis_mt_withdraw":
+        from dz_fastapi.services.gis_mt import confirm_withdrawal
+
+        return await confirm_withdrawal(session, task=task, diadoc_client=client, code=code)
     try:
         signatures = await client.cloud_sign_confirm(
             token=str(task.cloud_sign_token),
@@ -881,10 +885,6 @@ async def confirm_cloud_sign_task(
             from dz_fastapi.services.gis_mt import apply_gis_mt_auth
 
             details = await apply_gis_mt_auth(session, task=task, signatures=signatures)
-        elif task.operation == "gis_mt_withdraw":
-            from dz_fastapi.services.gis_mt import apply_gis_mt_withdraw
-
-            details = await apply_gis_mt_withdraw(session, task=task, signatures=signatures)
         else:
             raise ValueError(f"Неизвестная операция задачи: {task.operation}")
     except Exception as exc:

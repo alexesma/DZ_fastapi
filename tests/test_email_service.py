@@ -71,6 +71,65 @@ def test_build_email_delivery_kwargs_resend_api():
     }
 
 
+def test_build_email_delivery_kwargs_smtp_supports_separate_login():
+    account = SimpleNamespace(
+        email="prices@dragonzap.online",
+        transport="smtp",
+        smtp_host="smtp.mail.selcloud.ru",
+        smtp_port=1127,
+        smtp_use_ssl=True,
+        smtp_username="selectel-resource-login",
+        password="secret",
+    )
+
+    kwargs = build_email_delivery_kwargs(account)
+
+    assert kwargs == {
+        "transport": "smtp",
+        "smtp_host": "smtp.mail.selcloud.ru",
+        "smtp_port": 1127,
+        "smtp_user": "selectel-resource-login",
+        "smtp_password": "secret",
+        "from_email": "prices@dragonzap.online",
+        "use_ssl": True,
+    }
+
+
+def test_build_email_delivery_kwargs_uses_outbound_transport_override():
+    account = SimpleNamespace(
+        email="orders@dragonzap.online",
+        transport="resend_api",
+        outbound_transport="smtp",
+        smtp_host="smtp.mail.selcloud.ru",
+        smtp_port=1127,
+        smtp_use_ssl=True,
+        smtp_username="selectel-login",
+        password="selectel-secret",
+        resend_api_key="re_inbound_only",
+    )
+
+    kwargs = build_email_delivery_kwargs(account)
+
+    assert kwargs["transport"] == "smtp"
+    assert kwargs["smtp_user"] == "selectel-login"
+    assert kwargs["from_email"] == "orders@dragonzap.online"
+
+
+def test_build_email_delivery_kwargs_smtp_uses_sender_as_default_login():
+    account = SimpleNamespace(
+        email="prices@dragonzap.online",
+        transport="smtp",
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        smtp_use_ssl=True,
+        password="secret",
+    )
+
+    kwargs = build_email_delivery_kwargs(account)
+
+    assert kwargs["smtp_user"] == "prices@dragonzap.online"
+
+
 def test_price_email_since_date_uses_configured_depth(monkeypatch):
     monkeypatch.setattr("dz_fastapi.services.email.DEPTH_DAY_EMAIL", 3)
 

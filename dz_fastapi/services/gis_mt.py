@@ -13,19 +13,24 @@ import json
 import logging
 from datetime import timedelta
 from typing import Any, Iterable, Optional
+from uuid import uuid4
 
+import httpx
 from sqlalchemy import Text, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocClient
-from dz_fastapi.http.gis_mt_client import GisMtClient
+from dz_fastapi.http.gis_mt_client import GisMtApiError, GisMtClient
 from dz_fastapi.models.diadoc import DiadocCloudSignTask
 from dz_fastapi.models.inventory import (
     MarkingCodeStatus,
     MarkingMovementType,
     ProductMarkingCode,
     ProductMarkingCodeMovement,
+    ShipmentDocument,
+    ShipmentDocumentStatus,
+    ShipmentMarkingScan,
 )
 from dz_fastapi.models.settings import GisMtSettings
 
@@ -307,16 +312,13 @@ async def start_gis_mt_withdraw_task(
                     ),
                 )
             )
-        ).scalars().all()
-    )
-    if not rows:
-        raise ValueError(
-            "Из выбранных кодов ни один не находится на складе"
         )
-    number = (
-        str(document_number or "").strip()
-        or f"DZ-WD-{now_moscow().strftime('%Y%m%d-%H%M%S')}"
+        .scalars()
+        .all()
     )
+    if len(rows) != len(set(ids)):
+        raise ValueError("Часть выбранных кодов недоступна для вывода из оборота")
+    number = str(document_number or "").strip() or f"DZ-WD-{uuid4().hex}"
     document = build_withdrawal_product_document(
         inn=organization_inn,
         codes=[str(row.code) for row in rows],
@@ -351,6 +353,7 @@ async def start_gis_mt_withdraw_task(
         ],
         params={
             "marking_code_ids": [int(row.id) for row in rows],
+            "product_group": settings_row.product_group,
             "action": str(action).strip().upper(),
             "document_number": number,
         },
@@ -361,44 +364,114 @@ async def start_gis_mt_withdraw_task(
     return task
 
 
-async def apply_gis_mt_withdraw(
-    session: AsyncSession,
-    *,
-    task: DiadocCloudSignTask,
-    signatures: list[str],
-) -> dict[str, Any]:
-    """Шаг 2 вывода: подпись → lk/documents/create → пометить коды."""
-    settings_row = await get_or_create_gis_mt_settings(session)
-    gis_client = _require_active_client(settings_row)
-    params = task.params or {}
-    files = list(task.files or [])
-    if not files:
-        raise ValueError("В задаче нет документа вывода из оборота")
-    document_id = await gis_client.create_document(
-        product_group=str(settings_row.product_group),
-        document_type="LK_RECEIPT",
-        product_document_b64=str(files[0]["content_b64"]),
-        signature_b64=signatures[0],
+async def _withdrawal_codes(session: AsyncSession, ids: list[int]) -> list[ProductMarkingCode]:
+    stmt = (
+        select(ProductMarkingCode)
+        .where(ProductMarkingCode.id.in_(ids))
+        .order_by(ProductMarkingCode.id)
+        .with_for_update(of=ProductMarkingCode)
+        .execution_options(populate_existing=True)
     )
-    ids = [
-        int(value)
-        for value in (params.get("marking_code_ids") or [])
-        if value
-    ]
+    rows = list((await session.scalars(stmt)).all())
+    if not rows or len(rows) != len(set(ids)):
+        raise ValueError("Состав выбранных кодов изменился")
+    return rows
+
+
+async def confirm_withdrawal(
+    session: AsyncSession, *, task: DiadocCloudSignTask, diadoc_client: DiadocClient, code: str
+) -> DiadocCloudSignTask:
+    # Serialize SMS confirmations, then reserve every signed code before the network POST.
+    await session.refresh(task, with_for_update=True)
+    if task.state != "waiting_code":
+        raise ValueError("Заявление уже отправлялось. Проверьте результат в журнале маркировки")
+    settings = await get_or_create_gis_mt_settings(session)
+    client = _require_active_client(settings)
+    params = task.params or {}
+    group = params.get("product_group") or settings.product_group  # старые задачи подписи
+    if not group:
+        raise ValueError("Не указана товарная группа ГИС МТ")
+    rows = await _withdrawal_codes(session, params["marking_code_ids"])
+    if any(
+        row.status not in (MarkingCodeStatus.IN_STOCK, MarkingCodeStatus.RECEIVED) for row in rows
+    ):
+        raise ValueError("Код уже отгружен, зарезервирован или ожидает результата вывода")
+    scanned = await session.scalar(
+        select(ShipmentMarkingScan.id)
+        .join(ShipmentDocument, ShipmentDocument.id == ShipmentMarkingScan.shipment_document_id)
+        .where(
+            ShipmentMarkingScan.marking_code_id.in_(params["marking_code_ids"]),
+            ShipmentDocument.status == ShipmentDocumentStatus.DRAFT,
+        )
+        .limit(1)
+    )
+    if scanned is not None:
+        raise ValueError("Код уже отсканирован для сборки отгрузки")
+    content = task.files[0]["content_b64"]
+    original = json.loads(base64.b64decode(content))
+    if sorted(item["cis"] for item in original["products"]) != sorted(row.code for row in rows):
+        raise ValueError("Состав кодов отличается от подписываемого заявления")
+    signatures = await diadoc_client.cloud_sign_confirm(
+        token=task.cloud_sign_token, confirmation_code=code
+    )
+    if len(signatures) != 1 or not signatures[0]:
+        raise ValueError("Диадок не вернул подпись заявления")
+    task.params = {
+        **params,
+        "product_group": group,
+        "original_status": {str(row.id): row.status.value for row in rows},
+    }
+    for row in rows:
+        row.status = MarkingCodeStatus.WITHDRAWAL_PENDING
+    task.state = "gis_unknown"
+    task.cloud_sign_token = None
+    task.error_details = (
+        "Отправка начата. Если ID не получен, сверьте заявление в личном кабинете ГИС МТ"
+    )
+    await session.commit()
+    try:
+        doc_id = await client.create_document(
+            product_group=group,
+            document_type="LK_RECEIPT",
+            product_document_b64=content,
+            signature_b64=signatures[0],
+        )
+    except GisMtApiError as exc:
+        if exc.status_code in (400, 401, 403, 422):
+            await session.refresh(task, with_for_update=True)
+            if task.state == "gis_unknown":
+                await _finish_withdrawal(session, task, accepted=False, error=exc.detail)
+                await session.commit()
+            return task
+        logger.warning("Unconfirmed GIS submission for task %s: %s", task.id, exc)
+        return task
+    except (httpx.RequestError, ValueError) as exc:
+        logger.warning("Unconfirmed GIS submission for task %s: %s", task.id, exc)
+        return task
+    if not doc_id:
+        return task
+    await session.refresh(task, with_for_update=True)
+    if task.state == "gis_unknown":
+        task.params = {**task.params, "gis_document_id": doc_id}
+        task.state = "gis_pending"
+        task.files = []
+        task.error_details = None
+        await session.commit()
+    return task
+
+
+async def _finish_withdrawal(
+    session: AsyncSession, task: DiadocCloudSignTask, *, accepted: bool, error: str | None = None
+) -> None:
+    params = task.params
+    rows = await _withdrawal_codes(session, params["marking_code_ids"])
+    if any(row.status != MarkingCodeStatus.WITHDRAWAL_PENDING for row in rows):
+        raise ValueError("Коды заявления требуют сверки со складским учётом")
     now = now_moscow()
-    withdrawn = 0
-    if ids:
-        rows = (
-            await session.execute(
-                select(ProductMarkingCode).where(
-                    ProductMarkingCode.id.in_(ids)
-                )
-            )
-        ).scalars().all()
-        for row in rows:
+    for row in rows:
+        if accepted:
             row.status = MarkingCodeStatus.WITHDRAWN
             row.withdrawn_at = now
-            session.add(row)
             session.add(
                 ProductMarkingCodeMovement(
                     marking_code_id=row.id,
@@ -407,22 +480,129 @@ async def apply_gis_mt_withdraw(
                     stock_lot_id=row.stock_lot_id,
                     metadata_json={
                         "source": "gis_mt_withdraw",
-                        "gis_document_id": document_id,
-                        "action": params.get("action"),
-                        "document_number": params.get(
-                            "document_number"
-                        ),
+                        "gis_document_id": params["gis_document_id"],
+                        "document_number": params["document_number"],
+                        "action": params["action"],
                     },
                 )
             )
-            withdrawn += 1
-    await session.flush()
-    logger.info(
-        "GIS MT withdrawal document %s created, %s codes withdrawn",
-        document_id,
-        withdrawn,
+        else:
+            row.status = MarkingCodeStatus(params["original_status"][str(row.id)])
+    task.state = "completed" if accepted else "gis_rejected"
+    task.error_details = str(error or "")[:2000] or None
+    task.completed_at = now
+    task.files = []
+
+
+async def refresh_withdrawal(
+    session: AsyncSession, task_id: int, recovered_id: str | None = None
+) -> DiadocCloudSignTask:
+    task = await session.get(
+        DiadocCloudSignTask, task_id, with_for_update=True, populate_existing=True
     )
-    return {"gis_document_id": document_id, "withdrawn": withdrawn}
+    if task is None or task.operation != OPERATION_GIS_MT_WITHDRAW:
+        raise ValueError("Заявление не найдено")
+    if task.state not in ("gis_pending", "gis_unknown"):
+        return task
+    missing_id = task.state == "gis_unknown"
+    doc_id = (recovered_id if missing_id else task.params["gis_document_id"]) or ""
+    if not doc_id:
+        raise ValueError("Укажите ID заявления из личного кабинета ГИС МТ")
+    client = _require_active_client(await get_or_create_gis_mt_settings(session))
+    info = await client.withdrawal_info(doc_id, task.params["product_group"], content=missing_id)
+    if missing_id:
+        linked_task = await session.scalar(
+            select(DiadocCloudSignTask.id)
+            .where(
+                DiadocCloudSignTask.operation == OPERATION_GIS_MT_WITHDRAW,
+                DiadocCloudSignTask.id != task_id,
+                DiadocCloudSignTask.params["gis_document_id"].as_string() == doc_id,
+            )
+            .limit(1)
+        )
+        if linked_task is not None:
+            raise ValueError("Этот ID ГИС МТ уже связан с другим заявлением")
+        actual = info.get("content")
+        if isinstance(actual, str):
+            actual = json.loads(actual)
+        expected = json.loads(base64.b64decode(task.files[0]["content_b64"]))
+        if actual != expected:
+            raise ValueError("Содержимое документа ГИС МТ отличается от подписанного заявления")
+    status = info.get("status")
+    task.params = {**task.params, "gis_document_id": doc_id, "gis_status": status}
+    task.files = []
+    task.state = "gis_pending"
+    task.error_details = None
+    if status == "CHECKED_OK":
+        await _finish_withdrawal(session, task, accepted=True)
+    elif status in {"CHECKED_NOT_OK", "PARSE_ERROR"}:
+        errors = info.get("errors") or info.get("commonErrors") or status
+        await _finish_withdrawal(
+            session, task, accepted=False, error=json.dumps(errors, ensure_ascii=False)
+        )
+    elif status == "PROCESSING_ERROR":
+        task.error_details = (
+            "ГИС МТ сообщила о технической ошибке обработки. Ожидается окончательный результат"
+        )
+    task.updated_at = now_moscow()
+    await session.commit()
+    return task
+
+
+async def poll_withdrawals(session: AsyncSession) -> None:
+    settings = await session.scalar(select(GisMtSettings).limit(1))
+    if settings is None or not gis_mt_token_is_active(settings):
+        return
+    ids = list(
+        await session.scalars(
+            select(DiadocCloudSignTask.id)
+            .where(
+                DiadocCloudSignTask.operation == OPERATION_GIS_MT_WITHDRAW,
+                DiadocCloudSignTask.state == "gis_pending",
+            )
+            .order_by(DiadocCloudSignTask.updated_at, DiadocCloudSignTask.id)
+            .limit(25)
+        )
+    )
+    for task_id in ids:
+        try:
+            await refresh_withdrawal(session, task_id)
+        except Exception as exc:
+            await session.rollback()
+            task = await session.get(
+                DiadocCloudSignTask, task_id, with_for_update=True, populate_existing=True
+            )
+            if task and task.state == "gis_pending":
+                task.error_details = str(exc)[:2000]
+                task.updated_at = now_moscow()
+            await session.commit()
+            logger.warning("GIS MT withdrawal #%s status check failed: %s", task_id, exc)
+
+
+async def recent_withdrawals(session: AsyncSession) -> list[dict[str, Any]]:
+    stmt = (
+        select(DiadocCloudSignTask)
+        .where(
+            DiadocCloudSignTask.operation == OPERATION_GIS_MT_WITHDRAW,
+            DiadocCloudSignTask.params["original_status"].as_string().is_not(None),
+        )
+        .order_by(
+            DiadocCloudSignTask.state.in_(("gis_unknown", "gis_pending")).desc(),
+            DiadocCloudSignTask.updated_at.desc(),
+        )
+        .limit(100)
+    )
+    return [
+        {
+            "id": task.id,
+            "state": task.state,
+            "number": task.params.get("document_number"),
+            "document_id": task.params.get("gis_document_id"),
+            "gis_status": task.params.get("gis_status"),
+            "error": task.error_details,
+        }
+        for task in await session.scalars(stmt)
+    ]
 
 
 LOGIN_REMINDER_TITLE = "Нужен вход в ГИС МТ"
@@ -431,11 +611,7 @@ LOGIN_REMINDER_LINK = "/warehouse/marking"
 
 async def _pending_marking_work(session: AsyncSession) -> dict[str, int]:
     """Документы, для которых понадобится сверка с ГИС МТ."""
-    from dz_fastapi.models.inventory import (
-        ShipmentDocument,
-        ShipmentDocumentItem,
-        ShipmentDocumentStatus,
-    )
+    from dz_fastapi.models.inventory import ShipmentDocumentItem
     from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 
     receipts = await session.scalar(
@@ -458,7 +634,14 @@ async def _pending_marking_work(session: AsyncSession) -> dict[str, int]:
             ShipmentDocumentItem.autopart_id.in_(marked_autoparts),
         )
     )
+    withdrawals = await session.scalar(
+        select(func.count(DiadocCloudSignTask.id)).where(
+            DiadocCloudSignTask.operation == OPERATION_GIS_MT_WITHDRAW,
+            DiadocCloudSignTask.state.in_(("gis_pending", "gis_unknown")),
+        )
+    )
     return {
+        "pending_withdrawals": int(withdrawals or 0),
         "pending_receipts": int(receipts or 0),
         "pending_shipments": int(shipments or 0),
     }
@@ -486,7 +669,7 @@ async def remind_gis_mt_login(session: AsyncSession) -> dict[str, Any]:
         return result
     pending = await _pending_marking_work(session)
     result.update(pending)
-    if not (pending["pending_receipts"] or pending["pending_shipments"]):
+    if not any(pending.values()):
         result["reason"] = "nothing_pending"
         return result
     today = now_moscow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -500,6 +683,8 @@ async def remind_gis_mt_login(session: AsyncSession) -> dict[str, Any]:
         result["reason"] = "already_reminded_today"
         return result
     parts = []
+    if pending["pending_withdrawals"]:
+        parts.append(f"заявлений на вывод на проверке: {pending['pending_withdrawals']}")
     if pending["pending_receipts"]:
         parts.append(f"поступлений с кодами к проведению: {pending['pending_receipts']}")
     if pending["pending_shipments"]:
@@ -521,6 +706,7 @@ async def remind_gis_mt_login(session: AsyncSession) -> dict[str, Any]:
 async def get_gis_mt_status(session: AsyncSession) -> dict[str, Any]:
     settings_row = await get_or_create_gis_mt_settings(session)
     return {
+        "withdrawals": await recent_withdrawals(session),
         "token_active": gis_mt_token_is_active(settings_row),
         "token_expires_at": settings_row.token_expires_at,
         "product_group": settings_row.product_group,

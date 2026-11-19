@@ -42,6 +42,7 @@ async def test_reminder_is_sent_once_a_day_when_codes_wait(
         "reminded": False,
         "pending_receipts": 0,
         "pending_shipments": 0,
+        "pending_withdrawals": 0,
         "reason": "nothing_pending",
     }
 

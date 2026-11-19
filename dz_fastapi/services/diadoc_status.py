@@ -13,6 +13,11 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocApiError, DiadocClient
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.services.diadoc_docflow import derive_docflow_state
+from dz_fastapi.services.diadoc_marking_status import (
+    awaiting_gis_result,
+    gis_receipts,
+    retain_gis_receipts,
+)
 from dz_fastapi.services.diadoc_transport import extract_transport_status
 
 logger = logging.getLogger("dz_fastapi")
@@ -82,6 +87,7 @@ async def refresh_outgoing_document_status(
     rows = list(response.get("Documents") or [])
     if not rows:
         raise DiadocApiError(404, "GetDocflows V5 не вернул документ")
+    await session.refresh(document, ["last_status_payload", "metadata_json"], with_for_update=True)
     payload = rows[0]
     fields = derive_docflow_state(payload, current_status=str(document.status or "sent"))
     document.status = fields["status"]
@@ -102,7 +108,13 @@ async def refresh_outgoing_document_status(
     if fields["delivered_at"] is not None:
         document.delivered_at = fields["delivered_at"]
     document.status_checked_at = fields["checked_at"]
-    document.last_status_payload = payload
+    document.last_status_payload = retain_gis_receipts(document.last_status_payload, payload)
+    receipts = gis_receipts(document.last_status_payload)
+    if receipts or (document.metadata_json or {}).get("gis_mt_expected"):
+        pending = awaiting_gis_result(receipts, revoked=document.status == "revoked")
+        if document.status == "rejected" and not receipts:
+            pending = False
+        document.metadata_json = {**(document.metadata_json or {}), "gis_mt_pending": pending}
     session.add(document)
     await session.commit()
     await session.refresh(document)
@@ -132,7 +144,10 @@ async def refresh_diadoc_outgoing_statuses(
             DiadocOutgoingDocument.environment == environment,
             DiadocOutgoingDocument.message_id.is_not(None),
             DiadocOutgoingDocument.entity_id.is_not(None),
-            DiadocOutgoingDocument.status.not_in(TERMINAL_OUTGOING_STATUSES),
+            or_(
+                DiadocOutgoingDocument.status.not_in(TERMINAL_OUTGOING_STATUSES),
+                DiadocOutgoingDocument.metadata_json["gis_mt_pending"].as_boolean().is_(True),
+            ),
         )
         .order_by(
             DiadocOutgoingDocument.status_checked_at.asc().nulls_first(),

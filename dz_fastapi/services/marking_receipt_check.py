@@ -55,12 +55,14 @@ GIS_STATUS_TEXT = {
 _REGISTRY_BUSY = {
     MarkingCodeStatus.RECEIVED,
     MarkingCodeStatus.IN_STOCK,
+    MarkingCodeStatus.WITHDRAWAL_PENDING,
     MarkingCodeStatus.RESERVED,
     MarkingCodeStatus.SHIPPED,
 }
 _REGISTRY_STATUS_TEXT = {
     MarkingCodeStatus.RECEIVED: "уже принят",
     MarkingCodeStatus.IN_STOCK: "уже числится на нашем складе",
+    MarkingCodeStatus.WITHDRAWAL_PENDING: "ожидает подтверждения вывода из оборота",
     MarkingCodeStatus.RESERVED: "уже зарезервирован у нас",
     MarkingCodeStatus.SHIPPED: "уже отгружен клиенту",
 }

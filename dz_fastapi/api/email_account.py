@@ -15,11 +15,16 @@ from dz_fastapi.schemas.email_account import (
     EmailAccountCreate,
     EmailAccountGoogleTokenRequest,
     EmailAccountResponse,
+    EmailAccountSelectelMigrationRequest,
     EmailAccountTestRequest,
     EmailAccountTestResponse,
     EmailAccountUpdate,
 )
-from dz_fastapi.services.email import build_email_delivery_kwargs, send_test_outbound_email
+from dz_fastapi.services.email import (
+    build_email_delivery_kwargs,
+    get_outbound_email_transport,
+    send_test_outbound_email,
+)
 from dz_fastapi.services.email_account_checks import test_imap_connection, test_smtp_connection
 from dz_fastapi.services.google_oauth import (
     build_google_auth_url,
@@ -32,6 +37,9 @@ from dz_fastapi.services.resend_api import test_resend_api_access
 logger = logging.getLogger("dz_fastapi")
 
 router = APIRouter(prefix="/email-accounts", tags=["email-accounts"])
+
+SELECTEL_SMTP_HOST = "smtp.mail.selcloud.ru"
+SELECTEL_SMTP_PORT = 1127
 
 
 @router.get(
@@ -105,6 +113,47 @@ async def delete_email_account(
 
 
 @router.post(
+    "/migrate-resend-to-selectel",
+    response_model=List[EmailAccountResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def migrate_resend_accounts_to_selectel(
+    payload: EmailAccountSelectelMigrationRequest,
+    session: AsyncSession = Depends(get_session),
+    _: EmailAccount = Depends(require_admin),
+):
+    """Move outgoing delivery to Selectel without disabling Resend inboxes."""
+
+    accounts = await crud_email_account.get_multi(session)
+    selected_ids = {int(account_id) for account_id in payload.account_ids}
+    resend_accounts = [
+        account
+        for account in accounts
+        if (account.transport or "").strip().lower() == "resend_api"
+        and (not selected_ids or int(account.id) in selected_ids)
+    ]
+    if not resend_accounts:
+        raise HTTPException(
+            status_code=400,
+            detail="Не найдены выбранные аккаунты Resend",
+        )
+
+    for account in resend_accounts:
+        account.outbound_transport = "smtp"
+        account.smtp_host = SELECTEL_SMTP_HOST
+        account.smtp_port = SELECTEL_SMTP_PORT
+        account.smtp_use_ssl = True
+        account.smtp_username = payload.smtp_username
+        account.password = payload.smtp_password
+        account.smtp_via_relay = False
+        session.add(account)
+    await session.commit()
+    for account in resend_accounts:
+        await session.refresh(account)
+    return [EmailAccountResponse.model_validate(account) for account in resend_accounts]
+
+
+@router.post(
     "/{account_id}/test",
     response_model=EmailAccountTestResponse,
     status_code=status.HTTP_200_OK,
@@ -120,7 +169,7 @@ async def test_email_account(
         raise HTTPException(status_code=404, detail="Account not found")
 
     response = EmailAccountTestResponse()
-    response.outbound_transport = account.transport or "smtp"
+    response.outbound_transport = get_outbound_email_transport(account)
     if payload.imap:
         transport = (account.transport or "smtp").strip().lower()
         if transport == "resend_api":
@@ -169,7 +218,7 @@ async def test_email_account(
                 response.imap_error = str(exc)
 
     if payload.smtp:
-        transport = (account.transport or "smtp").strip().lower()
+        transport = get_outbound_email_transport(account)
         if transport == "gmail_api":
             if (
                 account.oauth_provider != "google"
@@ -212,7 +261,7 @@ async def test_email_account(
                     test_smtp_connection,
                     account.smtp_host,
                     port,
-                    account.email,
+                    account.smtp_username or account.email,
                     account.password,
                     use_ssl,
                 )

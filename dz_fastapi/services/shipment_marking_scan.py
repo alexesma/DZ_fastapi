@@ -47,6 +47,7 @@ _STATUS_TEXT = {
     MarkingCodeStatus.RESERVED: "зарезервирован",
     MarkingCodeStatus.SHIPPED: "уже отгружен по другому документу",
     MarkingCodeStatus.RETURNED_TO_SUPPLIER: "возвращён поставщику",
+    MarkingCodeStatus.WITHDRAWAL_PENDING: "ожидает подтверждения вывода из оборота",
     MarkingCodeStatus.WITHDRAWN: "выведен из оборота",
     MarkingCodeStatus.ERROR: "помечен ошибочным",
 }
@@ -261,6 +262,7 @@ async def assign_scanned_codes(
                 )
                 .order_by(ShipmentMarkingScan.id)
                 .with_for_update(of=ProductMarkingCode)
+                .execution_options(populate_existing=True)
             )
         )
         .scalars()
@@ -328,12 +330,20 @@ async def _replace_in_posted(
                 select(ProductMarkingCode)
                 .where(ProductMarkingCode.code == old_code)
                 .with_for_update(of=ProductMarkingCode)
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
         allocation.marking_codes = [
             code for code in (allocation.marking_codes or []) if code != old_code
         ]
         if old is not None:
+            if (
+                old.status != MarkingCodeStatus.SHIPPED
+                or old.shipment_allocation_id != allocation.id
+            ):
+                raise ShipmentMarkingScanError(
+                    "Назначенный ранее код больше не принадлежит этому списанию"
+                )
             old.status = MarkingCodeStatus.IN_STOCK
             old.shipment_allocation_id = None
             old.shipment_document_item_id = None
@@ -390,6 +400,7 @@ async def record_shipment_marking_scan(
             select(ProductMarkingCode)
             .where(ProductMarkingCode.code == parsed.ki)
             .with_for_update(of=ProductMarkingCode)
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
     if row is None:

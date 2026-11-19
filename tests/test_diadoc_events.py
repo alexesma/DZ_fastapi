@@ -224,3 +224,42 @@ async def test_polling_only_rechecks_stale_documents_when_feed_is_active(test_se
     assert result["checked"] == 2
     assert {m for m, _ in client.requested} == {"poll-stale", "poll-never"}
     assert fresh.status == "sent"
+
+
+@pytest.mark.asyncio
+async def test_signed_marked_document_polled_until_final_gis_receipt(test_session):
+    from dz_fastapi.services.diadoc_marking_status import gis_receipts
+    from dz_fastapi.services.diadoc_status import refresh_diadoc_outgoing_statuses
+
+    doc = _outgoing("marked-sale", metadata_json={"gis_mt_expected": True})
+    test_session.add(doc)
+    await test_session.commit()
+
+    class MarkingClient(DocflowClient):
+        final = False
+
+        async def get_docflows(self, **kwargs):
+            result = await super().get_docflows(**kwargs)
+            if self.final:
+                result["Documents"][0]["LastEvent"]["Docflow"]["OuterDocflows"] = [{
+                    "DocflowNamedId": "TtGis", "LatestStatusEntityId": "receipt",
+                    "StatusEntities": [{"Status": {
+                        "NamedId": "SuccessProcessed", "EntityId": "receipt", "Type": "Success",
+                    }}],
+                }]
+            return result
+
+    client = MarkingClient()
+
+    async def poll():
+        return await refresh_diadoc_outgoing_statuses(
+            test_session, client=client, environment="staging",
+        )
+
+    await poll()
+    assert doc.status == "completed" and doc.metadata_json["gis_mt_pending"]
+    client.final = True
+    assert (await poll())["checked"] == 1
+    assert gis_receipts(doc.last_status_payload)[0]["status"] == "SuccessProcessed"
+    assert not doc.metadata_json["gis_mt_pending"]
+    assert (await poll())["checked"] == 0

@@ -41,6 +41,7 @@ from dz_fastapi.services.customer_return_ukd import (
     build_customer_return_draft_status,
 )
 from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
+from dz_fastapi.services.diadoc_marking_status import contains_marked_goods
 
 DIADOC_OUTGOING_DIR = os.getenv(
     "DIADOC_OUTGOING_DIR",
@@ -2409,6 +2410,11 @@ async def post_diadoc_outgoing_document(
         content_base64,
         field_name="content_base64",
     )
+    local_metadata = dict(metadata or {})
+    local_metadata.pop("gis_mt_expected", None)
+    local_metadata.pop("gis_mt_pending", None)
+    if contains_marked_goods(content, type_named_id):
+        local_metadata["gis_mt_expected"] = True
     signature_bytes = None
     if str(signature_base64 or "").strip():
         signature_bytes = _decode_base64_content(
@@ -2508,7 +2514,7 @@ async def post_diadoc_outgoing_document(
         entity_id=_extract_first_entity_id(response_payload),
         status="draft" if is_draft else "sent",
         error_details=None,
-        metadata_json={k: v for k, v in (metadata or {}).items()},
+        metadata_json=local_metadata,
         raw_response=response_payload,
         sent_at=now_moscow(),
     )

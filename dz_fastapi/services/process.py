@@ -116,6 +116,7 @@ from dz_fastapi.services.email import (
     SMTP_SERVER,
     build_email_delivery_kwargs,
     describe_email_delivery,
+    get_outbound_email_transport,
     send_email_with_attachment,
 )
 from dz_fastapi.services.email_outbox import (
@@ -3483,8 +3484,9 @@ async def send_pricelist(
         account
         for account in delivery_accounts
         if account is not None
-        and str(getattr(account, "transport", "") or "").strip().lower() == "smtp"
+        and get_outbound_email_transport(account) == "smtp"
         and smtp_via_relay
+        and getattr(account, "smtp_via_relay", True) is not False
     ]
     relay_account_ids = {id(account) for account in relay_accounts}
     direct_accounts = [
@@ -3568,7 +3570,11 @@ async def send_pricelist(
                     kind="direct",
                     status="failed",
                     from_email=(account.email if account else EMAIL_NAME),
-                    transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                    transport=(
+                        get_outbound_email_transport(account)
+                        if account
+                        else EMAIL_TRANSPORT
+                    ),
                     account_id=(getattr(account, "id", None) if account else None),
                     recipients=relay_recipients,
                     error=str(exc),
@@ -3583,7 +3589,11 @@ async def send_pricelist(
                     kind="direct",
                     status="failed",
                     from_email=sender,
-                    transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                    transport=(
+                        get_outbound_email_transport(account)
+                        if account
+                        else EMAIL_TRANSPORT
+                    ),
                     account_id=(getattr(account, "id", None) if account else None),
                     recipients=relay_recipients,
                     error="Почтовый транспорт не подтвердил отправку",
@@ -3599,7 +3609,11 @@ async def send_pricelist(
                 kind="direct",
                 status="sent",
                 from_email=(account.email if account else EMAIL_NAME),
-                transport=(getattr(account, "transport", None) if account else EMAIL_TRANSPORT),
+                transport=(
+                    get_outbound_email_transport(account)
+                    if account
+                    else EMAIL_TRANSPORT
+                ),
                 account_id=(getattr(account, "id", None) if account else None),
                 recipients=relay_recipients,
             )

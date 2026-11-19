@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -52,11 +53,12 @@ class GisMtClient:
         *,
         params: dict[str, Any] | None = None,
         json_body: Any | None = None,
+        base_url: str | None = None,
     ) -> httpx.Response:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.request(
                 method=method,
-                url=f"{self.base_url}{path}",
+                url=f"{base_url or self.base_url}{path}",
                 params=params,
                 headers=self._headers,
                 json=json_body,
@@ -140,5 +142,38 @@ class GisMtClient:
             params={"pg": product_group},
             json_body=body,
         )
-        text = response.text.strip().strip('"')
-        return text
+        try:
+            identifier = response.json()
+        except ValueError:
+            identifier = response.text
+        if (
+            not isinstance(identifier, str)
+            or not identifier.strip()
+            or len(identifier.strip()) > 255
+        ):
+            raise GisMtApiError(502, "Ответ ГИС МТ не содержит идентификатор заявления")
+        return identifier.strip()
+
+    async def withdrawal_info(
+        self, document_id: str, product_group: str, *, content: bool = False
+    ) -> dict:
+        """True API v4 returns an array of documents, keyed by number."""
+        base_v4 = os.getenv("GIS_MT_V4_BASE_URL") or self.base_url.replace(
+            "/v3/true-api", "/v4/true-api"
+        )
+        response = await self._request(
+            "GET",
+            f"/doc/{quote(document_id, safe='')}/info",
+            base_url=base_v4.rstrip("/"),
+            params={"pg": product_group, "content": str(content).lower()},
+        )
+        rows = response.json()
+        if isinstance(rows, list):
+            for row in rows:
+                if (
+                    isinstance(row, dict)
+                    and row.get("number") == document_id
+                    and row.get("type") == "LK_RECEIPT"
+                ):
+                    return row
+        raise GisMtApiError(502, "ГИС МТ не вернула запрошенный документ вывода из оборота")

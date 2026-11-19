@@ -90,6 +90,7 @@ from dz_fastapi.services.diadoc_integration import (
     get_diadoc_client_for_session,
     save_diadoc_authorization,
 )
+from dz_fastapi.services.diadoc_marking_status import gis_receipts
 from dz_fastapi.services.diadoc_oauth import (
     build_diadoc_auth_url,
     exchange_diadoc_code_for_tokens,
@@ -366,6 +367,7 @@ def _incoming_document_to_out(
         docflow_status_text=document.docflow_status_text,
         recipient_response_status=document.recipient_response_status,
         revocation_status=document.revocation_status,
+        gis_mt_receipts=gis_receipts(document.last_docflow_payload),
         docflow_checked_at=document.docflow_checked_at,
         can_register_supplier_message=bool(
             (document.provider_id or 0) > 0 and document.local_file_path
@@ -535,6 +537,7 @@ def _outgoing_document_to_out(
         recipient_response_status=document.recipient_response_status,
         revocation_status=document.revocation_status,
         delivered_at=document.delivered_at,
+        gis_mt_receipts=gis_receipts(document.last_status_payload),
         status_checked_at=document.status_checked_at,
         error_details=document.error_details,
         metadata=document.metadata_json or {},
