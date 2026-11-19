@@ -3533,6 +3533,9 @@ async def send_pricelist(
                 EMAIL_NAME,
             )
         sender_key = str(getattr(account, "id", None) or "env")
+        payload_fingerprint = _pricelist_payload_fingerprint(
+            to_email, subject, body, attachment_bytes
+        )
         try:
             sent = await loop.run_in_executor(
                 None,
@@ -3550,7 +3553,7 @@ async def send_pricelist(
                     resend_idempotency_key=(
                         f"customer-pricelist/{customer_pricelist_id}"
                         f"/sender/{sender_key}"
-                        f"/{_pricelist_payload_fingerprint(to_email, subject, body, attachment_bytes)}"
+                        f"/{payload_fingerprint}"
                         if customer_pricelist_id is not None
                         else None
                     ),
