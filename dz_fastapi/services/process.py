@@ -3417,6 +3417,17 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     return df_result
 
 
+def _pricelist_payload_fingerprint(
+    to_email, subject, body, attachment_bytes
+) -> str:
+    digest = hashlib.sha256()
+    for part in (to_email, subject, body):
+        digest.update(str(part or "").encode("utf-8"))
+        digest.update(b"\0")
+    digest.update(attachment_bytes or b"")
+    return digest.hexdigest()[:16]
+
+
 async def send_pricelist(
     session: AsyncSession,
     df_excel: pd.DataFrame | None,
@@ -3532,8 +3543,14 @@ async def send_pricelist(
                     body=body,
                     attachment_bytes=attachment_bytes,
                     attachment_filename=attachment_filename,
+                    # Resend помнит ключ 24 часа и отвечает 409, если с тем же
+                    # ключом пришло другое тело (другие получатели, тема или
+                    # файл после перегенерации). Поэтому в ключ входит отпечаток
+                    # содержимого: тот же запрос по-прежнему не продублируется.
                     resend_idempotency_key=(
-                        f"customer-pricelist/{customer_pricelist_id}/sender/{sender_key}"
+                        f"customer-pricelist/{customer_pricelist_id}"
+                        f"/sender/{sender_key}"
+                        f"/{_pricelist_payload_fingerprint(to_email, subject, body, attachment_bytes)}"
                         if customer_pricelist_id is not None
                         else None
                     ),
