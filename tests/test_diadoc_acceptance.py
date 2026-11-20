@@ -80,13 +80,17 @@ def test_marking_errors_count_as_discrepancy():
             )
         ],
     )
-    assert [line["kind"] for line in lines] == ["marking"]
-    assert lines[0]["marking_errors"] == 1
+    assert all(line["kind"] == "marking" for line in lines)
+    assert lines[-1]["marking_errors"] == 1
 
 
 class _FakeSession:
-    def __init__(self, items):
+    def __init__(self, items, scans=()):
         self._items = items
+        self.scans = scans
+
+    async def scalars(self, _stmt):
+        return SimpleNamespace(all=lambda: self.scans)
 
     async def execute(self, _stmt):
         items = self._items
@@ -157,3 +161,41 @@ async def test_summary_is_not_checked_until_receipt_is_posted(tmp_path):
     summary = await acceptance_summary(_FakeSession([]), document)
     assert summary["checked"] is False
     assert summary["has_discrepancies"] is False
+
+@pytest.mark.asyncio
+async def test_unreadable_upd_blocks_even_without_reported_discrepancies(tmp_path):
+    from pathlib import Path
+    from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, assert_acceptance_result
+
+    doc = _document(tmp_path)
+    Path(doc.local_file_path).write_bytes(b"<broken")
+    result = await acceptance_summary(_FakeSession([]), doc)
+    assert not result["checked"]
+    with pytest.raises(ReceiptAcceptanceBlocked, match="УПД"):
+        assert_acceptance_result(result, "1")
+
+
+@pytest.mark.asyncio
+async def test_clean_signature_requires_each_xml_code_in_its_receipt_line(tmp_path):
+    from pathlib import Path
+    from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, assert_acceptance_result
+
+    doc = _document(tmp_path)
+    path = Path(doc.local_file_path)
+    codes = ["010460000000001721AAAAAAAAAAAAA", "010460000000001721BBBBBBBBBBBBB"]
+    group = "<НомСредИдентТов>" + "".join(f"<КИЗ>{c}</КИЗ>" for c in codes) + "</НомСредИдентТов>"
+    path.write_text(path.read_text().replace("</СведТов>", group + "</СведТов>"))
+    item = _got("A1", 2, marking_codes=codes, receipt_id=7, id=10)
+    scans = [SimpleNamespace(receipt_id=7, receipt_item_id=10, autopart_id=None, code=c) for c in codes]
+    db = _FakeSession([item], scans)
+    assert_acceptance_result(await acceptance_summary(db, doc), "1")
+    scans[1].receipt_item_id = None
+    summary = await acceptance_summary(db, doc)
+    with pytest.raises(ReceiptAcceptanceBlocked):
+        assert_acceptance_result(summary, "1")
+    assert_acceptance_result(summary, "2")
+    scans[1].receipt_item_id = 10
+    item.marking_codes = [codes[0], "wrong"]
+    scans[1].code = "wrong"
+    with pytest.raises(ReceiptAcceptanceBlocked):
+        assert_acceptance_result(await acceptance_summary(db, doc), "1")

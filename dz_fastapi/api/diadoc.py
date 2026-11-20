@@ -66,8 +66,9 @@ from dz_fastapi.schemas.partner import (
     ProviderExternalReferenceCreate,
     ProviderExternalReferenceOut,
 )
-from dz_fastapi.services.diadoc_acceptance import acceptance_summary
+from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, acceptance_summary
 from dz_fastapi.services.diadoc_boxes import flatten_counteragent
+from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked
 from dz_fastapi.services.diadoc_cloud_sign import (
     confirm_cloud_sign_task,
     start_incoming_sign_task,
@@ -1526,6 +1527,8 @@ async def get_inbound_document_acceptance(
     summary: dict[str, Any] = {}
     if effective_category(document) == "upd":
         summary = await acceptance_summary(session, document)
+        if not summary["checked"]:
+            sign_block_reason = sign_block_reason or summary["reason"]
     return DiadocAcceptanceOut(
         **summary,
         can_sign_incoming=sign_block_reason is None,
@@ -1558,18 +1561,6 @@ async def start_sign_inbound_document(
     if sign_block_reason is not None:
         raise HTTPException(status_code=409, detail=sign_block_reason)
     options = payload or DiadocInboundSignStartIn()
-    acceptance: dict[str, Any] = {}
-    if effective_category(document) == "upd":
-        acceptance = await acceptance_summary(session, document)
-        if acceptance["has_discrepancies"] and options.total_code == "1":
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Приёмка расходится с документом (строк: "
-                    f"{acceptance['lines_total']}). Подпишите с расхождениями "
-                    "или откажите в подписи"
-                ),
-            )
     try:
         integration, client = await get_diadoc_client_for_session(session)
         if normalize_diadoc_environment(integration.environment) != normalize_diadoc_environment(
@@ -1591,11 +1582,11 @@ async def start_sign_inbound_document(
             audit={
                 "initiated_by_user_id": initiated_by_user_id,
                 "initiated_by": initiated_by,
-                "acceptance_checked": bool(acceptance.get("checked")),
-                "acceptance_discrepancies": int(acceptance.get("lines_total") or 0),
             },
         )
         return DiadocCloudSignTaskOut.model_validate(task)
+    except ReceiptAcceptanceBlocked as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -1719,6 +1710,12 @@ async def confirm_cloud_sign_task_endpoint(
             confirmation_code=payload.code,
         )
         return DiadocCloudSignTaskOut.model_validate(task)
+    except (ShipmentMarkingBlocked, ReceiptAcceptanceBlocked) as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{exc}. После устранения причины запросите новый код из SMS.",
+            headers={"X-Cloud-Sign-State": "error"},
+        ) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -1933,21 +1930,6 @@ async def get_diadoc_outbound_readiness_for_shipments(
     return [DiadocShipmentFormalizedReadinessOut(**row) for row in rows]
 
 
-async def _assert_shipment_codes_pass_gis_mt(
-    session: AsyncSession, shipment_id: int
-) -> None:
-    """Перед отправкой УПД сверяет коды отгрузки с ГИС МТ."""
-    from dz_fastapi.services.marking_shipment_check import shipment_codes_gis_blockers
-
-    blockers = await shipment_codes_gis_blockers(session, shipment_id)
-    if blockers:
-        raise HTTPException(
-            status_code=400,
-            detail="; ".join(blockers[:10])
-            + (f" (и ещё {len(blockers) - 10})" if len(blockers) > 10 else ""),
-        )
-
-
 @router.get(
     "/outbound-queue",
     summary="Очередь УПД к подписи и реализации, по которым УПД не создался",
@@ -2025,7 +2007,6 @@ async def create_diadoc_outbound_document_from_shipment(
                     "Shipment is not ready for formalized UTD"
                 )
                 raise HTTPException(status_code=400, detail=detail)
-            await _assert_shipment_codes_pass_gis_mt(session, shipment_id)
             shipment_payload = await build_formalized_diadoc_payload_from_shipment(
                 session,
                 client=client,

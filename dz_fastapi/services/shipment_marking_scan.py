@@ -597,7 +597,10 @@ async def shipment_marking_state(
             .scalars()
             .all()
         )
-    from dz_fastapi.services.marking_codes import autoparts_marked_by_category
+    from dz_fastapi.services.marking_codes import (
+        autoparts_marked_by_category,
+        shipment_line_has_marked_lot,
+    )
 
     marked |= await autoparts_marked_by_category(session, autopart_ids)
     scans = list(
@@ -620,7 +623,11 @@ async def shipment_marking_state(
             for allocation in (item.allocations or [])
             for code in (allocation.marking_codes or [])
         ]
-        is_marked = bool(assigned or item_scans) or item.autopart_id in marked
+        is_marked = (
+            bool(assigned or item_scans)
+            or item.autopart_id in marked
+            or shipment_line_has_marked_lot(item)
+        )
         if not is_marked:
             continue
         autopart = item.__dict__.get("autopart")

@@ -180,3 +180,54 @@ async def test_plan_and_scan_endpoints(
         json={"code": "not-a-marking-code"},
     )
     assert response.status_code == 400
+
+@pytest.mark.asyncio
+async def test_partial_post_only_stocks_scanned_units(test_session, created_providers, created_autopart):
+    from types import SimpleNamespace
+    from dz_fastapi.models.inventory import ProductMarkingCode, StockLot
+    from dz_fastapi.services.supplier_workflow import post_supplier_receipt
+
+    receipt = await _receipt(test_session, created_providers[0], created_autopart, [CODE_A, CODE_B])
+    receipt_id = receipt.id
+    await record_marking_scan(test_session, receipt, CODE_B)
+    await record_marking_scan(test_session, receipt, CODE_X)
+    await test_session.commit()
+    user = SimpleNamespace(id=None)
+    with pytest.raises(ValueError, match="подтверждено сканами 1"):
+        await post_supplier_receipt(test_session, receipt_id=receipt_id, user=user)
+    await test_session.rollback()
+    receipt = await test_session.scalar(select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
+                                        .options(selectinload(SupplierReceipt.items)))
+    assert receipt.posted_at is None
+    assert await test_session.scalar(select(StockLot.id)) is None
+    receipt.items[0].received_quantity = 1
+    await test_session.commit()
+    for _ in range(2):
+        posted = await post_supplier_receipt(test_session, receipt_id=receipt_id, user=user)
+    assert posted.items[0].document_marking_codes == [CODE_A, CODE_B]
+    assert posted.items[0].marking_codes == [CODE_B]
+    assert (await test_session.scalars(select(ProductMarkingCode.code))).all() == [CODE_B]
+    assert (await test_session.scalars(select(StockLot.initial_quantity))).all() == [1]
+
+
+@pytest.mark.asyncio
+async def test_same_unit_cannot_be_received_in_two_deliveries(
+    test_session, created_providers, created_autopart
+):
+    from types import SimpleNamespace
+    from dz_fastapi.models.inventory import ProductMarkingCode, StockLot
+    from dz_fastapi.services.supplier_workflow import post_supplier_receipt
+
+    user = SimpleNamespace(id=None)
+    first = await _receipt(test_session, created_providers[0], created_autopart, [CODE_A])
+    await record_marking_scan(test_session, first, CODE_A)
+    await post_supplier_receipt(test_session, receipt_id=first.id, user=user)
+    first_id = first.id
+    second = await _receipt(test_session, created_providers[0], created_autopart, [CODE_A])
+    await record_marking_scan(test_session, second, CODE_A)
+    await test_session.commit()
+    with pytest.raises(ValueError, match="уже числится на складе"):
+        await post_supplier_receipt(test_session, receipt_id=second.id, user=user)
+    await test_session.rollback()
+    assert (await test_session.scalars(select(StockLot.source_receipt_id))).all() == [first_id]
+    assert (await test_session.scalars(select(ProductMarkingCode.supplier_receipt_id))).all() == [first_id]

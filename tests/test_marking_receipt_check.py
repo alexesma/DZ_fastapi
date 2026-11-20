@@ -134,8 +134,6 @@ async def test_gis_check_status_owner_gtin_and_missing(
         [([good, retired, foreign, wrong_gtin, missing], 5, None)],
     )
 
-    async def fake_settings(session):
-        return object()
 
     async def fake_fetch(session, codes):
         def info(code, status="INTRODUCED", owner="7701234567", gtin=GTIN):
@@ -148,7 +146,7 @@ async def test_gis_check_status_owner_gtin_and_missing(
             wrong_gtin: info(wrong_gtin, gtin="04600000000000"),
         }, None
 
-    monkeypatch.setattr(gis_mt, "get_or_create_gis_mt_settings", fake_settings)
+    await gis_mt.get_or_create_gis_mt_settings(test_session)
     monkeypatch.setattr(gis_mt, "gis_mt_token_is_active", lambda row: True)
     monkeypatch.setattr(mrc, "_fetch_gis_info", fake_fetch)
 
@@ -176,13 +174,11 @@ async def test_local_check_is_upgraded_when_gis_becomes_available(
     await mrc.check_receipt_marking(test_session, receipt, use_gis=False)
     assert receipt.items[0].marking_check["gis_checked"] is False
 
-    async def fake_settings(session):
-        return object()
 
     async def fake_fetch(session, codes):
         return {}, "timeout"
 
-    monkeypatch.setattr(gis_mt, "get_or_create_gis_mt_settings", fake_settings)
+    await gis_mt.get_or_create_gis_mt_settings(test_session)
     monkeypatch.setattr(gis_mt, "gis_mt_token_is_active", lambda row: True)
     monkeypatch.setattr(mrc, "_fetch_gis_info", fake_fetch)
     assert await mrc.check_receipt_marking(test_session, receipt, use_gis=True)

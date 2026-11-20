@@ -277,7 +277,7 @@ async def _fetch_gis_info(
     session: AsyncSession, codes: list[str]
 ) -> tuple[dict[str, dict[str, str]], Optional[str]]:
     """(коды → данные ГИС, причина недоступности)."""
-    from dz_fastapi.http.gis_mt_client import GisMtClient
+    from dz_fastapi.http.gis_mt_client import GisMtApiError, GisMtClient
     from dz_fastapi.services.gis_mt import GIS_CISES_INFO_CHUNK, get_or_create_gis_mt_settings
 
     settings_row = await get_or_create_gis_mt_settings(session)
@@ -288,11 +288,20 @@ async def _fetch_gis_info(
             chunk = codes[offset:offset + GIS_CISES_INFO_CHUNK]
             for raw in await client.get_cises_info(chunk):
                 parsed = _parse_gis_item(raw)
-                if parsed["cis"]:
-                    result[parsed["cis"]] = parsed
+                code = parsed["cis"]
+                if code:
+                    if raw.get("errorCode") not in (None, 0, "0", "") or raw.get("errorMessage"):
+                        parsed["status"] = ""
+                    if code in result and result[code] != parsed:
+                        return {}, "ГИС МТ вернул противоречивые сведения об одном коде."
+                    result[code] = parsed
+    except GisMtApiError as exc:
+        if exc.status_code == 401:
+            return {}, "ГИС МТ отклонил токен. Выполните вход повторно."
+        return {}, f"ГИС МТ вернул ошибку HTTP {exc.status_code}. Повторите проверку."
     except Exception as exc:  # noqa: BLE001
-        logger.warning("GIS MT receipt marking check failed: %s", exc)
-        return {}, str(exc)[:300]
+        logger.warning("GIS MT marking check failed: %s", exc)
+        return {}, "Проверьте связь с ГИС МТ и повторите проверку."
     return result, None
 
 
@@ -340,11 +349,11 @@ async def check_receipt_marking(
 
     gis_enabled = False
     if use_gis:
-        from dz_fastapi.services.gis_mt import get_or_create_gis_mt_settings, gis_mt_token_is_active
+        from dz_fastapi.models.settings import GisMtSettings
+        from dz_fastapi.services.gis_mt import gis_mt_token_is_active
 
-        gis_enabled = gis_mt_token_is_active(
-            await get_or_create_gis_mt_settings(session)
-        )
+        settings = await session.scalar(select(GisMtSettings).limit(1))
+        gis_enabled = settings is not None and gis_mt_token_is_active(settings)
 
     stale: list[SupplierReceiptItem] = []
     for item in items:

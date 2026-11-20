@@ -28,6 +28,7 @@ from dz_fastapi.services.diadoc_outgoing import (
     post_diadoc_outgoing_document,
     resolve_diadoc_box_for_customer,
 )
+from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -55,8 +56,6 @@ async def create_shipment_upd_draft(
     shipment_id: int,
 ) -> DiadocOutgoingDocument:
     """Создаёт в Диадоке черновик формализованного УПД по реализации."""
-    from dz_fastapi.services.marking_shipment_check import shipment_codes_gis_blockers
-
     from_box = str(integration.box_id_guid or "").strip()
     if not from_box:
         raise UpdDraftBlocked("Не выбран ящик Диадока организации")
@@ -68,9 +67,6 @@ async def create_shipment_upd_draft(
             "; ".join(readiness["missing_required_fields"])
             or "Реализация не готова к формализованному УПД"
         )
-    gis_blockers = await shipment_codes_gis_blockers(session, shipment_id)
-    if gis_blockers:
-        raise UpdDraftBlocked("; ".join(gis_blockers[:10]))
     payload = await build_formalized_diadoc_payload_from_shipment(
         session,
         client=client,
@@ -155,7 +151,7 @@ async def auto_draft_posted_shipments(
                 session, client=client, integration=integration, shipment_id=shipment_id
             )
             result["created"] += 1
-        except UpdDraftBlocked as exc:
+        except (UpdDraftBlocked, ShipmentMarkingBlocked) as exc:
             reason = str(exc)
             result["blocked"] += 1
         except Exception as exc:  # noqa: BLE001

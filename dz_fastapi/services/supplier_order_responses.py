@@ -9,6 +9,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from email.header import decode_header
 from io import BytesIO
 from typing import Any, Iterable, Optional
@@ -3696,7 +3697,17 @@ def _split_overdelivered_payloads(
             result.append(payload)
             continue
         if linked_qty > 0:
-            result.append({**payload, "received_quantity": linked_qty})
+            linked = {**payload, "received_quantity": linked_qty}
+            if payload.get("total_price_with_vat") is not None:
+                total = Decimal(str(payload["total_price_with_vat"]))
+                linked_total = (total * linked_qty / qty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                linked["total_price_with_vat"] = float(linked_total)
+                payload = {**payload, "total_price_with_vat": float(total - linked_total)}
+            codes = payload.get("marking_codes")
+            if isinstance(codes, list) and codes:
+                linked["marking_codes"] = codes[:linked_qty]
+                payload = {**payload, "marking_codes": codes[linked_qty:]}
+            result.append(linked)
         result.append(
             {
                 **payload,
@@ -3713,24 +3724,27 @@ def _split_overdelivered_payloads(
     return result
 
 
-async def _document_receipt_is_safe_to_post(
+async def _document_receipt_review_reason(
     session: AsyncSession,
     items_payload: list[dict[str, object]],
     order_items_by_id: dict[int, SupplierOrderItem],
     *,
     response_config: Optional[SupplierResponseConfig] = None,
-) -> bool:
-    """Allow independent stock rows, but review ambiguous or unresolved rows."""
+) -> str | None:
+    """Return the reason for keeping the imported receipt in draft, if any."""
+    from dz_fastapi.services.marking_codes import autoparts_marked_by_category
+
     if not items_payload:
-        return False
+        return "matching"
     quantities_by_item_id: dict[int, int] = {}
     brand_aliases: Optional[dict[str, str]] = None
     priority_brand_keys: list[str] = []
+    part_ids = set()
     for payload in items_payload:
         raw_item_id = payload.get("supplier_order_item_id")
         qty = _safe_int(payload.get("received_quantity")) or 0
         if qty <= 0:
-            return False
+            return "matching"
         if raw_item_id in (None, ""):
             if brand_aliases is None:
                 brand_aliases = await _load_brand_alias_map(session)
@@ -3746,7 +3760,8 @@ async def _document_receipt_is_safe_to_post(
             )
             resolved_part_id = resolved.get("autopart_id") or payload.get("autopart_id")
             if resolved_part_id is None:
-                return False
+                return "matching"
+            part_ids.add(resolved_part_id)
             if payload.get("is_excess"):
                 continue
             row_oem = _normalize_oem_key(payload.get("oem_number"))
@@ -3755,21 +3770,21 @@ async def _document_receipt_is_safe_to_post(
             )
             for known_item in order_items_by_id.values():
                 if known_item.autopart_id == resolved_part_id:
-                    return False
+                    return "matching"
                 if row_oem and row_oem == _normalize_oem_key(known_item.oem_number):
                     known_brand = _canonical_brand_key_for_value(
                         known_item.brand_name, brand_aliases
                     )
                     if not row_brand or not known_brand or row_brand == known_brand:
-                        return False
+                        return "matching"
             continue
         try:
             item_id = int(raw_item_id)
         except (TypeError, ValueError):
-            return False
+            return "matching"
         item = order_items_by_id.get(item_id)
         if item is None:
-            return False
+            return "matching"
         quantities_by_item_id[item_id] = quantities_by_item_id.get(item_id, 0) + qty
         accepted = (
             int(item.confirmed_quantity)
@@ -3778,8 +3793,11 @@ async def _document_receipt_is_safe_to_post(
         )
         remaining = max(accepted - int(item.received_quantity or 0), 0)
         if quantities_by_item_id[item_id] > remaining:
-            return False
-    return True
+            return "matching"
+        part_ids.add(item.autopart_id)
+    if any(row.get("marking_codes") for row in items_payload) or await autoparts_marked_by_category(session, part_ids):
+        return "scans"
+    return None
 
 
 async def _append_document_receipt_items(
@@ -6231,7 +6249,7 @@ async def process_supplier_response_messages(
                 )
                 stats.unmapped_statuses += 1
 
-            doc_requires_review = False
+            doc_review_reason = None
             if has_shipping_doc:
                 # Document receipt: ONE receipt for the ENTIRE document.
                 # Contains ALL items — matched to orders AND unmatched.
@@ -6254,13 +6272,13 @@ async def process_supplier_response_messages(
                         "Документ найден, но ни одна товарная строка не разобрана"
                     )
                 else:
-                    doc_requires_review = not await _document_receipt_is_safe_to_post(
+                    doc_review_reason = await _document_receipt_review_reason(
                         session,
                         doc_items_payload,
                         all_order_items_for_doc,
                         response_config=active_response_config,
                     )
-                    if doc_requires_review:
+                    if doc_review_reason == "matching":
                         import_error_reasons.append(
                             "Строки документа не полностью сопоставлены с заказом "
                             "или товарным каталогом, либо превышают ожидаемое "
@@ -6329,12 +6347,12 @@ async def process_supplier_response_messages(
                             ),
                             all_order_items_by_id=all_order_items_for_doc,
                             response_config=active_response_config,
-                            post_now=not doc_requires_review,
+                            post_now=not doc_review_reason,
                         )
                     )
                     if added_items > 0:
                         stats.created_receipts += 1
-                        if doc_requires_review:
+                        if doc_review_reason:
                             stats.draft_receipts += 1
                         else:
                             stats.posted_receipts += 1
@@ -6346,7 +6364,7 @@ async def process_supplier_response_messages(
                             not in (None, "")
                         ]
                         if (
-                            not doc_requires_review
+                            not doc_review_reason
                             and linked_items_payload
                             and all_orders_for_doc
                         ):
@@ -6485,7 +6503,7 @@ async def process_supplier_response_messages(
                 import_error_reasons
             )
             is_import_error = bool(
-                has_shipping_doc and (not doc_items_payload or doc_requires_review)
+                has_shipping_doc and (not doc_items_payload or doc_review_reason == "matching")
             )
             if expects_file_payload:
                 if not has_shipping_doc and not parsed_response_file:
@@ -7152,7 +7170,7 @@ async def process_stored_supplier_document_message(
         stats.matched_orders += len(matched_orders)
 
     receipt_ids: list[int] = []
-    doc_requires_review = False
+    doc_review_reason = None
     if has_shipping_doc:
         all_orders_for_doc: dict[int, SupplierOrder] = dict(matched_orders)
         all_order_items_for_doc: dict[int, SupplierOrderItem] = {
@@ -7173,13 +7191,13 @@ async def process_stored_supplier_document_message(
                 "Документ найден, но ни одна товарная строка не разобрана"
             )
         else:
-            doc_requires_review = not await _document_receipt_is_safe_to_post(
+            doc_review_reason = await _document_receipt_review_reason(
                 session,
                 doc_items_payload,
                 all_order_items_for_doc,
                 response_config=response_config,
             )
-            if doc_requires_review:
+            if doc_review_reason == "matching":
                 import_error_reasons.append(
                     "Строки документа не полностью сопоставлены с заказом "
                     "или товарным каталогом, либо превышают ожидаемое "
@@ -7240,12 +7258,12 @@ async def process_stored_supplier_document_message(
                     comment="Авто-проведение по документу из Диадок",
                     all_order_items_by_id=all_order_items_for_doc,
                     response_config=response_config,
-                    post_now=not doc_requires_review,
+                    post_now=not doc_review_reason,
                 )
             )
             if added_items > 0:
                 stats.created_receipts += 1
-                if doc_requires_review:
+                if doc_review_reason:
                     stats.draft_receipts += 1
                 else:
                     stats.posted_receipts += 1
@@ -7261,7 +7279,7 @@ async def process_stored_supplier_document_message(
                     if payload.get("supplier_order_item_id") not in (None, "")
                 ]
                 if (
-                    not doc_requires_review
+                    not doc_review_reason
                     and linked_items_payload
                     and all_orders_for_doc
                 ):
@@ -7299,7 +7317,7 @@ async def process_stored_supplier_document_message(
 
     recognized_for_message = stats.recognized_positions - recognized_before
     is_import_error = False
-    if has_shipping_doc and (not doc_items_payload or doc_requires_review):
+    if has_shipping_doc and (not doc_items_payload or doc_review_reason == "matching"):
         is_import_error = True
     elif not has_shipping_doc and not parsed_response_file:
         is_import_error = True

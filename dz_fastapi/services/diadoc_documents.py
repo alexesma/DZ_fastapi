@@ -136,6 +136,7 @@ async def get_diadoc_incoming_document(
             ),
         )
         .where(DiadocIncomingDocument.id == document_id)
+        .execution_options(populate_existing=True)
     )
     return (await session.execute(stmt)).scalar_one_or_none()
 

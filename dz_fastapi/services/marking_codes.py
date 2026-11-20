@@ -95,6 +95,14 @@ def normalize_marking_codes(values: Iterable[object] | object | None) -> list[st
     return [code for code, _ in normalize_marking_codes_with_full(values)]
 
 
+def shipment_line_has_marked_lot(item) -> bool:
+    """Признак маркированного товара для старых партий без записей в реестре."""
+    return bool(getattr(getattr(item, "lot", None), "marking_codes", None)) or any(
+        getattr(getattr(allocation, "stock_lot", None), "marking_codes", None)
+        for allocation in item.allocations or []
+    )
+
+
 async def register_receipt_marking_codes(
     session: AsyncSession,
     *,
@@ -143,6 +151,12 @@ async def register_receipt_marking_codes(
             await session.flush()
         if row.status == MarkingCodeStatus.WITHDRAWAL_PENDING:
             raise ValueError(f"Код {code} ожидает подтверждения вывода из оборота")
+        if row.status == MarkingCodeStatus.RESERVED or (
+            row.status == MarkingCodeStatus.IN_STOCK
+            and row.stock_lot_id is not None
+            and row.stock_lot_id != stock_lot.id
+        ):
+            raise ValueError(f"Код {code} уже числится на складе. Проверьте предыдущую приёмку.")
         row.status = MarkingCodeStatus.IN_STOCK
         row.autopart_id = stock_lot.autopart_id
         row.warehouse_id = (

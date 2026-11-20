@@ -946,6 +946,7 @@ async def receive_stock(
     *,
     receipt: SupplierReceipt,
     reverse: bool = False,
+    check_marking: bool = False,
 ) -> None:
     """Post (or unpost) a SupplierReceipt to the stock ledger.
 
@@ -981,6 +982,22 @@ async def receive_stock(
                 )
             ).scalars()
         )
+
+    if not reverse:
+        from dz_fastapi.services.receipt_marking_scan import prepare_scanned_receipt_items
+
+        pending = [item for item in receipt.items if item.id not in existing_receipt_lot_item_ids]
+        for item in pending:
+            if item.autopart_id is None:
+                await resolve_receipt_item_autopart_id(session, item)
+        await prepare_scanned_receipt_items(session, receipt, pending)
+        if check_marking:
+            from dz_fastapi.services.marking_receipt_check import check_receipt_marking
+
+            try:
+                await check_receipt_marking(session, receipt, use_gis=True)
+            except Exception:
+                logger.exception("Receipt %s marking check failed", receipt.id)
 
     for item in receipt.items or []:
         # A historical repair only needs the rows which were skipped during
@@ -1099,6 +1116,7 @@ async def apply_receipt_to_stock_by_id(
     *,
     receipt_id: int,
     reverse: bool = False,
+    check_marking: bool = False,
 ) -> None:
     stmt = (
         select(SupplierReceipt)
@@ -1120,7 +1138,7 @@ async def apply_receipt_to_stock_by_id(
         await receive_stock(session, receipt=receipt, reverse=True)
         return
 
-    await receive_stock(session, receipt=receipt, reverse=False)
+    await receive_stock(session, receipt=receipt, reverse=False, check_marking=check_marking)
     await _sync_receipt_customer_assembly(
         session,
         receipt=receipt,

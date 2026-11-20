@@ -70,12 +70,12 @@ def test_supplier_order_recipient_list_accepts_legacy_and_multiple_values():
 
 @pytest.mark.asyncio
 async def test_document_auto_post_checks_combined_quantity_of_duplicate_rows():
-    order_item = SimpleNamespace(quantity=5, confirmed_quantity=None, received_quantity=1)
+    order_item = SimpleNamespace(autopart_id=None, quantity=5, confirmed_quantity=None, received_quantity=1)
     payload = [
         {"supplier_order_item_id": 42, "received_quantity": 3},
         {"supplier_order_item_id": 42, "received_quantity": 2},
     ]
-    assert not await response_service._document_receipt_is_safe_to_post(
+    assert await response_service._document_receipt_review_reason(
         None, payload, {42: order_item}
     )
 
@@ -101,7 +101,7 @@ async def test_document_auto_post_allows_known_catalog_item_without_supplier_ord
         "oem_number": created_autopart.oem_number,
         "brand_name": created_autopart.brand.name,
     }
-    assert await response_service._document_receipt_is_safe_to_post(
+    assert not await response_service._document_receipt_review_reason(
         test_session, [independent_row], {}
     )
     matching_order_item = SimpleNamespace(
@@ -109,7 +109,7 @@ async def test_document_auto_post_allows_known_catalog_item_without_supplier_ord
         oem_number=created_autopart.oem_number,
         brand_name=created_autopart.brand.name,
     )
-    assert not await response_service._document_receipt_is_safe_to_post(
+    assert await response_service._document_receipt_review_reason(
         test_session, [independent_row], {42: matching_order_item}
     )
 
@@ -133,7 +133,7 @@ async def test_document_imports_known_catalog_item_without_supplier_order(
         "brand_name": created_autopart.brand.name,
         "autopart_name": created_autopart.name,
     }
-    assert await response_service._document_receipt_is_safe_to_post(
+    assert not await response_service._document_receipt_review_reason(
         test_session, [independent_row], {}
     )
     receipt, added = await response_service._create_single_document_receipt(

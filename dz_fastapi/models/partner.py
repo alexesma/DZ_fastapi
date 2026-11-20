@@ -1636,6 +1636,8 @@ class SupplierReceiptItem(Base):
         nullable=True,
         comment="КИЗ/СИЗ из входящего УПД для маркированных товаров",
     )
+    # Original list retained when only part of the supplier's line was accepted.
+    document_marking_codes = Column(JSON, nullable=True)
     marking_check = Column(
         JSON,
         nullable=True,

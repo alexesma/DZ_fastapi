@@ -16,6 +16,7 @@ from dz_fastapi.models.inventory import (
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.models.settings import DiadocIntegrationSettings, GisMtSettings
 from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.services.receipt_marking_scan import record_marking_scan
 from dz_fastapi.services.diadoc_outgoing import build_shipment_formalized_readiness
 from dz_fastapi.services.inventory_stock import (
     post_shipment_document,
@@ -51,6 +52,8 @@ async def _stock_with_codes(session, provider, autopart):
     ]
     session.add(receipt)
     await session.flush()
+    for code in receipt.items[0].marking_codes:
+        await record_marking_scan(session, receipt, code)
     await receive_stock(session, receipt=receipt, reverse=False)
     await session.commit()
     return (
@@ -289,7 +292,7 @@ async def test_missing_codes_block_the_formalized_upd(
         document = await _load(test_session, shipment_id)
         await record_shipment_marking_scan(test_session, document, code)
         await test_session.commit()
-    assert await blockers() == []
+    assert any("вход в ГИС МТ" in reason for reason in await blockers())
 
 
 async def _second_lot(session, provider, autopart):
@@ -308,6 +311,8 @@ async def _second_lot(session, provider, autopart):
     ]
     session.add(receipt)
     await session.flush()
+    for code in receipt.items[0].marking_codes:
+        await record_marking_scan(session, receipt, code)
     await receive_stock(session, receipt=receipt, reverse=False)
     await session.commit()
 
@@ -390,3 +395,156 @@ async def test_scan_after_posting_also_moves_the_lot(
     assert _codes(document) == [CODE_D]
     statuses = await _statuses(test_session)
     assert statuses[CODE_A] == MarkingCodeStatus.IN_STOCK
+
+
+@pytest.mark.asyncio
+async def test_formalized_upd_checks_scanned_unit_even_when_fifo_fills_line(
+    active_shipment_gis,
+    test_session, created_autopart, created_providers
+):
+    from dz_fastapi.services.marking_shipment_check import validate_shipment_upd_marking
+
+    def title(codes):
+        from xml.etree import ElementTree as ET
+
+        root = ET.Element("Файл")
+        ET.SubElement(ET.SubElement(root, "СвПрод"), "СвЮЛУч", ИННЮЛ="7700000000")
+        line = ET.SubElement(root, "СведТов", НомСтр="1", КолТов="1")
+        group = ET.SubElement(line, "НомСредИдентТов")
+        for code in codes:
+            ET.SubElement(group, "КИЗ").text = code
+        return ET.tostring(root, encoding="utf-8")
+
+    lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
+    shipment_id = await _draft(test_session, created_autopart, lot)
+    await post_shipment_document(test_session, shipment_id)
+    await test_session.commit()
+    with pytest.raises(ValueError, match="сканов"):
+        await validate_shipment_upd_marking(test_session, shipment_id, title([CODE_A]))
+
+    document = await _load(test_session, shipment_id)
+    await record_shipment_marking_scan(test_session, document, CODE_B)
+    await test_session.commit()
+    await validate_shipment_upd_marking(test_session, shipment_id, title([CODE_B]))
+    with pytest.raises(ValueError, match="ИНН продавца"):
+        await validate_shipment_upd_marking(test_session, shipment_id, title([CODE_B]).replace(b"7700000000", b"7700000001"))
+    for wrong in ([CODE_A], [CODE_B, CODE_B], []):
+        with pytest.raises(ValueError, match="файле УПД"):
+            await validate_shipment_upd_marking(test_session, shipment_id, title(wrong))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("batch", [False, True], ids=["single", "batch"])
+@pytest.mark.parametrize("change", ["scan", "owner"])
+async def test_change_after_sms_blocks_sending_draft(
+    active_shipment_gis, change,
+    test_session, created_autopart, created_providers, tmp_path, batch
+):
+    from unittest.mock import AsyncMock
+    from sqlalchemy import delete
+    from dz_fastapi.models.diadoc import DiadocOutgoingDocument
+    from dz_fastapi.models.inventory import ShipmentMarkingScan
+    from dz_fastapi.services.diadoc_cloud_sign import (
+        confirm_cloud_sign_task,
+        start_send_outgoing_task,
+        start_send_outgoing_batch_task,
+    )
+
+    lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
+    shipment_id = await _draft(test_session, created_autopart, lot)
+    doc = await _load(test_session, shipment_id)
+    await record_shipment_marking_scan(test_session, doc, CODE_A)
+    await post_shipment_document(test_session, shipment_id)
+    await test_session.commit()
+    path = tmp_path / "shipment.xml"
+    path.write_text(
+        '<Файл><СвПрод><СвЮЛУч ИННЮЛ="7700000000"/></СвПрод>'
+        f'<СведТов НомСтр="1" КолТов="1"><НомСредИдентТов><КИЗ>{CODE_A}</КИЗ>'
+        "</НомСредИдентТов></СведТов></Файл>",
+        encoding="utf-8",
+    )
+    draft = DiadocOutgoingDocument(
+        source_type="shipment_document",
+        source_id=shipment_id,
+        type_named_id="UniversalTransferDocument",
+        environment="staging",
+        from_box_id_guid="from",
+        to_box_id_guid="to",
+        message_id="draft",
+        file_name=path.name,
+        local_file_path=str(path),
+        is_draft=True,
+    )
+    test_session.add(draft)
+    await test_session.commit()
+    client = AsyncMock()
+    client.cloud_sign.return_value = "sms"
+    client.cloud_sign_confirm.return_value = ["signature"]
+    if batch:
+        task = await start_send_outgoing_batch_task(test_session, client=client, documents=[draft])
+    else:
+        task = await start_send_outgoing_task(test_session, client=client, document=draft)
+    valid_lookup = active_shipment_gis.side_effect
+    if change == "owner":
+        active_shipment_gis.side_effect = None
+        active_shipment_gis.return_value = [{"cisInfo": {"cis": CODE_A, "status": "INTRODUCED", "ownerInn": "7700000001"}}]
+        reason = "владелец кода"
+    else:
+        await test_session.execute(
+            delete(ShipmentMarkingScan).where(ShipmentMarkingScan.shipment_document_id == shipment_id)
+        )
+        doc = await _load(test_session, shipment_id)
+        await record_shipment_marking_scan(test_session, doc, CODE_B)
+        await test_session.commit()
+        reason = "файле УПД"
+    await test_session.refresh(task)
+    if batch:
+        await confirm_cloud_sign_task(
+            test_session, client=client, task=task, confirmation_code="123"
+        )
+        assert reason in task.params["failed"][0]["error"]
+        assert task.params["sent_document_ids"] == []
+    else:
+        with pytest.raises(ValueError, match=reason):
+            await confirm_cloud_sign_task(
+                test_session, client=client, task=task, confirmation_code="123"
+            )
+        assert task.state == "error"
+        assert task.cloud_sign_token is None
+    client.send_draft.assert_not_awaited()
+    if change == "owner" and not batch:
+        active_shipment_gis.side_effect = valid_lookup
+        client.send_draft.return_value = {"MessageId": "sent"}
+        retry = await start_send_outgoing_task(test_session, client=client, document=draft)
+        assert retry.id != task.id
+        await confirm_cloud_sign_task(
+            test_session, client=client, task=retry, confirmation_code="456"
+        )
+        assert retry.state == "completed"
+        assert not draft.is_draft
+        client.send_draft.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_two_shipments_cannot_scan_same_unit_concurrently(
+    test_session, test_engine, created_autopart, created_providers
+):
+    import asyncio
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
+    first = await _draft(test_session, created_autopart, lot)
+    second = await _draft(test_session, created_autopart, lot)
+
+    async def scan(shipment_id):
+        async with AsyncSession(test_engine, expire_on_commit=False) as session:
+            document = await _load(session, shipment_id)
+            try:
+                await record_shipment_marking_scan(session, document, CODE_A)
+            except ShipmentMarkingScanError as exc:
+                assert "уже отсканирован" in str(exc)
+                return False
+            await session.commit()
+            return True
+
+    assert sorted(await asyncio.gather(scan(first), scan(second))) == [False, True]

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.autopart import ScannedCodeAlias
 from dz_fastapi.models.inventory import ReceiptMarkingScan, ReceiptScanCount
-from dz_fastapi.models.partner import SupplierReceipt
+from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.services.inventory_stock import resolve_receipt_item_autopart_id
 from dz_fastapi.services.marking_aggregate import (
     AggregateError,
@@ -24,7 +24,9 @@ from dz_fastapi.services.marking_aggregate import (
     parse_transport_code,
 )
 from dz_fastapi.services.marking_code_parse import parse_marking_code
-from dz_fastapi.services.marking_codes import normalize_marking_codes
+from dz_fastapi.services.marking_codes import (
+    autoparts_marked_by_category, normalize_marking_codes, normalize_marking_codes_with_full,
+)
 
 SCAN_CONFIRMED = "confirmed"
 SCAN_EXTRA = "extra"
@@ -38,7 +40,7 @@ def _document_codes(receipt: SupplierReceipt) -> dict[str, Any]:
     """Код из документа → строка поступления (первая, если код повторяется)."""
     codes: dict[str, Any] = {}
     for item in receipt.items or []:
-        for code in normalize_marking_codes(item.marking_codes):
+        for code in normalize_marking_codes(item.document_marking_codes or item.marking_codes):
             codes.setdefault(code, item)
     return codes
 
@@ -59,18 +61,63 @@ async def _scans(
     )
 
 
+def _matches_item(scan: ReceiptMarkingScan, item: SupplierReceiptItem) -> bool:
+    return scan.receipt_item_id == item.id and (
+        scan.autopart_id is None or scan.autopart_id == item.autopart_id
+    )
+
+
+async def prepare_scanned_receipt_items(
+    session: AsyncSession, receipt: SupplierReceipt, items: list[SupplierReceiptItem]
+) -> None:
+    """Проверяет фактическое количество до движения склада и сохраняет принятые КИ."""
+    marked_parts = await autoparts_marked_by_category(session, [item.autopart_id for item in items])
+    marked_items = [
+        item for item in items
+        if item.marking_codes or item.document_marking_codes or item.autopart_id in marked_parts
+    ]
+    if not marked_items:
+        return
+    scans = {scan.code: scan for scan in await _scans(session, receipt.id)}
+    seen = set()
+    for item in marked_items:
+        original = item.document_marking_codes or item.marking_codes or []
+        pairs = normalize_marking_codes_with_full(original)
+        accepted = []
+        for code, full in pairs:
+            if code in seen:
+                raise ValueError(f"Код {code} повторяется в нескольких строках поступления.")
+            seen.add(code)
+            scan = scans.get(code)
+            if scan and _matches_item(scan, item):
+                accepted.append(scan.full_code or full or code)
+        quantity = int(item.received_quantity or 0)
+        if quantity != len(accepted):
+            raise ValueError(
+                f"Строка {item.oem_number or item.id}: принято по документу {quantity}, "
+                f"подтверждено сканами {len(accepted)}. Отсканируйте недостающие экземпляры "
+                "или укажите фактически принятое количество и сумму строки."
+            )
+        if len(accepted) != len(pairs) and item.document_marking_codes is None:
+            item.document_marking_codes = list(original)
+        item.marking_codes = accepted
+
+
 async def marking_scan_state(
     session: AsyncSession, receipt: SupplierReceipt
 ) -> dict[str, Any]:
     """Состояние сверки кодов: по строкам и по документу в целом."""
     document = _document_codes(receipt)
     scans = await _scans(session, receipt.id)
-    scanned = {scan.code for scan in scans}
+    scanned = {
+        scan.code for scan in scans
+        if scan.code in document and _matches_item(scan, document[scan.code])
+    }
     by_item: dict[int, dict[str, Any]] = {}
     for item in receipt.items or []:
         codes = [
             code
-            for code in normalize_marking_codes(item.marking_codes)
+            for code in normalize_marking_codes(item.document_marking_codes or item.marking_codes)
             if document.get(code) is item
         ]
         by_item[item.id] = {
@@ -86,7 +133,7 @@ async def marking_scan_state(
             "scanned_at": scan.scanned_at,
         }
         for scan in scans
-        if scan.code not in document
+        if scan.code not in scanned
     ]
     expected = len(document)
     confirmed = sum(row["confirmed"] for row in by_item.values())
@@ -145,7 +192,7 @@ async def record_marking_scan(
         )
         session.add(existing)
         await session.flush()
-    elif item is not None and existing.receipt_item_id != item.id:
+    elif item is not None and (existing.receipt_item_id != item.id or existing.autopart_id != autopart_id):
         # Документ изменился после скана: код появился в строке.
         existing.receipt_item_id = item.id
         existing.autopart_id = autopart_id

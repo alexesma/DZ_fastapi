@@ -295,7 +295,7 @@ async def test_fix_script_service_corrects_date_and_logs_in_comment(
 def test_overdelivery_is_split_into_linked_and_free_rows():
     item = SimpleNamespace(id=5, confirmed_quantity=None, quantity=100, received_quantity=10)
     payloads = [
-        {'supplier_order_item_id': 5, 'received_quantity': 409, 'oem_number': 'X'},
+        {'supplier_order_item_id': 5, 'received_quantity': 409, 'oem_number': 'X', 'marking_codes': list(map(str, range(409))), 'total_price_with_vat': 409.01},
         {'supplier_order_item_id': None, 'received_quantity': 3, 'oem_number': 'Y'},
     ]
     result = _split_overdelivered_payloads(payloads, {5: item})
@@ -304,6 +304,9 @@ def test_overdelivery_is_split_into_linked_and_free_rows():
         (None, 319),
         (None, 3),
     ]
+    assert [r['total_price_with_vat'] for r in result[:2]] == [90.0, 319.01]
+    assert result[0]['marking_codes'] == payloads[0]['marking_codes'][:90]
+    assert result[1]['marking_codes'] == payloads[0]['marking_codes'][90:]
     assert result[1]['is_excess'] is True
     assert 'is_excess' not in result[2]
 
@@ -613,3 +616,69 @@ async def test_merge_posts_kept_draft_when_only_duplicate_was_posted(
     remaining = await receipts(test_session)
     assert [r.id for r in remaining] == [email_receipt_id]
     assert remaining[0].posted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_marked_inbound_upd_is_draft_until_scanned_and_rechecked_after_sms(
+    test_session, created_providers, created_autopart, tmp_path
+):
+    from unittest.mock import AsyncMock
+    from sqlalchemy import delete
+    from sqlalchemy.orm import selectinload
+    from dz_fastapi.models.inventory import ReceiptMarkingScan, StockLot
+    from dz_fastapi.models.settings import DiadocIntegrationSettings
+    from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked
+    from dz_fastapi.services.diadoc_cloud_sign import confirm_cloud_sign_task, start_incoming_sign_task
+    from dz_fastapi.services.diadoc_documents import get_diadoc_incoming_document
+    from dz_fastapi.services.receipt_marking_scan import record_marking_scan
+    from dz_fastapi.services.supplier_workflow import post_supplier_receipt
+
+    provider = created_providers[0]
+    _, _, config = await prepare(test_session, provider, created_autopart)
+    codes = ["010460000000001721AAAAAAAAAAAAA", "010460000000001721BBBBBBBBBBBBB"]
+    units = "".join(f"<КИЗ>{code}</КИЗ>" for code in codes)
+    path = tmp_path / "ON_NSCHFDOPPR_marked.xml"
+    path.write_text(upd_xml(created_autopart.oem_number).decode().replace(
+        "</СведТов>", f"<НомСредИдентТов>{units}</НомСредИдентТов></СведТов>"
+    ))
+    doc = DiadocIncomingDocument(
+        environment="staging", box_id_guid="box", message_id="marked", entity_id="seller",
+        provider_id=provider.id, file_name=path.name, local_file_path=str(path),
+        raw_metadata={"TypeNamedId": "UniversalTransferDocument", "Function": "ДОП", "Version": "test"},
+    )
+    test_session.add(doc)
+    await test_session.commit()
+    doc_id = doc.id
+    result = await process_diadoc_incoming_document(
+        test_session, document=doc, provider_id=provider.id, response_config_id=config.id,
+        download_content_if_missing=False,
+    )
+    assert not result.get("import_error_details")
+    receipt = await test_session.scalar(select(SupplierReceipt).where(
+        SupplierReceipt.id == result["receipt_ids"][0]).options(selectinload(SupplierReceipt.items)))
+    assert receipt.posted_at is None
+    assert await test_session.scalar(select(StockLot.id)) is None
+    for code in codes:
+        await record_marking_scan(test_session, receipt, code)
+    await post_supplier_receipt(test_session, receipt_id=receipt.id, user=SimpleNamespace(id=None))
+    doc = await get_diadoc_incoming_document(test_session, document_id=doc_id)
+    client = AsyncMock()
+    client.generate_title_xml.return_value = (b"<title/>", "buyer.xml")
+    client.cloud_sign.return_value = "token"
+    client.cloud_sign_confirm.return_value = ["signature"]
+    client.post_message_patch.return_value = {}
+    integration = DiadocIntegrationSettings(signer_full_name="Иванов Иван", signer_position="Директор")
+    signing = dict(client=client, document=doc, integration=integration, include_receipt=False)
+    task = await start_incoming_sign_task(test_session, **signing)
+    await test_session.execute(delete(ReceiptMarkingScan).where(ReceiptMarkingScan.code == codes[1]))
+    await test_session.commit()
+    with pytest.raises(ReceiptAcceptanceBlocked):
+        await confirm_cloud_sign_task(test_session, client=client, task=task, confirmation_code="123")
+    client.post_message_patch.assert_not_awaited()
+    assert task.state == "error"
+    with pytest.raises(ReceiptAcceptanceBlocked):
+        await start_incoming_sign_task(test_session, **signing)
+    task = await start_incoming_sign_task(test_session, **signing, total_code="2")
+    await confirm_cloud_sign_task(test_session, client=client, task=task, confirmation_code="456")
+    assert task.state == "completed"
+    client.post_message_patch.assert_awaited_once()

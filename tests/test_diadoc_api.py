@@ -13,6 +13,9 @@ from dz_fastapi.crud.settings import crud_diadoc_integration_settings
 from dz_fastapi.models.diadoc import DiadocIncomingDocument, DiadocOutgoingDocument
 from dz_fastapi.models.inventory import (
     LotSourceType,
+    MarkingCodeStatus,
+    ProductMarkingCode,
+    ShipmentMarkingScan,
     ReturnDocumentStatus,
     ReturnFromCustomer,
     ReturnItem,
@@ -955,6 +958,7 @@ async def test_diadoc_can_create_outgoing_draft_from_shipment_document(
 
 @pytest.mark.asyncio
 async def test_diadoc_can_create_formalized_utd_from_shipment_document(
+    active_shipment_gis,
     async_client,
     test_session,
     created_autopart,
@@ -1025,18 +1029,37 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
     )
     test_session.add(stock_lot)
     await test_session.flush()
-    test_session.add(
-        ShipmentDocumentItemLotAllocation(
-            shipment_document_item_id=shipment_item.id,
-            stock_lot_id=stock_lot.id,
-            quantity=3,
-            marking_codes=[
-                "010460123456789021ABC123",
-                "010460123456789021ABC124",
-                "010460123456789021ABC125",
-            ],
-        )
+    allocation = ShipmentDocumentItemLotAllocation(
+        shipment_document_item_id=shipment_item.id,
+        stock_lot_id=stock_lot.id,
+        quantity=3,
+        marking_codes=[
+            "010460123456789021ABC123",
+            "010460123456789021ABC124",
+            "010460123456789021ABC125",
+        ],
     )
+    test_session.add(allocation)
+    await test_session.flush()
+    for code in allocation.marking_codes:
+        row = ProductMarkingCode(
+            code=code,
+            autopart_id=shipment_item.autopart_id,
+            status=MarkingCodeStatus.SHIPPED,
+            shipment_document_id=shipment_item.document_id,
+            shipment_document_item_id=shipment_item.id,
+            shipment_allocation_id=allocation.id,
+        )
+        test_session.add(row)
+        await test_session.flush()
+        test_session.add(
+            ShipmentMarkingScan(
+                code=code,
+                marking_code_id=row.id,
+                shipment_document_id=shipment_item.document_id,
+                shipment_document_item_id=shipment_item.id,
+            )
+        )
     await test_session.commit()
 
     async def fake_get_document_types(self, box_id_guid):
@@ -1112,10 +1135,15 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         assert "<Unit>010460123456789021ABC123</Unit>" in xml_text
         assert "<Unit>010460123456789021ABC124</Unit>" in xml_text
         assert "<Signers>" in xml_text
+        from xml.etree import ElementTree as ET
+
+        title = ET.Element("Файл")
+        ET.SubElement(ET.SubElement(title, "СвПрод"), "СвЮЛУч", ИННЮЛ="7700000000")
+        line = ET.SubElement(title, "СведТов", НомСтр="1", КолТов="3")
+        for unit in ET.fromstring(xml_text).findall(".//ItemIdentificationNumber/Unit"):
+            ET.SubElement(ET.SubElement(line, "НомСредИдентТов"), "КИЗ").text = unit.text
         return (
-            ('<?xml version="1.0" encoding="windows-1251"?>' '<Файл ИдФайл="test-utd" />').encode(
-                "utf-8"
-            ),
+            ET.tostring(title, encoding="utf-8"),
             "ON_NSCHFDOPPR_test.xml",
         )
 

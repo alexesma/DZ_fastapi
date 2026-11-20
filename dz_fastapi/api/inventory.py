@@ -3088,10 +3088,10 @@ def _shipment_profit_period_start(
 
 
 async def _load_shipment(
-    session: AsyncSession, doc_id: int
+    session: AsyncSession, doc_id: int, *, lock: bool = False
 ) -> ShipmentDocument:
     """Load ShipmentDocument with all relations needed for output."""
-    result = await session.execute(
+    stmt = (
         select(ShipmentDocument)
         .where(ShipmentDocument.id == doc_id)
         .options(
@@ -3114,7 +3114,9 @@ async def _load_shipment(
             selectinload(ShipmentDocument.warehouse),
         )
     )
-    return result.scalar_one_or_none()
+    if lock:
+        stmt = stmt.with_for_update(of=ShipmentDocument).execution_options(populate_existing=True)
+    return (await session.execute(stmt)).scalar_one_or_none()
 
 
 @router.post(
@@ -5495,15 +5497,13 @@ async def shipment_marking_scan(
     )
 
     user_id = current_user.id
-    doc = await _load_shipment(session, doc_id)
+    doc = await _load_shipment(session, doc_id, lock=True)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Отгрузка не найдена")
     try:
-        result = await record_shipment_aggregate_scan(
-            session, doc, code, user_id=user_id
-        )
+        result = await record_shipment_aggregate_scan(session, doc, code, user_id=user_id)
         if result is None:
-            result = await record_shipment_marking_scan(
-                session, doc, code, user_id=user_id
-            )
+            result = await record_shipment_marking_scan(session, doc, code, user_id=user_id)
     except ShipmentMarkingScanError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.commit()
@@ -5524,6 +5524,9 @@ async def shipment_marking_scan_delete(
     from dz_fastapi.models.inventory import ShipmentMarkingScan
     from dz_fastapi.services.shipment_marking_scan import shipment_marking_state
 
+    await session.execute(
+        select(ShipmentDocument.id).where(ShipmentDocument.id == doc_id).with_for_update()
+    )
     scan = await session.get(ShipmentMarkingScan, scan_id)
     if scan is None or scan.shipment_document_id != doc_id:
         raise HTTPException(status_code=404, detail="Скан не найден")
@@ -5545,7 +5548,9 @@ async def shipment_marking_auto_assign(
     from dz_fastapi.services.marking_codes import allocate_marking_codes_for_shipment_allocation
     from dz_fastapi.services.shipment_marking_scan import shipment_marking_state
 
-    doc = await _load_shipment(session, doc_id)
+    doc = await _load_shipment(session, doc_id, lock=True)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Отгрузка не найдена")
     if doc.status != ShipmentDocumentStatus.POSTED:
         raise HTTPException(
             status_code=409,

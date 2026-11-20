@@ -416,3 +416,28 @@ async def override_dependencies(
     if hasattr(app.state, "session_factory"):
         delattr(app.state, "session_factory")
     logger.debug("Dependencies overrides cleared after the test")
+
+
+@pytest_asyncio.fixture
+async def active_shipment_gis(test_session, monkeypatch):
+    from datetime import timedelta
+    from unittest.mock import AsyncMock
+    from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.http.gis_mt_client import GisMtClient
+    from dz_fastapi.services.gis_mt import get_or_create_gis_mt_settings
+    from dz_fastapi.crud.settings import crud_diadoc_integration_settings
+
+    settings_row = await get_or_create_gis_mt_settings(test_session)
+    settings_row.token = "test-token"
+    settings_row.token_expires_at = now_moscow() + timedelta(hours=1)
+    await crud_diadoc_integration_settings.update(test_session, {"organization_inn": "7700000000"})
+
+    def response(codes):
+        return [
+            {"cisInfo": {"requestedCis": code, "status": "INTRODUCED", "ownerInn": "7700000000"}}
+            for code in codes
+        ]
+
+    lookup = AsyncMock(side_effect=response)
+    monkeypatch.setattr(GisMtClient, "get_cises_info", lookup)
+    return lookup

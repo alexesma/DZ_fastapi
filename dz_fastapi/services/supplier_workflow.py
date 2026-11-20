@@ -49,7 +49,6 @@ from dz_fastapi.services.inventory_stock import (
     resolve_warehouse_for_provider,
 )
 from dz_fastapi.services.marking_receipt_check import (
-    check_receipt_marking,
     summarize_receipt_marking,
 )
 from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
@@ -996,6 +995,8 @@ async def post_supplier_receipt(
             selectinload(SupplierReceipt.items).joinedload(SupplierReceiptItem.supplier_order_item),
         )
         .where(SupplierReceipt.id == receipt_id)
+        .with_for_update(of=SupplierReceipt)
+        .execution_options(populate_existing=True)
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
@@ -1073,12 +1074,7 @@ async def post_supplier_receipt(
                 if item.order_item_id is not None
             },
         )
-        try:
-            # Расхождения КИЗ проведение не блокируют: показываем в документе.
-            await check_receipt_marking(session, receipt, use_gis=True)
-        except Exception:  # noqa: BLE001
-            logger.exception("Receipt %s marking check failed", receipt.id)
-        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id, check_marking=True)
         await ensure_cross_docking_labels(
             session,
             receipt_id=receipt.id,
@@ -1199,6 +1195,8 @@ async def unpost_supplier_receipt(
             selectinload(SupplierReceipt.items),
         )
         .where(SupplierReceipt.id == receipt_id)
+        .with_for_update(of=SupplierReceipt)
+        .execution_options(populate_existing=True)
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
@@ -1224,6 +1222,10 @@ async def unpost_supplier_receipt(
             receipt_id=receipt.id,
             reverse=True,
         )
+        for item in receipt.items:
+            if item.document_marking_codes is not None:
+                item.marking_codes = item.document_marking_codes
+                item.document_marking_codes = None
         receipt.posted_at = None
         await session.flush()
         await _refresh_receipt_links(
@@ -1449,7 +1451,7 @@ async def update_supplier_receipt_item(
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
         raise LookupError("Строка документа не найдена")
-    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id)
+    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
         raise ValueError("Нельзя редактировать строку проведённого документа")
@@ -1494,7 +1496,7 @@ async def add_supplier_receipt_items(
     receipt_id: int,
     items_payload: list[dict],
 ) -> SupplierReceipt:
-    stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
+    stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id).with_for_update()
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
         raise LookupError("Документ поступления не найден")
@@ -1587,7 +1589,7 @@ async def delete_supplier_receipt_item(
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
         raise LookupError("Строка документа не найдена")
-    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id)
+    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
         raise ValueError("Нельзя удалять строки проведённого документа")

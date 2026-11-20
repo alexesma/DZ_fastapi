@@ -50,12 +50,15 @@ class PlacePayload(BaseModel):
     quantity: int = Field(gt=0)
 
 
-async def _load_receipt(session: AsyncSession, receipt_id: int) -> SupplierReceipt:
-    receipt = (await session.execute(
+async def _load_receipt(session: AsyncSession, receipt_id: int, *, lock: bool = False) -> SupplierReceipt:
+    stmt = (
         select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
         .options(selectinload(SupplierReceipt.items),
                  selectinload(SupplierReceipt.provider))
-    )).scalar_one_or_none()
+    )
+    if lock:
+        stmt = stmt.with_for_update(of=SupplierReceipt)
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
         raise HTTPException(status_code=404, detail="Поступление не найдено")
     return receipt
@@ -155,7 +158,7 @@ async def scan_marking_code(receipt_id: int, payload: MarkingScanPayload,
                             user: User = Depends(get_current_user)):
     """Сверка кода маркировки со скана с кодами из документа поставщика."""
     user_id = user.id
-    receipt = await _load_receipt(session, receipt_id)
+    receipt = await _load_receipt(session, receipt_id, lock=True)
     try:
         result = await record_aggregate_scan(
             session, receipt, payload.code, user_id=user_id)
@@ -175,6 +178,7 @@ async def scan_marking_code(receipt_id: int, payload: MarkingScanPayload,
 async def delete_marking_scan(receipt_id: int, scan_id: int,
                               session: AsyncSession = Depends(get_session)):
     """Убрать ошибочный скан (например, код из чужой коробки)."""
+    await _load_receipt(session, receipt_id, lock=True)
     scan = await session.get(ReceiptMarkingScan, scan_id)
     if scan is None or scan.receipt_id != receipt_id:
         raise HTTPException(status_code=404, detail="Скан не найден")

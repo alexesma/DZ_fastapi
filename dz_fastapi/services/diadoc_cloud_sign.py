@@ -25,6 +25,8 @@ from dz_fastapi.models.diadoc import (
     DiadocOutgoingDocument,
 )
 from dz_fastapi.models.settings import DiadocIntegrationSettings
+from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, acceptance_summary, assert_acceptance_result
+from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked, validate_shipment_upd_marking
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -283,12 +285,25 @@ async def start_incoming_sign_task(
         operation=OPERATION_SIGN_INCOMING,
         incoming_document_id=int(document.id),
     )
-    if existing is not None:
-        return existing
-    function, version = await _resolve_incoming_function_and_version(client, document)
     from dz_fastapi.services.supplier_document_dedup import effective_category
 
     category = effective_category(document)
+    if category == "upd":
+        acceptance = await acceptance_summary(session, document)
+        assert_acceptance_result(acceptance, total_code)
+        audit = {
+            **(audit or {}),
+            "acceptance_checked": True,
+            "acceptance_discrepancies": acceptance["lines_total"],
+        }
+    if existing is not None:
+        if (existing.params or {}).get("total_code", "1") == total_code:
+            return existing
+        existing.state = "cancelled"
+        existing.files = []
+        existing.cloud_sign_token = None
+        existing.completed_at = now_moscow()
+    function, version = await _resolve_incoming_function_and_version(client, document)
     acceptance_date = now_moscow().strftime("%d.%m.%Y")
     if category == "ukd":
         type_named_id = "UniversalCorrectionDocument"
@@ -521,6 +536,19 @@ async def start_revoke_outgoing_task(
     return task
 
 
+async def _check_draft_codes(session, document: DiadocOutgoingDocument, content: bytes) -> None:
+    if (
+        document.source_type == "shipment_document"
+        and document.type_named_id == "UniversalTransferDocument"
+    ):
+        if (
+            document.content_sha256
+            and hashlib.sha256(content).hexdigest() != document.content_sha256
+        ):
+            raise ShipmentMarkingBlocked("Файл для подписи отличается от сохранённого черновика УПД")
+        await validate_shipment_upd_marking(session, document.source_id, content)
+
+
 async def start_send_outgoing_task(
     session: AsyncSession,
     *,
@@ -544,6 +572,7 @@ async def start_send_outgoing_task(
         raise ValueError("Файл документа не найден на диске — пересоздайте черновик")
     with open(path, "rb") as handle:
         content = handle.read()
+    await _check_draft_codes(session, document, content)
     files = [
         {
             "file_name": document.file_name,
@@ -592,6 +621,18 @@ async def _apply_sign_incoming(
     task: DiadocCloudSignTask,
     signatures: list[str],
 ) -> dict[str, Any]:
+    from dz_fastapi.services.diadoc_documents import get_diadoc_incoming_document
+    from dz_fastapi.services.supplier_document_dedup import effective_category
+
+    document = await get_diadoc_incoming_document(session, document_id=task.incoming_document_id)
+    if document is None:
+        raise ReceiptAcceptanceBlocked("Входящий документ не найден")
+    if document.signed_at or document.rejected_at:
+        raise ReceiptAcceptanceBlocked("По входящему документу уже зарегистрирована подпись или отказ")
+    params = task.params or {}
+    if params.get("type_named_id") == "UniversalTransferDocument" or effective_category(document) == "upd":
+        summary = await acceptance_summary(session, document, lock=True)
+        assert_acceptance_result(summary, params.get("total_code", "1"))
     files = list(task.files or [])
     patch: dict[str, Any] = {
         "BoxId": task.box_id_guid,
@@ -623,11 +664,8 @@ async def _apply_sign_incoming(
         patch=patch,
         operation_id=_task_operation_id(task, "sign-incoming"),
     )
-    if task.incoming_document_id:
-        document = await session.get(DiadocIncomingDocument, task.incoming_document_id)
-        if document is not None:
-            document.signed_at = now_moscow()
-            session.add(document)
+    document.signed_at = now_moscow()
+    session.add(document)
     return {"patch_response_keys": sorted(response.keys())}
 
 
@@ -697,6 +735,7 @@ async def start_send_outgoing_batch_task(
             )
         with open(path, "rb") as handle:
             content = handle.read()
+        await _check_draft_codes(session, document, content)
         files.append(
             {
                 "file_name": document.file_name,
@@ -752,7 +791,7 @@ async def _apply_send_outgoing_batch(
             if not document.is_draft:
                 raise ValueError("Документ уже отправлен")
             await _send_signed_draft(
-                session, client=client, document=document, signature=signature
+                session, client=client, document=document, signature=signature, file_item=file_item
             )
             await session.commit()
             sent.append(document_id)
@@ -781,7 +820,7 @@ async def _apply_send_outgoing(
     if document is None:
         raise ValueError("Исходящий документ не найден")
     await _send_signed_draft(
-        session, client=client, document=document, signature=signatures[0]
+        session, client=client, document=document, signature=signatures[0], file_item=task.files[0]
     )
     return {"message_id": document.message_id}
 
@@ -792,9 +831,13 @@ async def _send_signed_draft(
     client: DiadocClient,
     document: DiadocOutgoingDocument,
     signature: str,
+    file_item: dict[str, Any],
 ) -> None:
     from dz_fastapi.services.diadoc_outgoing import _extract_first_entity_id, _extract_message_id
 
+    await _check_draft_codes(
+        session, document, base64.b64decode(file_item["content_b64"], validate=True)
+    )
     operation_id = hashlib.md5(
         (
             f"send-draft|{document.environment}|{document.id}|"
@@ -832,6 +875,12 @@ async def confirm_cloud_sign_task(
     confirmation_code: str,
 ) -> DiadocCloudSignTask:
     """SMS-код → подписи → целевое действие по типу операции."""
+    if task.operation == OPERATION_SIGN_INCOMING:
+        active = await _active_task(
+            session, operation=task.operation, incoming_document_id=task.incoming_document_id
+        )
+        if active is None or active.id != task.id:
+            raise ValueError("Запрос подписи больше не активен. Откройте актуальную задачу.")
     if task.state != "waiting_code":
         raise ValueError(f"Задача в состоянии {task.state} — подтверждать нечего")
     code = str(confirmation_code or "").strip()
@@ -889,8 +938,12 @@ async def confirm_cloud_sign_task(
             raise ValueError(f"Неизвестная операция задачи: {task.operation}")
     except Exception as exc:
         task.error_details = str(exc)[:2000]
-        # Код мог быть неверным — оставляем waiting_code для повторного
-        # ввода; фатальные ошибки пользователь увидит в error_details.
+        if isinstance(exc, (ShipmentMarkingBlocked, ReceiptAcceptanceBlocked)):
+            # Подпись уже получена. Повторная отправка потребует новой SMS.
+            task.state = "error"
+            task.cloud_sign_token = None
+            task.files = []
+            task.completed_at = now_moscow()
         session.add(task)
         await session.commit()
         raise

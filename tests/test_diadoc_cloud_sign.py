@@ -122,7 +122,8 @@ async def test_send_outgoing_sends_existing_draft():
         sent_at=None,
         raw_response={},
     )
-    task = SimpleNamespace(outgoing_document_id=17)
+    document.source_type = None
+    task = SimpleNamespace(outgoing_document_id=17, files=[{"content_b64": "eA=="}])
 
     class Session:
         async def get(self, model, object_id):

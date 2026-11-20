@@ -645,10 +645,8 @@ async def build_shipment_formalized_readiness(
             await session.execute(select(GisMtSettings).limit(1))
         ).scalars().first()
         if gis_settings is None or not gis_mt_token_is_active(gis_settings):
-            marking_warnings.append(
-                "КИЗ: вход в ГИС МТ не выполнен — статус и владелец кодов "
-                "перед отправкой не будут проверены."
-            )
+            missing_required_fields.append("КИЗ: для проверки владельца и статуса кодов нужен вход в ГИС МТ.")
+            recommended_actions.append("Войдите в ГИС МТ на странице маркировки.")
     # Маркируемый товар без кода на каждую штуку в УПД не отправляем.
     missing_required_fields.extend(marking_blockers)
     warnings.extend(marking_warnings)
@@ -1485,6 +1483,7 @@ async def _load_shipment_document(
     session: AsyncSession,
     *,
     shipment_id: int,
+    lock: bool = False,
 ) -> ShipmentDocument | None:
     stmt = (
         select(ShipmentDocument)
@@ -1504,6 +1503,8 @@ async def _load_shipment_document(
             selectinload(ShipmentDocument.warehouse),
         )
     )
+    if lock:
+        stmt = stmt.with_for_update(of=ShipmentDocument).execution_options(populate_existing=True)
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
@@ -1542,13 +1543,6 @@ def _collect_shipment_item_marking_codes(item: ShipmentDocumentItem) -> list[str
     codes: list[str] = []
     for allocation in list(getattr(item, "allocations", []) or []):
         codes.extend(_normalize_marking_codes_for_xml(getattr(allocation, "marking_codes", None)))
-    if not codes:
-        # Коды всей партии подставляем, только если они точно относятся к
-        # этой строке: иначе в УПД попали бы КИЗ чужих штук из партии.
-        lot = getattr(item, "lot", None)
-        lot_codes = _normalize_marking_codes_for_xml(getattr(lot, "marking_codes", None))
-        if lot_codes and len(lot_codes) == int(item.quantity or 0):
-            codes.extend(lot_codes)
     return list(dict.fromkeys(codes))
 
 
@@ -2410,6 +2404,10 @@ async def post_diadoc_outgoing_document(
         content_base64,
         field_name="content_base64",
     )
+    if normalized_source_type == "shipment_document" and type_named_id == _UTD_TYPE_NAMED_ID:
+        from dz_fastapi.services.marking_shipment_check import validate_shipment_upd_marking
+
+        await validate_shipment_upd_marking(session, normalized_source_id, content)
     local_metadata = dict(metadata or {})
     local_metadata.pop("gis_mt_expected", None)
     local_metadata.pop("gis_mt_pending", None)
