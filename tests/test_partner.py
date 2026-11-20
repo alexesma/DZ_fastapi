@@ -929,7 +929,18 @@ async def test_pricelist_config_resolves_exclusion_and_multiple_order_emails(
                 "orders@auto-ga.ru",
                 "backup@auto-ga.ru",
                 "third@auto-ga.ru",
-            ]
+            ],
+            # Ant Design Select keeps numeric ids in the form.  Updating an
+            # unrelated field must not make an existing exclusion invalidate
+            # the whole configuration.
+            "exclude_positions": [
+                {
+                    "autopart_id": part.id,
+                    "brand": "AUTO-GA",
+                    "oem": "AG100",
+                    "name": "Фильтр",
+                }
+            ],
         },
     )
     assert updated.status_code == 200, updated.text
@@ -938,6 +949,7 @@ async def test_pricelist_config_resolves_exclusion_and_multiple_order_emails(
         "backup@auto-ga.ru",
         "third@auto-ga.ru",
     ]
+    assert updated.json()["exclude_positions"][0]["autopart_id"] == str(part.id)
 
     invalid = await async_client.patch(
         f"/providers/{created_providers[0].id}/pricelist-config/{data['id']}/",

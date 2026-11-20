@@ -766,6 +766,20 @@ class PaginatedCustomersResponse(BaseModel):
     pages: int
 
 
+class ProviderPriceListExcludePosition(BaseModel):
+    """Catalogue position excluded from a provider price list.
+
+    The browser uses a numeric catalogue id in its Select control, while
+    historical JSON rows store that id as a string.  Accept both forms; the
+    endpoint canonicalises the value before persisting it.
+    """
+
+    autopart_id: Optional[int | str] = None
+    brand: str = ""
+    oem: str = ""
+    name: str = ""
+
+
 class ProviderPriceListConfigBase(BaseModel):
     incoming_email_account_id: Optional[int] = Field(default=None, ge=1)
     start_row: int
@@ -793,7 +807,9 @@ class ProviderPriceListConfigBase(BaseModel):
     max_price: Optional[float] = None
     min_quantity: Optional[int] = None
     max_quantity: Optional[int] = None
-    exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
+    exclude_positions: List[ProviderPriceListExcludePosition] = Field(
+        default_factory=list
+    )
     excluded_brands: List[str] = Field(default_factory=list)
     mailing_included_brands: List[str] = Field(default_factory=list)
     max_days_without_update: Optional[int] = Field(default=3, ge=0)
@@ -834,7 +850,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
     max_price: Optional[float] = None
     min_quantity: Optional[int] = None
     max_quantity: Optional[int] = None
-    exclude_positions: Optional[List[Dict[str, str]]] = None
+    exclude_positions: Optional[List[ProviderPriceListExcludePosition]] = None
     excluded_brands: Optional[List[str]] = None
     mailing_included_brands: Optional[List[str]] = None
     max_days_without_update: Optional[int] = Field(default=None, ge=0)
