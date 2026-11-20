@@ -3503,6 +3503,76 @@ async def test_send_pricelist_rejects_unconfirmed_delivery(
 
 
 @pytest.mark.asyncio
+async def test_send_pricelist_delivers_to_valid_recipients_when_one_is_rejected(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    sent_to = []
+
+    def fake_send(**kwargs):
+        recipient = kwargs["to_email"]
+        if "bad@example.ruv" in recipient:
+            return False
+        sent_to.append(recipient)
+        return True
+
+    notifications = []
+
+    async def fake_notify(session, **kwargs):
+        notifications.append(kwargs)
+        return []
+
+    monkeypatch.setattr(process_service, "send_email_with_attachment", fake_send)
+    monkeypatch.setattr(process_service, "create_admin_notifications", fake_notify)
+    customer = created_customers[0]
+    config = CustomerPriceListConfig(customer_id=customer.id, name="PARTIAL CONFIG")
+
+    result = await process_service.send_pricelist(
+        session=test_session,
+        df_excel=None,
+        customer=customer,
+        config=config,
+        to_emails=["good@example.com", "bad@example.ruv"],
+        subject="Тестовый прайс",
+        body="Тело письма",
+        attachment_bytes=b"test",
+        attachment_filename="price.xlsx",
+    )
+
+    assert result == "sent"
+    assert sent_to == ["good@example.com"]
+    assert len(notifications) == 1
+    assert "bad@example.ruv" in notifications[0]["message"]
+
+
+@pytest.mark.asyncio
+async def test_send_pricelist_fails_when_every_recipient_is_rejected(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        process_service, "send_email_with_attachment", lambda **kwargs: False
+    )
+    customer = created_customers[0]
+    config = CustomerPriceListConfig(customer_id=customer.id, name="ALL BAD CONFIG")
+
+    with pytest.raises(RuntimeError, match="не подтвердил отправку"):
+        await process_service.send_pricelist(
+            session=test_session,
+            df_excel=None,
+            customer=customer,
+            config=config,
+            to_emails=["a@example.com", "b@example.com"],
+            subject="Тестовый прайс",
+            body="Тело письма",
+            attachment_bytes=b"test",
+            attachment_filename="price.xlsx",
+        )
+
+
+@pytest.mark.asyncio
 async def test_smtp_customer_pricelist_uses_external_relay(
     test_session: AsyncSession,
     created_customers: list[Customer],

@@ -89,6 +89,7 @@ from dz_fastapi.models.nomenclature import (
     autopart_applicability_association,
     autopart_honest_sign_association,
 )
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
     Customer,
     CustomerPriceList,
@@ -125,6 +126,7 @@ from dz_fastapi.services.email_outbox import (
     enqueue_email,
     record_customer_pricelist_delivery_channel,
 )
+from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
 from dz_fastapi.services.regulatory import (
     _certificate_values_from_supplier_row,
@@ -3580,6 +3582,73 @@ async def send_pricelist(
                     error=str(exc),
                 )
             raise
+        rejected_recipients: list[str] = []
+        if not sent and len(relay_recipients) > 1:
+            # Один недоставляемый адрес (опечатка, адрес из стоп-листа
+            # почтового сервера) не должен лишать прайса остальных
+            # получателей: пробуем адреса по одному и находим виновника.
+            delivered_to: list[str] = []
+            for recipient in relay_recipients:
+                single_fingerprint = _pricelist_payload_fingerprint(
+                    recipient, subject, body, attachment_bytes
+                )
+                try:
+                    one_sent = await loop.run_in_executor(
+                        None,
+                        partial(
+                            send_email_with_attachment,
+                            to_email=recipient,
+                            subject=subject,
+                            body=body,
+                            attachment_bytes=attachment_bytes,
+                            attachment_filename=attachment_filename,
+                            resend_idempotency_key=(
+                                f"customer-pricelist/{customer_pricelist_id}"
+                                f"/sender/{sender_key}/single"
+                                f"/{single_fingerprint}"
+                                if customer_pricelist_id is not None
+                                else None
+                            ),
+                            **kwargs,
+                        ),
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Pricelist send to single recipient %s failed: %s",
+                        recipient,
+                        exc,
+                    )
+                    one_sent = False
+                (delivered_to if one_sent else rejected_recipients).append(recipient)
+            sent = bool(delivered_to)
+            if sent and rejected_recipients:
+                rejected_text = ", ".join(rejected_recipients)
+                logger.warning(
+                    "Customer pricelist delivered partially: config=%s "
+                    "customer=%s rejected=%s",
+                    config.id,
+                    customer.id,
+                    rejected_text,
+                )
+                try:
+                    await create_admin_notifications(
+                        session,
+                        title="Прайс отправлен не всем получателям",
+                        message=(
+                            f"Клиент {customer.name}, конфигурация "
+                            f"#{config.id}. Почтовый сервер отклонил адреса: "
+                            f"{rejected_text}. Проверьте их в настройке "
+                            "прайса клиента."
+                        ),
+                        level=AppNotificationLevel.WARNING,
+                        link="/admin/settings",
+                        commit=False,
+                    )
+                except Exception as notify_exc:
+                    logger.error(
+                        "Failed to create rejected recipients notification: %s",
+                        notify_exc,
+                    )
         if not sent:
             sender = account.email if account else EMAIL_NAME
             if customer_pricelist_id is not None:
@@ -3616,6 +3685,11 @@ async def send_pricelist(
                 ),
                 account_id=(getattr(account, "id", None) if account else None),
                 recipients=relay_recipients,
+                error=(
+                    "Отклонены адреса: " + ", ".join(rejected_recipients)
+                    if rejected_recipients
+                    else None
+                ),
             )
 
     if relay_accounts:
