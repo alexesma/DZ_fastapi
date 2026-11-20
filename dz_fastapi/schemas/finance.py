@@ -318,6 +318,8 @@ class BankStatementOut(BaseModel):
     uploaded_at: datetime
     txn_count: int
     matched_count: int
+    source: str = "upload"
+    inbox_email_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 

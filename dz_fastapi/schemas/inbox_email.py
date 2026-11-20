@@ -45,6 +45,11 @@ RULE_META: dict[str, dict] = {
         "group": "auto",
         "color": "geekblue",
     },
+    "bank_statement": {
+        "label": "Банковская выписка",
+        "group": "auto",
+        "color": "gold",
+    },
     "claim": {
         "label": "Претензия / рекламация",
         "group": "notify",

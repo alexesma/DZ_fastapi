@@ -411,6 +411,9 @@ class BankStatement(Base):
     # Counts after parsing
     txn_count = Column(Integer, nullable=False, default=0)
     matched_count = Column(Integer, nullable=False, default=0)
+    # upload — загружена вручную; email — принята из письма банка
+    source = Column(String(32), nullable=False, default="upload", server_default="upload")
+    inbox_email_id = Column(Integer, nullable=True, index=True)
 
     bank_account = relationship(
         "BankAccount", back_populates="statements", lazy="joined"

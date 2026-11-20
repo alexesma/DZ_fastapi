@@ -799,8 +799,12 @@ async def upload_bank_statement(
     ),
     session: AsyncSession = Depends(get_session),
 ):
-    from dz_fastapi.models.finance import BankAccount, BankStatement, BankTransaction
+    from dz_fastapi.models.finance import BankAccount
     from dz_fastapi.services.bank_reconciliation import auto_match_statement
+    from dz_fastapi.services.bank_statement_import import (
+        resolve_bank_account,
+        store_parsed_statement,
+    )
     from dz_fastapi.services.bank_statement_parser import detect_and_parse
 
     content = await file.read()
@@ -812,70 +816,21 @@ async def upload_bank_statement(
         detail = "Неизвестный формат файла. " + "; ".join(parsed.errors[:3])
         raise HTTPException(status_code=422, detail=detail)
 
-    # Resolve / auto-create BankAccount
-    if bank_account_id:
-        bank_account = await session.get(BankAccount, bank_account_id)
-        if not bank_account:
-            raise HTTPException(
-                status_code=404, detail="Расчётный счёт не найден"
-            )
-    elif parsed.account_number:
-        result_acc = await session.execute(
-            select(BankAccount).where(
-                BankAccount.account_number == parsed.account_number
-            )
+    if bank_account_id and not await session.get(
+        BankAccount, bank_account_id
+    ):
+        raise HTTPException(
+            status_code=404, detail="Расчётный счёт не найден"
         )
-        bank_account = result_acc.scalar_one_or_none()
-        if bank_account is None:
-            bank_account = BankAccount(
-                account_number=parsed.account_number,
-                bank_name=parsed.bank_name or "Неизвестный банк",
-                bik=parsed.bik,
-            )
-            session.add(bank_account)
-            await session.flush()
-    else:
-        bank_account = None
-
-    stmt = BankStatement(
-        bank_account_id=bank_account.id if bank_account else None,
-        period_from=parsed.period_from or date.today(),
-        period_to=parsed.period_to or date.today(),
-        opening_balance=parsed.opening_balance,
-        closing_balance=parsed.closing_balance,
-        total_incoming=parsed.total_incoming,
-        total_outgoing=parsed.total_outgoing,
-        format=parsed.format,
-        filename=file.filename,
-        txn_count=len(parsed.transactions),
-        matched_count=0,
+    bank_account = await resolve_bank_account(
+        session, parsed, bank_account_id=bank_account_id
     )
-    session.add(stmt)
-    await session.flush()
-
-    for pt in parsed.transactions:
-        txn = BankTransaction(
-            statement_id=stmt.id,
-            doc_number=pt.doc_number,
-            doc_date=pt.doc_date,
-            value_date=pt.value_date,
-            direction=pt.direction,
-            amount=pt.amount,
-            vat_amount=pt.vat_amount,
-            currency=pt.currency,
-            purpose=pt.purpose,
-            balance_after=pt.balance_after,
-            counterparty_name=pt.counterparty_name,
-            counterparty_inn=pt.counterparty_inn,
-            counterparty_kpp=pt.counterparty_kpp,
-            counterparty_account=pt.counterparty_account,
-            counterparty_bank=pt.counterparty_bank,
-            counterparty_bik=pt.counterparty_bik,
-        )
-        session.add(txn)
-
-    await session.commit()
-    await session.refresh(stmt)
+    stmt = await store_parsed_statement(
+        session,
+        parsed,
+        filename=file.filename,
+        bank_account=bank_account,
+    )
 
     if auto_match and parsed.transactions:
         await auto_match_statement(session, stmt)

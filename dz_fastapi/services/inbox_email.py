@@ -64,6 +64,7 @@ from dz_fastapi.crud.inbox_email import (
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inbox_email import InboxEmail, InboxForceProcessAudit
 from dz_fastapi.schemas.inbox_email import RULE_META, FetchInboxResponse
+from dz_fastapi.services.bank_statement_import import bank_for_sender
 from dz_fastapi.services.email import (
     _create_mailbox,
     _dedupe_fetched_messages,
@@ -1395,17 +1396,31 @@ async def auto_detect_and_process(
         inbox_email.attachment_info or []
     )
 
-    # --- Шаг 1: ищем подтверждённый паттерн ---
-    pattern = await find_matching_pattern(
-        session,
-        email_account_id=inbox_email.email_account_id,
-        from_email=inbox_email.from_email,
-        subject=inbox_email.subject or "",
-        has_attachments=inbox_email.has_attachments,
-        attachment_extensions=att_extensions,
+    # --- Шаг 0: письма банка с выпиской распознаются по отправителю ---
+    bank_name = (
+        bank_for_sender(inbox_email.from_email)
+        if inbox_email.has_attachments
+        else None
     )
 
-    if pattern is not None:
+    # --- Шаг 1: ищем подтверждённый паттерн ---
+    pattern = (
+        None
+        if bank_name
+        else await find_matching_pattern(
+            session,
+            email_account_id=inbox_email.email_account_id,
+            from_email=inbox_email.from_email,
+            subject=inbox_email.subject or "",
+            has_attachments=inbox_email.has_attachments,
+            attachment_extensions=att_extensions,
+        )
+    )
+
+    if bank_name:
+        rule_type = "bank_statement"
+        source = f"отправитель банка {bank_name}"
+    elif pattern is not None:
         rule_type = pattern.rule_type
         source = f"паттерн id={pattern.id}"
         await increment_pattern_applied(session, pattern)
@@ -2248,6 +2263,12 @@ async def _process_email_by_rule(
                 inbox_email=inbox_email,
                 fetched_msg=fetched_msg,
             )
+        elif rule_type == "bank_statement":
+            return await _process_bank_statement(
+                session,
+                inbox_email=inbox_email,
+                fetched_msg=fetched_msg,
+            )
         elif rule_type == "shipment_notice":
             return await _process_shipment_notice(
                 session,
@@ -2559,6 +2580,109 @@ async def _process_document(
         logger.warning("Не удалось создать уведомление для документа: %s", e)
 
     return result, None
+
+
+async def _load_attachment_payloads(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> list[tuple[str, bytes]]:
+    """Вложения письма: из только что полученного сообщения либо из IMAP."""
+    if fetched_msg is not None and fetched_msg.attachments:
+        return [
+            (att.filename or "", att.payload)
+            for att in fetched_msg.attachments
+            if att.payload
+        ]
+    if not inbox_email.uid or not inbox_email.email_account_id:
+        return []
+    account = await crud_email_account.get(
+        session, inbox_email.email_account_id
+    )
+    if account is None:
+        return []
+    host = (getattr(account, "imap_host", "") or "").strip()
+    login = (getattr(account, "email", "") or "").strip()
+    password = str(getattr(account, "password", "") or "")
+    if not host or not login or not password:
+        return []
+    for raw_folder in (
+        inbox_email.folder,
+        getattr(account, "imap_folder", None),
+        DEFAULT_IMAP_FOLDER,
+    ):
+        folder = str(raw_folder or "").strip() or DEFAULT_IMAP_FOLDER
+        message = await asyncio.to_thread(
+            _fetch_inbox_message_by_uid_imap_sync,
+            host=host,
+            email=login,
+            password=password,
+            folder=folder,
+            uid=str(inbox_email.uid),
+            port=int(getattr(account, "imap_port", None) or IMAP_SERVER),
+        )
+        if message is not None and message.attachments:
+            return [
+                (att.filename or "", att.payload)
+                for att in message.attachments
+                if att.payload
+            ]
+    return []
+
+
+async def _process_bank_statement(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """Выписка банка из письма: импорт операций и авторазноска оплат."""
+    from dz_fastapi.services.bank_statement_import import import_statement_from_email
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    bank_name = bank_for_sender(inbox_email.from_email) or "Банк"
+    attachments = await _load_attachment_payloads(
+        session, inbox_email=inbox_email, fetched_msg=fetched_msg
+    )
+    result = await import_statement_from_email(
+        session,
+        attachments=attachments,
+        bank_name=bank_name,
+        inbox_email_id=inbox_email.id,
+    )
+    status = result.get("status")
+    try:
+        if status == "imported":
+            await create_admin_notifications(
+                session=session,
+                title=f"Выписка {bank_name} загружена",
+                message=(
+                    f"Период {result.get('period_from')} — "
+                    f"{result.get('period_to')}: операций "
+                    f"{result.get('txn_count')}, сопоставлено "
+                    f"{result.get('matched_count')}. Поступило "
+                    f"{result.get('total_incoming')}, списано "
+                    f"{result.get('total_outgoing')}."
+                ),
+                level="info",
+                link="/finance",
+            )
+        elif status in ("error", "no_files"):
+            await create_admin_notifications(
+                session=session,
+                title=f"Выписка {bank_name} не загружена",
+                message=(
+                    f"Письмо «{inbox_email.subject or ''}»: "
+                    f"{result.get('note')}"
+                ),
+                level="warning",
+                link="/inbox",
+            )
+    except Exception as exc:
+        logger.warning("Не удалось создать уведомление о выписке: %s", exc)
+    error = result.get("note") if status in ("error", "no_files") else None
+    return result, error
 
 
 async def _process_shipment_notice(
