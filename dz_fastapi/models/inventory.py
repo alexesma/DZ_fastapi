@@ -2448,6 +2448,22 @@ class ReturnToSupplier(Base):
         nullable=True,
         index=True,
     )
+    diadoc_incoming_document_id = Column(
+        Integer,
+        ForeignKey("diadocincomingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    supplier_receipt_correction_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptcorrection.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    diadoc_status = Column(String(32), nullable=True, index=True)
+    diadoc_status_updated_at = Column(DateTime(timezone=True), nullable=True)
     reason = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
     external_id = Column(
@@ -2479,6 +2495,14 @@ class ReturnToSupplier(Base):
     created_by_user = relationship("User", foreign_keys=[created_by_user_id])
     diadoc_outgoing_document = relationship(
         "DiadocOutgoingDocument",
+        lazy="joined",
+    )
+    diadoc_incoming_document = relationship(
+        "DiadocIncomingDocument",
+        lazy="joined",
+    )
+    supplier_receipt_correction = relationship(
+        "SupplierReceiptCorrection",
         lazy="joined",
     )
     items = relationship(

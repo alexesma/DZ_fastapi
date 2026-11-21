@@ -19,6 +19,7 @@ from dz_fastapi.models.diadoc import (
 from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_document_by_id
 from dz_fastapi.services.diadoc_marking_status import retain_gis_receipts
+from dz_fastapi.services.supplier_return_ukd import sync_supplier_return_ukd_status
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -211,6 +212,7 @@ async def _refresh_incoming_docflows(
         document.docflow_checked_at = state["checked_at"]
         document.last_docflow_payload = retain_gis_receipts(document.last_docflow_payload, row)
         session.add(document)
+        await sync_supplier_return_ukd_status(session, document)
         updated += 1
     await session.flush()
     return updated

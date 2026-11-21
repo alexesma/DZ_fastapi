@@ -1173,6 +1173,10 @@ class ReturnToSupplierOut(BaseModel):
     warehouse_name: Optional[str] = None
     diadoc_outgoing_document_id: Optional[int] = None
     diadoc_outgoing_status: Optional[str] = None
+    diadoc_incoming_document_id: Optional[int] = None
+    supplier_receipt_correction_id: Optional[int] = None
+    diadoc_status: Optional[str] = None
+    diadoc_status_updated_at: Optional[datetime] = None
     reason: Optional[str] = None
     notes: Optional[str] = None
     external_id: Optional[str] = None
@@ -1203,6 +1207,10 @@ class ReturnToSupplierListItem(BaseModel):
     total_quantity: int = 0
     diadoc_outgoing_document_id: Optional[int] = None
     diadoc_outgoing_status: Optional[str] = None
+    diadoc_incoming_document_id: Optional[int] = None
+    supplier_receipt_correction_id: Optional[int] = None
+    diadoc_status: Optional[str] = None
+    diadoc_status_updated_at: Optional[datetime] = None
     sync_status: SyncStatus
     created_at: datetime
     approved_at: Optional[datetime] = None

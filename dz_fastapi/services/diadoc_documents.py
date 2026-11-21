@@ -34,6 +34,7 @@ from dz_fastapi.services.supplier_receipt_corrections import (
     is_correction_document,
     register_incoming_correction,
 )
+from dz_fastapi.services.supplier_return_ukd import match_supplier_return_ukd
 
 DIADOC_DOCUMENTS_DIR = os.getenv(
     "DIADOC_DOCUMENTS_DIR",
@@ -462,14 +463,20 @@ async def process_diadoc_incoming_document(
         )
         await session.flush()
         correction = await get_correction(session, int(correction.id))
+        summary = dict(document.parsed_details or {})
         if correction.status == "draft" and not correction.items:
             summary = await fill_correction_from_document(
                 session, correction=correction, document=document
             )
-            document.parsed_details = summary
-            document.import_error_details = summary.get("hint")
-        else:
-            document.import_error_details = None
+            await session.flush()
+        return_match = await match_supplier_return_ukd(
+            session,
+            document=document,
+            correction=correction,
+        )
+        summary["supplier_return_match"] = return_match
+        document.parsed_details = summary
+        document.import_error_details = summary.get("hint")
         document.status = "registered"
         await session.commit()
         return {
@@ -477,6 +484,7 @@ async def process_diadoc_incoming_document(
             "provider_id": target_provider_id,
             "message_type": "CORRECTION_DOC",
             "correction_id": int(correction.id),
+            "return_to_supplier_id": return_match.get("return_to_supplier_id"),
             "receipt_ids": [],
             "needs_review": True,
         }

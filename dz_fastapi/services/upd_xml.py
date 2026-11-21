@@ -424,6 +424,8 @@ class CorrectionRow:
     total_before: Optional[float]
     total_after: Optional[float]
     total_delta: Optional[float]
+    marking_codes_before: list[str] = field(default_factory=list)
+    marking_codes_after: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -448,6 +450,18 @@ def _num_attrs(element: Optional[ET.Element], *names: str) -> Optional[float]:
     if element is None:
         return None
     return _to_float(_first_attr(element, *names))
+
+
+def _correction_marking_codes(item_el: ET.Element, group_name: str) -> list[str]:
+    """Возвращает индивидуальные КИ из группы УКД «до» или «после»."""
+    result: list[str] = []
+    for group in item_el.iter():
+        if _local_name(group.tag) != group_name:
+            continue
+        for unit in group:
+            if _local_name(unit.tag) == "КИЗ" and (unit.text or "").strip():
+                result.append((unit.text or "").strip())
+    return result
 
 
 def parse_correction_xml(payload: bytes) -> Optional[CorrectionDocument]:
@@ -512,6 +526,12 @@ def parse_correction_xml(payload: bytes) -> Optional[CorrectionDocument]:
                 total_before=_num_attrs(total_el, "СтоимДоИзм"),
                 total_after=_num_attrs(total_el, "СтоимПослеИзм"),
                 total_delta=_num_attrs(total_el, "СтоимУм"),
+                marking_codes_before=_correction_marking_codes(
+                    item_el, "НомСредИдентТовДо"
+                ),
+                marking_codes_after=_correction_marking_codes(
+                    item_el, "НомСредИдентТовПосле"
+                ),
             )
         )
     return doc

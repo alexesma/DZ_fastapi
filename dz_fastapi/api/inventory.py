@@ -4179,6 +4179,10 @@ def _supplier_return_to_out(doc: ReturnToSupplier) -> ReturnToSupplierOut:
         diadoc_outgoing_status=(
             diadoc_outgoing.status if diadoc_outgoing else None
         ),
+        diadoc_incoming_document_id=doc.diadoc_incoming_document_id,
+        supplier_receipt_correction_id=doc.supplier_receipt_correction_id,
+        diadoc_status=doc.diadoc_status,
+        diadoc_status_updated_at=doc.diadoc_status_updated_at,
         reason=doc.reason,
         notes=doc.notes,
         external_id=doc.external_id,
@@ -4220,6 +4224,10 @@ def _supplier_return_to_list_item(
         diadoc_outgoing_status=(
             diadoc_outgoing.status if diadoc_outgoing else None
         ),
+        diadoc_incoming_document_id=doc.diadoc_incoming_document_id,
+        supplier_receipt_correction_id=doc.supplier_receipt_correction_id,
+        diadoc_status=doc.diadoc_status,
+        diadoc_status_updated_at=doc.diadoc_status_updated_at,
         sync_status=doc.sync_status,
         created_at=doc.created_at,
         approved_at=doc.approved_at,

@@ -34,6 +34,7 @@ from dz_fastapi.services.marking_shipment_check import (
     ShipmentMarkingBlocked,
     validate_shipment_upd_marking,
 )
+from dz_fastapi.services.supplier_return_ukd import sync_supplier_return_ukd_status
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -481,6 +482,7 @@ async def _apply_reject_incoming(
         if document is not None:
             document.rejected_at = now_moscow()
             session.add(document)
+            await sync_supplier_return_ukd_status(session, document)
     return {"patch_response_keys": sorted(response.keys())}
 
 
@@ -696,6 +698,7 @@ async def _apply_sign_incoming(
     )
     document.signed_at = now_moscow()
     session.add(document)
+    await sync_supplier_return_ukd_status(session, document)
     return {"patch_response_keys": sorted(response.keys())}
 
 
