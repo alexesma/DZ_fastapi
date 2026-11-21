@@ -19,6 +19,11 @@ from dz_fastapi.models.diadoc import (
 from dz_fastapi.services.diadoc_docflow import derive_docflow_state
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_document_by_id
 from dz_fastapi.services.diadoc_marking_status import retain_gis_receipts
+from dz_fastapi.services.diadoc_outbound_import import (
+    external_import_enabled,
+    import_external_outgoing_document,
+    outbound_attachments,
+)
 from dz_fastapi.services.supplier_return_ukd import sync_supplier_return_ukd_status
 
 logger = logging.getLogger("dz_fastapi")
@@ -387,6 +392,19 @@ async def process_pending_events(
                     if document is not None:
                         documents.append(document)
                     result["documents"] += 1
+                if external_import_enabled():
+                    for current_message_id, entity_id in outbound_attachments(body):
+                        imported = await import_external_outgoing_document(
+                            session,
+                            client=client,
+                            environment=environment,
+                            box_id_guid=box_id_guid,
+                            message_id=current_message_id,
+                            entity_id=entity_id,
+                            download_content=download_content,
+                        )
+                        if imported["created"]:
+                            result["external_outgoing"] = result.get("external_outgoing", 0) + 1
             elif kind == "patch" and message_id:
                 documents = list(
                     (

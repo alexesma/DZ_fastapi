@@ -1439,6 +1439,40 @@ async def list_diadoc_outbound_documents_endpoint(
 
 
 @router.post(
+    "/sync/outbound-documents",
+    status_code=status.HTTP_200_OK,
+    summary="Загрузить исходящие документы, отправленные не из системы",
+)
+async def sync_diadoc_external_outbound_documents(
+    days: int = Query(default=30, ge=1, le=730),
+    download_content: bool = Query(default=True),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """История исходящих из Диадока (веб, 1С): заводит те, которых у нас нет."""
+    from datetime import timedelta
+
+    from dz_fastapi.services.diadoc_outbound_import import sync_external_outgoing_documents
+
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        if not integration.box_id_guid:
+            raise HTTPException(status_code=400, detail="Ящик Диадока не выбран")
+        return await sync_external_outgoing_documents(
+            session,
+            client=client,
+            environment=normalize_diadoc_environment(integration.environment),
+            box_id_guid=str(integration.box_id_guid),
+            from_document_date=now_moscow().date() - timedelta(days=days),
+            download_content=download_content,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
     "/sync/outbound-status",
     response_model=DiadocOutboundStatusSyncResult,
     status_code=status.HTTP_200_OK,
