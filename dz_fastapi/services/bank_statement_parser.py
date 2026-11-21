@@ -309,6 +309,23 @@ def parse_tochka_csv(content: bytes) -> ParsedStatement:
 # ── 1CClientBankExchange parser ────────────────────────────────────────────────
 
 
+# Банки, с которыми мы работаем: БИК -> короткое название.
+KNOWN_BANKS_BY_BIK = {
+    "044525104": "Банк Точка",
+    "044525593": "Альфа-Банк",
+}
+
+
+def bank_name_by_bik(bik: Optional[str]) -> Optional[str]:
+    return KNOWN_BANKS_BY_BIK.get((bik or "").strip())
+
+
+def bik_from_filename(filename: str) -> Optional[str]:
+    """kl_to_1c_<счёт>_<БИК>_<дата>.txt -> БИК."""
+    match = re.search(r"kl_to_1c_\d{20}_(\d{9})_", filename or "", re.I)
+    return match.group(1) if match else None
+
+
 def _is_1c_exchange(content: bytes) -> bool:
     try:
         head = content[:100].decode("cp1251", errors="ignore")
@@ -409,6 +426,12 @@ def parse_1c_exchange(content: bytes) -> ParsedStatement:
 
             if our_account and payer_account == our_account:
                 direction = "outgoing"
+                if not result.bik:
+                    result.bik = current_doc.get("ПлательщикБИК") or None
+                if not result.bank_name:
+                    result.bank_name = _clean_quotes(
+                        current_doc.get("ПлательщикБанк1", "")
+                    ) or None
                 cp_name = current_doc.get(
                     "Получатель1", ""
                 ) or current_doc.get("Получатель", "")
@@ -419,6 +442,12 @@ def parse_1c_exchange(content: bytes) -> ParsedStatement:
                 cp_bik = current_doc.get("ПолучательБИК", "")
             elif our_account and receiver_account == our_account:
                 direction = "incoming"
+                if not result.bik:
+                    result.bik = current_doc.get("ПолучательБИК") or None
+                if not result.bank_name:
+                    result.bank_name = _clean_quotes(
+                        current_doc.get("ПолучательБанк1", "")
+                    ) or None
                 cp_name = current_doc.get(
                     "Плательщик1", ""
                 ) or current_doc.get("Плательщик", "")
@@ -481,6 +510,9 @@ def parse_1c_exchange(content: bytes) -> ParsedStatement:
                 )
             )
 
+    known = bank_name_by_bik(result.bik)
+    if known:
+        result.bank_name = known
     return result
 
 
@@ -557,6 +589,16 @@ def parse_alfabank_csv(content: bytes) -> ParsedStatement:
 
 def detect_and_parse(content: bytes, filename: str = "") -> ParsedStatement:
     """Auto-detect format and parse bank statement."""
+    result = _detect_and_parse(content, filename)
+    if not result.bik:
+        result.bik = bik_from_filename(filename)
+    known = bank_name_by_bik(result.bik)
+    if known:
+        result.bank_name = known
+    return result
+
+
+def _detect_and_parse(content: bytes, filename: str = "") -> ParsedStatement:
     fname_lower = filename.lower()
 
     # Explicit by filename

@@ -255,3 +255,126 @@ def test_fetch_prioritises_bank_mail_over_newer_messages(monkeypatch):
     # Письма банков (в порядке заголовков) идут первыми, затем два самых
     # свежих из остальных.
     assert fetched_uids == ["3", "1", "9", "8"]
+
+
+def test_1c_statement_detects_our_bank_by_bik():
+    from dz_fastapi.services.bank_statement_parser import detect_and_parse
+
+    parsed = detect_and_parse(
+        _statement_1c(), filename="kl_to_1c_stmt.txt"
+    )
+
+    # ПолучательБИК=044525104 — наш банк (мы получатель) -> Точка.
+    assert parsed.bik == "044525104"
+    assert parsed.bank_name == "Банк Точка"
+
+
+def test_bank_bik_is_taken_from_filename_when_missing():
+    from dz_fastapi.services.bank_statement_parser import bik_from_filename
+
+    assert (
+        bik_from_filename("kl_to_1c_40702810501500063689_044525104_13.11.txt")
+        == "044525104"
+    )
+    assert bik_from_filename("Выписка_4070.txt") is None
+
+
+def test_name_and_inn_normalisation():
+    from dz_fastapi.services.bank_reconciliation import normalize_inn, normalize_name
+
+    assert normalize_name('ООО "Эксист-закупка"') == "эксист закупка"
+    assert normalize_name("ЭЛЕМЕНТ (клиент)") == "элемент"
+    assert (
+        normalize_name('ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ЭЛЕМЕНТ"')
+        == "элемент"
+    )
+    assert normalize_inn("000000000000") == ""
+    assert normalize_inn(" 7723 706 908 ") == "7723706908"
+
+
+def test_non_trade_operations_are_classified():
+    from types import SimpleNamespace
+
+    from dz_fastapi.services.bank_reconciliation import classify_non_trade
+
+    def txn(purpose, name="X", inn="1"):
+        return SimpleNamespace(
+            purpose=purpose, counterparty_name=name, counterparty_inn=inn
+        )
+
+    assert classify_non_trade(txn("Перечисление средств для открытия депозита")) == "Депозит"
+    assert (
+        classify_non_trade(txn("Единый налоговый платеж. НДС не облагается"))
+        == "Налоги и сборы"
+    )
+    assert classify_non_trade(txn("Заработная плата (аванс) за ноябрь")) == "Зарплата"
+    assert (
+        classify_non_trade(txn("Выплата процентов", inn="9721194461"))
+        == "Проценты банка"
+    )
+    # Торговые платежи и «без налога (НДС)» служебными не считаются.
+    assert (
+        classify_non_trade(txn("Оплата за автозапчасти. Без налога (НДС)"))
+        is None
+    )
+    assert classify_non_trade(txn("Оплата по счёту 5 без налога (НДС)")) is None
+
+
+@pytest.mark.asyncio
+async def test_auto_match_finds_customer_by_name_and_remembers_inn(
+    test_session,
+):
+    from dz_fastapi.models.finance import BankTxnStatus
+    from dz_fastapi.models.partner import Customer
+
+    customer = Customer(name="АВТОПАРТС ТЕСТ")
+    test_session.add(customer)
+    await test_session.commit()
+
+    # Плательщик в выписке — «ООО ТЕСТ» с ИНН, которого у клиента нет.
+    customer.name = "Тест"
+    await test_session.commit()
+
+    attachments = [("kl_to_1c_stmt.txt", _statement_1c())]
+    result = await import_statement_from_email(
+        test_session, attachments=attachments, bank_name="Точка"
+    )
+    assert result["status"] == "imported"
+
+    await test_session.refresh(customer)
+    assert customer.inn == "7700000001"
+    transaction = (
+        await test_session.execute(select(BankTransaction))
+    ).scalars().one()
+    assert transaction.status == BankTxnStatus.MATCHED
+    assert transaction.match_note.startswith("Клиент: Тест")
+
+
+@pytest.mark.asyncio
+async def test_resolve_bank_account_heals_unknown_bank_name(test_session):
+    from dz_fastapi.models.finance import BankAccount
+    from dz_fastapi.services.bank_statement_import import resolve_bank_account
+    from dz_fastapi.services.bank_statement_parser import ParsedStatement
+
+    test_session.add(
+        BankAccount(account_number=ACCOUNT, bank_name="Неизвестный банк")
+    )
+    await test_session.commit()
+    parsed = ParsedStatement(
+        format="1c_exchange",
+        period_from=None,
+        period_to=None,
+        account_number=ACCOUNT,
+        bank_name=None,
+        bik=None,
+        opening_balance=None,
+        closing_balance=None,
+        total_incoming=None,
+        total_outgoing=None,
+    )
+
+    account = await resolve_bank_account(
+        test_session, parsed, bank_hint="Альфа-Банк"
+    )
+
+    assert account.bank_name == "Альфа-Банк"

@@ -47,13 +47,17 @@ from dz_fastapi.schemas.finance import (
     AutoMatchResult,
     BankAccountCreate,
     BankAccountOut,
+    BankAccountUpdate,
     BankStatementOut,
+    BankTransactionAssignRequest,
+    BankTransactionAssignResult,
     BankTransactionMatchRequest,
     BankTransactionOut,
     CustomerDebtOut,
     CustomerPaymentCreate,
     CustomerPaymentOut,
     CustomerPaymentUpdate,
+    PartnerSuggestion,
     PaymentInvoiceCreate,
     PaymentInvoiceItemCreate,
     PaymentInvoiceItemOut,
@@ -764,6 +768,28 @@ async def create_bank_account(
     return acc
 
 
+@router.patch(
+    "/bank-accounts/{account_id}",
+    response_model=BankAccountOut,
+    summary="Изменить расчётный счёт (название банка, БИК, описание)",
+)
+async def update_bank_account(
+    account_id: int,
+    data: BankAccountUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankAccount
+
+    acc = await session.get(BankAccount, account_id)
+    if not acc:
+        raise HTTPException(status_code=404, detail="Счёт не найден")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(acc, key, value)
+    await session.commit()
+    await session.refresh(acc)
+    return acc
+
+
 @router.delete(
     "/bank-accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT
 )
@@ -989,3 +1015,58 @@ async def auto_match_bank_statement(
         raise HTTPException(status_code=404, detail="Выписка не найдена")
     result = await auto_match_statement(session, stmt)
     return result
+
+
+@router.get(
+    "/bank-statements/{stmt_id}/transactions/{txn_id}/suggestions",
+    response_model=List[PartnerSuggestion],
+    summary="Подсказки: какие клиенты/поставщики похожи на контрагента",
+)
+async def bank_transaction_suggestions(
+    stmt_id: int,
+    txn_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankTransaction
+    from dz_fastapi.services.bank_reconciliation import suggest_partners
+
+    txn = await session.get(BankTransaction, txn_id)
+    if not txn or txn.statement_id != stmt_id:
+        raise HTTPException(status_code=404, detail="Транзакция не найдена")
+    return await suggest_partners(session, txn)
+
+
+@router.post(
+    "/bank-statements/{stmt_id}/transactions/{txn_id}/assign",
+    response_model=BankTransactionAssignResult,
+    summary="Разнести операцию на клиента/поставщика (с запоминанием ИНН)",
+)
+async def assign_bank_transaction(
+    stmt_id: int,
+    txn_id: int,
+    data: BankTransactionAssignRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankTransaction
+    from dz_fastapi.services.bank_reconciliation import assign_transaction_to_partner
+
+    txn = await session.get(BankTransaction, txn_id)
+    if not txn or txn.statement_id != stmt_id:
+        raise HTTPException(status_code=404, detail="Транзакция не найдена")
+    try:
+        also = await assign_transaction_to_partner(
+            session,
+            txn,
+            customer_id=data.customer_id,
+            provider_id=data.provider_id,
+            invoice_id=data.invoice_id,
+            remember=data.remember,
+            note=data.match_note,
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    await session.refresh(txn)
+    return BankTransactionAssignResult(
+        transaction=BankTransactionOut.model_validate(txn), also_matched=also
+    )

@@ -152,30 +152,42 @@ async def find_duplicate_statement(
     return result.scalars().first()
 
 
+UNKNOWN_BANK = "Неизвестный банк"
+
+
 async def resolve_bank_account(
     session: AsyncSession,
     parsed: ParsedStatement,
     *,
     bank_account_id: Optional[int] = None,
+    bank_hint: Optional[str] = None,
 ) -> Optional[BankAccount]:
+    """Счёт организации по выписке; название банка берём из файла, БИК или
+    отправителя письма (``bank_hint``) и дополняем им уже созданные счета."""
+    bank_name = parsed.bank_name or bank_hint
+    account: Optional[BankAccount] = None
     if bank_account_id:
-        return await session.get(BankAccount, bank_account_id)
-    if not parsed.account_number:
-        return None
-    result = await session.execute(
-        select(BankAccount).where(
-            BankAccount.account_number == parsed.account_number
+        account = await session.get(BankAccount, bank_account_id)
+    elif parsed.account_number:
+        result = await session.execute(
+            select(BankAccount).where(
+                BankAccount.account_number == parsed.account_number
+            )
         )
-    )
-    account = result.scalar_one_or_none()
-    if account is None:
-        account = BankAccount(
-            account_number=parsed.account_number,
-            bank_name=parsed.bank_name or "Неизвестный банк",
-            bik=parsed.bik,
-        )
-        session.add(account)
-        await session.flush()
+        account = result.scalar_one_or_none()
+        if account is None:
+            account = BankAccount(
+                account_number=parsed.account_number,
+                bank_name=bank_name or UNKNOWN_BANK,
+                bik=parsed.bik,
+            )
+            session.add(account)
+            await session.flush()
+    if account is not None:
+        if bank_name and account.bank_name in (None, "", UNKNOWN_BANK):
+            account.bank_name = bank_name
+        if parsed.bik and not account.bik:
+            account.bik = parsed.bik
     return account
 
 
@@ -262,7 +274,9 @@ async def import_statement_from_email(
             summary_only_errors.extend(parsed.errors[:1])
             continue
 
-        account = await resolve_bank_account(session, parsed)
+        account = await resolve_bank_account(
+            session, parsed, bank_hint=bank_name
+        )
         duplicate = await find_duplicate_statement(
             session,
             bank_account_id=account.id if account else None,

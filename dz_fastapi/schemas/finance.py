@@ -359,6 +359,36 @@ class BankTransactionMatchRequest(BaseModel):
     match_note: Optional[str] = Field(default=None, max_length=500)
 
 
+class BankAccountUpdate(BaseModel):
+    bank_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    bik: Optional[str] = Field(default=None, max_length=9)
+    description: Optional[str] = Field(default=None, max_length=255)
+    is_active: Optional[bool] = None
+
+
+class BankTransactionAssignRequest(BaseModel):
+    """Ручная разноска: выбрать клиента или поставщика."""
+
+    customer_id: Optional[int] = None
+    provider_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    remember: bool = True
+    match_note: Optional[str] = Field(default=None, max_length=500)
+
+
+class PartnerSuggestion(BaseModel):
+    type: str
+    id: int
+    name: str
+    inn: Optional[str] = None
+    score: float
+
+
+class BankTransactionAssignResult(BaseModel):
+    transaction: BankTransactionOut
+    also_matched: int = 0
+
+
 class AutoMatchResult(BaseModel):
     matched: int
     skipped: int
