@@ -72,7 +72,6 @@ from dz_fastapi.schemas.customer_order import (
     SupplierResponseRetryMessageResult,
 )
 from dz_fastapi.schemas.partner import (
-    AutoPartInPricelist,
     CustomerAllPriceListResponse,
     CustomerCreate,
     CustomerExternalReferenceOut,
@@ -1543,11 +1542,16 @@ async def get_customers_summary(
     response_model=List[CustomerResponse],
 )
 async def get_all_customer(session: AsyncSession = Depends(get_session)):
+    """Список клиентов без позиций прайс-листов.
+
+    Раньше сюда подгружались все позиции всех прайс-листов каждого клиента
+    (сотни тысяч строк): один такой запрос занимал единственный рабочий
+    процесс на минуты, и вставали все страницы. Теперь у прайс-листа
+    ``autoparts`` пустой; позиции отдаёт запрос конкретного клиента.
+    """
     result = await session.execute(
         select(Customer).options(
-            selectinload(Customer.customer_price_lists)
-            .selectinload(CustomerPriceList.autopart_associations)
-            .selectinload(CustomerPriceListAutoPartAssociation.autopart),
+            selectinload(Customer.customer_price_lists),
             selectinload(Customer.pricelist_configs).selectinload(CustomerPriceListConfig.sources),
         )
     )
@@ -1555,29 +1559,15 @@ async def get_all_customer(session: AsyncSession = Depends(get_session)):
     customer_responses = []
 
     for customer in customers:
-        # Convert customer_price_lists
-        customer_price_lists = []
-        for cpl in customer.customer_price_lists:
-            # Convert autoparts_associations
-            autoparts = []
-            for assoc in cpl.autopart_associations:
-                autopart = AutoPartResponse.model_validate(assoc.autopart, from_attributes=True)
-                autopart_in_pricelist = AutoPartInPricelist(
-                    autopart_id=assoc.autopart_id,
-                    quantity=assoc.quantity,
-                    price=assoc.price,
-                    autopart=autopart,
-                )
-                autoparts.append(autopart_in_pricelist)
-
-            # Create CustomerPriceListResponse
-            cpl_response = CustomerPriceListResponse(
+        customer_price_lists = [
+            CustomerPriceListResponse(
                 id=cpl.id,
                 date=cpl.date,
                 customer_id=cpl.customer_id,
-                autoparts=autoparts,
+                autoparts=[],
             )
-            customer_price_lists.append(cpl_response)
+            for cpl in customer.customer_price_lists
+        ]
 
         # Create CustomerResponse instance
         customer_data = CustomerResponse(

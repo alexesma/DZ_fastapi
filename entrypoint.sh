@@ -52,4 +52,4 @@ exec uvicorn dz_fastapi.main:app \
   --workers 1 \
   --limit-concurrency 200 \
   --timeout-keep-alive 10 \
-  --log-level debug
+  --log-level "${UVICORN_LOG_LEVEL:-info}"
