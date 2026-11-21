@@ -496,3 +496,194 @@ async def test_deposit_summary_pairs_deals_and_computes_rate(test_session):
     )
     assert only_later["totals"]["deals_total"] == 1
     assert only_later["totals"]["interest_total"] == Decimal("0")
+
+
+# ── Перепроведение по ИНН и статьи расходов ────────────────────────────────────
+
+
+async def _statement_with(test_session, rows):
+    """rows: (дата, направление, сумма, ИНН, название, назначение)."""
+    from datetime import date
+    from decimal import Decimal
+
+    statement = BankStatement(
+        period_from=date(2026, 11, 1),
+        period_to=date(2026, 11, 30),
+        format="1c_exchange",
+        txn_count=len(rows),
+        matched_count=0,
+    )
+    test_session.add(statement)
+    await test_session.flush()
+    out = []
+    for day, direction, amount, inn, name, purpose in rows:
+        txn = BankTransaction(
+            statement_id=statement.id,
+            value_date=day,
+            direction=direction,
+            amount=Decimal(amount),
+            counterparty_inn=inn,
+            counterparty_name=name,
+            purpose=purpose,
+        )
+        test_session.add(txn)
+        out.append(txn)
+    await test_session.commit()
+    return statement, out
+
+
+@pytest.mark.asyncio
+async def test_assign_reposts_past_operations_with_same_inn(test_session):
+    from datetime import date
+
+    from dz_fastapi.models.finance import BankTxnStatus, CustomerPayment
+    from dz_fastapi.models.partner import Customer
+    from dz_fastapi.services.bank_reconciliation import (
+        assign_transaction_to_partner,
+    )
+
+    old = Customer(name="Старый клиент")
+    new = Customer(name="Новый клиент")
+    test_session.add_all([old, new])
+    await test_session.commit()
+
+    statement, (first, second, third, outgoing) = await _statement_with(
+        test_session,
+        [
+            (date(2026, 11, 2), "incoming", "100.00", "7700000002", "ИП Рыжий", "оплата"),
+            (date(2026, 11, 5), "incoming", "200.00", "7700000002", "ИП Рыжий", "оплата"),
+            (date(2026, 11, 9), "incoming", "300.00", "7700000002", "ИП Рыжий", "оплата"),
+            (date(2026, 11, 9), "outgoing", "50.00", "7700000002", "ИП Рыжий", "возврат"),
+        ],
+    )
+    # Вторая операция ранее ушла на «старого» клиента.
+    await assign_transaction_to_partner(
+        test_session, second, customer_id=old.id, remember=False
+    )
+    assert second.status == BankTxnStatus.MATCHED
+
+    also = await assign_transaction_to_partner(
+        test_session, first, customer_id=new.id, remember=True
+    )
+    # Третья (нераспознанная) и вторая (чужая) переехали на нового клиента.
+    assert also == 2
+    for txn in (first, second, third):
+        await test_session.refresh(txn)
+        assert txn.status == BankTxnStatus.MATCHED
+        assert txn.match_note.startswith("Клиент: Новый клиент")
+    await test_session.refresh(outgoing)
+    assert outgoing.status == BankTxnStatus.UNMATCHED  # другое направление
+
+    payments = (
+        await test_session.execute(select(CustomerPayment))
+    ).scalars().all()
+    assert sorted(p.customer_id for p in payments) == [new.id] * 3
+    await test_session.refresh(statement)
+    assert statement.matched_count == 3
+
+    # Связь запомнена: новая операция того же ИНН разносится сама.
+    _, (later,) = await _statement_with(
+        test_session,
+        [(date(2026, 12, 1), "incoming", "10.00", "7700000002", "ИП Другой", "x")],
+    )
+    from dz_fastapi.services.bank_reconciliation import auto_match_transaction
+
+    assert await auto_match_transaction(test_session, later)
+    assert later.match_note.startswith("Клиент: Новый клиент")
+
+
+@pytest.mark.asyncio
+async def test_categorize_remembers_counterparty_and_applies_to_past(
+    test_session,
+):
+    from datetime import date
+
+    from dz_fastapi.models.finance import BankCategoryRule, BankTxnStatus
+    from dz_fastapi.services.bank_categories import categorize_transaction
+    from dz_fastapi.services.bank_reconciliation import auto_match_transaction
+
+    statement, (a, b, other) = await _statement_with(
+        test_session,
+        [
+            (date(2026, 10, 3), "outgoing", "30000.00", "7700000003", "ООО Арендодатель", "аренда"),
+            (date(2026, 11, 3), "outgoing", "30000.00", "7700000003", "ООО Арендодатель", "аренда"),
+            (date(2026, 11, 4), "outgoing", "500.00", "7700000004", "ООО Хостинг", "хостинг"),
+        ],
+    )
+    result = await categorize_transaction(
+        test_session, b, "rent", remember="inn"
+    )
+    assert result == {"also_updated": 1, "rule_created": True}
+    for txn in (a, b):
+        await test_session.refresh(txn)
+        assert txn.status == BankTxnStatus.IGNORED
+        assert txn.category == "rent"
+        assert txn.match_note == "Не торговая операция: Аренда"
+    await test_session.refresh(other)
+    assert other.status == BankTxnStatus.UNMATCHED
+
+    rules = (await test_session.execute(select(BankCategoryRule))).scalars().all()
+    assert [(r.match_type, r.pattern, r.category_code) for r in rules] == [
+        ("inn", "7700000003", "rent")
+    ]
+    await test_session.refresh(statement)
+    assert statement.matched_count == 2
+
+    # Следующий месяц разнесётся по правилу при импорте.
+    _, (later,) = await _statement_with(
+        test_session,
+        [(date(2026, 12, 3), "outgoing", "30000.00", "7700000003", "ООО Арендодатель", "аренда")],
+    )
+    assert await auto_match_transaction(test_session, later)
+    assert later.category == "rent"
+
+    # Снять статью — операция снова нераспознанная.
+    await categorize_transaction(test_session, later, None)
+    assert later.status == BankTxnStatus.UNMATCHED
+    assert later.category is None
+
+
+@pytest.mark.asyncio
+async def test_category_analytics_groups_by_month_and_compares(test_session):
+    from datetime import date
+    from decimal import Decimal
+
+    from dz_fastapi.services.bank_categories import (
+        build_category_analytics,
+        categorize_transaction,
+        create_category,
+    )
+
+    _, rows = await _statement_with(
+        test_session,
+        [
+            (date(2026, 10, 3), "outgoing", "1000.00", "7700000005", "Хостер", "x"),
+            (date(2026, 11, 3), "outgoing", "1500.00", "7700000005", "Хостер", "x"),
+            (date(2026, 11, 7), "outgoing", "200.00", "7700000006", "Налоговая", "x"),
+            (date(2026, 11, 8), "incoming", "40.00", "7700000007", "Банк", "x"),
+            (date(2026, 11, 9), "outgoing", "70.00", "7700000008", "Кто-то", "x"),
+        ],
+    )
+    site = await create_category(test_session, name="Сайт SEO", kind="expense")
+    assert site.code.startswith("c_")
+    with pytest.raises(ValueError):
+        await create_category(test_session, name="сайт seo")
+    await categorize_transaction(test_session, rows[0], site.code, remember="inn")
+    await categorize_transaction(test_session, rows[2], "tax")
+    await categorize_transaction(test_session, rows[3], "bank_interest")
+
+    data = await build_category_analytics(
+        test_session, date_from=date(2026, 11, 1), date_to=date(2026, 11, 30)
+    )
+    by_code = {c["code"]: c for c in data["categories"]}
+    assert data["months"] == ["2026-11"]
+    assert by_code[site.code]["total"] == Decimal("1500.00")
+    assert by_code[site.code]["prev_total"] == Decimal("1000.00")
+    assert by_code[site.code]["change_percent"] == Decimal("50.0")
+    assert by_code["tax"]["total"] == Decimal("200.00")
+    assert data["totals"]["expense_total"] == Decimal("1700.00")
+    assert data["totals"]["income_total"] == Decimal("40.00")
+    assert data["totals"]["net"] == Decimal("-1660.00")
+    # Операция без статьи видна как требующая внимания.
+    assert data["totals"]["unmatched_count"] == 1
+    assert data["totals"]["unmatched_outgoing"] == Decimal("70.00")

@@ -20,6 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.finance import (
+    BankCounterpartyLink,
     BankStatement,
     BankTransaction,
     BankTxnStatus,
@@ -162,6 +163,21 @@ def classify_non_trade(txn: BankTransaction) -> Optional[str]:
 # ── Поиск клиента / поставщика ─────────────────────────────────────────────────
 
 
+async def _linked_partner(session: AsyncSession, model, inn: str):
+    """Связь ИНН → партнёр, которую пользователь проставил вручную."""
+    link = (
+        await session.execute(
+            select(BankCounterpartyLink).where(BankCounterpartyLink.inn == inn)
+        )
+    ).scalars().first()
+    if link is None:
+        return None
+    partner_id = (
+        link.customer_id if model is Customer else link.provider_id
+    )
+    return await session.get(model, partner_id) if partner_id else None
+
+
 async def _find_partner(
     session: AsyncSession,
     model,
@@ -177,6 +193,9 @@ async def _find_partner(
     """
     inn = normalize_inn(inn)
     if inn:
+        linked = await _linked_partner(session, model, inn)
+        if linked is not None:
+            return linked, "link"
         found = (
             await session.execute(
                 select(model).where(model.inn == inn).order_by(model.id)
@@ -349,25 +368,36 @@ def _remember_inn(partner, txn: BankTransaction, how: Optional[str]) -> None:
 async def auto_match_transaction(
     session: AsyncSession,
     txn: BankTransaction,
+    *,
+    ctx=None,
 ) -> Optional[str]:
     """
     Attempt to auto-match a single transaction.
     Returns match note string on success, None if not matched.
     Creates CustomerPayment or SupplierPayment and links to transaction.
+    ``ctx`` — загруженные статьи и правила (чтобы не читать их на каждую
+    операцию при разборе целой выписки).
     """
+    from dz_fastapi.services import bank_categories as cats
+
     if txn.status != BankTxnStatus.UNMATCHED:
         return None
 
-    non_trade = classify_operation(txn)
-    if non_trade:
-        txn.status = BankTxnStatus.IGNORED
-        txn.category = non_trade.category
-        txn.deal_ref = non_trade.deal_ref
-        note = f"Не торговая операция: {non_trade.label}"
-        if non_trade.deal_ref:
-            note += f" № {non_trade.deal_ref}"
-        txn.match_note = note
-        return note
+    if ctx is None:
+        await cats.ensure_default_categories(session)
+        ctx = await cats.load_context(session)
+    built_in = classify_operation(txn)
+    code: Optional[str] = None
+    deal_ref: Optional[str] = None
+    if built_in and built_in.category in DEPOSIT_CATEGORIES:
+        code, deal_ref = built_in.category, built_in.deal_ref
+    else:
+        # Правила пользователя сильнее встроенных признаков.
+        code = cats.match_rule(ctx, txn)
+        if code is None and built_in:
+            code, deal_ref = built_in.category, built_in.deal_ref
+    if code:
+        return cats.apply_category(txn, code, ctx, deal_ref=deal_ref)
 
     if txn.direction == "incoming":
         # --- Try to match incoming payment to a Customer ---
@@ -464,13 +494,17 @@ async def auto_match_statement(
     )
     transactions = result_stmt.scalars().all()
 
+    from dz_fastapi.services import bank_categories as cats
+
+    await cats.ensure_default_categories(session)
+    ctx = await cats.load_context(session)
     matched = 0
     skipped = 0
     errors = 0
 
     for txn in transactions:
         try:
-            note = await auto_match_transaction(session, txn)
+            note = await auto_match_transaction(session, txn, ctx=ctx)
             if note:
                 matched += 1
             else:
@@ -488,34 +522,45 @@ async def auto_match_statement(
     return {"matched": matched, "skipped": skipped, "errors": errors}
 
 
-async def assign_transaction_to_partner(
+async def _unpost(session: AsyncSession, txn: BankTransaction) -> None:
+    """Снимает разноску: удаляет созданный платёж и пересчитывает счёт."""
+    from dz_fastapi.crud.finance import recalculate_invoice_status
+
+    invoice = None
+    if txn.customer_payment_id:
+        payment = await session.get(CustomerPayment, txn.customer_payment_id)
+        if payment is not None:
+            if payment.invoice_id:
+                invoice = await session.get(PaymentInvoice, payment.invoice_id)
+            txn.customer_payment_id = None
+            await session.flush()
+            await session.delete(payment)
+    if txn.supplier_payment_id:
+        payment = await session.get(SupplierPayment, txn.supplier_payment_id)
+        txn.supplier_payment_id = None
+        await session.flush()
+        if payment is not None:
+            await session.delete(payment)
+    txn.status = BankTxnStatus.UNMATCHED
+    txn.match_note = None
+    txn.category = None
+    txn.deal_ref = None
+    await session.flush()
+    if invoice is not None:
+        await recalculate_invoice_status(session, invoice)
+
+
+async def _post_to_partner(
     session: AsyncSession,
     txn: BankTransaction,
+    partner,
     *,
-    customer_id: Optional[int] = None,
-    provider_id: Optional[int] = None,
-    invoice_id: Optional[int] = None,
-    remember: bool = True,
+    invoice: Optional[PaymentInvoice] = None,
     note: Optional[str] = None,
-) -> int:
-    """Ручная разноска на выбранного клиента/поставщика.
-
-    Создаёт платёж, при ``remember`` запоминает ИНН контрагента у клиента/
-    поставщика (если там пусто) и сразу разносит остальные операции с этим
-    ИНН. Возвращает, сколько ещё операций разнесено автоматически.
-    """
-    if txn.status == BankTxnStatus.MATCHED:
-        raise ValueError("Операция уже разнесена")
-    if bool(customer_id) == bool(provider_id):
-        raise ValueError("Укажите клиента или поставщика")
-
-    if customer_id:
-        partner = await session.get(Customer, customer_id)
-        if partner is None:
-            raise ValueError("Клиент не найден")
-        invoice = (
-            await session.get(PaymentInvoice, invoice_id) if invoice_id else None
-        )
+) -> str:
+    """Создаёт платёж клиента/поставщика по операции и помечает её разнесённой."""
+    is_customer = isinstance(partner, Customer)
+    if is_customer:
         payment = CustomerPayment(
             customer_id=partner.id,
             invoice_id=invoice.id if invoice else None,
@@ -536,9 +581,6 @@ async def assign_transaction_to_partner(
             await recalculate_invoice_status(session, invoice)
             label += f", счёт № {invoice.invoice_number}"
     else:
-        partner = await session.get(Provider, provider_id)
-        if partner is None:
-            raise ValueError("Поставщик не найден")
         payment = SupplierPayment(
             provider_id=partner.id,
             amount=txn.amount,
@@ -552,36 +594,129 @@ async def assign_transaction_to_partner(
         txn.supplier_payment_id = payment.id
         txn.customer_payment_id = None
         label = f"Поставщик: {partner.name}"
-
     txn.status = BankTxnStatus.MATCHED
+    txn.category = None
+    txn.deal_ref = None
     txn.match_note = note or label
+    return label
+
+
+async def _remember_link(
+    session: AsyncSession, inn: str, partner
+) -> None:
+    """Запоминает «этот ИНН из банка — наш клиент/поставщик»."""
+    link = (
+        await session.execute(
+            select(BankCounterpartyLink).where(BankCounterpartyLink.inn == inn)
+        )
+    ).scalars().first()
+    if link is None:
+        link = BankCounterpartyLink(inn=inn)
+        session.add(link)
+    if isinstance(partner, Customer):
+        link.customer_id, link.provider_id = partner.id, None
+    else:
+        link.customer_id, link.provider_id = None, partner.id
+    if not getattr(partner, "inn", None):
+        partner.inn = inn
+    await session.flush()
+
+
+async def assign_transaction_to_partner(
+    session: AsyncSession,
+    txn: BankTransaction,
+    *,
+    customer_id: Optional[int] = None,
+    provider_id: Optional[int] = None,
+    invoice_id: Optional[int] = None,
+    remember: bool = True,
+    note: Optional[str] = None,
+) -> int:
+    """Ручная разноска на выбранного клиента/поставщика.
+
+    Уже разнесённую операцию можно перенести на другого партнёра. При
+    ``remember`` связь «ИНН → партнёр» запоминается, и все остальные операции
+    с этим ИНН (нераспознанные, служебные и разнесённые на кого-то другого)
+    перепроводятся на выбранного — клиенту идут поступления, поставщику
+    списания. Возвращает, сколько ещё операций перепроведено.
+    """
+    if bool(customer_id) == bool(provider_id):
+        raise ValueError("Укажите клиента или поставщика")
+    if customer_id:
+        partner = await session.get(Customer, customer_id)
+        if partner is None:
+            raise ValueError("Клиент не найден")
+    else:
+        partner = await session.get(Provider, provider_id)
+        if partner is None:
+            raise ValueError("Поставщик не найден")
+
+    touched = {txn.statement_id}
+    if txn.status == BankTxnStatus.MATCHED:
+        await _unpost(session, txn)
+    invoice = (
+        await session.get(PaymentInvoice, invoice_id)
+        if invoice_id and customer_id
+        else None
+    )
+    await _post_to_partner(session, txn, partner, invoice=invoice, note=note)
 
     also = 0
     inn = normalize_inn(txn.counterparty_inn)
     if remember and inn:
-        if not getattr(partner, "inn", None):
-            partner.inn = inn
-        await session.flush()
+        await _remember_link(session, inn, partner)
+        wanted = "incoming" if customer_id else "outgoing"
         others = (
             await session.execute(
                 select(BankTransaction).where(
-                    BankTransaction.counterparty_inn == txn.counterparty_inn,
-                    BankTransaction.status == BankTxnStatus.UNMATCHED,
+                    BankTransaction.counterparty_inn.is_not(None),
                     BankTransaction.id != txn.id,
+                    BankTransaction.direction == wanted,
                 )
             )
         ).scalars().all()
-        touched: set[int] = set()
         for other in others:
-            if await auto_match_transaction(session, other):
-                also += 1
-                touched.add(other.statement_id)
-        for statement_id in touched | {txn.statement_id}:
-            await _refresh_matched_count(session, statement_id)
-    else:
-        await _refresh_matched_count(session, txn.statement_id)
+            if normalize_inn(other.counterparty_inn) != inn:
+                continue
+            if other.status == BankTxnStatus.IGNORED and (
+                other.category in DEPOSIT_CATEGORIES
+            ):
+                continue
+            if other.status == BankTxnStatus.MATCHED:
+                if await _payment_partner_id(session, other) == partner.id:
+                    continue  # уже на этом партнёре
+                await _unpost(session, other)
+            other_invoice = None
+            if customer_id:
+                other_invoice = await _find_matching_invoice(
+                    session,
+                    partner.id,
+                    other.amount,
+                    other.value_date,
+                    _extract_invoice_refs(other.purpose or ""),
+                )
+            await _post_to_partner(
+                session, other, partner, invoice=other_invoice
+            )
+            also += 1
+            touched.add(other.statement_id)
+    await session.flush()
+    for statement_id in touched:
+        await _refresh_matched_count(session, statement_id)
     await session.commit()
     return also
+
+
+async def _payment_partner_id(
+    session: AsyncSession, txn: BankTransaction
+) -> Optional[int]:
+    if txn.customer_payment_id:
+        payment = await session.get(CustomerPayment, txn.customer_payment_id)
+        return payment.customer_id if payment else None
+    if txn.supplier_payment_id:
+        payment = await session.get(SupplierPayment, txn.supplier_payment_id)
+        return payment.provider_id if payment else None
+    return None
 
 
 async def _refresh_matched_count(session: AsyncSession, statement_id: int):

@@ -471,3 +471,92 @@ class DepositSummaryTotals(BaseModel):
 class DepositSummaryOut(BaseModel):
     totals: DepositSummaryTotals
     deals: List[DepositDealOut]
+
+
+# ─── Статьи не торговых операций ──────────────────────────────────────────────
+
+BankCategoryKind = Literal["expense", "income", "transfer"]
+
+
+class BankCategoryOut(BaseModel):
+    id: int
+    code: str
+    name: str
+    kind: str
+    color: Optional[str] = None
+    is_system: bool = False
+    is_active: bool = True
+    sort_order: int = 100
+    operations_count: int = 0
+    rules_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BankCategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: BankCategoryKind = "expense"
+    color: Optional[str] = Field(default=None, max_length=16)
+
+
+class BankCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    color: Optional[str] = Field(default=None, max_length=16)
+    is_active: Optional[bool] = None
+
+
+class BankCategoryRuleOut(BaseModel):
+    id: int
+    category_code: str
+    category_name: Optional[str] = None
+    match_type: str
+    pattern: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BankTransactionCategorizeRequest(BaseModel):
+    # None — снять статью (операция снова станет нераспознанной).
+    category_code: Optional[str] = Field(default=None, max_length=32)
+    remember: Optional[Literal["inn", "name"]] = None
+    apply_to_past: bool = True
+
+
+class BankTransactionCategorizeResult(BaseModel):
+    transaction: BankTransactionOut
+    also_updated: int = 0
+    rule_created: bool = False
+
+
+class CategoryAnalyticsItem(BaseModel):
+    code: str
+    name: str
+    kind: str
+    color: Optional[str] = None
+    total: Decimal = Decimal("0")
+    count: int = 0
+    share_percent: Optional[Decimal] = None
+    prev_total: Decimal = Decimal("0")
+    change_percent: Optional[Decimal] = None
+    by_month: List[Decimal] = []
+
+
+class CategoryAnalyticsTotals(BaseModel):
+    expense_total: Decimal = Decimal("0")
+    income_total: Decimal = Decimal("0")
+    net: Decimal = Decimal("0")
+    transfer_total: Decimal = Decimal("0")
+    trade_income: Decimal = Decimal("0")
+    trade_expense: Decimal = Decimal("0")
+    unmatched_count: int = 0
+    unmatched_outgoing: Decimal = Decimal("0")
+    unmatched_incoming: Decimal = Decimal("0")
+
+
+class CategoryAnalyticsOut(BaseModel):
+    date_from: date
+    date_to: date
+    months: List[str]
+    categories: List[CategoryAnalyticsItem]
+    totals: CategoryAnalyticsTotals

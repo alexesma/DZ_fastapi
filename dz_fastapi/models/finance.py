@@ -9,6 +9,9 @@ Finance models:
   - BankAccount         — расчётный счёт организации
   - BankStatement       — загруженная выписка банка
   - BankTransaction     — строка выписки (платёжное поручение)
+  - BankCategory        — статья не торговых операций (налоги, аренда…)
+  - BankCategoryRule    — правило автоотнесения на статью
+  - BankCounterpartyLink — запомненная связь ИНН → клиент/поставщик
 """
 
 from enum import StrEnum, unique
@@ -505,4 +508,55 @@ class BankTransaction(Base):
     )
     supplier_payment = relationship(
         "SupplierPayment", lazy="joined", foreign_keys=[supplier_payment_id]
+    )
+
+
+class BankCategory(Base):
+    """Статья движения денег для не торговых операций: налоги, аренда, сайт…
+
+    ``kind``: expense — расход, income — доход, transfer — перемещение своих
+    денег (депозиты), в доходы и расходы не входит. Системные статьи
+    (``is_system``) нельзя удалить, остальные пользователь заводит сам.
+    """
+
+    __tablename__ = "bankcategory"
+
+    code = Column(String(32), nullable=False, unique=True, index=True)
+    name = Column(String(120), nullable=False)
+    kind = Column(String(16), nullable=False, default="expense")
+    color = Column(String(16), nullable=True)
+    is_system = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=100)
+
+
+class BankCategoryRule(Base):
+    """Правило «этого контрагента всегда относим на такую статью»."""
+
+    __tablename__ = "bankcategoryrule"
+
+    category_code = Column(String(32), nullable=False, index=True)
+    # inn — точное совпадение ИНН; name — нормализованное название;
+    # purpose — подстрока в назначении платежа.
+    match_type = Column(String(16), nullable=False)
+    pattern = Column(String(500), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False
+    )
+
+
+class BankCounterpartyLink(Base):
+    """Запомненная связь «ИНН из банка → клиент/поставщик»."""
+
+    __tablename__ = "bankcounterpartylink"
+
+    inn = Column(String(12), nullable=False, unique=True, index=True)
+    customer_id = Column(
+        Integer, ForeignKey("customer.id", ondelete="CASCADE"), nullable=True
+    )
+    provider_id = Column(
+        Integer, ForeignKey("provider.id", ondelete="CASCADE"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False
     )

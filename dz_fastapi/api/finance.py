@@ -48,11 +48,18 @@ from dz_fastapi.schemas.finance import (
     BankAccountCreate,
     BankAccountOut,
     BankAccountUpdate,
+    BankCategoryCreate,
+    BankCategoryOut,
+    BankCategoryRuleOut,
+    BankCategoryUpdate,
     BankStatementOut,
     BankTransactionAssignRequest,
     BankTransactionAssignResult,
+    BankTransactionCategorizeRequest,
+    BankTransactionCategorizeResult,
     BankTransactionMatchRequest,
     BankTransactionOut,
+    CategoryAnalyticsOut,
     CustomerDebtOut,
     CustomerPaymentCreate,
     CustomerPaymentOut,
@@ -1104,4 +1111,278 @@ async def deposits_summary(
 
     return await build_deposit_summary(
         session, date_from=date_from, date_to=date_to
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Статьи не торговых операций: налоги, зарплата, аренда, сайт…
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/bank-statements/{stmt_id}/transactions/{txn_id}/categorize",
+    response_model=BankTransactionCategorizeResult,
+    summary="Отнести операцию на статью (и запомнить контрагента)",
+)
+async def categorize_bank_transaction(
+    stmt_id: int,
+    txn_id: int,
+    data: BankTransactionCategorizeRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankTransaction
+    from dz_fastapi.services.bank_categories import categorize_transaction
+
+    txn = await session.get(BankTransaction, txn_id)
+    if not txn or txn.statement_id != stmt_id:
+        raise HTTPException(status_code=404, detail="Транзакция не найдена")
+    try:
+        result = await categorize_transaction(
+            session,
+            txn,
+            data.category_code,
+            remember=data.remember,
+            apply_to_past=data.apply_to_past,
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    await session.refresh(txn)
+    return BankTransactionCategorizeResult(
+        transaction=BankTransactionOut.model_validate(txn), **result
+    )
+
+
+@router.get(
+    "/bank-categories",
+    response_model=List[BankCategoryOut],
+    summary="Статьи не торговых операций",
+)
+async def list_bank_categories(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import (
+        BankCategory,
+        BankCategoryRule,
+        BankTransaction,
+    )
+    from dz_fastapi.services.bank_categories import ensure_default_categories
+
+    await ensure_default_categories(session)
+    await session.commit()
+    categories = (
+        await session.execute(
+            select(BankCategory).order_by(
+                BankCategory.sort_order, BankCategory.id
+            )
+        )
+    ).scalars().all()
+    ops = dict(
+        (
+            await session.execute(
+                select(BankTransaction.category, func.count())
+                .where(BankTransaction.category.is_not(None))
+                .group_by(BankTransaction.category)
+            )
+        ).all()
+    )
+    rules = dict(
+        (
+            await session.execute(
+                select(BankCategoryRule.category_code, func.count()).group_by(
+                    BankCategoryRule.category_code
+                )
+            )
+        ).all()
+    )
+    out = []
+    for item in categories:
+        row = BankCategoryOut.model_validate(item)
+        row.operations_count = int(ops.get(item.code, 0))
+        row.rules_count = int(rules.get(item.code, 0))
+        out.append(row)
+    return out
+
+
+@router.post(
+    "/bank-categories",
+    response_model=BankCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить статью",
+)
+async def create_bank_category(
+    data: BankCategoryCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.bank_categories import create_category
+
+    try:
+        category = await create_category(
+            session, name=data.name, kind=data.kind, color=data.color
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    return BankCategoryOut.model_validate(category)
+
+
+@router.patch(
+    "/bank-categories/{category_id}",
+    response_model=BankCategoryOut,
+    summary="Переименовать, перекрасить или скрыть статью",
+)
+async def update_bank_category(
+    category_id: int,
+    data: BankCategoryUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankCategory
+
+    category = await session.get(BankCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Статья не найдена")
+    payload = data.model_dump(exclude_unset=True)
+    if "name" in payload:
+        name = payload["name"].strip()
+        clash = (
+            await session.execute(
+                select(BankCategory).where(
+                    func.lower(BankCategory.name) == name.lower(),
+                    BankCategory.id != category.id,
+                )
+            )
+        ).scalars().first()
+        if clash:
+            raise HTTPException(
+                status_code=400, detail="Статья с таким названием уже есть"
+            )
+        category.name = name
+    if "color" in payload:
+        category.color = payload["color"]
+    if "is_active" in payload and payload["is_active"] is not None:
+        category.is_active = payload["is_active"]
+    await session.commit()
+    await session.refresh(category)
+    return BankCategoryOut.model_validate(category)
+
+
+@router.delete(
+    "/bank-categories/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить пользовательскую статью без операций",
+)
+async def delete_bank_category(
+    category_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankCategory
+    from dz_fastapi.services.bank_categories import delete_category
+
+    category = await session.get(BankCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Статья не найдена")
+    try:
+        await delete_category(session, category)
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get(
+    "/bank-category-rules",
+    response_model=List[BankCategoryRuleOut],
+    summary="Запомненные правила: контрагент → статья",
+)
+async def list_bank_category_rules(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankCategory, BankCategoryRule
+
+    names = dict(
+        (
+            await session.execute(select(BankCategory.code, BankCategory.name))
+        ).all()
+    )
+    rules = (
+        await session.execute(
+            select(BankCategoryRule).order_by(BankCategoryRule.id.desc())
+        )
+    ).scalars().all()
+    out = []
+    for rule in rules:
+        row = BankCategoryRuleOut.model_validate(rule)
+        row.category_name = names.get(rule.category_code)
+        out.append(row)
+    return out
+
+
+@router.delete(
+    "/bank-category-rules/{rule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Забыть правило",
+)
+async def delete_bank_category_rule(
+    rule_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.models.finance import BankCategoryRule
+
+    rule = await session.get(BankCategoryRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="Правило не найдено")
+    await session.delete(rule)
+    await session.commit()
+
+
+@router.post(
+    "/bank-category-rules/apply",
+    summary="Прогнать правила по всем нераспознанным операциям",
+)
+async def apply_bank_category_rules(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.bank_categories import reapply_rules
+
+    return await reapply_rules(session)
+
+
+@router.get(
+    "/bank-analytics/categories",
+    response_model=CategoryAnalyticsOut,
+    summary="Расходы и доходы по статьям: итоги, динамика, сравнение",
+)
+async def bank_category_analytics(
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.bank_categories import build_category_analytics
+
+    return await build_category_analytics(
+        session, date_from=date_from, date_to=date_to
+    )
+
+
+@router.get(
+    "/bank-operations",
+    response_model=List[BankTransactionOut],
+    summary="Операции по статье за период (для детализации)",
+)
+async def bank_operations_by_category(
+    category: Optional[str] = Query(default=None),
+    uncategorized: bool = Query(default=False),
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=300, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.bank_categories import list_category_operations
+
+    return await list_category_operations(
+        session,
+        category=category,
+        uncategorized=uncategorized,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
     )
