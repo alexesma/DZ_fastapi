@@ -14,14 +14,17 @@ from dz_fastapi.models.inventory import (
 )
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.services import marking_aggregate, receipt_marking_scan, shipment_marking_scan
-from dz_fastapi.services.receipt_marking_scan import record_marking_scan
 from dz_fastapi.services.inventory_stock import post_shipment_document, receive_stock
 from dz_fastapi.services.marking_aggregate import (
     AggregateError,
     expand_aggregate,
     parse_transport_code,
 )
-from dz_fastapi.services.receipt_marking_scan import marking_scan_state, record_aggregate_scan
+from dz_fastapi.services.receipt_marking_scan import (
+    marking_scan_state,
+    record_aggregate_scan,
+    record_marking_scan,
+)
 from dz_fastapi.services.shipment_marking_scan import record_shipment_aggregate_scan
 
 GTIN = "04600000000017"

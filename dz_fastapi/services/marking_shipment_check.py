@@ -94,7 +94,10 @@ async def check_shipment_marking(
                 )
             ).scalars().all()
         )
-    from dz_fastapi.services.marking_codes import autoparts_marked_by_category, shipment_line_has_marked_lot
+    from dz_fastapi.services.marking_codes import (
+        autoparts_marked_by_category,
+        shipment_line_has_marked_lot,
+    )
 
     marked_autoparts |= await autoparts_marked_by_category(session, autopart_ids)
     registry: dict[str, ProductMarkingCode] = {}
@@ -309,7 +312,9 @@ async def validate_shipment_upd_marking(
                     "В файле УПД отсутствует количество маркированного товара"
                 ) from exc
             if quantity != len(expected[number]):
-                raise ShipmentMarkingBlocked("Количество в файле УПД отличается от количества сканов строки")
+                raise ShipmentMarkingBlocked(
+                    "Количество в файле УПД отличается от количества сканов строки"
+                )
         codes = []
         for group in line.findall(".//{*}НомСредИдентТов"):
             checked_groups += 1

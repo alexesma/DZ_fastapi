@@ -16,6 +16,7 @@ from dz_fastapi.models.inventory import (
     MarkingMovementType,
     ProductMarkingCode,
     ProductMarkingCodeMovement,
+    ReturnItem,
     ShipmentDocument,
     ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
@@ -196,41 +197,85 @@ async def register_receipt_marking_codes(
     return normalized_codes
 
 
+async def select_return_marking_codes(
+    session: AsyncSession, item: ReturnItem, scans: list[str], *, to_supplier: bool
+) -> list[ProductMarkingCode]:
+    """Match the physical units to their original receipt or shipment under lock."""
+    source_id = item.supplier_receipt_item_id if to_supplier else item.shipment_item_id
+    source_column = (
+        ProductMarkingCode.supplier_receipt_item_id
+        if to_supplier
+        else ProductMarkingCode.shipment_document_item_id
+    )
+    if not scans:
+        source = item.supplier_receipt_item if to_supplier else item.shipment_item
+        source_marked = (
+            bool(source and (source.marking_codes or source.document_marking_codes))
+            if to_supplier
+            else bool(
+                source
+                and (
+                    shipment_line_has_marked_lot(source)
+                    or any(a.marking_codes for a in source.allocations)
+                )
+            )
+        )
+        registry_filter = (
+            source_column == source_id
+            if source_id
+            else ProductMarkingCode.autopart_id == item.autopart_id
+        )
+        if (
+            source_marked
+            or await session.scalar(select(ProductMarkingCode.id).where(registry_filter).limit(1))
+            or await autoparts_marked_by_category(session, [item.autopart_id])
+        ):
+            raise ValueError(f"Строка #{item.id}: отсканируйте каждый возвращаемый экземпляр")
+        return []
+    if not source_id:
+        raise ValueError(f"Строка #{item.id}: выберите строку исходного документа")
+    codes = normalize_marking_codes(scans)
+    if len(codes) != len(scans) or len(codes) != item.quantity:
+        raise ValueError(f"Строка #{item.id}: требуется {item.quantity} разных кодов маркировки")
+    status = MarkingCodeStatus.IN_STOCK if to_supplier else MarkingCodeStatus.SHIPPED
+    rows = list(
+        (
+            await session.scalars(
+                select(ProductMarkingCode)
+                .where(
+                    ProductMarkingCode.code.in_(codes),
+                    source_column == source_id,
+                    ProductMarkingCode.status == status,
+                    ProductMarkingCode.autopart_id == item.autopart_id,
+                )
+                .order_by(ProductMarkingCode.id)
+                .with_for_update(of=ProductMarkingCode)
+                .execution_options(populate_existing=True)
+            )
+        ).all()
+    )
+    if len(rows) != len(codes):
+        raise ValueError(
+            f"Строка #{item.id}: проверьте принадлежность и состояние возвращаемых экземпляров"
+        )
+    return rows
+
+
 async def return_marking_codes_from_customer(
     session: AsyncSession,
     *,
-    shipment_item_id: Optional[int],
+    rows: list[ProductMarkingCode],
     new_stock_lot: StockLot,
-    quantity: int,
-    return_document_id: int,
-) -> list[str]:
-    """Возврат от клиента: коды исходной отгрузки → обратно в наличие.
-
-    Коды ищем по строке отгрузки, из которой товар уезжал; привязываем к
-    новому лоту возврата. Если строка-источник неизвестна — кодов не
-    двигаем (расхождение будет видно на странице маркировки).
-    """
-    quantity = max(int(quantity or 0), 0)
-    if quantity <= 0 or shipment_item_id is None:
-        return []
-    rows = (
-        await session.execute(
-            select(ProductMarkingCode)
-            .where(
-                ProductMarkingCode.shipment_document_item_id
-                == int(shipment_item_id),
-                ProductMarkingCode.status == MarkingCodeStatus.SHIPPED,
-            )
-            .order_by(ProductMarkingCode.id.asc())
-            .limit(quantity)
-        )
-    ).scalars().all()
+    item: ReturnItem,
+    warehouse_id: int,
+) -> None:
     if not rows:
-        return []
+        return
     codes: list[str] = []
     for row in rows:
         codes.append(str(row.code))
         row.status = MarkingCodeStatus.IN_STOCK
+        row.warehouse_id = warehouse_id
         row.stock_lot_id = new_stock_lot.id
         row.storage_location_id = new_stock_lot.storage_location_id
         row.shipment_document_id = None
@@ -243,9 +288,14 @@ async def return_marking_codes_from_customer(
                 movement_type=MarkingMovementType.RETURNED_FROM_CUSTOMER,
                 autopart_id=row.autopart_id,
                 stock_lot_id=new_stock_lot.id,
+                shipment_document_id=item.shipment_item.document_id,
+                shipment_document_item_id=item.shipment_item_id,
+                supplier_receipt_id=row.supplier_receipt_id,
+                supplier_receipt_item_id=row.supplier_receipt_item_id,
                 metadata_json={
                     "source": "return_from_customer",
-                    "return_document_id": int(return_document_id),
+                    "return_document_id": item.return_from_customer_id,
+                    "return_item_id": item.id,
                 },
             )
         )
@@ -253,46 +303,18 @@ async def return_marking_codes_from_customer(
         list(new_stock_lot.marking_codes or []) + codes
     )
     new_stock_lot.marking_codes = new_codes
+    item.marking_codes = codes
     await session.flush()
-    logger.info(
-        "Returned %s marking codes from customer (return #%s)",
-        len(codes),
-        return_document_id,
-    )
-    return codes
 
 
 async def return_marking_codes_to_supplier(
     session: AsyncSession,
     *,
-    stock_lot_ids: Iterable[int],
-    quantity: int,
-    return_document_id: int,
-) -> list[str]:
-    """Возврат поставщику: коды списанных партий уходят от нас."""
-    lot_ids = [int(lot_id) for lot_id in stock_lot_ids if lot_id]
-    quantity = max(int(quantity or 0), 0)
-    if quantity <= 0 or not lot_ids:
-        return []
-    rows = (
-        (
-            await session.execute(
-                select(ProductMarkingCode)
-                .where(
-                    ProductMarkingCode.stock_lot_id.in_(lot_ids),
-                    ProductMarkingCode.status == MarkingCodeStatus.IN_STOCK,
-                )
-                .order_by(ProductMarkingCode.id.asc())
-                .limit(quantity)
-                .with_for_update(of=ProductMarkingCode)
-                .execution_options(populate_existing=True)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    rows: list[ProductMarkingCode],
+    item: ReturnItem,
+) -> None:
     if not rows:
-        return []
+        return
     now = now_moscow()
     codes: list[str] = []
     for row in rows:
@@ -308,17 +330,13 @@ async def return_marking_codes_to_supplier(
                 supplier_receipt_id=row.supplier_receipt_id,
                 metadata_json={
                     "source": "return_to_supplier",
-                    "return_document_id": int(return_document_id),
+                    "return_document_id": item.return_to_supplier_id,
+                    "return_item_id": item.id,
                 },
             )
         )
+    item.marking_codes = codes
     await session.flush()
-    logger.info(
-        "Returned %s marking codes to supplier (return #%s)",
-        len(codes),
-        return_document_id,
-    )
-    return codes
 
 
 async def list_receipt_marking_discrepancies(

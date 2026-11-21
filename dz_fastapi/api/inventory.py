@@ -4049,6 +4049,7 @@ def _return_item_to_out(item: ReturnItem) -> ReturnItemOut:
     autopart = getattr(item, "autopart", None)
     location = getattr(item, "storage_location", None)
     return ReturnItemOut(
+        marking_codes=item.marking_codes or [],
         id=item.id,
         return_from_customer_id=item.return_from_customer_id,
         return_to_supplier_id=item.return_to_supplier_id,
@@ -4674,10 +4675,11 @@ async def ship_customer_return(
 )
 async def confirm_customer_return(
     doc_id: int,
+    scans: dict[int, list[str]] | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        await confirm_return_from_customer(session, doc_id=doc_id)
+        await confirm_return_from_customer(session, doc_id=doc_id, scans=scans)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
@@ -4993,10 +4995,11 @@ async def approve_supplier_return(
 )
 async def ship_supplier_return(
     doc_id: int,
+    scans: dict[int, list[str]] | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        await ship_return_to_supplier(session, doc_id=doc_id)
+        await ship_return_to_supplier(session, doc_id=doc_id, scans=scans)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:

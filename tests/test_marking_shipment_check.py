@@ -107,10 +107,14 @@ async def test_legacy_lot_and_unknown_allocated_code_block_upd(test_session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failure", ["expired", "unauthorized", "timeout", "empty", "owner_missing", "seller_missing"])
+@pytest.mark.parametrize(
+    "failure", ["expired", "unauthorized", "timeout", "empty", "owner_missing", "seller_missing"]
+)
 async def test_gis_failure_blocks_and_retry_verifies(test_session, active_shipment_gis, failure):
     from datetime import timedelta
+
     from sqlalchemy import select
+
     from dz_fastapi.core.time import now_moscow
     from dz_fastapi.http.gis_mt_client import GisMtApiError
     from dz_fastapi.models.settings import DiadocIntegrationSettings, GisMtSettings
@@ -131,7 +135,9 @@ async def test_gis_failure_blocks_and_retry_verifies(test_session, active_shipme
         active_shipment_gis.side_effect = TimeoutError()
     else:
         active_shipment_gis.side_effect = None
-        active_shipment_gis.return_value = [] if failure == "empty" else [{"cis": code, "status": "INTRODUCED"}]
+        active_shipment_gis.return_value = (
+            [] if failure == "empty" else [{"cis": code, "status": "INTRODUCED"}]
+        )
 
     result = await check_shipment_marking(test_session, doc, use_gis=True)
     gis_issues = [issue for issue in result["issues"] if issue["reason"].startswith("gis_")]

@@ -48,9 +48,7 @@ from dz_fastapi.services.inventory_stock import (
     apply_receipt_to_stock_by_id,
     resolve_warehouse_for_provider,
 )
-from dz_fastapi.services.marking_receipt_check import (
-    summarize_receipt_marking,
-)
+from dz_fastapi.services.marking_receipt_check import summarize_receipt_marking
 from dz_fastapi.services.supplier_order_state import set_supplier_item_decision
 
 logger = logging.getLogger(__name__)
@@ -1451,7 +1449,9 @@ async def update_supplier_receipt_item(
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
         raise LookupError("Строка документа не найдена")
-    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
+    receipt_stmt = (
+        select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
+    )
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
         raise ValueError("Нельзя редактировать строку проведённого документа")
@@ -1589,7 +1589,9 @@ async def delete_supplier_receipt_item(
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
         raise LookupError("Строка документа не найдена")
-    receipt_stmt = select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
+    receipt_stmt = (
+        select(SupplierReceipt).where(SupplierReceipt.id == item.receipt_id).with_for_update()
+    )
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
         raise ValueError("Нельзя удалять строки проведённого документа")

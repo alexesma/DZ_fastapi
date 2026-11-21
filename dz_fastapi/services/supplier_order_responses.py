@@ -9,7 +9,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from email.header import decode_header
 from io import BytesIO
 from typing import Any, Iterable, Optional
@@ -3700,7 +3700,9 @@ def _split_overdelivered_payloads(
             linked = {**payload, "received_quantity": linked_qty}
             if payload.get("total_price_with_vat") is not None:
                 total = Decimal(str(payload["total_price_with_vat"]))
-                linked_total = (total * linked_qty / qty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                linked_total = (total * linked_qty / qty).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
                 linked["total_price_with_vat"] = float(linked_total)
                 payload = {**payload, "total_price_with_vat": float(total - linked_total)}
             codes = payload.get("marking_codes")
@@ -3795,7 +3797,9 @@ async def _document_receipt_review_reason(
         if quantities_by_item_id[item_id] > remaining:
             return "matching"
         part_ids.add(item.autopart_id)
-    if any(row.get("marking_codes") for row in items_payload) or await autoparts_marked_by_category(session, part_ids):
+    if any(row.get("marking_codes") for row in items_payload) or await autoparts_marked_by_category(
+        session, part_ids
+    ):
         return "scans"
     return None
 

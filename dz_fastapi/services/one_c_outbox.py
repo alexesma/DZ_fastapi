@@ -452,6 +452,7 @@ async def build_return_snapshot(
                 "oem": item.oem_number,
                 "brand": item.brand_name,
                 "name": item.autopart_name,
+                "marking_codes": list(item.marking_codes or []),
                 "quantity": int(item.quantity or 0),
                 "price": _value(item.price),
                 "vat_rate": _value(item.vat_rate or 22),

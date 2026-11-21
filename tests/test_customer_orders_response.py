@@ -70,7 +70,9 @@ def test_supplier_order_recipient_list_accepts_legacy_and_multiple_values():
 
 @pytest.mark.asyncio
 async def test_document_auto_post_checks_combined_quantity_of_duplicate_rows():
-    order_item = SimpleNamespace(autopart_id=None, quantity=5, confirmed_quantity=None, received_quantity=1)
+    order_item = SimpleNamespace(
+        autopart_id=None, quantity=5, confirmed_quantity=None, received_quantity=1
+    )
     payload = [
         {"supplier_order_item_id": 42, "received_quantity": 3},
         {"supplier_order_item_id": 42, "received_quantity": 2},

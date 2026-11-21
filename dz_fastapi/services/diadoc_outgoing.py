@@ -645,7 +645,9 @@ async def build_shipment_formalized_readiness(
             await session.execute(select(GisMtSettings).limit(1))
         ).scalars().first()
         if gis_settings is None or not gis_mt_token_is_active(gis_settings):
-            missing_required_fields.append("КИЗ: для проверки владельца и статуса кодов нужен вход в ГИС МТ.")
+            missing_required_fields.append(
+                "КИЗ: для проверки владельца и статуса кодов нужен вход в ГИС МТ."
+            )
             recommended_actions.append("Войдите в ГИС МТ на странице маркировки.")
     # Маркируемый товар без кода на каждую штуку в УПД не отправляем.
     missing_required_fields.extend(marking_blockers)

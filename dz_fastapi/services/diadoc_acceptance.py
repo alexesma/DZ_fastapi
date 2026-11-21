@@ -9,9 +9,9 @@ XML УПД с количествами проведённых поступлен
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
 import os
 import re
+from collections import Counter, defaultdict
 from typing import Any, Iterable, Optional
 
 from sqlalchemy import select
@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.inventory import ReceiptMarkingScan
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
-from dz_fastapi.services.marking_codes import normalize_marking_codes, autoparts_marked_by_category
+from dz_fastapi.services.marking_codes import autoparts_marked_by_category, normalize_marking_codes
 from dz_fastapi.services.upd_xml import UpdXmlItem, looks_like_upd_xml, parse_upd_xml
 
 TOTAL_CODE_ACCEPTED = "1"
@@ -51,7 +51,12 @@ def _group(rows: Iterable[tuple[object, object, int, list[str]]]) -> dict[str, d
         key = f"a:{article_key}" if article_key else f"n:{_key(name)}"
         bucket = grouped.setdefault(
             key,
-            {"label": _label(article, name), "name_key": _key(name), "quantity": 0, "codes": Counter()},
+            {
+                "label": _label(article, name),
+                "name_key": _key(name),
+                "quantity": 0,
+                "codes": Counter(),
+            },
         )
         bucket["codes"].update(normalize_marking_codes(codes))
         bucket["quantity"] += int(quantity or 0)
@@ -74,7 +79,8 @@ def compare_upd_with_receipt(
     """Список расхождений между строками УПД и проведённой приёмкой."""
     receipt_items = list(receipt_items)
     document = _group(
-        (item.oem_number, item.name, int(item.quantity or 0), item.marking_codes) for item in upd_items
+        (item.oem_number, item.name, int(item.quantity or 0), item.marking_codes)
+        for item in upd_items
     )
     received = _group(
         (item.oem_number, item.autopart_name, int(item.received_quantity or 0), item.marking_codes)
@@ -103,10 +109,14 @@ def compare_upd_with_receipt(
         expected = doc_row["codes"]
         actual = received[other_key]["codes"] if other_key else Counter()
         if expected != actual or (expected and sum(expected.values()) != doc_qty):
-            lines.append({
-                "kind": "marking", "label": f"{doc_row['label']}: состав кодов УПД и поступления",
-                "document_quantity": sum(expected.values()), "received_quantity": sum((actual & expected).values()),
-            })
+            lines.append(
+                {
+                    "kind": "marking",
+                    "label": f"{doc_row['label']}: состав кодов УПД и поступления",
+                    "document_quantity": sum(expected.values()),
+                    "received_quantity": sum((actual & expected).values()),
+                }
+            )
         if got_qty == doc_qty:
             continue
         if got_qty == 0:
@@ -213,7 +223,9 @@ async def acceptance_summary(
         select(ReceiptMarkingScan).where(ReceiptMarkingScan.receipt_id.in_(receipt_ids))
         .execution_options(populate_existing=True)
     )).all()
-    marked = await autoparts_marked_by_category(session, [item.autopart_id for item in receipt_items])
+    marked = await autoparts_marked_by_category(
+        session, [item.autopart_id for item in receipt_items]
+    )
     scans_by_line = defaultdict(set)
     parts = {item.id: item.autopart_id for item in receipt_items}
     for scan in scans:
@@ -231,11 +243,20 @@ async def acceptance_summary(
             continue
         matched = codes & scanned
         qty = int(item.received_quantity or 0)
-        if matched != codes or scanned != codes or qty != len(matched) or any(all_accepted[c] > 1 for c in codes):
-            lines.append({
-                "kind": "marking", "label": f"{_label(item.oem_number, item.autopart_name)}: сверка сканов",
-                "document_quantity": qty, "received_quantity": len(matched),
-            })
+        if (
+            matched != codes
+            or scanned != codes
+            or qty != len(matched)
+            or any(all_accepted[c] > 1 for c in codes)
+        ):
+            lines.append(
+                {
+                    "kind": "marking",
+                    "label": f"{_label(item.oem_number, item.autopart_name)}: сверка сканов",
+                    "document_quantity": qty,
+                    "received_quantity": len(matched),
+                }
+            )
     extra = sum(len(codes) for codes in scans_by_line.values())
     if extra:
         lines.append({"kind": "marking", "label": "Лишние сканы вне строк поступления",
@@ -263,5 +284,6 @@ def assert_acceptance_result(summary: dict[str, Any], total_code: str) -> None:
         raise ReceiptAcceptanceBlocked(summary["reason"] or "Не удалось сверить входящий УПД")
     if total_code == TOTAL_CODE_ACCEPTED and summary["has_discrepancies"]:
         raise ReceiptAcceptanceBlocked(
-            "Приёмка расходится с УПД. Проверьте сканы, подпишите с расхождениями или оформите отказ."
+            "Приёмка расходится с УПД. Проверьте сканы, "
+            "подпишите с расхождениями или оформите отказ."
         )

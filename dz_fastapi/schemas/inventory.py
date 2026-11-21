@@ -1026,6 +1026,7 @@ class ReturnItemUpdate(BaseModel):
 
 
 class ReturnItemOut(BaseModel):
+    marking_codes: list[str] = Field(default_factory=list)
     id: int
     return_from_customer_id: Optional[int] = None
     return_to_supplier_id: Optional[int] = None

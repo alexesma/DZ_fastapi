@@ -15,7 +15,6 @@ from dz_fastapi.models.inventory import (
     LotSourceType,
     MarkingCodeStatus,
     ProductMarkingCode,
-    ShipmentMarkingScan,
     ReturnDocumentStatus,
     ReturnFromCustomer,
     ReturnItem,
@@ -24,6 +23,7 @@ from dz_fastapi.models.inventory import (
     ShipmentDocumentItem,
     ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
+    ShipmentMarkingScan,
     StockLot,
 )
 from dz_fastapi.models.partner import (

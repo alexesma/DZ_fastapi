@@ -50,7 +50,9 @@ class PlacePayload(BaseModel):
     quantity: int = Field(gt=0)
 
 
-async def _load_receipt(session: AsyncSession, receipt_id: int, *, lock: bool = False) -> SupplierReceipt:
+async def _load_receipt(
+    session: AsyncSession, receipt_id: int, *, lock: bool = False
+) -> SupplierReceipt:
     stmt = (
         select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
         .options(selectinload(SupplierReceipt.items),

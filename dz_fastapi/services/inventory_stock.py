@@ -34,6 +34,7 @@ Invariants enforced by this module:
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
@@ -60,6 +61,7 @@ from dz_fastapi.models.inventory import (
     ProductionWaveAllocation,
     ProductionWaveItem,
     ProductionWaveStatus,
+    ProductMarkingCode,
     ReserveStatus,
     ReturnDocumentStatus,
     ReturnFromCustomer,
@@ -109,6 +111,7 @@ from dz_fastapi.services.marking_codes import (
     release_marking_codes_for_shipment_allocation,
     return_marking_codes_from_customer,
     return_marking_codes_to_supplier,
+    select_return_marking_codes,
 )
 from dz_fastapi.services.shipment_marking_scan import assign_scanned_codes, shipment_codes_auto_fifo
 from dz_fastapi.services.stock_order_packages import assert_stock_order_packing_ready
@@ -2946,6 +2949,8 @@ async def _load_customer_return(
     result = await session.execute(
         select(ReturnFromCustomer)
         .where(ReturnFromCustomer.id == doc_id)
+        .with_for_update(of=ReturnFromCustomer)
+        .execution_options(populate_existing=True)
         .options(
             selectinload(ReturnFromCustomer.shipment_document),
             selectinload(ReturnFromCustomer.items).selectinload(ReturnItem.autopart),
@@ -2966,6 +2971,8 @@ async def _load_supplier_return(
     result = await session.execute(
         select(ReturnToSupplier)
         .where(ReturnToSupplier.id == doc_id)
+        .with_for_update(of=ReturnToSupplier)
+        .execution_options(populate_existing=True)
         .options(
             selectinload(ReturnToSupplier.supplier_receipt),
             selectinload(ReturnToSupplier.items).selectinload(ReturnItem.autopart),
@@ -3013,6 +3020,7 @@ async def confirm_return_from_customer(
     session: AsyncSession,
     *,
     doc_id: int,
+    scans: dict[int, list[str]] | None = None,
 ) -> ReturnFromCustomer:
     doc = await _load_customer_return(session, doc_id)
     if doc is None:
@@ -3034,19 +3042,38 @@ async def confirm_return_from_customer(
     doc.warehouse_id = warehouse.id
     receiving_location = await ensure_receiving_location(session, warehouse)
 
+    scans = scans or {}
+    if scans.keys() - {item.id for item in doc.items}:
+        raise ValueError("Скан относится к строке другого возврата")
+
     for item in doc.items or []:
         qty = int(item.quantity or 0)
         if qty <= 0:
             continue
-        if item.lot_id is not None:
-            continue
-
         source_item = item.shipment_item
         source_lot = getattr(source_item, "lot", None) if source_item is not None else None
 
         autopart_id = item.autopart_id or getattr(source_item, "autopart_id", None)
         if autopart_id is None:
             raise ValueError(f"Не удалось определить autopart для строки возврата #{item.id}")
+
+        item.autopart_id = int(autopart_id)
+        rows = await select_return_marking_codes(
+            session, item, scans.get(item.id, []), to_supplier=False
+        )
+        if rows:
+            shipment = await session.get(ShipmentDocument, source_item.document_id)
+            if (
+                doc.shipment_document_id
+                and source_item.document_id != doc.shipment_document_id
+                or doc.customer_id
+                and shipment.customer_id != doc.customer_id
+            ):
+                raise ValueError("Исходная отгрузка не соответствует возврату клиента")
+        if item.lot_id is not None:
+            if rows:
+                raise ValueError("Партия маркированного возврата создаётся при подтверждении")
+            continue
 
         target_location_id = item.storage_location_id or receiving_location.id
         item.storage_location_id = target_location_id
@@ -3088,10 +3115,7 @@ async def confirm_return_from_customer(
         )
         await return_marking_codes_from_customer(
             session,
-            shipment_item_id=item.shipment_item_id,
-            new_stock_lot=lot,
-            quantity=qty,
-            return_document_id=doc.id,
+            rows=rows, new_stock_lot=lot, item=item, warehouse_id=warehouse.id,
         )
 
     doc.status = ReturnDocumentStatus.CONFIRMED
@@ -3140,12 +3164,17 @@ async def ship_return_to_supplier(
     session: AsyncSession,
     *,
     doc_id: int,
+    scans: dict[int, list[str]] | None = None,
 ) -> ReturnToSupplier:
     doc = await _load_supplier_return(session, doc_id)
     if doc is None:
         raise LookupError("Возврат поставщику не найден")
     if doc.status != ReturnDocumentStatus.APPROVED:
         raise ValueError("Отгрузить можно только возврат в статусе APPROVED")
+
+    scans = scans or {}
+    if scans.keys() - {item.id for item in doc.items}:
+        raise ValueError("Скан относится к строке другого возврата")
 
     for item in doc.items or []:
         qty = int(item.quantity or 0)
@@ -3157,52 +3186,99 @@ async def ship_return_to_supplier(
         if autopart_id is None:
             raise ValueError(f"Не удалось определить autopart для строки возврата #{item.id}")
 
-        preferred_lot_ids: list[int] = []
-        if item.lot_id is not None:
-            preferred_lot_ids.append(int(item.lot_id))
-        elif item.supplier_receipt_item_id is not None:
-            lot_rows = (
-                (
-                    await session.execute(
-                        select(StockLot.id)
-                        .where(
-                            StockLot.source_receipt_item_id == item.supplier_receipt_item_id,
-                            StockLot.remaining_quantity > 0,
-                        )
-                        .order_by(asc(StockLot.received_at), asc(StockLot.id))
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            preferred_lot_ids.extend(int(lot_id) for lot_id in lot_rows)
-
-        movements = await _consume_preferred_lots(
-            session,
-            autopart_id=int(autopart_id),
-            quantity=qty,
-            movement_type=MovementType.SUPPLIER_RETURN,
-            reference_id=doc.id,
-            reference_type="return_to_supplier",
-            notes=item.notes or doc.reason or f"Возврат поставщику #{doc.id}",
-            preferred_lot_ids=preferred_lot_ids,
-            fallback_storage_location_id=item.storage_location_id,
-        )
-        if item.lot_id is None:
-            first_lot_id = next(
-                (mv.stock_lot_id for mv in movements if mv.stock_lot_id),
-                None,
-            )
-            if first_lot_id is not None:
-                item.lot_id = first_lot_id
         item.autopart_id = int(autopart_id)
-        consumed_lot_ids = [mv.stock_lot_id for mv in movements if mv.stock_lot_id]
-        await return_marking_codes_to_supplier(
-            session,
-            stock_lot_ids=consumed_lot_ids,
-            quantity=qty,
-            return_document_id=doc.id,
+        rows = await select_return_marking_codes(
+            session, item, scans.get(item.id, []), to_supplier=True
         )
+        if rows:
+            receipt = await session.get(SupplierReceipt, source_item.receipt_id)
+            if (
+                doc.supplier_receipt_id
+                and receipt.id != doc.supplier_receipt_id
+                or doc.provider_id
+                and receipt.provider_id != doc.provider_id
+            ):
+                raise ValueError("Исходное поступление не соответствует возврату поставщику")
+            quantities = Counter(row.stock_lot_id for row in rows)
+            if None in quantities:
+                raise ValueError("Для возвращаемого кода отсутствует складская партия")
+            lots = (
+                await session.scalars(
+                    select(StockLot)
+                    .where(StockLot.id.in_(quantities))
+                    .order_by(StockLot.id)
+                    .with_for_update(of=StockLot)
+                    .execution_options(populate_existing=True)
+                )
+            ).all()
+            if len(lots) != len(quantities):
+                raise ValueError("Партия возвращаемого кода не найдена")
+            for lot in lots:
+                if lot.autopart_id != autopart_id or lot.remaining_quantity < quantities[lot.id]:
+                    raise ValueError("Недостаточно остатка в партии отсканированного экземпляра")
+                await _consume_preferred_lots(
+                    session,
+                    autopart_id=int(autopart_id),
+                    quantity=quantities[lot.id],
+                    movement_type=MovementType.SUPPLIER_RETURN,
+                    reference_id=doc.id,
+                    reference_type="return_to_supplier",
+                    notes=item.notes or doc.reason,
+                    preferred_lot_ids=[lot.id],
+                    allow_fallback=False,
+                )
+            item.lot_id = lots[0].id
+        else:
+            preferred_lot_ids: list[int] = []
+            if item.lot_id is not None:
+                preferred_lot_ids.append(int(item.lot_id))
+            elif item.supplier_receipt_item_id is not None:
+                lot_rows = (
+                    (
+                        await session.execute(
+                            select(StockLot.id)
+                            .where(
+                                StockLot.source_receipt_item_id == item.supplier_receipt_item_id,
+                                StockLot.remaining_quantity > 0,
+                            )
+                            .order_by(asc(StockLot.received_at), asc(StockLot.id))
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                preferred_lot_ids.extend(int(lot_id) for lot_id in lot_rows)
+
+            movements = await _consume_preferred_lots(
+                session,
+                autopart_id=int(autopart_id),
+                quantity=qty,
+                movement_type=MovementType.SUPPLIER_RETURN,
+                reference_id=doc.id,
+                reference_type="return_to_supplier",
+                notes=item.notes or doc.reason or f"Возврат поставщику #{doc.id}",
+                preferred_lot_ids=preferred_lot_ids,
+                fallback_storage_location_id=item.storage_location_id,
+            )
+            consumed_ids = [mv.stock_lot_id for mv in movements if mv.stock_lot_id]
+            if consumed_ids:
+                lots = (
+                    await session.scalars(select(StockLot).where(StockLot.id.in_(consumed_ids)))
+                ).all()
+                if any(lot.marking_codes for lot in lots) or await session.scalar(
+                    select(ProductMarkingCode.id)
+                    .where(ProductMarkingCode.stock_lot_id.in_(consumed_ids))
+                    .limit(1)
+                ):
+                    raise ValueError("Для возврата из маркированной партии нужны сканы экземпляров")
+            if item.lot_id is None:
+                first_lot_id = next(
+                    (mv.stock_lot_id for mv in movements if mv.stock_lot_id),
+                    None,
+                )
+                if first_lot_id is not None:
+                    item.lot_id = first_lot_id
+        await return_marking_codes_to_supplier(session, rows=rows, item=item)
 
     doc.status = ReturnDocumentStatus.SHIPPED
     doc.shipped_at = now_moscow()

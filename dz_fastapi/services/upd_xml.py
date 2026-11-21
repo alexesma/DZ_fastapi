@@ -193,7 +193,9 @@ def _extract_marking_codes(item_el: ET.Element) -> list[str]:
             continue
         candidates: list[object] = [child.text]
         candidates.extend(child.get(attr_name) for attr_name in _MARKING_CODE_ATTRS)
-        candidates.extend(unit.text for unit in child if _local_name(unit.tag) in _MARKING_CODE_ATTRS)
+        candidates.extend(
+            unit.text for unit in child if _local_name(unit.tag) in _MARKING_CODE_ATTRS
+        )
         if not any(str(candidate or "").strip() for candidate in candidates):
             candidates.append("".join(child.itertext()))
         for candidate in candidates:

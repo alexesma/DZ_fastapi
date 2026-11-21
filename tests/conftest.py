@@ -422,10 +422,11 @@ async def override_dependencies(
 async def active_shipment_gis(test_session, monkeypatch):
     from datetime import timedelta
     from unittest.mock import AsyncMock
+
     from dz_fastapi.core.time import now_moscow
+    from dz_fastapi.crud.settings import crud_diadoc_integration_settings
     from dz_fastapi.http.gis_mt_client import GisMtClient
     from dz_fastapi.services.gis_mt import get_or_create_gis_mt_settings
-    from dz_fastapi.crud.settings import crud_diadoc_integration_settings
 
     settings_row = await get_or_create_gis_mt_settings(test_session)
     settings_row.token = "test-token"

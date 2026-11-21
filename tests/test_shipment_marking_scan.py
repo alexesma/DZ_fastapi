@@ -16,13 +16,13 @@ from dz_fastapi.models.inventory import (
 from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.models.settings import DiadocIntegrationSettings, GisMtSettings
 from dz_fastapi.models.user import User, UserRole, UserStatus
-from dz_fastapi.services.receipt_marking_scan import record_marking_scan
 from dz_fastapi.services.diadoc_outgoing import build_shipment_formalized_readiness
 from dz_fastapi.services.inventory_stock import (
     post_shipment_document,
     receive_stock,
     unpost_shipment_document,
 )
+from dz_fastapi.services.receipt_marking_scan import record_marking_scan
 from dz_fastapi.services.shipment_marking_scan import (
     ShipmentMarkingScanError,
     record_shipment_marking_scan,
@@ -427,7 +427,9 @@ async def test_formalized_upd_checks_scanned_unit_even_when_fifo_fills_line(
     await test_session.commit()
     await validate_shipment_upd_marking(test_session, shipment_id, title([CODE_B]))
     with pytest.raises(ValueError, match="ИНН продавца"):
-        await validate_shipment_upd_marking(test_session, shipment_id, title([CODE_B]).replace(b"7700000000", b"7700000001"))
+        await validate_shipment_upd_marking(
+            test_session, shipment_id, title([CODE_B]).replace(b"7700000000", b"7700000001")
+        )
     for wrong in ([CODE_A], [CODE_B, CODE_B], []):
         with pytest.raises(ValueError, match="файле УПД"):
             await validate_shipment_upd_marking(test_session, shipment_id, title(wrong))
@@ -441,13 +443,15 @@ async def test_change_after_sms_blocks_sending_draft(
     test_session, created_autopart, created_providers, tmp_path, batch
 ):
     from unittest.mock import AsyncMock
+
     from sqlalchemy import delete
+
     from dz_fastapi.models.diadoc import DiadocOutgoingDocument
     from dz_fastapi.models.inventory import ShipmentMarkingScan
     from dz_fastapi.services.diadoc_cloud_sign import (
         confirm_cloud_sign_task,
-        start_send_outgoing_task,
         start_send_outgoing_batch_task,
+        start_send_outgoing_task,
     )
 
     lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
@@ -487,11 +491,15 @@ async def test_change_after_sms_blocks_sending_draft(
     valid_lookup = active_shipment_gis.side_effect
     if change == "owner":
         active_shipment_gis.side_effect = None
-        active_shipment_gis.return_value = [{"cisInfo": {"cis": CODE_A, "status": "INTRODUCED", "ownerInn": "7700000001"}}]
+        active_shipment_gis.return_value = [
+            {"cisInfo": {"cis": CODE_A, "status": "INTRODUCED", "ownerInn": "7700000001"}}
+        ]
         reason = "владелец кода"
     else:
         await test_session.execute(
-            delete(ShipmentMarkingScan).where(ShipmentMarkingScan.shipment_document_id == shipment_id)
+            delete(ShipmentMarkingScan).where(
+                ShipmentMarkingScan.shipment_document_id == shipment_id
+            )
         )
         doc = await _load(test_session, shipment_id)
         await record_shipment_marking_scan(test_session, doc, CODE_B)
@@ -530,6 +538,7 @@ async def test_two_shipments_cannot_scan_same_unit_concurrently(
     test_session, test_engine, created_autopart, created_providers
 ):
     import asyncio
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
@@ -548,3 +557,76 @@ async def test_two_shipments_cannot_scan_same_unit_concurrently(
             return True
 
     assert sorted(await asyncio.gather(scan(first), scan(second))) == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_partial_returns_use_the_same_scanned_unit(
+    async_client, test_session, created_autopart, created_providers
+):
+    import asyncio
+
+    from dz_fastapi.models.inventory import MarkingMovementType, ProductMarkingCodeMovement
+    from dz_fastapi.services.one_c_outbox import build_return_snapshot
+
+    lot = await _stock_with_codes(test_session, created_providers[0], created_autopart)
+    receipt_id = lot.source_receipt_id
+    receipt_item_id = lot.source_receipt_item_id
+    provider_id = created_providers[0].id
+    shipment_id = await _draft(test_session, created_autopart, lot, quantity=2)
+    await post_shipment_document(test_session, shipment_id)
+    await test_session.commit()
+    shipment = await _load(test_session, shipment_id)
+    assert set(_codes(shipment)) == {CODE_A, CODE_B}
+    shipment_item_id = shipment.items[0].id
+    customer = await async_client.post("/inventory/customer-returns/", json={
+        "shipment_document_id": shipment_id,
+        "items": [{"shipment_item_id": shipment.items[0].id, "quantity": 1}],
+    })
+    assert customer.status_code == 201, customer.text
+    doc = customer.json()
+    path = f"/inventory/customer-returns/{doc['id']}"
+    line = str(doc["items"][0]["id"])
+    assert (await async_client.post(f"{path}/approve/")).status_code == 200
+    for scans in ({}, {line: [CODE_C]}, {line: [CODE_B, CODE_B]}):
+        result = await async_client.post(f"{path}/confirm/", json=scans)
+        assert result.status_code == 400, result.text
+    result = await async_client.post(f"{path}/confirm/", json={line: [CODE_B]})
+    assert result.status_code == 200, result.text
+    returned_lot_id = result.json()["items"][0]["lot_id"]
+    assert result.json()["items"][0]["marking_codes"] == [CODE_B]
+    assert (await _statuses(test_session))[CODE_A] == MarkingCodeStatus.SHIPPED
+
+    supplier = await async_client.post("/inventory/supplier-returns/", json={
+        "provider_id": provider_id, "supplier_receipt_id": receipt_id,
+        "items": [{"supplier_receipt_item_id": receipt_item_id, "quantity": 1}],
+    })
+    assert supplier.status_code == 201, supplier.text
+    doc = supplier.json()
+    path = f"/inventory/supplier-returns/{doc['id']}"
+    line = str(doc["items"][0]["id"])
+    assert (await async_client.post(f"{path}/approve/")).status_code == 200
+    for scans in ({}, {line: [CODE_A]}):
+        result = await async_client.post(f"{path}/ship/", json=scans)
+        assert result.status_code == 400, result.text
+    first, retry = await asyncio.gather(
+        async_client.post(f"{path}/ship/", json={line: [CODE_B]}),
+        async_client.post(f"{path}/ship/", json={line: [CODE_B]}),
+    )
+    assert sorted([first.status_code, retry.status_code]) == [200, 400]
+    shipped = first if first.status_code == 200 else retry
+    assert shipped.json()["items"][0]["lot_id"] == returned_lot_id
+    assert shipped.json()["items"][0]["marking_codes"] == [CODE_B]
+    assert await _statuses(test_session) == {
+        CODE_A: MarkingCodeStatus.SHIPPED, CODE_B: MarkingCodeStatus.RETURNED_TO_SUPPLIER,
+        CODE_C: MarkingCodeStatus.IN_STOCK,
+    }
+    assert (await test_session.get(StockLot, returned_lot_id)).remaining_quantity == 0
+    snapshot = await build_return_snapshot(test_session, return_id=doc["id"], to_supplier=True)
+    assert snapshot["items"][0]["marking_codes"] == [CODE_B]
+    received = await test_session.scalar(
+        select(ProductMarkingCodeMovement).where(
+            ProductMarkingCodeMovement.movement_type == MarkingMovementType.RETURNED_FROM_CUSTOMER
+        )
+    )
+    assert received.shipment_document_item_id == shipment_item_id
+    assert received.supplier_receipt_item_id == receipt_item_id

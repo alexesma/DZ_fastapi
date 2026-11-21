@@ -68,7 +68,6 @@ from dz_fastapi.schemas.partner import (
 )
 from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, acceptance_summary
 from dz_fastapi.services.diadoc_boxes import flatten_counteragent
-from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked
 from dz_fastapi.services.diadoc_cloud_sign import (
     confirm_cloud_sign_task,
     start_incoming_sign_task,
@@ -119,6 +118,7 @@ from dz_fastapi.services.diadoc_status import (
     refresh_diadoc_outgoing_statuses,
     refresh_outgoing_document_status,
 )
+from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked
 from dz_fastapi.services.supplier_document_dedup import (
     acknowledge_mismatch,
     effective_category,

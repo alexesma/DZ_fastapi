@@ -181,9 +181,13 @@ async def test_plan_and_scan_endpoints(
     )
     assert response.status_code == 400
 
+
 @pytest.mark.asyncio
-async def test_partial_post_only_stocks_scanned_units(test_session, created_providers, created_autopart):
+async def test_partial_post_only_stocks_scanned_units(
+    test_session, created_providers, created_autopart
+):
     from types import SimpleNamespace
+
     from dz_fastapi.models.inventory import ProductMarkingCode, StockLot
     from dz_fastapi.services.supplier_workflow import post_supplier_receipt
 
@@ -196,8 +200,11 @@ async def test_partial_post_only_stocks_scanned_units(test_session, created_prov
     with pytest.raises(ValueError, match="подтверждено сканами 1"):
         await post_supplier_receipt(test_session, receipt_id=receipt_id, user=user)
     await test_session.rollback()
-    receipt = await test_session.scalar(select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
-                                        .options(selectinload(SupplierReceipt.items)))
+    receipt = await test_session.scalar(
+        select(SupplierReceipt)
+        .where(SupplierReceipt.id == receipt_id)
+        .options(selectinload(SupplierReceipt.items))
+    )
     assert receipt.posted_at is None
     assert await test_session.scalar(select(StockLot.id)) is None
     receipt.items[0].received_quantity = 1
@@ -215,6 +222,7 @@ async def test_same_unit_cannot_be_received_in_two_deliveries(
     test_session, created_providers, created_autopart
 ):
     from types import SimpleNamespace
+
     from dz_fastapi.models.inventory import ProductMarkingCode, StockLot
     from dz_fastapi.services.supplier_workflow import post_supplier_receipt
 
@@ -230,4 +238,6 @@ async def test_same_unit_cannot_be_received_in_two_deliveries(
         await post_supplier_receipt(test_session, receipt_id=second.id, user=user)
     await test_session.rollback()
     assert (await test_session.scalars(select(StockLot.source_receipt_id))).all() == [first_id]
-    assert (await test_session.scalars(select(ProductMarkingCode.supplier_receipt_id))).all() == [first_id]
+    assert (await test_session.scalars(select(ProductMarkingCode.supplier_receipt_id))).all() == [
+        first_id
+    ]

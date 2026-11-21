@@ -134,7 +134,6 @@ async def test_gis_check_status_owner_gtin_and_missing(
         [([good, retired, foreign, wrong_gtin, missing], 5, None)],
     )
 
-
     async def fake_fetch(session, codes):
         def info(code, status="INTRODUCED", owner="7701234567", gtin=GTIN):
             return {"cis": code, "status": status, "owner_inn": owner,
@@ -173,7 +172,6 @@ async def test_local_check_is_upgraded_when_gis_becomes_available(
     )
     await mrc.check_receipt_marking(test_session, receipt, use_gis=False)
     assert receipt.items[0].marking_check["gis_checked"] is False
-
 
     async def fake_fetch(session, codes):
         return {}, "timeout"

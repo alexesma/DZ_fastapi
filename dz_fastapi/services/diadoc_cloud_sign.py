@@ -25,8 +25,15 @@ from dz_fastapi.models.diadoc import (
     DiadocOutgoingDocument,
 )
 from dz_fastapi.models.settings import DiadocIntegrationSettings
-from dz_fastapi.services.diadoc_acceptance import ReceiptAcceptanceBlocked, acceptance_summary, assert_acceptance_result
-from dz_fastapi.services.marking_shipment_check import ShipmentMarkingBlocked, validate_shipment_upd_marking
+from dz_fastapi.services.diadoc_acceptance import (
+    ReceiptAcceptanceBlocked,
+    acceptance_summary,
+    assert_acceptance_result,
+)
+from dz_fastapi.services.marking_shipment_check import (
+    ShipmentMarkingBlocked,
+    validate_shipment_upd_marking,
+)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -545,7 +552,9 @@ async def _check_draft_codes(session, document: DiadocOutgoingDocument, content:
             document.content_sha256
             and hashlib.sha256(content).hexdigest() != document.content_sha256
         ):
-            raise ShipmentMarkingBlocked("Файл для подписи отличается от сохранённого черновика УПД")
+            raise ShipmentMarkingBlocked(
+                "Файл для подписи отличается от сохранённого черновика УПД"
+            )
         await validate_shipment_upd_marking(session, document.source_id, content)
 
 
@@ -628,9 +637,14 @@ async def _apply_sign_incoming(
     if document is None:
         raise ReceiptAcceptanceBlocked("Входящий документ не найден")
     if document.signed_at or document.rejected_at:
-        raise ReceiptAcceptanceBlocked("По входящему документу уже зарегистрирована подпись или отказ")
+        raise ReceiptAcceptanceBlocked(
+            "По входящему документу уже зарегистрирована подпись или отказ"
+        )
     params = task.params or {}
-    if params.get("type_named_id") == "UniversalTransferDocument" or effective_category(document) == "upd":
+    if (
+        params.get("type_named_id") == "UniversalTransferDocument"
+        or effective_category(document) == "upd"
+    ):
         summary = await acceptance_summary(session, document, lock=True)
         assert_acceptance_result(summary, params.get("total_code", "1"))
     files = list(task.files or [])

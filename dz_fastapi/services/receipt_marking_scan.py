@@ -25,7 +25,9 @@ from dz_fastapi.services.marking_aggregate import (
 )
 from dz_fastapi.services.marking_code_parse import parse_marking_code
 from dz_fastapi.services.marking_codes import (
-    autoparts_marked_by_category, normalize_marking_codes, normalize_marking_codes_with_full,
+    autoparts_marked_by_category,
+    normalize_marking_codes,
+    normalize_marking_codes_with_full,
 )
 
 SCAN_CONFIRMED = "confirmed"
@@ -192,7 +194,9 @@ async def record_marking_scan(
         )
         session.add(existing)
         await session.flush()
-    elif item is not None and (existing.receipt_item_id != item.id or existing.autopart_id != autopart_id):
+    elif item is not None and (
+        existing.receipt_item_id != item.id or existing.autopart_id != autopart_id
+    ):
         # Документ изменился после скана: код появился в строке.
         existing.receipt_item_id = item.id
         existing.autopart_id = autopart_id

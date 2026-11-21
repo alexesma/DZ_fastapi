@@ -2559,6 +2559,7 @@ class ReturnItem(Base):
         ForeignKey("stocklot.id", ondelete="SET NULL"),
         nullable=True,
     )
+    marking_codes = Column(JSON, nullable=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=True)
     vat_rate = Column(
