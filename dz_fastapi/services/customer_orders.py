@@ -1772,6 +1772,13 @@ async def _get_order_offer_sources(
     an administrator forgot to add one of the Dragonzap price configurations
     to an older customer card. The fallback is used only during order
     allocation; it does not silently change the customer's mailing settings.
+
+    Only the base own-stock configuration (``use_for_order_insights``) is
+    added. Other own configurations are derived prices: e.g. the Zzap price
+    that re-publishes Cosmopart goods as our stock. Adding them made such
+    items look like our physical stock for customers who never received that
+    price (order 6961, TO05GS3011WS). If no config is marked as the base one,
+    every active own config is added, as before.
     """
 
     sources = list(
@@ -1795,7 +1802,8 @@ async def _get_order_offer_sources(
             .order_by(ProviderPriceListConfig.id.asc())
         )
     ).all()
-    for provider_config in own_configs:
+    base_configs = [item for item in own_configs if item.use_for_order_insights]
+    for provider_config in base_configs or own_configs:
         if int(provider_config.id) in configured_ids:
             continue
         sources.append(_make_virtual_own_source(int(config.id), provider_config))

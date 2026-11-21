@@ -245,6 +245,41 @@ async def test_order_sources_always_include_active_own_price(monkeypatch):
     assert sources[1].markup == pytest.approx(1.0)
 
 
+@pytest.mark.asyncio
+async def test_order_sources_skip_derived_own_price_configs(monkeypatch):
+    """Zzap-прайс (производный) не должен подмешиваться как наше наличие."""
+    configured_source = SimpleNamespace(provider_config_id=10, enabled=True)
+    own_provider = Provider(id=1, is_own_price=True)
+    base_config = ProviderPriceListConfig(
+        id=21, provider_id=1, is_active=True, use_for_order_insights=True
+    )
+    zzap_config = ProviderPriceListConfig(
+        id=1, provider_id=1, is_active=True, use_for_order_insights=False
+    )
+    for item in (base_config, zzap_config):
+        item.provider = own_provider
+
+    async def _fake_sources(*args, **kwargs):
+        return [configured_source]
+
+    class _ScalarRows:
+        def all(self):
+            return [zzap_config, base_config]
+
+    class _Session:
+        async def scalars(self, _statement):
+            return _ScalarRows()
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders." "crud_customer_pricelist_source.get_by_config_id",
+        _fake_sources,
+    )
+
+    sources = await _get_order_offer_sources(_Session(), SimpleNamespace(id=77))
+
+    assert [source.provider_config_id for source in sources] == [10, 21]
+
+
 def test_source_filters_can_ignore_price_and_quantity_thresholds():
     source = SimpleNamespace(
         brand_filters={},
