@@ -14,14 +14,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_index(
-        "ix_inboxemail_received_at", "inboxemail", ["received_at"], unique=False
+    # IF NOT EXISTS: часть баз уже получила эти индексы из более ранних
+    # миграций (CI поднимает схему цепочкой и упал на дубле).
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_inboxemail_received_at "
+        "ON inboxemail (received_at)"
     )
-    op.create_index(
-        "ix_inboxemail_fetched_at", "inboxemail", ["fetched_at"], unique=False
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_inboxemail_fetched_at "
+        "ON inboxemail (fetched_at)"
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_inboxemail_fetched_at", table_name="inboxemail")
-    op.drop_index("ix_inboxemail_received_at", table_name="inboxemail")
+    op.execute("DROP INDEX IF EXISTS ix_inboxemail_fetched_at")
+    op.execute("DROP INDEX IF EXISTS ix_inboxemail_received_at")
