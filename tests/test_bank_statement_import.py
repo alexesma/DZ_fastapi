@@ -64,6 +64,7 @@ def _zip_of(files: dict[str, bytes]) -> bytes:
 def test_bank_for_sender_recognises_known_banks():
     assert bank_for_sender("informer@tochka.com") == "Точка"
     assert bank_for_sender("Esupport@alfa-bank.info") == "Альфа-Банк"
+    assert bank_for_sender("no-reply@alfabank.ru") == "Альфа-Банк"
     assert bank_for_sender("Банк <informer@tochka.com>") == "Точка"
     assert bank_for_sender("someone@example.com") is None
     assert bank_for_sender(None) is None
@@ -207,3 +208,50 @@ async def test_inbox_email_from_bank_is_imported_automatically(test_session):
     ).scalars().all()
     assert len(statements) == 1
     assert statements[0].inbox_email_id == email.id
+
+
+def test_fetch_prioritises_bank_mail_over_newer_messages(monkeypatch):
+    from types import SimpleNamespace
+
+    from dz_fastapi.services import inbox_email as inbox_service
+
+    # Заголовки приходят от новых к старым (reverse=True).
+    headers = [
+        SimpleNamespace(uid="9", from_="price@a.ru"),
+        SimpleNamespace(uid="8", from_="price@b.ru"),
+        SimpleNamespace(uid="7", from_="price@c.ru"),
+        SimpleNamespace(uid="3", from_="informer@tochka.com"),
+        SimpleNamespace(uid="2", from_="price@d.ru"),
+        SimpleNamespace(uid="1", from_="no-reply@alfabank.ru"),
+    ]
+    fetched_uids: list[str] = []
+
+    class FakeMailbox:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, *args):
+            return self
+
+        folder = SimpleNamespace(set=lambda name: None)
+
+        def fetch(self, criteria, **kwargs):
+            if kwargs.get("headers_only"):
+                return iter(headers)
+            fetched_uids.append(str(criteria).split()[-1])
+            return iter([])
+
+    monkeypatch.setattr(
+        inbox_service, "_create_mailbox", lambda *a, **k: FakeMailbox()
+    )
+
+    inbox_service._fetch_inbox_imap_sync(
+        "h", "e", "p", "INBOX", full_fetch_limit=2
+    )
+
+    # Письма банков (в порядке заголовков) идут первыми, затем два самых
+    # свежих из остальных.
+    assert fetched_uids == ["3", "1", "9", "8"]

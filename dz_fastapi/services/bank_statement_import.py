@@ -26,6 +26,7 @@ logger = logging.getLogger("dz_fastapi")
 BANK_STATEMENT_SENDERS = {
     "informer@tochka.com": "Точка",
     "esupport@alfa-bank.info": "Альфа-Банк",
+    "no-reply@alfabank.ru": "Альфа-Банк",
 }
 
 

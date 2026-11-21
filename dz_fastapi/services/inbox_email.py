@@ -106,6 +106,8 @@ INBOX_IMAP_HEADER_SCAN_LIMIT = _bounded_env_int(
     500,
     maximum=5000,
 )
+# Письма банков скачиваются сверх общего лимита.
+BANK_FULL_FETCH_LIMIT = 40
 INBOX_IMAP_FULL_FETCH_LIMIT = _bounded_env_int(
     "INBOX_IMAP_FULL_FETCH_LIMIT",
     5,
@@ -548,14 +550,22 @@ def _fetch_inbox_imap_sync(
                         header_error,
                     )
 
-            candidate_uids: list[str] = []
+            # Письма банков (выписки) маленькие и приходят ночью, когда
+            # загрузка не идёт; их берём всегда и первыми, иначе поток
+            # свежих писем вытесняет их из лимита. Остальные — как раньше,
+            # от свежих к старым (свежий прайс важнее).
+            bank_uids: list[str] = []
+            other_uids: list[str] = []
             for header in headers:
                 uid = str(header.uid) if getattr(header, "uid", None) else ""
                 if not uid or uid in known_uids:
                     continue
-                candidate_uids.append(uid)
-                if len(candidate_uids) >= full_fetch_limit:
-                    break
+                if bank_for_sender(getattr(header, "from_", None)):
+                    bank_uids.append(uid)
+                else:
+                    other_uids.append(uid)
+            candidate_uids: list[str] = bank_uids[:BANK_FULL_FETCH_LIMIT]
+            candidate_uids += other_uids[:full_fetch_limit]
 
             logger.info(
                 "IMAP inbox batch prepared: email=%s folder=%s headers=%s "
