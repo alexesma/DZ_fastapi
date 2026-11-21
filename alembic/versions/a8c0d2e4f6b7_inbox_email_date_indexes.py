@@ -1,14 +1,14 @@
 """indexes on inbox email dates
 
-Revision ID: f6a8b0c2d4e5
-Revises: e5f7a9b1c3d4
+Revision ID: a8c0d2e4f6b7
+Revises: f6a8b0c2d4e5
 Create Date: 2026-11-21 23:00:00.000000
 """
 
 from alembic import op
 
-revision = "f6a8b0c2d4e5"
-down_revision = "e5f7a9b1c3d4"
+revision = "a8c0d2e4f6b7"
+down_revision = "f6a8b0c2d4e5"
 branch_labels = None
 depends_on = None
 
