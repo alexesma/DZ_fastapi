@@ -27,5 +27,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS ix_inboxemail_fetched_at")
+    # fetched_at принадлежит исходной миграции таблицы: здесь не трогаем.
     op.execute("DROP INDEX IF EXISTS ix_inboxemail_received_at")
