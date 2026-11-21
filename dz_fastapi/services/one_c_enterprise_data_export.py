@@ -14,6 +14,8 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 from xml.etree import ElementTree as ET
 
+from dz_fastapi.services.marking_code_parse import return_unit_codes
+
 DATA_NS = "http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.22"
 SUPPORTED_OBJECTS = frozenset(
     {
@@ -356,6 +358,38 @@ def _goods_row(
     )
 
 
+def _return_rows(node: ET.Element, items: list[dict], document_identity: str) -> None:
+    goods = _add(node, "Товары")
+    markings = None
+    seen = set()
+    for number, item in enumerate(items, start=1):
+        codes = item.get("marking_codes")
+        if codes:
+            item = {**item, "row_index": number}
+        _goods_row(goods, item, require_unit=True, document_identity=document_identity)
+        if not codes:
+            continue
+        codes = return_unit_codes(codes, Decimal(str(item["quantity"])))
+        if seen.intersection(codes):
+            raise ValueError("КИ повторяется в разных строках возврата")
+        seen.update(codes)
+        if markings is None:
+            markings = _add(node, "МаркировкиУпаковок")
+        for code in codes:
+            row = _add(markings, "Строка")
+            _add(row, "НомерСтрокиДокумента", number)
+            if item.get("item_id"):
+                line_id = _guid("line", f"{document_identity}:{item['item_id']}")
+                _add(row, "ИдентификаторСтроки", line_id)
+            package = _add(row, "МаркировкаУпаковки")
+            _add(package, "Ссылка", _guid("marking-code", code))
+            product = _add(package, "ДанныеНоменклатуры")
+            _product_key(_add(product, "Номенклатура"), item)
+            _add(product, "Штрихкод", code)
+            _add(package, "ТипУпаковки", "МаркированныйТовар")
+            _add(package, "ТипШтрихкода", "GS1_DataMatrix")
+
+
 def serialize_object(
     object_type: str,
     payload: dict[str, Any],
@@ -460,9 +494,7 @@ def serialize_object(
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
         _counterparty_key(_add(node, "Контрагент"), payload["customer"], "customer")
-        rows = _add(node, "Товары")
-        for item in payload.get("items") or []:
-            _goods_row(rows, item, require_unit=True, document_identity=document_identity)
+        _return_rows(node, payload.get("items") or [], document_identity)
     elif object_type == "Документ.ВозвратТоваровПоставщику":
         key = node.find(_tag("КлючевыеСвойства"))
         _counterparty_key(_add(key, "Контрагент"), payload["provider"], "provider")
@@ -471,9 +503,7 @@ def serialize_object(
         _add(node, "СуммаВключаетНДС", "true")
         _warehouse(node, payload.get("warehouse"))
         _supplier_settlements(node, payload["provider"], company)
-        rows = _add(node, "Товары")
-        for item in payload.get("items") or []:
-            _goods_row(rows, item, require_unit=True, document_identity=document_identity)
+        _return_rows(node, payload.get("items") or [], document_identity)
     elif object_type in {"Документ.ОприходованиеТоваров", "Документ.СписаниеТоваров"}:
         _warehouse(node, payload.get("warehouse"))
         _optional(node, "Комментарий", payload.get("reason"))

@@ -337,3 +337,42 @@ def test_sale_without_contract_and_order_is_sent_as_before():
     settlements = sale.find(f"{{{DATA_NS}}}ДанныеВзаиморасчетов")
     assert settlements is not None and len(settlements) == 0
     assert sale.find(f"{{{DATA_NS}}}Заказ") is None
+
+
+def test_marked_return_carries_each_scanned_unit_in_enterprise_data():
+    code_a = "010460123456789021ABCDEFGHIJKLM"
+    code_b = "010460123456789021NOPQRSTUVWXYZ"
+    document = {
+        **DOCUMENT,
+        "items": [{**ITEM, "marking_codes": [code_a, code_b]}],
+    }
+
+    result = ET.fromstring(
+        object_xml("Документ.ВозвратТоваровОтПокупателя", document, COMPANY)
+    )
+    rows = result.findall(
+        f"{{{DATA_NS}}}МаркировкиУпаковок/{{{DATA_NS}}}Строка"
+    )
+
+    assert len(rows) == 2
+    assert [_value(row, "МаркировкаУпаковки/ДанныеНоменклатуры/Штрихкод") for row in rows] == [
+        code_a,
+        code_b,
+    ]
+    assert {_value(row, "НомерСтрокиДокумента") for row in rows} == {"1"}
+    assert {
+        _value(row, "МаркировкаУпаковки/ТипУпаковки") for row in rows
+    } == {"МаркированныйТовар"}
+    assert {
+        _value(row, "МаркировкаУпаковки/ТипШтрихкода") for row in rows
+    } == {"GS1_DataMatrix"}
+
+
+def test_marked_return_rejects_incomplete_unit_list():
+    document = {
+        **DOCUMENT,
+        "items": [{**ITEM, "marking_codes": ["010460123456789021ABCDEFGHIJKLM"]}],
+    }
+
+    with pytest.raises(ValueError, match="Число КИ"):
+        object_xml("Документ.ВозвратТоваровПоставщику", document, COMPANY)

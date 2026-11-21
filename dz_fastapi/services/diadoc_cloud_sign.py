@@ -544,6 +544,22 @@ async def start_revoke_outgoing_task(
 
 
 async def _check_draft_codes(session, document: DiadocOutgoingDocument, content: bytes) -> None:
+    if document.source_type in {"return_from_customer", "return_to_supplier"} and (
+        document.type_named_id == "UniversalCorrectionDocument"
+    ):
+        from dz_fastapi.services.diadoc_outgoing import validate_return_ukd_marking
+
+        try:
+            if (
+                document.content_sha256
+                and hashlib.sha256(content).hexdigest() != document.content_sha256
+            ):
+                raise ValueError("Файл для подписи отличается от сохранённого УКД")
+            await validate_return_ukd_marking(
+                session, document.source_type, document.source_id, content
+            )
+        except ValueError as exc:
+            raise ShipmentMarkingBlocked(str(exc)) from exc
     if (
         document.source_type == "shipment_document"
         and document.type_named_id == "UniversalTransferDocument"

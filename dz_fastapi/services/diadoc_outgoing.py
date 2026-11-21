@@ -42,6 +42,12 @@ from dz_fastapi.services.customer_return_ukd import (
 )
 from dz_fastapi.services.diadoc_boxes import diadoc_box_variants
 from dz_fastapi.services.diadoc_marking_status import contains_marked_goods
+from dz_fastapi.services.return_marking_xml import (
+    ReturnMarkingBlocked,
+    customer_return_marking_states,
+    supplier_return_marking_blocker,
+    verify_return_title,
+)
 
 DIADOC_OUTGOING_DIR = os.getenv(
     "DIADOC_OUTGOING_DIR",
@@ -738,13 +744,16 @@ async def _load_customer_return_document(
         .where(ReturnFromCustomer.id == return_id)
         .options(
             selectinload(ReturnFromCustomer.customer),
-            selectinload(ReturnFromCustomer.shipment_document),
+            selectinload(ReturnFromCustomer.shipment_document).selectinload(ShipmentDocument.items),
             selectinload(ReturnFromCustomer.source_diadoc_outgoing_document),
             selectinload(ReturnFromCustomer.diadoc_outgoing_document),
             selectinload(ReturnFromCustomer.warehouse),
             selectinload(ReturnFromCustomer.items)
             .selectinload(ReturnItem.autopart)
             .selectinload(AutoPart.brand),
+            selectinload(ReturnFromCustomer.items)
+            .selectinload(ReturnItem.shipment_item)
+            .selectinload(ShipmentDocumentItem.allocations),
             selectinload(ReturnFromCustomer.items).selectinload(ReturnItem.lot),
             selectinload(ReturnFromCustomer.items)
             .selectinload(ReturnItem.shipment_item)
@@ -828,6 +837,10 @@ async def build_customer_return_formalized_readiness(
         return_id=return_id,
     )
     missing_required_fields.extend(draft_status["blockers"])
+    try:
+        await customer_return_marking_states(session, document)
+    except ValueError as exc:
+        missing_required_fields.append(str(exc))
 
     has_counteragent_binding = False
     if customer is not None and getattr(customer, "id", None) is not None:
@@ -979,6 +992,10 @@ async def build_supplier_return_formalized_readiness(
     missing_required_fields: list[str] = []
     warnings: list[str] = []
     recommended_actions: list[str] = []
+
+    marking_blocker = supplier_return_marking_blocker(document)
+    if marking_blocker:
+        missing_required_fields.append(marking_blocker)
 
     has_counteragent_binding = False
     if provider is not None and getattr(provider, "id", None) is not None:
@@ -1156,6 +1173,7 @@ def _build_formalized_ukd_user_data_xml(
     seller_org_payload: dict[str, Any],
     buyer_org_payload: dict[str, Any],
     document_function: str,
+    document_version: str,
     buyer_fallback_name: str | None,
     buyer_fallback_inn: str | None,
     buyer_fallback_kpp: str | None,
@@ -1295,7 +1313,9 @@ def _build_formalized_ukd_user_data_xml(
             items_el,
             "Item",
             {
-                "OriginalNumber": str(getattr(item, "original_number", idx)),
+                "OriginalNumber": str(
+                    state.get("original_number", getattr(item, "original_number", idx))
+                ),
                 "Product": _build_return_product_name(item),
             },
         )
@@ -1397,6 +1417,21 @@ def _build_formalized_ukd_user_data_xml(
                 or getattr(source_lot, "country_code", None)
             ),
         )
+
+        for name, codes in (
+            ("OriginalItemIdentificationNumbers", state.get("original_codes")),
+            ("CorrectedItemIdentificationNumbers", state.get("corrected_codes")),
+        ):
+            if codes:
+                group = ET.SubElement(item_el, name)
+                numbers = ET.SubElement(group, "ItemIdentificationNumber")
+                units = (
+                    ET.SubElement(numbers, "Units")
+                    if document_version.startswith("ucd29_")
+                    else numbers
+                )
+                for code in codes:
+                    ET.SubElement(units, "Unit").text = code
 
     ET.SubElement(
         table_el,
@@ -2035,6 +2070,7 @@ async def build_formalized_diadoc_payload_from_shipment_correction(
         seller_org_payload=seller_org,
         buyer_org_payload=buyer_org,
         document_function=doc.document_function,
+        document_version=descriptor["document_version"],
         buyer_fallback_name=getattr(customer, "name", None),
         buyer_fallback_inn=getattr(customer, "inn", None),
         buyer_fallback_kpp=getattr(customer, "kpp", None),
@@ -2151,6 +2187,14 @@ async def build_formalized_diadoc_payload_from_customer_return(
     if not buyer_box_id_guid:
         raise ValueError("Recipient Diadoc box is not resolved for customer return")
 
+    markings = await customer_return_marking_states(session, document)
+    line_states = {int(row["return_item_id"]): dict(row) for row in draft_status["items"]}
+    if markings:
+        shipment_ids = [item.id for item in source_document.items]
+        for row in line_states.values():
+            row["original_number"] = shipment_ids.index(row["shipment_item_id"]) + 1
+        for item_id, state in markings.items():
+            line_states[item_id].update(state)
     document_types = await client.get_document_types(integration.box_id_guid or "")
     descriptor = _find_formalized_doc_type(
         document_types,
@@ -2169,6 +2213,7 @@ async def build_formalized_diadoc_payload_from_customer_return(
         seller_org_payload=seller_org_payload,
         buyer_org_payload=buyer_org_payload,
         document_function=descriptor["document_function"],
+        document_version=descriptor["document_version"],
         buyer_fallback_name=getattr(customer, "name", None),
         buyer_fallback_inn=getattr(customer, "inn", None),
         buyer_fallback_kpp=getattr(customer, "kpp", None),
@@ -2182,7 +2227,7 @@ async def build_formalized_diadoc_payload_from_customer_return(
         ),
         operation_content=(str(document.reason or "").strip() or "Возврат товара от клиента"),
         correction_base_name="Возврат от клиента",
-        line_states={int(row["return_item_id"]): row for row in draft_status["items"]},
+        line_states=line_states,
     )
     generated_xml, generated_file_name = await client.generate_title_xml(
         box_id_guid=integration.box_id_guid or "",
@@ -2192,6 +2237,8 @@ async def build_formalized_diadoc_payload_from_customer_return(
         title_index=0,
         user_data_xml=user_data_xml,
     )
+    if markings:
+        verify_return_title(generated_xml, markings)
     file_name = str(generated_file_name or "").strip() or _customer_return_formalized_file_name(
         document
     )
@@ -2238,6 +2285,10 @@ async def build_formalized_diadoc_payload_from_supplier_return(
         ReturnDocumentStatus.CONFIRMED,
     }:
         raise ValueError("Only shipped supplier returns can be sent as formalized UKD")
+
+    marking_blocker = supplier_return_marking_blocker(document)
+    if marking_blocker:
+        raise ReturnMarkingBlocked(marking_blocker)
 
     source_document = getattr(document, "supplier_receipt", None)
     if source_document is None:
@@ -2292,6 +2343,7 @@ async def build_formalized_diadoc_payload_from_supplier_return(
         seller_org_payload=seller_org_payload,
         buyer_org_payload=buyer_org_payload,
         document_function=descriptor["document_function"],
+        document_version=descriptor["document_version"],
         buyer_fallback_name=getattr(provider, "name", None),
         buyer_fallback_inn=None,
         buyer_fallback_kpp=None,
@@ -2331,6 +2383,24 @@ async def build_formalized_diadoc_payload_from_supplier_return(
             "GeneratedBy": "GenerateTitleXml",
         },
     }
+
+
+async def validate_return_ukd_marking(session, source_type, source_id, content):
+    if source_type == "return_to_supplier":
+        document = await _load_supplier_return_document(session, return_id=source_id)
+        if document is None:
+            raise ReturnMarkingBlocked("Возврат поставщику не найден")
+        blocker = supplier_return_marking_blocker(document)
+        if blocker:
+            raise ReturnMarkingBlocked(blocker)
+        states = {}
+    else:
+        document = await _load_customer_return_document(session, return_id=source_id)
+        if document is None:
+            raise ReturnMarkingBlocked("Возврат от клиента не найден")
+        states = await customer_return_marking_states(session, document, lock=True)
+    if states or contains_marked_goods(content, _UCD_TYPE_NAMED_ID):
+        verify_return_title(content, states)
 
 
 async def post_diadoc_outgoing_document(
@@ -2410,6 +2480,12 @@ async def post_diadoc_outgoing_document(
         from dz_fastapi.services.marking_shipment_check import validate_shipment_upd_marking
 
         await validate_shipment_upd_marking(session, normalized_source_id, content)
+    if normalized_source_type in {"return_from_customer", "return_to_supplier"} and (
+        type_named_id == _UCD_TYPE_NAMED_ID
+    ):
+        await validate_return_ukd_marking(
+            session, normalized_source_type, normalized_source_id, content
+        )
     local_metadata = dict(metadata or {})
     local_metadata.pop("gis_mt_expected", None)
     local_metadata.pop("gis_mt_pending", None)

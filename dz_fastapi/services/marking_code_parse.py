@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 _SEPARATORS = re.compile(r"[\x1d\r\n]+")
@@ -110,3 +111,24 @@ def parse_marking_code(raw: object) -> Optional[ParsedMarkingCode]:
 def marking_code_ki(raw: object) -> Optional[str]:
     parsed = parse_marking_code(raw)
     return parsed.ki if parsed else None
+
+
+def return_unit_codes(values: list[str], quantity: object) -> list[str]:
+    """Read one distinct GS1 identifier per returned unit."""
+    try:
+        expected = Decimal(str(quantity))
+    except InvalidOperation as exc:
+        raise ValueError("Некорректное количество экземпляров строки возврата") from exc
+    if expected < 0 or expected != expected.to_integral_value():
+        raise ValueError("Для поэкземплярной маркировки требуется целое количество")
+    if not isinstance(values, list) or len(values) != int(expected):
+        raise ValueError("Число КИ должно совпадать с количеством экземпляров строки возврата")
+    result = []
+    for raw in values:
+        code = marking_code_ki(raw)
+        if not code or not code.isascii() or not code.isprintable() or len(code) > 200:
+            raise ValueError("Некорректный КИ в строке возврата")
+        result.append(code)
+    if len(set(result)) != len(result):
+        raise ValueError("КИ повторяется в строке возврата")
+    return result

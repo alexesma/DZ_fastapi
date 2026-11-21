@@ -2,6 +2,7 @@ import base64
 import os
 from datetime import date, timedelta
 from io import BytesIO
+from xml.etree import ElementTree as ET
 
 import pandas as pd
 import pytest
@@ -1489,6 +1490,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
     created_autopart,
     created_customers,
     monkeypatch,
+    tmp_path,
 ):
     await _login_admin(async_client, test_session)
 
@@ -1523,6 +1525,25 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
     )
     test_session.add(shipment_item)
     await test_session.flush()
+    code_a = "010460123456789021ABCDEFGHIJKLM"
+    code_b = "010460123456789021NOPQRSTUVWXYZ"
+    code_c = "010460123456789021abcdefghijklm"
+    test_session.add(
+        ShipmentDocumentItemLotAllocation(
+            shipment_document_item_id=shipment_item.id,
+            quantity=3,
+            marking_codes=[code_a, code_b, code_c],
+        )
+    )
+    source_path = tmp_path / "source-upd-customer.xml"
+    source_path.write_bytes(
+        (
+            '<Файл><СведТов НомСтр="1" КолТов="3"><ДопСведТов>'
+            "<НомСредИдентТов>"
+            f"<КИЗ>{code_a}</КИЗ><КИЗ>{code_b}</КИЗ><КИЗ>{code_c}</КИЗ>"
+            "</НомСредИдентТов></ДопСведТов></СведТов></Файл>"
+        ).encode("utf-8")
+    )
     source_upd = DiadocOutgoingDocument(
         environment="staging",
         from_box_id_guid="box-guid",
@@ -1536,7 +1557,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         file_name="source-upd-customer.xml",
         document_number=shipment.doc_number,
         document_date=shipment.doc_date.date(),
-        local_file_path="uploads/diadoc_outgoing/source-upd-customer.xml",
+        local_file_path=str(source_path),
         is_draft=False,
         message_id="source-upd-message-customer-1",
         entity_id="source-upd-entity-customer-1",
@@ -1567,6 +1588,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
             oem_number=created_autopart.oem_number,
             brand_name=created_autopart.brand.name,
             autopart_name=created_autopart.name,
+            marking_codes=[code_b],
         )
     )
     await test_session.commit()
@@ -1602,7 +1624,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
                             "Name": "ДИС",
                             "Versions": [
                                 {
-                                    "Version": "ucd736_05_01_02",
+                                    "Version": "ucd29_05_02_01",
                                     "IsActual": True,
                                     "Titles": [{"Index": 0, "IsFormal": True}],
                                 }
@@ -1652,7 +1674,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         assert kwargs["box_id_guid"] == "box-guid"
         assert kwargs["document_type_named_id"] == "UniversalCorrectionDocument"
         assert kwargs["document_function"] == "ДИС"
-        assert kwargs["document_version"] == "ucd736_05_01_02"
+        assert kwargs["document_version"] == "ucd29_05_02_01"
         xml_text = kwargs["user_data_xml"].decode("utf-8")
         assert "<UniversalCorrectionDocument" in xml_text
         assert 'Function="ДИС"' in xml_text
@@ -1661,11 +1683,33 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         assert "<Items><Item" in xml_text
         assert 'TaxRate OriginalValue="22%" CorrectedValue="22%"' in xml_text
         assert 'Quantity OriginalValue="3" CorrectedValue="2"' in xml_text
+        assert "<OriginalItemIdentificationNumbers>" in xml_text
+        user_data = ET.fromstring(kwargs["user_data_xml"])
+        before = [
+            node.text
+            for node in user_data.findall(
+                ".//OriginalItemIdentificationNumbers/ItemIdentificationNumber/Units/Unit"
+            )
+        ]
+        after = [
+            node.text
+            for node in user_data.findall(
+                ".//CorrectedItemIdentificationNumbers/ItemIdentificationNumber/Units/Unit"
+            )
+        ]
+        assert before == [code_a, code_b, code_c]
+        assert after == [code_a, code_c]
         assert 'TotalsDec TotalWithVatExcluded="163.93" Vat="36.07" Total="200.00"' in xml_text
         return (
             (
-                '<?xml version="1.0" encoding="windows-1251"?>'
-                '<Файл ИдФайл="test-ukd-customer" />'
+                '<?xml version="1.0" encoding="utf-8"?>'
+                '<Файл ИдФайл="test-ukd-customer"><СведТов '
+                'ПорНомТовВСЧФ="1" КолТовДо="3" КолТовПосле="2">'
+                "<ДопСведТов><НомСредИдентТовДо>"
+                f"<КИЗ>{code_a}</КИЗ><КИЗ>{code_b}</КИЗ><КИЗ>{code_c}</КИЗ>"
+                "</НомСредИдентТовДо><НомСредИдентТовПосле>"
+                f"<КИЗ>{code_a}</КИЗ><КИЗ>{code_c}</КИЗ>"
+                "</НомСредИдентТовПосле></ДопСведТов></СведТов></Файл>"
             ).encode("utf-8"),
             "ON_KORR_ukd_customer.xml",
         )
@@ -1677,7 +1721,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         attachment = message["DocumentAttachments"][0]
         assert attachment["TypeNamedId"] == "UniversalCorrectionDocument"
         assert attachment["Function"] == "ДИС"
-        assert attachment["Version"] == "ucd736_05_01_02"
+        assert attachment["Version"] == "ucd29_05_02_01"
         content = base64.b64decode(attachment["SignedContent"]["Content"].encode("ascii")).decode(
             "utf-8"
         )
@@ -1715,7 +1759,7 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
     assert data["source_id"] == return_doc.id
     assert data["type_named_id"] == "UniversalCorrectionDocument"
     assert data["document_function"] == "ДИС"
-    assert data["document_version"] == "ucd736_05_01_02"
+    assert data["document_version"] == "ucd29_05_02_01"
     assert data["file_name"] == "ON_KORR_ukd_customer.xml"
     assert data["status"] == "draft"
     assert data["message_id"] == "outgoing-message-ukd-customer-1"
