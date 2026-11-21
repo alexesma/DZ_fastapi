@@ -1161,11 +1161,7 @@ async def categorize_bank_transaction(
 async def list_bank_categories(
     session: AsyncSession = Depends(get_session),
 ):
-    from dz_fastapi.models.finance import (
-        BankCategory,
-        BankCategoryRule,
-        BankTransaction,
-    )
+    from dz_fastapi.models.finance import BankCategory, BankCategoryRule, BankTransaction
     from dz_fastapi.services.bank_categories import ensure_default_categories
 
     await ensure_default_categories(session)

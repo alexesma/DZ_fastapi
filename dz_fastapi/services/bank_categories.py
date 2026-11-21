@@ -14,12 +14,7 @@ from typing import Optional
 from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.finance import (
-    BankCategory,
-    BankCategoryRule,
-    BankTransaction,
-    BankTxnStatus,
-)
+from dz_fastapi.models.finance import BankCategory, BankCategoryRule, BankTransaction, BankTxnStatus
 
 KINDS = ("expense", "income", "transfer")
 RULE_TYPES = ("inn", "name", "purpose")
@@ -111,10 +106,7 @@ async def load_context(session: AsyncSession) -> CategoryContext:
 
 def rule_pattern(match_type: str, txn: BankTransaction) -> Optional[str]:
     """Что запоминаем у операции для правила данного типа."""
-    from dz_fastapi.services.bank_reconciliation import (
-        normalize_inn,
-        normalize_name,
-    )
+    from dz_fastapi.services.bank_reconciliation import normalize_inn, normalize_name
 
     if match_type == "inn":
         return normalize_inn(txn.counterparty_inn) or None
@@ -125,10 +117,7 @@ def rule_pattern(match_type: str, txn: BankTransaction) -> Optional[str]:
 
 def match_rule(ctx: CategoryContext, txn: BankTransaction) -> Optional[str]:
     """Статья по правилам пользователя: ИНН → название → текст назначения."""
-    from dz_fastapi.services.bank_reconciliation import (
-        normalize_inn,
-        normalize_name,
-    )
+    from dz_fastapi.services.bank_reconciliation import normalize_inn, normalize_name
 
     inn = normalize_inn(txn.counterparty_inn)
     name = normalize_name(txn.counterparty_name)
@@ -280,10 +269,7 @@ async def _apply_rule_to_past(
     code: str,
     ctx: CategoryContext,
 ) -> tuple[int, set[int]]:
-    from dz_fastapi.services.bank_reconciliation import (
-        normalize_inn,
-        normalize_name,
-    )
+    from dz_fastapi.services.bank_reconciliation import normalize_inn, normalize_name
 
     q = select(BankTransaction).where(
         BankTransaction.id != source.id,

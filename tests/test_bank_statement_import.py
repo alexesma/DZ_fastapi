@@ -538,9 +538,7 @@ async def test_assign_reposts_past_operations_with_same_inn(test_session):
 
     from dz_fastapi.models.finance import BankTxnStatus, CustomerPayment
     from dz_fastapi.models.partner import Customer
-    from dz_fastapi.services.bank_reconciliation import (
-        assign_transaction_to_partner,
-    )
+    from dz_fastapi.services.bank_reconciliation import assign_transaction_to_partner
 
     old = Customer(name="Старый клиент")
     new = Customer(name="Новый клиент")
