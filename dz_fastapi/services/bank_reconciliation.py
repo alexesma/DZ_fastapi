@@ -11,6 +11,7 @@ Creates payment records automatically when match found.
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -81,38 +82,81 @@ def normalize_name(value: Optional[str]) -> str:
 
 # ── Не торговые операции ───────────────────────────────────────────────────────
 
-# (метка, признаки в назначении/названии). Такие операции не привязываются к
-# клиентам и поставщикам и не должны висеть в «не разнесённых».
+NON_TRADE_LABELS = {
+    "deposit_open": "Депозит: открытие",
+    "deposit_return": "Депозит: возврат",
+    "deposit_interest": "Депозит: проценты",
+    "tax": "Налоги и сборы",
+    "salary": "Зарплата",
+    "bank_fee": "Банковская комиссия",
+    "bank_interest": "Проценты банка",
+}
+DEPOSIT_CATEGORIES = ("deposit_open", "deposit_return", "deposit_interest")
+
+# Операции с этими признаками не привязываются к клиентам и поставщикам.
 _NON_TRADE_RULES = (
-    ("Депозит", ("депозит",)),
     (
-        "Налоги и сборы",
+        "tax",
         ("единый налоговый", "налоговый платеж", "казначейство", "фнс россии"),
     ),
-    ("Зарплата", ("заработная плата", "заработной платы", "отпускные")),
+    ("salary", ("заработная плата", "заработной платы", "отпускные")),
     (
-        "Банковская комиссия",
+        "bank_fee",
         ("комиссия за", "обслуживание счета", "обслуживание счёта"),
     ),
-    ("Проценты банка", ("выплата процентов", "проценты на остаток")),
+    ("bank_interest", ("выплата процентов", "проценты на остаток")),
 )
 _OWN_BANK_INNS = {"9721194461"}  # Банк Точка: проценты, комиссии
+_DEAL_REF_RE = re.compile(r"сделк\w*\s*№?\s*([A-Za-z]{2,5}-?\d{5,})", re.I)
+
+
+@dataclass
+class NonTradeClass:
+    category: str
+    deal_ref: Optional[str] = None
+
+    @property
+    def label(self) -> str:
+        return NON_TRADE_LABELS[self.category]
+
+
+def extract_deal_ref(purpose: Optional[str]) -> Optional[str]:
+    match = _DEAL_REF_RE.search(purpose or "")
+    return match.group(1).upper() if match else None
+
+
+def classify_operation(txn: BankTransaction) -> Optional[NonTradeClass]:
+    """Служебная ли операция и какая именно (депозит, налог, зарплата…)."""
+    purpose = (txn.purpose or "").casefold()
+    haystack = f"{purpose} {(txn.counterparty_name or '').casefold()}"
+    # Торговые слова: «налог» в «без налога (НДС)» не делает платёж налогом.
+    if any(word in haystack for word in ("автозапчаст", "запчаст", "товар")):
+        return None
+    if "депозит" in purpose:
+        if "открытия депозита" in purpose:
+            category = "deposit_open"
+        elif "выплата процентов" in purpose:
+            category = "deposit_interest"
+        elif "возврат средств" in purpose:
+            category = "deposit_return"
+        else:
+            category = (
+                "deposit_open"
+                if txn.direction == "outgoing"
+                else "deposit_return"
+            )
+        return NonTradeClass(category, extract_deal_ref(txn.purpose))
+    for category, markers in _NON_TRADE_RULES:
+        if any(marker in haystack for marker in markers):
+            return NonTradeClass(category)
+    if normalize_inn(txn.counterparty_inn) in _OWN_BANK_INNS:
+        return NonTradeClass("bank_interest")
+    return None
 
 
 def classify_non_trade(txn: BankTransaction) -> Optional[str]:
-    haystack = " ".join(
-        [txn.purpose or "", txn.counterparty_name or ""]
-    ).lower()
-    # Оплата поставщику «по счёту … налог» встречается редко, но проверяем
-    # торговые слова: если они есть, это не служебная операция.
-    if any(word in haystack for word in ("автозапчаст", "запчаст", "товар")):
-        return None
-    for label, markers in _NON_TRADE_RULES:
-        if any(marker in haystack for marker in markers):
-            return label
-    if normalize_inn(txn.counterparty_inn) in _OWN_BANK_INNS:
-        return "Проценты банка"
-    return None
+    found = classify_operation(txn)
+    return found.label if found else None
 
 
 # ── Поиск клиента / поставщика ─────────────────────────────────────────────────
@@ -314,11 +358,16 @@ async def auto_match_transaction(
     if txn.status != BankTxnStatus.UNMATCHED:
         return None
 
-    label = classify_non_trade(txn)
-    if label:
+    non_trade = classify_operation(txn)
+    if non_trade:
         txn.status = BankTxnStatus.IGNORED
-        txn.match_note = f"Не торговая операция: {label}"
-        return txn.match_note
+        txn.category = non_trade.category
+        txn.deal_ref = non_trade.deal_ref
+        note = f"Не торговая операция: {non_trade.label}"
+        if non_trade.deal_ref:
+            note += f" № {non_trade.deal_ref}"
+        txn.match_note = note
+        return note
 
     if txn.direction == "incoming":
         # --- Try to match incoming payment to a Customer ---
@@ -552,3 +601,124 @@ async def _refresh_matched_count(session: AsyncSession, statement_id: int):
         )
     )
     statement.matched_count = int(count or 0)
+
+
+# ── Депозиты ───────────────────────────────────────────────────────────────────
+
+
+async def build_deposit_summary(
+    session: AsyncSession,
+    *,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+) -> dict:
+    """Сделки «деньги на вечер»: открытие → возврат → проценты.
+
+    Операции связываются в сделку по номеру. В отчёт попадают сделки, у
+    которых хотя бы одна операция лежит в периоде; проценты в итогах — только
+    те, что выплачены в периоде. Ставка — годовая: проценты / сумма / дни * 365.
+    """
+    rows = (
+        await session.execute(
+            select(BankTransaction)
+            .where(BankTransaction.category.in_(DEPOSIT_CATEGORIES))
+            .order_by(BankTransaction.value_date, BankTransaction.id)
+        )
+    ).scalars().all()
+
+    deals: dict[str, dict] = {}
+    for txn in rows:
+        key = txn.deal_ref or f"txn-{txn.id}"
+        deal = deals.setdefault(
+            key,
+            {
+                "deal_ref": txn.deal_ref,
+                "opened_on": None,
+                "returned_on": None,
+                "principal": Decimal("0"),
+                "returned_amount": Decimal("0"),
+                "interest": Decimal("0"),
+                "dates": [],
+                "interest_in_period": Decimal("0"),
+            },
+        )
+        deal["dates"].append(txn.value_date)
+        amount = Decimal(str(txn.amount))
+        if txn.category == "deposit_open":
+            deal["opened_on"] = txn.value_date
+            deal["principal"] += amount
+        elif txn.category == "deposit_return":
+            deal["returned_on"] = txn.value_date
+            deal["returned_amount"] += amount
+        else:
+            deal["interest"] += amount
+            in_period = (date_from is None or txn.value_date >= date_from) and (
+                date_to is None or txn.value_date <= date_to
+            )
+            if in_period:
+                deal["interest_in_period"] += amount
+
+    def _in_period(deal: dict) -> bool:
+        return any(
+            (date_from is None or d >= date_from)
+            and (date_to is None or d <= date_to)
+            for d in deal["dates"]
+        )
+
+    out_deals = []
+    interest_total = Decimal("0")
+    weighted_days = Decimal("0")  # sum(principal * days) по закрытым сделкам
+    weighted_interest = Decimal("0")
+    open_principal = Decimal("0")
+    turnover = Decimal("0")
+    for deal in deals.values():
+        if not _in_period(deal):
+            continue
+        closed = deal["returned_on"] is not None
+        days = None
+        rate = None
+        if deal["opened_on"] and closed:
+            days = max((deal["returned_on"] - deal["opened_on"]).days, 1)
+            if deal["principal"] > 0:
+                rate = (
+                    deal["interest"] / deal["principal"] / days * 365 * 100
+                ).quantize(Decimal("0.01"))
+                weighted_days += deal["principal"] * days
+                weighted_interest += deal["interest"]
+        if not closed and deal["principal"] > 0:
+            open_principal += deal["principal"]
+        turnover += deal["principal"]
+        interest_total += deal["interest_in_period"]
+        out_deals.append(
+            {
+                "deal_ref": deal["deal_ref"],
+                "status": "closed" if closed else "open",
+                "opened_on": deal["opened_on"],
+                "returned_on": deal["returned_on"],
+                "principal": deal["principal"],
+                "returned_amount": deal["returned_amount"],
+                "interest": deal["interest"],
+                "days": days,
+                "rate_percent": rate,
+            }
+        )
+    out_deals.sort(
+        key=lambda d: d["opened_on"] or d["returned_on"] or date.min,
+        reverse=True,
+    )
+    average = None
+    if weighted_days > 0:
+        average = (weighted_interest / weighted_days * 365 * 100).quantize(
+            Decimal("0.01")
+        )
+    return {
+        "totals": {
+            "interest_total": interest_total,
+            "deals_total": len(out_deals),
+            "deals_open": sum(1 for d in out_deals if d["status"] == "open"),
+            "open_principal": open_principal,
+            "average_rate_percent": average,
+            "principal_turnover": turnover,
+        },
+        "deals": out_deals,
+    }

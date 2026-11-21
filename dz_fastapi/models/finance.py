@@ -491,6 +491,11 @@ class BankTransaction(Base):
         index=True,
     )
     match_note = Column(String(500), nullable=True)  # комментарий при разноске
+    # Служебные операции: deposit_open / deposit_return / deposit_interest /
+    # tax / salary / bank_fee / bank_interest; deal_ref — номер депозитной
+    # сделки, по нему операции связываются в одну сделку.
+    category = Column(String(32), nullable=True, index=True)
+    deal_ref = Column(String(64), nullable=True, index=True)
 
     statement = relationship(
         "BankStatement", back_populates="transactions", lazy="noload"

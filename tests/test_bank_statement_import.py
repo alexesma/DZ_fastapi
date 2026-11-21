@@ -302,7 +302,10 @@ def test_non_trade_operations_are_classified():
             purpose=purpose, counterparty_name=name, counterparty_inn=inn
         )
 
-    assert classify_non_trade(txn("Перечисление средств для открытия депозита")) == "Депозит"
+    assert (
+        classify_non_trade(txn("Перечисление средств для открытия депозита"))
+        == "Депозит: открытие"
+    )
     assert (
         classify_non_trade(txn("Единый налоговый платеж. НДС не облагается"))
         == "Налоги и сборы"
@@ -383,3 +386,113 @@ async def test_resolve_bank_account_heals_unknown_bank_name(test_session):
     )
 
     assert account.bank_name == "Альфа-Банк"
+
+
+def test_deposit_operations_are_classified_with_deal_number():
+    from types import SimpleNamespace
+
+    from dz_fastapi.services.bank_reconciliation import classify_operation
+
+    def txn(purpose, direction):
+        return SimpleNamespace(
+            purpose=purpose,
+            counterparty_name="ООО Банк Точка",
+            counterparty_inn="9721194461",
+            direction=direction,
+        )
+
+    opening = classify_operation(
+        txn(
+            "Перечисление средств для открытия депозита по депозитной "
+            "сделке № UNV-0000012503044 от 16.11.2026",
+            "outgoing",
+        )
+    )
+    returned = classify_operation(
+        txn(
+            "Возврат средств по депозитной сделке № UNV-0000012480827 "
+            "от 13.11.2026 согласно заявлению",
+            "incoming",
+        )
+    )
+    interest = classify_operation(
+        txn(
+            "Выплата процентов по депозитной сделке № UNV-0000012480827 "
+            "от 13.11.2026 за период",
+            "incoming",
+        )
+    )
+
+    assert (opening.category, opening.deal_ref) == (
+        "deposit_open",
+        "UNV-0000012503044",
+    )
+    assert (returned.category, returned.deal_ref) == (
+        "deposit_return",
+        "UNV-0000012480827",
+    )
+    # Проценты по депозиту — не «проценты банка» на остаток.
+    assert interest.category == "deposit_interest"
+
+
+@pytest.mark.asyncio
+async def test_deposit_summary_pairs_deals_and_computes_rate(test_session):
+    from datetime import date
+    from decimal import Decimal
+
+    from dz_fastapi.models.finance import BankTxnStatus
+    from dz_fastapi.services.bank_reconciliation import build_deposit_summary
+
+    statement = BankStatement(
+        period_from=date(2026, 11, 13),
+        period_to=date(2026, 11, 14),
+        format="1c_exchange",
+        txn_count=3,
+        matched_count=0,
+    )
+    test_session.add(statement)
+    await test_session.flush()
+
+    def add(category, day, amount, direction, deal="UNV-0000012480827"):
+        test_session.add(
+            BankTransaction(
+                statement_id=statement.id,
+                value_date=day,
+                direction=direction,
+                amount=Decimal(amount),
+                status=BankTxnStatus.IGNORED,
+                category=category,
+                deal_ref=deal,
+            )
+        )
+
+    add("deposit_open", date(2026, 11, 13), "100000.00", "outgoing")
+    add("deposit_return", date(2026, 11, 14), "100000.00", "incoming")
+    add("deposit_interest", date(2026, 11, 14), "36.50", "incoming")
+    # Незакрытая сделка другого дня.
+    add(
+        "deposit_open",
+        date(2026, 11, 20),
+        "50000.00",
+        "outgoing",
+        deal="UNV-0000012999999",
+    )
+    await test_session.commit()
+
+    summary = await build_deposit_summary(test_session)
+
+    assert summary["totals"]["interest_total"] == Decimal("36.50")
+    assert summary["totals"]["deals_total"] == 2
+    assert summary["totals"]["deals_open"] == 1
+    assert summary["totals"]["open_principal"] == Decimal("50000.00")
+    closed = next(d for d in summary["deals"] if d["status"] == "closed")
+    assert closed["days"] == 1
+    # 36.50 / 100000 / 1 * 365 * 100 = 13.32 % годовых
+    assert closed["rate_percent"] == Decimal("13.32")
+    assert summary["totals"]["average_rate_percent"] == Decimal("13.32")
+
+    only_later = await build_deposit_summary(
+        test_session, date_from=date(2026, 11, 18)
+    )
+    assert only_later["totals"]["deals_total"] == 1
+    assert only_later["totals"]["interest_total"] == Decimal("0")

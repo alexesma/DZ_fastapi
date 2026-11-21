@@ -345,6 +345,8 @@ class BankTransactionOut(BaseModel):
     counterparty_bank: Optional[str] = None
     status: str
     match_note: Optional[str] = None
+    category: Optional[str] = None
+    deal_ref: Optional[str] = None
     customer_payment_id: Optional[int] = None
     supplier_payment_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
@@ -440,3 +442,32 @@ class SupplierDocumentOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ─── Депозиты ─────────────────────────────────────────────────────────────────
+
+
+class DepositDealOut(BaseModel):
+    deal_ref: Optional[str] = None
+    status: str  # open | closed
+    opened_on: Optional[date] = None
+    returned_on: Optional[date] = None
+    principal: Decimal = Decimal("0")
+    returned_amount: Decimal = Decimal("0")
+    interest: Decimal = Decimal("0")
+    days: Optional[int] = None
+    rate_percent: Optional[Decimal] = None
+
+
+class DepositSummaryTotals(BaseModel):
+    interest_total: Decimal = Decimal("0")
+    deals_total: int = 0
+    deals_open: int = 0
+    open_principal: Decimal = Decimal("0")
+    average_rate_percent: Optional[Decimal] = None
+    principal_turnover: Decimal = Decimal("0")
+
+
+class DepositSummaryOut(BaseModel):
+    totals: DepositSummaryTotals
+    deals: List[DepositDealOut]

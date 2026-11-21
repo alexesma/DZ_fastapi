@@ -57,6 +57,7 @@ from dz_fastapi.schemas.finance import (
     CustomerPaymentCreate,
     CustomerPaymentOut,
     CustomerPaymentUpdate,
+    DepositSummaryOut,
     PartnerSuggestion,
     PaymentInvoiceCreate,
     PaymentInvoiceItemCreate,
@@ -1086,4 +1087,21 @@ async def assign_bank_transaction(
     await session.refresh(txn)
     return BankTransactionAssignResult(
         transaction=BankTransactionOut.model_validate(txn), also_matched=also
+    )
+
+
+@router.get(
+    "/deposits/summary",
+    response_model=DepositSummaryOut,
+    summary="Депозиты «на вечер»: сделки, проценты, средняя ставка",
+)
+async def deposits_summary(
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.bank_reconciliation import build_deposit_summary
+
+    return await build_deposit_summary(
+        session, date_from=date_from, date_to=date_to
     )
