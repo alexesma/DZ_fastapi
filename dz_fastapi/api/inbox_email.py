@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -71,8 +72,19 @@ async def list_emails(
     days: int = Query(
         default=3,
         ge=1,
-        le=7,
-        description="Глубина выборки в днях (1..7, по умолчанию 3)",
+        le=366,
+        description="Глубина выборки в днях (по умолчанию 3)",
+    ),
+    date_from: Optional[date] = Query(
+        default=None, description="Получено с (включительно), вместо days"
+    ),
+    date_to: Optional[date] = Query(
+        default=None, description="Получено по (включительно)"
+    ),
+    inbox_status: Optional[str] = Query(
+        default=None,
+        alias="status",
+        description="no_rule | pending | error | processed | ignored",
     ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
@@ -94,10 +106,13 @@ async def list_emails(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    items, total = await list_inbox_emails(
+    items, total, status_counts = await list_inbox_emails(
         session,
         email_account_id=email_account_id,
         days=days,
+        date_from=date_from,
+        date_to=date_to,
+        status=inbox_status,
         page=page,
         page_size=page_size,
         only_unprocessed=only_unprocessed,
@@ -111,6 +126,7 @@ async def list_emails(
         total=total,
         page=page,
         page_size=page_size,
+        status_counts=status_counts,
     )
 
 

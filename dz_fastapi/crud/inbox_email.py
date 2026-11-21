@@ -1,11 +1,11 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import List, Optional, Set, Tuple
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.time import now_moscow
+from dz_fastapi.core.time import MOSCOW_TZ, now_moscow
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail
 from dz_fastapi.models.partner import CustomerOrderConfig, Provider, SupplierResponseConfig
 
@@ -26,22 +26,66 @@ async def get_inbox_email(
     return result.scalars().first()
 
 
+INBOX_STATUSES = ("no_rule", "pending", "error", "processed", "ignored")
+
+
+def _status_expr():
+    """Состояние письма для быстрых фильтров и счётчиков."""
+    has_error = and_(
+        InboxEmail.processing_error.is_not(None),
+        InboxEmail.processing_error != "",
+    )
+    return case(
+        (InboxEmail.rule_type.is_(None), "no_rule"),
+        (InboxEmail.rule_type == "ignore", "ignored"),
+        (has_error, "error"),
+        (InboxEmail.processed.is_(True), "processed"),
+        else_="pending",
+    )
+
+
+def _received_expr():
+    """Когда письмо пришло; если дата не известна — когда загружено."""
+    return func.coalesce(InboxEmail.received_at, InboxEmail.fetched_at)
+
+
 async def list_inbox_emails(
     session: AsyncSession,
     *,
     email_account_id: Optional[int] = None,
     days: int = 3,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
     page: int = 1,
     page_size: int = 50,
     only_unprocessed: bool = False,
+    status: Optional[str] = None,
     subject_contains: Optional[str] = None,
     sender_contains: Optional[str] = None,
     customer_id: Optional[int] = None,
     provider_id: Optional[int] = None,
-) -> Tuple[List[InboxEmail], int]:
-    """Список писем с фильтрацией по ящику и глубине (дни)."""
-    since = now_moscow() - timedelta(days=days)
-    filters = [InboxEmail.fetched_at >= since]
+) -> Tuple[List[InboxEmail], int, dict]:
+    """Список писем: ящик, период (дни или даты), статус, поиск.
+
+    Период считается по дате получения письма (а не загрузки). Возвращает
+    также счётчики по статусам для текущих фильтров без самого статуса.
+    """
+    received = _received_expr()
+    filters = []
+    if date_from or date_to:
+        if date_from:
+            filters.append(
+                received >= datetime.combine(date_from, time.min, tzinfo=MOSCOW_TZ)
+            )
+        if date_to:
+            filters.append(
+                received
+                < datetime.combine(
+                    date_to + timedelta(days=1), time.min, tzinfo=MOSCOW_TZ
+                )
+            )
+    else:
+        filters.append(received >= now_moscow() - timedelta(days=days))
 
     if email_account_id is not None:
         filters.append(InboxEmail.email_account_id == email_account_id)
@@ -69,24 +113,37 @@ async def list_inbox_emails(
                 await _collect_provider_sender_emails(session, provider_id)
             )
         if not partner_emails:
-            return [], 0
+            return [], 0, {name: 0 for name in INBOX_STATUSES}
         filters.append(
             func.lower(InboxEmail.from_email).in_(sorted(partner_emails))
         )
 
-    total_result = await session.execute(
-        select(func.count()).select_from(InboxEmail).where(and_(*filters))
+    status_expr = _status_expr()
+    counts_result = await session.execute(
+        select(status_expr, func.count())
+        .select_from(InboxEmail)
+        .where(and_(*filters))
+        .group_by(status_expr)
     )
-    total = total_result.scalar_one()
+    counts = {name: 0 for name in INBOX_STATUSES}
+    for name, count in counts_result.all():
+        counts[name] = int(count)
+
+    page_filters = list(filters)
+    if status in INBOX_STATUSES:
+        page_filters.append(status_expr == status)
+        total = counts[status]
+    else:
+        total = sum(counts.values())
 
     items_result = await session.execute(
         select(InboxEmail)
-        .where(and_(*filters))
-        .order_by(InboxEmail.received_at.desc().nullslast())
+        .where(and_(*page_filters))
+        .order_by(received.desc(), InboxEmail.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    return items_result.scalars().all(), total
+    return items_result.scalars().all(), total, counts
 
 
 def _normalize_email_set(value: object) -> Set[str]:

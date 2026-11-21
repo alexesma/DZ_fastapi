@@ -119,6 +119,9 @@ class InboxEmailListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    # no_rule / pending / error / processed / ignored: сколько писем в каждом
+    # состоянии при текущих фильтрах (без учёта выбранного статуса).
+    status_counts: dict[str, int] = {}
 
 
 # ---------------------------------------------------------------------------

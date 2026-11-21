@@ -27,8 +27,8 @@ class InboxEmail(Base):
     # [{name: str, size: int, path: str | null}]
     attachment_info = Column(JSON, default=list)
 
-    received_at = Column(DateTime(timezone=True), nullable=True)
-    fetched_at = Column(DateTime(timezone=True), default=now_moscow)
+    received_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    fetched_at = Column(DateTime(timezone=True), default=now_moscow, index=True)
 
     # --- Система правил ---
     # null = не размечено, 'price_list' / 'order_reply' / 'ignore'
