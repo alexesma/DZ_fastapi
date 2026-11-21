@@ -430,20 +430,10 @@ async def auto_match_statement(
             logger.exception("Error matching txn %s: %s", txn.id, exc)
             errors += 1
 
-    # Update matched_count on statement
-    statement.matched_count = (
-        (
-            await session.execute(
-                select(BankTransaction).where(
-                    BankTransaction.statement_id == statement.id,
-                    BankTransaction.status == BankTxnStatus.MATCHED,
-                )
-            )
-        )
-        .scalars()
-        .all()
-        .__len__()
-    )
+    # Сессия работает без autoflush: без flush подсчёт не увидит только что
+    # разнесённые операции и счётчик отстанет на один проход.
+    await session.flush()
+    await _refresh_matched_count(session, statement.id)
 
     await session.commit()
     return {"matched": matched, "skipped": skipped, "errors": errors}
@@ -546,6 +536,8 @@ async def assign_transaction_to_partner(
 
 
 async def _refresh_matched_count(session: AsyncSession, statement_id: int):
+    """«Разнесено» = разнесённые + служебные (обработанные) операции."""
+    await session.flush()
     statement = await session.get(BankStatement, statement_id)
     if statement is None:
         return
@@ -554,7 +546,9 @@ async def _refresh_matched_count(session: AsyncSession, statement_id: int):
         .select_from(BankTransaction)
         .where(
             BankTransaction.statement_id == statement_id,
-            BankTransaction.status == BankTxnStatus.MATCHED,
+            BankTransaction.status.in_(
+                [BankTxnStatus.MATCHED, BankTxnStatus.IGNORED]
+            ),
         )
     )
     statement.matched_count = int(count or 0)

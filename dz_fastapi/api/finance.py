@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
@@ -893,9 +893,26 @@ async def list_bank_statements(
         q = q.where(BankStatement.bank_account_id == bank_account_id)
     result = await session.execute(q)
     stmts = result.scalars().all()
+    # Живой подсчёт обработанных операций: сохранённый счётчик мог отстать.
+    handled: dict[int, int] = {}
+    if stmts:
+        from dz_fastapi.models.finance import BankTransaction, BankTxnStatus
+
+        rows = await session.execute(
+            select(BankTransaction.statement_id, func.count())
+            .where(
+                BankTransaction.statement_id.in_([s.id for s in stmts]),
+                BankTransaction.status.in_(
+                    [BankTxnStatus.MATCHED, BankTxnStatus.IGNORED]
+                ),
+            )
+            .group_by(BankTransaction.statement_id)
+        )
+        handled = {statement_id: count for statement_id, count in rows}
     out = []
     for s in stmts:
         item = BankStatementOut.model_validate(s)
+        item.matched_count = handled.get(s.id, 0)
         if s.bank_account:
             item.bank_account_number = s.bank_account.account_number
             item.bank_account_bank = s.bank_account.bank_name

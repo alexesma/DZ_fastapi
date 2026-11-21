@@ -348,6 +348,11 @@ async def test_auto_match_finds_customer_by_name_and_remembers_inn(
     ).scalars().one()
     assert transaction.status == BankTxnStatus.MATCHED
     assert transaction.match_note.startswith("Клиент: Тест")
+    # Счётчик выписки не должен отставать от фактического статуса операций.
+    statement = (
+        await test_session.execute(select(BankStatement))
+    ).scalars().one()
+    assert statement.matched_count == 1
 
 
 @pytest.mark.asyncio
