@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -71,6 +71,42 @@ _DISPATCH_LOCK_KEY = 148_271_002
 _MAX_BATCH_SIZE = 50
 _MAX_CANDIDATE_SCAN = 500
 ACTIVATION_MODES = {"new", "resume", "history"}
+
+PLACEHOLDER_CONTRACT_PREFIX = "ТЕСТОВЫЙ договор DragonZap — заменить"
+PLACEHOLDER_CONTRACT_DATE = date(2020, 1, 1)
+
+
+def has_one_c_contract(provider: Provider) -> bool:
+    return bool(
+        provider.one_c_contract_guid
+        or (
+            provider.one_c_contract_name
+            and provider.one_c_contract_number
+            and provider.one_c_contract_date
+        )
+    )
+
+
+def ensure_provider_contract(provider: Provider) -> bool:
+    """Поставщику без договора УНФ ставит договор-заглушку.
+
+    Поставщики, заведённые автоматически (из прайсов и писем), договора не
+    имеют, и документ по ним в УНФ не уйдёт. Заглушка снимает блокировку на
+    время тестов; в отчёте обмена такие поставщики подсвечены «заменить», и до
+    боевого режима договор нужно заменить настоящим. Возвращает True, если
+    заглушка поставлена сейчас.
+    """
+    if has_one_c_contract(provider):
+        return False
+    provider.one_c_contract_name = f"{PLACEHOLDER_CONTRACT_PREFIX} ({provider.name})"[:255]
+    provider.one_c_contract_number = f"TEST-DZ-2020-{provider.id}"
+    provider.one_c_contract_date = PLACEHOLDER_CONTRACT_DATE
+    logger.warning(
+        "Provider %s (%s) had no UNF contract: placeholder contract assigned",
+        provider.id,
+        provider.name,
+    )
+    return True
 
 
 def config_data(config: OneCEnterpriseConfig | None) -> dict[str, Any]:
@@ -305,12 +341,9 @@ async def _current_payload(
         provider = await session.get(Provider, party.get("id")) if party.get("id") else None
         if provider is None:
             raise ValueError("Поставщик поступления не найден")
-        if not provider.one_c_contract_guid and not (
-            provider.one_c_contract_name
-            and provider.one_c_contract_number
-            and provider.one_c_contract_date
-        ):
-            raise ValueError("Для поставщика не задан договор УНФ")
+        if ensure_provider_contract(provider):
+            session.add(provider)
+            await session.flush()
         if repair_receipt:
             from dz_fastapi.services.inventory_stock import ensure_posted_receipt_stock
 
@@ -357,12 +390,9 @@ async def _current_payload(
         provider = await session.get(Provider, order.provider_id)
         if provider is None:
             raise ValueError("Поставщик заказа не найден")
-        if not provider.one_c_contract_guid and not (
-            provider.one_c_contract_name
-            and provider.one_c_contract_number
-            and provider.one_c_contract_date
-        ):
-            raise ValueError("Для поставщика не задан договор УНФ")
+        if ensure_provider_contract(provider):
+            session.add(provider)
+            await session.flush()
         return {
             **event.payload,
             "provider": {
@@ -883,6 +913,14 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
             .limit(100)
         )
     ).all()
+    placeholder_contracts = (
+        await session.execute(
+            select(Provider.id, Provider.name, Provider.one_c_contract_number)
+            .where(Provider.one_c_contract_name.like(f"{PLACEHOLDER_CONTRACT_PREFIX}%"))
+            .order_by(Provider.name)
+            .limit(200)
+        )
+    ).all()
     lots = (
         await session.execute(
             select(
@@ -1015,6 +1053,9 @@ async def history_audit(session: AsyncSession) -> dict[str, Any]:
         "additional_documents": additional_documents,
         "providers_missing_contract": [
             {"id": row[0], "name": row[1], "posted_receipts": row[2]} for row in missing_contracts
+        ],
+        "providers_placeholder_contract": [
+            {"id": row[0], "name": row[1], "number": row[2]} for row in placeholder_contracts
         ],
         "suspicious_auto_receipts": [
             {

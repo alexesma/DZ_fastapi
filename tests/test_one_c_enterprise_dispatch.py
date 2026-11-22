@@ -11,6 +11,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inventory import StockLot
 from dz_fastapi.models.one_c import OneCExchangeEvent, OneCExchangeEventStatus
 from dz_fastapi.models.partner import (
+    Provider,
     SupplierOrder,
     SupplierOrderItem,
     SupplierReceipt,
@@ -503,3 +504,38 @@ async def test_sale_payload_takes_the_current_customer_contract(
     # Заказ в УНФ не передавался — ссылаться не на что.
     assert "customer_order" not in payload
     assert "one_c_contract" not in event.payload["customer"]
+
+
+def test_ensure_provider_contract_sets_placeholder_only_when_missing():
+    provider = Provider(id=77, name="NEWSUP")
+
+    assert dispatch.ensure_provider_contract(provider) is True
+    assert provider.one_c_contract_number == "TEST-DZ-2020-77"
+    assert provider.one_c_contract_date == date(2020, 1, 1)
+    assert provider.one_c_contract_name.startswith(dispatch.PLACEHOLDER_CONTRACT_PREFIX)
+
+    # Уже есть договор — ничего не меняем.
+    assert dispatch.ensure_provider_contract(provider) is False
+    real = Provider(
+        id=78,
+        name="REAL",
+        one_c_contract_name="Договор поставки",
+        one_c_contract_number="12",
+        one_c_contract_date=date(2026, 1, 5),
+    )
+    assert dispatch.ensure_provider_contract(real) is False
+    assert real.one_c_contract_number == "12"
+
+
+@pytest.mark.asyncio
+async def test_history_audit_lists_placeholder_contracts(test_session):
+    provider = Provider(name="NEWSUP")
+    test_session.add(provider)
+    await test_session.flush()
+    dispatch.ensure_provider_contract(provider)
+    await test_session.commit()
+
+    audit = await dispatch.history_audit(test_session)
+
+    assert [item["name"] for item in audit["providers_placeholder_contract"]] == ["NEWSUP"]
+    assert audit["providers_missing_contract"] == []
