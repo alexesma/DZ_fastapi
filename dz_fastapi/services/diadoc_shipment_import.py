@@ -262,6 +262,10 @@ async def import_shipment_from_outgoing_upd(
             vat_amount = _q2(
                 Decimal(str(line.total_with_vat)) - Decimal(str(line.price)) * line.quantity
             )
+        elif line.total_with_vat:
+            # В строке нет цены без НДС: считаем НДС из суммы по ставке.
+            total_line = Decimal(str(line.total_with_vat))
+            vat_amount = _q2(total_line - total_line / (1 + vat_rate / 100))
         details = {
             "import_article": line.oem_number,
             "import_gtd_number": line.gtd_code,
