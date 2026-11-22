@@ -503,6 +503,7 @@ class SupplierOrderResponse(BaseModel):
 
 class SupplierOrderItemDetailResponse(BaseModel):
     id: int
+    autopart_id: Optional[int] = None
     customer_order_item_id: Optional[int]
     quantity: int
     price: Optional[Decimal]

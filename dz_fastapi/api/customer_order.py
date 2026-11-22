@@ -2833,6 +2833,7 @@ async def get_supplier_order_detail(
         items.append(
             {
                 "id": item.id,
+                "autopart_id": item.autopart_id,
                 "customer_order_item_id": item.customer_order_item_id,
                 "quantity": item.quantity,
                 "price": item.price,
