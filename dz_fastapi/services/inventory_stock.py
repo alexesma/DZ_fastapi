@@ -1587,6 +1587,7 @@ async def reconcile_stock_absolute(
     target_quantity: int,
     inventory_session_id: Optional[int] = None,
     notes: Optional[str] = None,
+    unit_cost: Optional[Decimal] = None,
 ) -> Optional[StockMovement]:
     """Set stock to `target_quantity` for a given autopart + location.
 
@@ -1617,11 +1618,13 @@ async def reconcile_stock_absolute(
 
     if delta > 0:
         # Излишек — создаём лот
-        inferred_cost_price = await _infer_autopart_cost_price(
-            session,
-            autopart_id=autopart_id,
-            storage_location_id=storage_location_id,
-        )
+        inferred_cost_price = unit_cost
+        if inferred_cost_price is None:
+            inferred_cost_price = await _infer_autopart_cost_price(
+                session,
+                autopart_id=autopart_id,
+                storage_location_id=storage_location_id,
+            )
         lot = await _create_stock_lot(
             session,
             autopart_id=autopart_id,

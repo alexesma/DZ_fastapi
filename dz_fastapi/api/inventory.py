@@ -17,7 +17,18 @@ from io import BytesIO
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import delete, func, insert, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -522,6 +533,62 @@ async def delete_stock_by_location(
         )
 
     await session.commit()
+
+
+# ─── Инвентаризация из файла старой 1С ──────────────────────────────────────
+
+
+@router.post(
+    "/file-import/preview",
+    summary="Предпросмотр загрузки инвентаризации из файла (без изменений)",
+)
+async def inventory_file_preview(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.inventory_file_import import build_plan, parse_inventory_file
+
+    try:
+        rows = parse_inventory_file(await file.read())
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {exc}")
+    plan = await build_plan(session, rows)
+    return plan.report
+
+
+@router.post(
+    "/file-import/apply",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Применить инвентаризацию из файла (меняет остатки и места)",
+)
+async def inventory_file_apply(
+    file: UploadFile = File(...),
+    confirm: str = Form(""),
+    name: str = Form("Инвентаризация из файла старой 1С"),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.inventory_file_import import parse_inventory_file, start_import_job
+
+    if confirm != "APPLY":
+        raise HTTPException(status_code=400, detail="Нужно подтверждение: confirm=APPLY")
+    content = await file.read()
+    try:
+        if not parse_inventory_file(content):
+            raise ValueError("в файле нет строк с остатком")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {exc}")
+    return {"job_id": start_import_job(content, name[:180])}
+
+
+@router.get("/file-import/jobs/{job_id}", summary="Ход загрузки инвентаризации")
+async def inventory_file_job(job_id: str, _: User = Depends(require_admin)):
+    from dz_fastapi.services.inventory_file_import import JOBS
+
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Задача не найдена (сервис перезапускался?)")
+    return job
 
 
 # ─── InventorySession CRUD ──────────────────────────────────────────────────

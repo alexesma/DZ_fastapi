@@ -409,7 +409,7 @@ class StorageLocation(Base):
         lazy="joined",
     )
     __table_args__ = (
-        CheckConstraint("name ~ '^[A-Z0-9 /]+$'", name="latin_characters_only"),
+        CheckConstraint("name ~ '^[A-Z0-9 /-]+$'", name="latin_characters_only"),
         UniqueConstraint(
             "warehouse_id",
             "system_code",
