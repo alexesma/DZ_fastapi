@@ -50,6 +50,7 @@ from dz_fastapi.models.inventory import (
     Warehouse,
 )
 from dz_fastapi.services.inventory_stock import (
+    RECEIVING_LOCATION_CODE,
     reconcile_stock_absolute,
     transfer_stock_with_lot_trace,
 )
@@ -238,6 +239,9 @@ class Plan:
     brand_ids: dict[str, int] = field(default_factory=dict)
     scope_location_ids: set[int] = field(default_factory=set)
     scope_warehouse_id: Optional[int] = None
+    system_location_ids: set[int] = field(default_factory=set)
+    receiving_id: Optional[int] = None
+    zero_missing: bool = False
     location_ids: dict[str, int] = field(default_factory=dict)
     stock: dict[int, dict[int, int]] = field(default_factory=dict)  # ap -> loc -> qty
 
@@ -295,10 +299,12 @@ def aggregate_rows(
     return targets
 
 
-async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
+async def build_plan(
+    session: AsyncSession, rows: list[FileRow], *, zero_missing: bool = False
+) -> Plan:
     skipped: list[dict] = []
     targets = aggregate_rows(rows, skipped)
-    plan = Plan(targets=targets, file_rows=len(rows))
+    plan = Plan(targets=targets, file_rows=len(rows), zero_missing=zero_missing)
 
     brands = await brand_crud.get_multi_with_synonyms(session)
     canonical = brand_crud.build_canonical_brand_map(brands)
@@ -345,6 +351,17 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
     plan.scope_location_ids = {
         loc.id for loc in all_locations if loc.warehouse_id == plan.scope_warehouse_id
     }
+    plan.system_location_ids = {
+        loc.id for loc in all_locations if loc.id in plan.scope_location_ids and loc.system_code
+    }
+    plan.receiving_id = next(
+        (
+            loc.id
+            for loc in all_locations
+            if loc.id in plan.scope_location_ids and loc.system_code == RECEIVING_LOCATION_CODE
+        ),
+        None,
+    )
     stock_rows = (
         await session.execute(
             select(
@@ -374,6 +391,9 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
         and loc.name not in file_locations
     ]
     zeroed_qty = {ap: sum(plan.stock[ap].values()) for ap in zeroed}
+    absent_in_receiving = sum(
+        q for ap in zeroed for loc, q in plan.stock[ap].items() if loc in plan.system_location_ids
+    )
     top_ids = sorted(zeroed_qty, key=zeroed_qty.get, reverse=True)[:30]
     top_zeroed = []
     if top_ids:
@@ -434,6 +454,9 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
         "file_locations": len(file_locations),
         "new_locations": len(file_locations - set(locations)),
         "old_locations_to_delete": len(old_locations),
+        "zero_missing": zero_missing,
+        "absent_in_receiving_qty": absent_in_receiving,
+        "absent_in_cells_qty": sum(zeroed_qty.values()) - absent_in_receiving,
         "positions_zeroed": len(zeroed),
         "quantity_zeroed": sum(zeroed_qty.values()),
         "zeroed_over_1000": sum(1 for q in zeroed_qty.values() if q > 1000),
@@ -514,7 +537,8 @@ async def apply_plan(
     total = len(goals)
     done = 0
     for ap_id, (target_locs, price) in goals.items():
-        current = dict(plan.stock.get(ap_id, {}))
+        original = dict(plan.stock.get(ap_id, {}))
+        current = dict(original)
         surplus = [
             [loc, qty - target_locs.get(loc, 0)]
             for loc, qty in current.items()
@@ -542,32 +566,56 @@ async def apply_plan(
                 )
                 src[1] -= take
                 dest[1] -= take
+                current[src[0]] = current.get(src[0], 0) - take
+                current[dest[0]] = current.get(dest[0], 0) + take
                 stats["transfers"] += 1
         for loc in set(current) | set(target_locs):
             wanted = target_locs.get(loc, 0)
-            before = current.get(loc, 0)
-            movement = await reconcile_stock_absolute(
-                session,
-                autopart_id=ap_id,
-                storage_location_id=loc,
-                target_quantity=wanted,
-                inventory_session_id=inv.id,
-                notes=f"Инвентаризация «{name}»",
-                unit_cost=price,
-            )
+            have = current.get(loc, 0)
+            final = have
+            if have < wanted or (have > wanted and plan.zero_missing):
+                movement = await reconcile_stock_absolute(
+                    session,
+                    autopart_id=ap_id,
+                    storage_location_id=loc,
+                    target_quantity=wanted,
+                    inventory_session_id=inv.id,
+                    notes=f"Инвентаризация «{name}»",
+                    unit_cost=price,
+                )
+                final = wanted
+                if movement is not None:
+                    stats["adjustments"] += 1
+            elif (
+                have > wanted
+                and loc not in plan.system_location_ids
+                and plan.receiving_id
+                and loc != plan.receiving_id
+            ):
+                # Мягкий режим: лишнее не списываем, а убираем из старой ячейки
+                # в «Приёмку» (партии и ГТД сохраняются), чтобы ячейку можно было
+                # удалить.
+                await transfer_stock_with_lot_trace(
+                    session,
+                    autopart_id=ap_id,
+                    from_location_id=loc,
+                    to_location_id=plan.receiving_id,
+                    quantity=have - wanted,
+                    notes=f"Инвентаризация «{name}»: в «Приёмку» (нет в файле)",
+                )
+                final = wanted
+                stats["to_receiving"] += 1
             session.add(
                 InventoryItem(
                     session_id=inv.id,
                     autopart_id=ap_id,
                     storage_location_id=loc,
-                    expected_qty=before,
-                    actual_qty=wanted,
-                    discrepancy=wanted - before,
+                    expected_qty=original.get(loc, 0),
+                    actual_qty=final,
+                    discrepancy=final - original.get(loc, 0),
                     counted_at=now_moscow(),
                 )
             )
-            if movement is not None:
-                stats["adjustments"] += 1
         done += 1
         if done % chunk_size == 0:
             await session.commit()
@@ -621,13 +669,15 @@ async def apply_plan(
 JOBS: dict[str, dict[str, Any]] = {}
 
 
-async def _run_job(job_id: str, content: bytes, name: str) -> None:
+async def _run_job(job_id: str, content: bytes, name: str, zero_missing: bool) -> None:
     from dz_fastapi.core.db import get_async_session
 
     job = JOBS[job_id]
     try:
         async with get_async_session()() as session:
-            plan = await build_plan(session, parse_inventory_file(content))
+            plan = await build_plan(
+                session, parse_inventory_file(content), zero_missing=zero_missing
+            )
             job["report"] = plan.report
             job["state"] = "running"
             result = await apply_plan(session, plan, name=name, progress=job)
@@ -639,11 +689,11 @@ async def _run_job(job_id: str, content: bytes, name: str) -> None:
         job["error"] = str(exc)[:500]
 
 
-def start_import_job(content: bytes, name: str) -> str:
+def start_import_job(content: bytes, name: str, zero_missing: bool = False) -> str:
     import asyncio
     import uuid
 
     job_id = uuid.uuid4().hex[:12]
     JOBS[job_id] = {"state": "starting", "done": 0, "total": 0}
-    asyncio.get_running_loop().create_task(_run_job(job_id, content, name))
+    asyncio.get_running_loop().create_task(_run_job(job_id, content, name, zero_missing))
     return job_id

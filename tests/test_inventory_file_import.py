@@ -139,7 +139,7 @@ async def test_apply_moves_stock_keeps_lots_creates_missing_and_deletes_old_plac
             line(2, "НОВЫЙБРЕНД", "ABC 123", "Новая деталь", "арки 1", 2, "100"),
         ]
     )
-    plan = await build_plan(test_session, parse_inventory_file(content))
+    plan = await build_plan(test_session, parse_inventory_file(content), zero_missing=True)
     assert plan.report["matched_positions"] == 1
     assert plan.report["new_autoparts"] == 1
     assert plan.report["positions_zeroed"] == 1
@@ -176,7 +176,7 @@ async def test_apply_moves_stock_keeps_lots_creates_missing_and_deletes_old_plac
     assert session_row.status == InventoryStatus.COMPLETED
 
     # Повторный запуск ничего не удваивает.
-    plan2 = await build_plan(test_session, parse_inventory_file(content))
+    plan2 = await build_plan(test_session, parse_inventory_file(content), zero_missing=True)
     again = await apply_plan(test_session, plan2, name="повтор")
     assert again.get("transfers", 0) == 0 and again.get("adjustments", 0) == 0
 
@@ -226,7 +226,7 @@ async def test_other_warehouses_and_system_locations_are_not_touched(test_sessio
     await test_session.commit()
 
     content = make_xlsx([line(1, "TOYOTA", "P99", "Новая", "Q-MD 1", 1, "10")])
-    plan = await build_plan(test_session, parse_inventory_file(content))
+    plan = await build_plan(test_session, parse_inventory_file(content), zero_missing=True)
 
     # Деталь в ячейке и деталь в системном месте основного склада («Приёмка»)
     # входят в загрузку, деталь другого склада — нет.
@@ -246,3 +246,45 @@ async def test_other_warehouses_and_system_locations_are_not_touched(test_sessio
     assert rows.get((parts[0].id, in_main.id), 0) == 0
     names = {loc.name for loc in (await test_session.execute(select(StorageLocation))).scalars()}
     assert {"Z 1", "CROSS", "Q-MD 1"} <= names and "A 1" not in names  # системное место остаётся
+
+
+@pytest.mark.asyncio
+async def test_soft_mode_keeps_absent_positions_and_moves_them_to_receiving(test_session):
+    warehouse = Warehouse(name="Основной")
+    brand = Brand(name="TOYOTA")
+    test_session.add_all([warehouse, brand])
+    await test_session.flush()
+    receiving = StorageLocation(
+        name="WH1 RECEIVING", warehouse_id=warehouse.id, system_code="RECEIVING"
+    )
+    cell = StorageLocation(name="A 2", warehouse_id=warehouse.id)
+    keep = AutoPart(brand_id=brand.id, oem_number="KEEP1", name="Нет в файле")
+    placed = AutoPart(brand_id=brand.id, oem_number="PLACED1", name="Есть в файле")
+    test_session.add_all([receiving, cell, keep, placed])
+    await test_session.flush()
+    await reconcile_stock_absolute(
+        test_session, autopart_id=keep.id, storage_location_id=cell.id, target_quantity=3
+    )
+    await reconcile_stock_absolute(
+        test_session, autopart_id=placed.id, storage_location_id=receiving.id, target_quantity=4
+    )
+    await test_session.commit()
+
+    content = make_xlsx([line(1, "TOYOTA", "PLACED1", "Есть", "Q-MD 5", 4, "50")])
+    plan = await build_plan(test_session, parse_inventory_file(content))
+    assert plan.report["zero_missing"] is False
+    assert plan.report["absent_in_cells_qty"] == 3
+
+    result = await apply_plan(test_session, plan, name="мягко")
+
+    rows = {
+        (row.autopart_id, row.storage_location.name): row.quantity
+        for row in (await test_session.execute(select(StockByLocation))).scalars().all()
+        if row.quantity
+    }
+    # Ничего не списано: отсутствующий в файле товар переехал в «Приёмку»,
+    # принятый товар разложен по ячейке из файла.
+    assert rows == {(keep.id, "WH1 RECEIVING"): 3, (placed.id, "Q-MD 5"): 4}
+    assert result["to_receiving"] == 1 and result["transfers"] == 1
+    names = {loc.name for loc in (await test_session.execute(select(StorageLocation))).scalars()}
+    assert names == {"WH1 RECEIVING", "Q-MD 5"}
