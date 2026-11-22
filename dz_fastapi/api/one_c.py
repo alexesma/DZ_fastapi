@@ -483,9 +483,9 @@ async def enterprise_data_auto_update(
                 }
             )
         if data.send_stock_documents:
-            required.update(
-                {"Документ.ОприходованиеТоваров", "Документ.СписаниеТоваров"}
-            )
+            # Списания без приёма в УНФ упадут отдельным событием на отправке;
+            # оприходование (в т.ч. начальные остатки) от них не зависит.
+            required.add("Документ.ОприходованиеТоваров")
         unsupported = sorted(required - negotiated)
         if unsupported:
             raise HTTPException(
