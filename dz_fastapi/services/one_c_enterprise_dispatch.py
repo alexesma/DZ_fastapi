@@ -45,6 +45,7 @@ from dz_fastapi.models.partner import (
 from dz_fastapi.models.settings import CompanyProfile
 from dz_fastapi.services.one_c_enterprise_data import get_exchange_status, send_body_message
 from dz_fastapi.services.one_c_enterprise_data_export import DATA_NS, event_body_objects
+from dz_fastapi.services.one_c_opening_balance import OPENING_REASON
 from dz_fastapi.services.one_c_outbox import (
     ENTITY_CUSTOMER_ORDER,
     ENTITY_CUSTOMER_RETURN,
@@ -182,6 +183,24 @@ async def set_config(
         elif mode == "new":
             last_id = await session.scalar(select(func.max(OneCExchangeEvent.id))) or 0
             config.first_event_id = last_id + 1
+            if send_stock_documents:
+                # Неотправленные начальные остатки должны уйти первыми.
+                pending_opening = await session.scalar(
+                    select(func.min(OneCExchangeEvent.id))
+                    .join(
+                        StockDocument,
+                        and_(
+                            StockDocument.id == OneCExchangeEvent.entity_id,
+                            OneCExchangeEvent.entity_type == ENTITY_STOCK_DOCUMENT,
+                        ),
+                    )
+                    .where(
+                        StockDocument.reason == OPENING_REASON,
+                        OneCExchangeEvent.ed_message_no.is_(None),
+                    )
+                )
+                if pending_opening:
+                    config.first_event_id = min(config.first_event_id, pending_opening)
         elif config.first_event_id is None:
             last_id = await session.scalar(select(func.max(OneCExchangeEvent.id))) or 0
             config.first_event_id = last_id + 1
@@ -502,12 +521,21 @@ async def _ensure_configured_events(
             )
         )
     if config.send_stock_documents:
+        # Всё, что оприходовано раньше документа начальных остатков, уже в нём.
+        opening_cutoff = await session.scalar(
+            select(func.min(StockDocument.document_date)).where(
+                StockDocument.reason == OPENING_REASON
+            )
+        )
+        stock_ready = StockDocument.status == "posted"
+        if opening_cutoff is not None:
+            stock_ready = and_(stock_ready, StockDocument.document_date >= opening_cutoff)
         specs.append(
             (
                 StockDocument,
                 ENTITY_STOCK_DOCUMENT,
                 StockDocument.document_date,
-                StockDocument.status == "posted",
+                stock_ready,
                 build_stock_document_snapshot,
             )
         )
