@@ -82,7 +82,11 @@ async def test_opening_balance_event_does_not_change_stock_and_is_single(test_se
             "is_individual_entrepreneur": False,
         },
     )
-    assert "ОприходованиеТоваров" in xml.decode("utf-8")
+    text = xml.decode("utf-8")
+    assert "ОприходованиеТоваров" in text
+    assert "<ВидОперации>ОприходованиеСобственныхТоваров</ВидОперации>" in text
+    assert "<ТипЗапасов>СобственныеТовары</ТипЗапасов>" in text
+    assert "</Склад><Комментарий>" not in text and "<СтавкаНДС>" not in text
 
     with pytest.raises(ValueError):
         await create_opening_balance_event(

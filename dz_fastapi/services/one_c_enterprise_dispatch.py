@@ -667,7 +667,9 @@ async def _ensure_configured_events(
     return created
 
 
-async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
+async def dispatch_next(
+    session: AsyncSession, *, replace_unread: bool = False
+) -> dict[str, Any]:
     """Send one bounded message, after reconciling any prior FTP confirmation."""
     if session.get_bind().dialect.name == "postgresql":
         await session.execute(
@@ -688,7 +690,7 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
     if transport["incoming_files"]:
         result["note"] = "Сначала нужно обработать входящее сообщение УНФ"
         return result
-    if transport["pending_body"]:
+    if transport["pending_body"] and not replace_unread:
         result["note"] = "Ожидаем чтения предыдущего сообщения УНФ"
         return result
     entity_types = []
@@ -786,6 +788,7 @@ async def dispatch_next(session: AsyncSession) -> dict[str, Any]:
             send_body_message,
             references + documents,
             description=description,
+            **({"replace_unread": True} if replace_unread else {}),
         )
     except (KeyError, TypeError, ValueError) as exc:
         result["note"] = str(exc)
@@ -1374,3 +1377,24 @@ async def backfill_history_step(session: AsyncSession, *, limit: int = 100) -> d
             )
             created.append(event.id)
     return {"created_event_ids": created, "count": len(created)}
+
+
+async def resend_unread_event(session: AsyncSession, event_id: int) -> dict[str, Any]:
+    """Повторно собрать и отправить сообщение, которое УНФ не смогла прочитать.
+
+    Нужно после исправления формата документа: номер сообщения сохраняется,
+    файл обмена заменяется свежим.
+    """
+    event = await session.get(OneCExchangeEvent, event_id, with_for_update=True)
+    if event is None:
+        raise LookupError("Событие не найдено")
+    if event.ed_message_no is None:
+        raise ValueError("Событие ещё не отправлялось")
+    transport = await asyncio.to_thread(get_exchange_status)
+    if int(event.ed_message_no) <= int(transport.get("peer_confirmed_our_no") or 0):
+        raise ValueError("УНФ уже подтвердила чтение этого сообщения")
+    event.ed_message_no = None
+    event.ed_sent_at = None
+    event.ed_last_error = None
+    await session.flush()
+    return await dispatch_next(session, replace_unread=True)

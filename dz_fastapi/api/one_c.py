@@ -613,6 +613,27 @@ async def enterprise_data_dispatch_next(
     return result
 
 
+@router.post(
+    "/enterprise-data/events/{event_id}/resend",
+    summary="Повторно отправить сообщение, которое УНФ не смогла прочитать",
+)
+async def enterprise_data_resend(
+    event_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.one_c_enterprise_dispatch import resend_unread_event
+
+    try:
+        result = await resend_unread_event(session, event_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
 @router.post("/enterprise-data/reconcile", summary="Сверить подтверждения чтения УНФ с очередью")
 async def enterprise_data_reconcile(
     session: AsyncSession = Depends(get_session),

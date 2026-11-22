@@ -504,7 +504,30 @@ def serialize_object(
         _warehouse(node, payload.get("warehouse"))
         _supplier_settlements(node, payload["provider"], company)
         _return_rows(node, payload.get("items") or [], document_identity)
-    elif object_type in {"Документ.ОприходованиеТоваров", "Документ.СписаниеТоваров"}:
+    elif object_type == "Документ.ОприходованиеТоваров":
+        # Состав сверен со схемой EnterpriseData 1.22 и реальным документом УНФ:
+        # ВидОперации обязателен, Комментария и НДС в строке нет, а Сумма и
+        # ТипЗапасов в строке обязательны.
+        key = node.find(_tag("КлючевыеСвойства"))
+        _add(key, "ВидОперации", "ОприходованиеСобственныхТоваров")
+        _warehouse(node, payload.get("warehouse"))
+        lines = []
+        for item in payload.get("items") or []:
+            quantity = Decimal(str(item.get("quantity") or 0))
+            price = Decimal(str(item.get("cost_price") or 0)).quantize(Decimal("0.01"))
+            lines.append((item, quantity, price, (quantity * price).quantize(Decimal("0.01"))))
+        _add(node, "Сумма", _decimal(sum((line[3] for line in lines), Decimal("0"))))
+        rows = _add(node, "Товары")
+        for item, quantity, price, amount in lines:
+            row = _add(rows, "Строка")
+            product = _add(row, "ДанныеНоменклатуры")
+            _product_key(_add(product, "Номенклатура"), item)
+            _unit(row)
+            _add(row, "Количество", _decimal(quantity))
+            _add(row, "Сумма", _decimal(amount))
+            _add(row, "Цена", _decimal(price))
+            _add(row, "ТипЗапасов", "СобственныеТовары")
+    elif object_type == "Документ.СписаниеТоваров":
         _warehouse(node, payload.get("warehouse"))
         _optional(node, "Комментарий", payload.get("reason"))
         rows = _add(node, "Товары")
