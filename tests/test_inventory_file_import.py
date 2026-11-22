@@ -228,9 +228,11 @@ async def test_other_warehouses_and_system_locations_are_not_touched(test_sessio
     content = make_xlsx([line(1, "TOYOTA", "P99", "Новая", "Q-MD 1", 1, "10")])
     plan = await build_plan(test_session, parse_inventory_file(content))
 
-    assert plan.report["positions_zeroed"] == 1  # только деталь основного склада
-    assert plan.report["out_of_scope_quantity"] == 8
-    assert plan.report["top_zeroed"][0]["article"] == "P0"
+    # Деталь в ячейке и деталь в системном месте основного склада («Приёмка»)
+    # входят в загрузку, деталь другого склада — нет.
+    assert plan.report["positions_zeroed"] == 2
+    assert plan.report["out_of_scope_quantity"] == 4
+    assert {row["article"] for row in plan.report["top_zeroed"]} == {"P0", "P2"}
     assert plan.report["stock_by_warehouse"]["Склад заказа"] == 4
 
     await apply_plan(test_session, plan, name="тест")
@@ -240,7 +242,7 @@ async def test_other_warehouses_and_system_locations_are_not_touched(test_sessio
         for row in (await test_session.execute(select(StockByLocation))).scalars().all()
     }
     assert rows[(parts[1].id, in_other.id)] == 4
-    assert rows[(parts[2].id, system.id)] == 4
+    assert rows.get((parts[2].id, system.id), 0) == 0  # из «Приёмки» обнулено
     assert rows.get((parts[0].id, in_main.id), 0) == 0
     names = {loc.name for loc in (await test_session.execute(select(StorageLocation))).scalars()}
-    assert {"Z 1", "CROSS", "Q-MD 1"} <= names and "A 1" not in names
+    assert {"Z 1", "CROSS", "Q-MD 1"} <= names and "A 1" not in names  # системное место остаётся

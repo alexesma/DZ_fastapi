@@ -335,15 +335,15 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
     all_locations = (await session.execute(select(StorageLocation))).scalars().all()
     locations = {loc.name: loc.id for loc in all_locations}
     plan.location_ids = locations
-    # Файл — по основному складу: остальные склады и системные места
-    # (cross-docking и т. п.) не трогаем.
+    # Файл — по основному складу: остальные склады (например «Склад Заказа»)
+    # не трогаем.
     plan.scope_warehouse_id = await session.scalar(
         select(Warehouse.id).order_by(Warehouse.id).limit(1)
     )
+    # Системные места основного склада («Приёмка», «Производство») входят в
+    # загрузку: там лежит принятый, но ещё не разложенный по ячейкам товар.
     plan.scope_location_ids = {
-        loc.id
-        for loc in all_locations
-        if loc.warehouse_id == plan.scope_warehouse_id and not loc.system_code
+        loc.id for loc in all_locations if loc.warehouse_id == plan.scope_warehouse_id
     }
     stock_rows = (
         await session.execute(
@@ -369,7 +369,9 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
     old_locations = [
         loc.name
         for loc in all_locations
-        if loc.id in plan.scope_location_ids and loc.name not in file_locations
+        if loc.id in plan.scope_location_ids
+        and not loc.system_code
+        and loc.name not in file_locations
     ]
     zeroed_qty = {ap: sum(plan.stock[ap].values()) for ap in zeroed}
     top_ids = sorted(zeroed_qty, key=zeroed_qty.get, reverse=True)[:30]
@@ -586,6 +588,7 @@ async def apply_plan(
         if (
             location.name in file_locations
             or location.id not in plan.scope_location_ids
+            or location.system_code
             or location.id in left_stock
         ):
             continue
