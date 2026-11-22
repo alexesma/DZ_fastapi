@@ -201,3 +201,46 @@ def test_brand_aliases_and_junk_brands():
     targets = aggregate_rows(rows, skipped)
     assert [item["brand"] for item in skipped] == ["1 680"]
     assert list(targets) == [("RAF", "RST002")]
+
+
+@pytest.mark.asyncio
+async def test_other_warehouses_and_system_locations_are_not_touched(test_session):
+    main = Warehouse(name="Основной")
+    other = Warehouse(name="Склад заказа")
+    brand = Brand(name="TOYOTA")
+    test_session.add_all([main, other, brand])
+    await test_session.flush()
+    in_main = StorageLocation(name="A 1", warehouse_id=main.id)
+    in_other = StorageLocation(name="Z 1", warehouse_id=other.id)
+    system = StorageLocation(name="CROSS", warehouse_id=main.id, system_code="CROSS")
+    parts = [AutoPart(brand_id=brand.id, oem_number=f"P{i}", name=f"Деталь {i}") for i in range(3)]
+    test_session.add_all([in_main, in_other, system, *parts])
+    await test_session.flush()
+    for part, location in zip(parts, (in_main, in_other, system)):
+        await reconcile_stock_absolute(
+            test_session,
+            autopart_id=part.id,
+            storage_location_id=location.id,
+            target_quantity=4,
+        )
+    await test_session.commit()
+
+    content = make_xlsx([line(1, "TOYOTA", "P99", "Новая", "Q-MD 1", 1, "10")])
+    plan = await build_plan(test_session, parse_inventory_file(content))
+
+    assert plan.report["positions_zeroed"] == 1  # только деталь основного склада
+    assert plan.report["out_of_scope_quantity"] == 8
+    assert plan.report["top_zeroed"][0]["article"] == "P0"
+    assert plan.report["stock_by_warehouse"]["Склад заказа"] == 4
+
+    await apply_plan(test_session, plan, name="тест")
+
+    rows = {
+        (row.autopart_id, row.storage_location_id): row.quantity
+        for row in (await test_session.execute(select(StockByLocation))).scalars().all()
+    }
+    assert rows[(parts[1].id, in_other.id)] == 4
+    assert rows[(parts[2].id, system.id)] == 4
+    assert rows.get((parts[0].id, in_main.id), 0) == 0
+    names = {loc.name for loc in (await test_session.execute(select(StorageLocation))).scalars()}
+    assert {"Z 1", "CROSS", "Q-MD 1"} <= names and "A 1" not in names

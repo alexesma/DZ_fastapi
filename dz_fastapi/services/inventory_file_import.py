@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.validators import normalize_brand_name
@@ -44,7 +44,9 @@ from dz_fastapi.models.inventory import (
     InventoryScopeType,
     InventorySession,
     InventoryStatus,
+    ReserveStatus,
     StockByLocation,
+    StockReserve,
     Warehouse,
 )
 from dz_fastapi.services.inventory_stock import (
@@ -234,6 +236,8 @@ class Plan:
     report: dict[str, Any] = field(default_factory=dict)
     autopart_ids: dict[tuple[str, str], int] = field(default_factory=dict)
     brand_ids: dict[str, int] = field(default_factory=dict)
+    scope_location_ids: set[int] = field(default_factory=set)
+    scope_warehouse_id: Optional[int] = None
     location_ids: dict[str, int] = field(default_factory=dict)
     stock: dict[int, dict[int, int]] = field(default_factory=dict)  # ap -> loc -> qty
 
@@ -328,10 +332,19 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
         if brand_id is not None and (brand_id, target.oem) in existing:
             plan.autopart_ids[key] = existing[(brand_id, target.oem)]
 
-    locations = {
-        loc.name: loc.id for loc in (await session.execute(select(StorageLocation))).scalars().all()
-    }
+    all_locations = (await session.execute(select(StorageLocation))).scalars().all()
+    locations = {loc.name: loc.id for loc in all_locations}
     plan.location_ids = locations
+    # Файл — по основному складу: остальные склады и системные места
+    # (cross-docking и т. п.) не трогаем.
+    plan.scope_warehouse_id = await session.scalar(
+        select(Warehouse.id).order_by(Warehouse.id).limit(1)
+    )
+    plan.scope_location_ids = {
+        loc.id
+        for loc in all_locations
+        if loc.warehouse_id == plan.scope_warehouse_id and not loc.system_code
+    }
     stock_rows = (
         await session.execute(
             select(
@@ -341,22 +354,70 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
             ).where(StockByLocation.quantity > 0)
         )
     ).all()
+    out_of_scope = 0
     for ap_id, loc_id, qty in stock_rows:
-        plan.stock.setdefault(ap_id, {})[loc_id] = int(qty)
+        if loc_id in plan.scope_location_ids:
+            plan.stock.setdefault(ap_id, {})[loc_id] = int(qty)
+        else:
+            out_of_scope += int(qty)
 
     file_locations = {place for t in targets.values() for place in t.qty_by_location}
     matched_ap = set(plan.autopart_ids.values())
     file_qty = sum(q for t in targets.values() for q in t.qty_by_location.values())
     current_qty = sum(q for locs in plan.stock.values() for q in locs.values())
     zeroed = [ap for ap in plan.stock if ap not in matched_ap]
-    system_names = {
-        loc.name
-        for loc in (await session.execute(select(StorageLocation))).scalars().all()
-        if loc.system_code
-    }
     old_locations = [
-        name for name in locations if name not in file_locations and name not in system_names
+        loc.name
+        for loc in all_locations
+        if loc.id in plan.scope_location_ids and loc.name not in file_locations
     ]
+    zeroed_qty = {ap: sum(plan.stock[ap].values()) for ap in zeroed}
+    top_ids = sorted(zeroed_qty, key=zeroed_qty.get, reverse=True)[:30]
+    top_zeroed = []
+    if top_ids:
+        info = {
+            row[0]: row
+            for row in (
+                await session.execute(
+                    select(AutoPart.id, Brand.name, AutoPart.oem_number, AutoPart.name)
+                    .join(Brand, Brand.id == AutoPart.brand_id)
+                    .where(AutoPart.id.in_(top_ids))
+                )
+            ).all()
+        }
+        loc_names = {loc.id: loc.name for loc in all_locations}
+        for ap in top_ids:
+            row = info.get(ap)
+            top_zeroed.append(
+                {
+                    "brand": row[1] if row else None,
+                    "article": row[2] if row else str(ap),
+                    "name": (row[3] if row else "")[:60],
+                    "quantity": zeroed_qty[ap],
+                    "locations": [loc_names.get(loc, str(loc)) for loc in plan.stock[ap]][:3],
+                }
+            )
+    wh_names = {w.id: w.name for w in (await session.execute(select(Warehouse))).scalars().all()}
+    by_wh: dict[str, int] = defaultdict(int)
+    loc_wh = {loc.id: loc.warehouse_id for loc in all_locations}
+    for ap_id, loc_id, qty in stock_rows:
+        by_wh[wh_names.get(loc_wh.get(loc_id), "без склада")] += int(qty)
+    reserved = {
+        ap: int(q or 0)
+        for ap, q in (
+            await session.execute(
+                select(StockReserve.autopart_id, func.sum(StockReserve.quantity))
+                .where(StockReserve.status == ReserveStatus.ACTIVE)
+                .group_by(StockReserve.autopart_id)
+            )
+        ).all()
+    }
+    target_total = {
+        plan.autopart_ids[key]: sum(t.qty_by_location.values())
+        for key, t in targets.items()
+        if key in plan.autopart_ids
+    }
+    reserved_conflicts = sum(1 for ap, q in reserved.items() if target_total.get(ap, 0) < q)
     report = {
         "file_rows": len(rows),
         "positions": len(targets),
@@ -372,7 +433,13 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
         "new_locations": len(file_locations - set(locations)),
         "old_locations_to_delete": len(old_locations),
         "positions_zeroed": len(zeroed),
-        "quantity_zeroed": sum(sum(plan.stock[ap].values()) for ap in zeroed),
+        "quantity_zeroed": sum(zeroed_qty.values()),
+        "zeroed_over_1000": sum(1 for q in zeroed_qty.values() if q > 1000),
+        "top_zeroed": top_zeroed,
+        "out_of_scope_quantity": out_of_scope,
+        "stock_by_warehouse": dict(by_wh),
+        "reserved_conflicts": reserved_conflicts,
+        "reserved_quantity": sum(reserved.values()),
         "no_location_rows": sum(
             1 for t in targets.values() if NO_LOCATION_NAME in t.qty_by_location
         ),
@@ -411,7 +478,7 @@ async def apply_plan(
         stats["brands_created"] += 1
     file_locations = {place for t in plan.targets.values() for place in t.qty_by_location}
     # Новые места — на основном (первом) складе.
-    warehouse_id = await session.scalar(select(Warehouse.id).order_by(Warehouse.id).limit(1))
+    warehouse_id = plan.scope_warehouse_id
     for place in sorted(file_locations - set(plan.location_ids)):
         location = StorageLocation(name=place, warehouse_id=warehouse_id)
         session.add(location)
@@ -516,7 +583,11 @@ async def apply_plan(
         ).all()
     }
     for location in (await session.execute(select(StorageLocation))).scalars().all():
-        if location.name in file_locations or location.system_code or location.id in left_stock:
+        if (
+            location.name in file_locations
+            or location.id not in plan.scope_location_ids
+            or location.id in left_stock
+        ):
             continue
         try:
             # Core-удаление: у связи location.autoparts стоит cascade delete,
