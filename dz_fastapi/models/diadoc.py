@@ -6,10 +6,12 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import relationship
 
@@ -207,6 +209,15 @@ class DiadocOutgoingDocument(Base):
             "source_id",
             "source_version",
             name="uq_diadoc_outgoing_source_version",
+        ),
+        # Параллельные импорты не должны заводить один документ дважды.
+        Index(
+            "uq_diadoc_outgoing_external_entity",
+            "environment",
+            "from_box_id_guid",
+            "entity_id",
+            unique=True,
+            postgresql_where=text("source_type = 'diadoc_external'"),
         ),
     )
 

@@ -15,6 +15,7 @@ import os
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
@@ -96,9 +97,14 @@ async def import_external_outgoing_document(
 
     counteragent = str(raw.get("CounteragentBoxId") or "").strip()
     customer = await resolve_customer_by_diadoc_counteragent_box(session, counteragent)
-    provider_id = await resolve_provider_by_diadoc_counteragent_box(
-        session, counteragent_box_id=counteragent
-    )
+    # Один и тот же ящик может быть привязан и к клиенту, и к поставщику.
+    # Исходящий документ — это в первую очередь продажа, поэтому поставщика
+    # берём только когда клиента не нашли (например, возврат поставщику).
+    provider_id = None
+    if customer is None:
+        provider_id = await resolve_provider_by_diadoc_counteragent_box(
+            session, counteragent_box_id=counteragent
+        )
     document = DiadocOutgoingDocument(
         environment=environment,
         from_box_id_guid=box_id_guid,
@@ -123,8 +129,13 @@ async def import_external_outgoing_document(
         metadata_json={"external": True},
         raw_response=raw,
     )
-    session.add(document)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(document)
+            await session.flush()
+    except IntegrityError:
+        # Параллельный импорт успел раньше: документ уже заведён.
+        return {"created": False, "document_id": None, "reason": "known"}
 
     if download_content:
         try:

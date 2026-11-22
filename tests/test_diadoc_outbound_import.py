@@ -125,3 +125,27 @@ async def test_history_sync_skips_already_known_documents(test_session, tmp_path
     assert (first["created"], first["known"]) == (1, 0)
     assert (second["created"], second["known"]) == (0, 1)
     assert client.document_calls == 0  # данные берутся из списка GetDocuments
+
+
+@pytest.mark.asyncio
+async def test_parallel_duplicate_insert_is_rejected_by_unique_index(test_session):
+    from sqlalchemy.exc import IntegrityError
+
+    def row():
+        return DiadocOutgoingDocument(
+            environment="staging",
+            from_box_id_guid="box-1",
+            to_box_id_guid="box-c",
+            source_type=EXTERNAL_SOURCE_TYPE,
+            file_name="a.xml",
+            local_file_path="",
+            entity_id="entity-dup",
+            message_id="message-dup",
+        )
+
+    test_session.add(row())
+    await test_session.commit()
+    test_session.add(row())
+    with pytest.raises(IntegrityError):
+        await test_session.commit()
+    await test_session.rollback()
