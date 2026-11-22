@@ -391,6 +391,55 @@ async def enterprise_data_history_audit(
     return await history_audit(session)
 
 
+@router.get(
+    "/enterprise-data/opening-balance/preview",
+    summary="Предпросмотр документа начальных остатков для 1С",
+)
+async def enterprise_data_opening_balance_preview(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from dz_fastapi.services.one_c_opening_balance import preview_opening_balance
+
+    try:
+        return await preview_opening_balance(session)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+class OpeningBalanceRequest(BaseModel):
+    document_date: date
+    confirm: str = ""
+
+
+@router.post(
+    "/enterprise-data/opening-balance",
+    summary="Создать документ начальных остатков и поставить в очередь 1С",
+)
+async def enterprise_data_opening_balance_create(
+    body: OpeningBalanceRequest,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    from datetime import datetime, time
+
+    from dz_fastapi.services.one_c_opening_balance import create_opening_balance_event
+
+    if body.confirm != "OPENING":
+        raise HTTPException(status_code=400, detail="Нужно подтверждение OPENING")
+    try:
+        result = await create_opening_balance_event(
+            session,
+            document_date=datetime.combine(body.document_date, time(9, 0)),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    await session.commit()
+    return result
+
+
 @router.post(
     "/enterprise-data/history/backfill",
     summary="Подготовить исторические документы для EnterpriseData",
