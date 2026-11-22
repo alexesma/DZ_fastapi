@@ -118,6 +118,7 @@ from dz_fastapi.schemas.inventory import (
     ShipmentDocumentListItem,
     ShipmentDocumentOut,
     ShipmentDocumentUpdate,
+    ShipmentImportMatchRequest,
     ShipmentPostResult,
     ShipmentProfitReportRow,
     ShipmentsExportOut,
@@ -2940,7 +2941,14 @@ def _shipment_item_to_out(
         stock_autopart_name=ap.name if ap else None,
         stock_autopart_brand=ap.brand.name if (ap and ap.brand) else None,
         storage_location_name=loc.name if loc else None,
-        gtd_number=lot.gtd_number if lot else None,
+        gtd_number=(lot.gtd_number if lot else None) or item.import_gtd_number,
+        import_article=item.import_article,
+        import_match=item.import_match,
+        import_gtd_number=item.import_gtd_number,
+        import_country_code=item.import_country_code,
+        import_country_name=item.import_country_name,
+        import_marking_codes=item.import_marking_codes,
+        import_vat_amount=item.import_vat_amount,
         revenue_total=revenue_total,
         gross_profit=gross_profit,
         margin_percent=margin_percent,
@@ -2976,6 +2984,7 @@ def _shipment_to_out(doc: ShipmentDocument) -> ShipmentDocumentOut:
         posted_at=doc.posted_at,
         items=items,
         total_quantity=sum(i.quantity for i in items),
+        import_review=doc.import_review,
     )
 
 
@@ -3771,6 +3780,32 @@ async def update_shipment_document(
     await session.flush()
     doc = await _load_shipment(session, doc_id)
     await session.commit()
+    return _shipment_to_out(doc)
+
+
+@router.post(
+    "/shipments/{doc_id}/import-review/{index}/match",
+    response_model=ShipmentDocumentOut,
+    summary="Сопоставить строку импортной реализации с номенклатурой",
+)
+async def match_imported_shipment_line(
+    doc_id: int,
+    index: int,
+    data: ShipmentImportMatchRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.diadoc_shipment_import import resolve_review_line
+
+    doc = await session.get(ShipmentDocument, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+    try:
+        await resolve_review_line(session, doc, index=index, autopart_id=data.autopart_id)
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    await session.commit()
+    await session.refresh(doc)
     return _shipment_to_out(doc)
 
 

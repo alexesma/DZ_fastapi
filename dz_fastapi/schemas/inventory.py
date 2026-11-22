@@ -861,6 +861,14 @@ class ShipmentDocumentItemOut(BaseModel):
     storage_location_name: Optional[str] = None
     # из лота (заполняется после проведения)
     gtd_number: Optional[str] = None
+    # из УПД Диадока (импортные реализации)
+    import_article: Optional[str] = None
+    import_match: Optional[str] = None
+    import_gtd_number: Optional[str] = None
+    import_country_code: Optional[str] = None
+    import_country_name: Optional[str] = None
+    import_marking_codes: Optional[List[str]] = None
+    import_vat_amount: Optional[Decimal] = None
     revenue_total: Optional[Decimal] = None
     gross_profit: Optional[Decimal] = None
     margin_percent: Optional[Decimal] = None
@@ -915,8 +923,14 @@ class ShipmentDocumentOut(BaseModel):
     posted_at: Optional[datetime] = None
     items: List[ShipmentDocumentItemOut] = Field(default_factory=list)
     total_quantity: int = 0
+    # Строки УПД, ожидающие сопоставления с номенклатурой (импортные).
+    import_review: Optional[List[dict]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ShipmentImportMatchRequest(BaseModel):
+    autopart_id: int
 
 
 class ShipmentDocumentListItem(BaseModel):

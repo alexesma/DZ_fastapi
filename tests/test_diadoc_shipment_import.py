@@ -30,7 +30,9 @@ UPD = """<?xml version="1.0" encoding="utf-8"?>
     <ТаблСчФакт>
       <СведТов НомСтр="1" НаимТов="Фильтр" КолТов="10" ЦенаТов="150.50"
                НалСт="20%" СтТовУчНал="1806.00">
-        <ДопСведТов АртикулТов="A11-1012010"/>
+        <ДопСведТов АртикулТов="A11-1012010" КрНаимСтрПр="КИТАЙ" КодПроисх="156"/>
+        <СвДТ НомерДТ="10702070/120626/0011223"/>
+        <НомСредИдентТов>010460123456789021ABC123</НомСредИдентТов>
       </СведТов>
       <СведТов НомСтр="2" НаимТов="Колодки" КолТов="4" ЦенаТов="820.00"
                СтТовУчНал="3936.00">
@@ -92,12 +94,18 @@ async def test_upd_becomes_imported_shipment_without_stock_effects(test_session,
     assert shipment.customer_id == customer.id
     assert shipment.doc_number == "4890"
     assert shipment.source_diadoc_document_id == outgoing.id
-    assert "UNKNOWN-1" in shipment.notes
+    assert "На сопоставление: 1" in shipment.notes
+    assert shipment.import_review[0]["article"] == "UNKNOWN-1"
     item = (await test_session.execute(select(ShipmentDocumentItem))).scalars().one()
     assert item.quantity == 10
     assert item.price == Decimal("180.60")  # 1806 / 10, с НДС
     assert item.vat_rate == Decimal("20")
     assert item.reserve_id is None and item.lot_id is None
+    assert item.import_match == "exact"
+    assert item.import_gtd_number == "10702070/120626/0011223"
+    assert item.import_country_name == "КИТАЙ"
+    assert item.import_marking_codes == ["010460123456789021ABC123"]
+    assert item.import_vat_amount == Decimal("301.00")  # 1806 - 150.50 * 10
 
     again = await import_shipment_from_outgoing_upd(test_session, outgoing, our_inn="7701234567")
     assert again["created"] is False and again["reason"] == "already_imported"
@@ -158,3 +166,31 @@ async def test_pending_batch_imports_once_and_skips_known(test_session, tmp_path
 
     assert first["created"] == 1
     assert second["checked"] == 0
+
+
+@pytest.mark.asyncio
+async def test_same_article_of_other_product_is_not_linked_and_can_be_matched_by_hand(
+    test_session, tmp_path
+):
+    from dz_fastapi.services.diadoc_shipment_import import name_score, resolve_review_line
+
+    # Артикул совпал, но это другая деталь: связывать нельзя.
+    assert name_score("Прокладка клапанной крышки TOYOTA", "С/б заднего рычага W204", "FEBI") < 0.5
+    assert name_score("Фильтр", "Фильтр масляный", "X") >= 0.5
+
+    customer, outgoing = await _setup(test_session, tmp_path)
+    brand = (await test_session.execute(select(Brand))).scalars().one()
+    other = AutoPart(brand_id=brand.id, oem_number="UNKNOWN1", name="Совсем другая деталь")
+    test_session.add(other)
+    await test_session.commit()
+
+    await import_shipment_from_outgoing_upd(test_session, outgoing, our_inn="7701234567")
+    await test_session.commit()
+    shipment = (await test_session.execute(select(ShipmentDocument))).scalars().one()
+    assert len(shipment.import_review) == 1  # артикул есть, название не совпало
+
+    item = await resolve_review_line(test_session, shipment, index=0, autopart_id=other.id)
+    await test_session.commit()
+    assert item.import_match == "manual"
+    assert item.quantity == 4
+    assert shipment.import_review is None

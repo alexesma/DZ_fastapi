@@ -2014,6 +2014,9 @@ class ShipmentDocument(Base):
 
     created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     posted_at = Column(DateTime(timezone=True), nullable=True)
+    # Строки УПД, которые не удалось уверенно сопоставить с номенклатурой:
+    # [{line, article, name, quantity, price, total, vat_rate, gtd, ...}].
+    import_review = Column(JSON, nullable=True)
     # Исходящий документ Диадока, из которого создана импортная реализация.
     source_diadoc_document_id = Column(
         Integer,
@@ -2132,6 +2135,16 @@ class ShipmentDocumentItem(Base):
     )
 
     notes = Column(Text, nullable=True)
+
+    # ── Данные из УПД Диадока (реализации со статусом imported) ─────────────
+    import_article = Column(String(255), nullable=True)
+    # exact — имя и артикул совпали; manual — сопоставлено вручную
+    import_match = Column(String(16), nullable=True)
+    import_gtd_number = Column(String(64), nullable=True)
+    import_country_code = Column(String(16), nullable=True)
+    import_country_name = Column(String(120), nullable=True)
+    import_marking_codes = Column(JSON, nullable=True)
+    import_vat_amount = Column(DECIMAL(14, 2), nullable=True)
 
     document = relationship("ShipmentDocument", back_populates="items", lazy="noload")
     autopart = relationship("AutoPart", lazy="joined")

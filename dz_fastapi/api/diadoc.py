@@ -1479,19 +1479,29 @@ async def sync_diadoc_external_outbound_documents(
 )
 async def sync_diadoc_outbound_shipments(
     limit: int = Query(default=200, ge=1, le=1000),
+    rebuild: bool = Query(
+        default=False,
+        description="Сначала удалить импортные реализации и собрать заново",
+    ),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
     """Импортные реализации (статус «imported») по УПД, отправленным вне системы."""
-    from dz_fastapi.services.diadoc_shipment_import import import_pending_upd_shipments
+    from dz_fastapi.services.diadoc_shipment_import import (
+        import_pending_upd_shipments,
+        rebuild_imported_shipments,
+    )
 
     try:
         integration, _client = await get_diadoc_client_for_session(session)
-        return await import_pending_upd_shipments(
-            session,
-            environment=normalize_diadoc_environment(integration.environment),
-            limit=limit,
-        )
+        environment = normalize_diadoc_environment(integration.environment)
+        removed = None
+        if rebuild:
+            removed = await rebuild_imported_shipments(session, environment=environment)
+        result = await import_pending_upd_shipments(session, environment=environment, limit=limit)
+        if removed is not None:
+            result["removed"] = removed
+        return result
     except HTTPException:
         raise
     except Exception as exc:
