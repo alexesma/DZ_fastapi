@@ -164,7 +164,31 @@ async def import_external_outgoing_document(
         document.status_checked_at = now_moscow()
         session.add(document)
         await session.commit()
+    await _create_shipment_if_upd(session, document, environment)
     return {"created": True, "document_id": document.id, "reason": "created"}
+
+
+async def _create_shipment_if_upd(
+    session: AsyncSession, document: DiadocOutgoingDocument, environment: str
+) -> None:
+    """УПД, оформленный вне системы, сразу становится импортной реализацией."""
+    from dz_fastapi.services.diadoc_direction import get_our_inn
+    from dz_fastapi.services.diadoc_shipment_import import (
+        UPD_TYPE,
+        import_shipment_from_outgoing_upd,
+    )
+
+    if document.type_named_id != UPD_TYPE or not document.local_file_path:
+        return
+    try:
+        async with session.begin_nested():
+            await import_shipment_from_outgoing_upd(
+                session, document, our_inn=await get_our_inn(session, environment)
+            )
+        await session.commit()
+    except Exception as exc:  # noqa: BLE001 - не должно ломать приём событий
+        logger.warning("Shipment import from UPD %s failed: %s", document.id, exc)
+        await session.rollback()
 
 
 async def sync_external_outgoing_documents(

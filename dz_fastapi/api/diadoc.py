@@ -1473,6 +1473,32 @@ async def sync_diadoc_external_outbound_documents(
 
 
 @router.post(
+    "/sync/outbound-shipments",
+    status_code=status.HTTP_200_OK,
+    summary="Создать реализации по внешним исходящим УПД",
+)
+async def sync_diadoc_outbound_shipments(
+    limit: int = Query(default=200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Импортные реализации (статус «imported») по УПД, отправленным вне системы."""
+    from dz_fastapi.services.diadoc_shipment_import import import_pending_upd_shipments
+
+    try:
+        integration, _client = await get_diadoc_client_for_session(session)
+        return await import_pending_upd_shipments(
+            session,
+            environment=normalize_diadoc_environment(integration.environment),
+            limit=limit,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
     "/sync/outbound-status",
     response_model=DiadocOutboundStatusSyncResult,
     status_code=status.HTTP_200_OK,

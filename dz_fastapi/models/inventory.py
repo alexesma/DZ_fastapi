@@ -1904,6 +1904,10 @@ class ShipmentDocumentStatus(StrEnum):
     DRAFT = "draft"  # черновик — остатки/резервы не затронуты
     POSTED = "posted"  # проведён — резервы сняты, движения созданы
     CANCELLED = "cancelled"  # отменён
+    # Реализация, загруженная из УПД Диадока (создана вне системы, например в
+    # 1С). Остатки и резервы не трогает, в 1С и ЭДО повторно не уходит: все
+    # конвейеры отбирают только DRAFT/POSTED.
+    IMPORTED = "imported"
 
 
 class CustomerOrderPickLabel(Base):
@@ -2010,6 +2014,13 @@ class ShipmentDocument(Base):
 
     created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     posted_at = Column(DateTime(timezone=True), nullable=True)
+    # Исходящий документ Диадока, из которого создана импортная реализация.
+    source_diadoc_document_id = Column(
+        Integer,
+        ForeignKey("diadocoutgoingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
     # Когда документу присвоен порядковый номер собственной серии. После
     # этого номер не меняется ни при повторном проведении, ни ответом УНФ.
     number_assigned_at = Column(DateTime(timezone=True), nullable=True)

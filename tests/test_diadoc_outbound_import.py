@@ -107,7 +107,7 @@ async def test_event_creates_external_outgoing_document_once(test_session, tmp_p
     assert document.document_number == "100"
     assert document.to_box_id_guid == "box-customer"
     assert document.local_file_path
-    assert document.metadata_json == {"external": True}
+    assert document.metadata_json["external"] is True
 
 
 @pytest.mark.asyncio
