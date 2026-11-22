@@ -3020,6 +3020,14 @@ def _shipment_to_list_item(
         reason=doc.reason,
         item_count=len(items),
         total_quantity=sum(i.quantity for i in items),
+        total_amount=_quantize_money(
+            sum(
+                (Decimal(str(i.price or 0)) * i.quantity for i in items),
+                Decimal("0"),
+            )
+        )
+        or Decimal("0.00"),
+        source_diadoc_document_id=doc.source_diadoc_document_id,
         sync_status=doc.sync_status,
         created_at=doc.created_at,
         posted_at=doc.posted_at,

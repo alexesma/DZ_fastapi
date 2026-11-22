@@ -949,6 +949,10 @@ class ShipmentDocumentListItem(BaseModel):
     reason: Optional[str] = None
     item_count: int = 0
     total_quantity: int = 0
+    # Сумма документа с НДС (цена за единицу уже с НДС * количество).
+    total_amount: Decimal = Decimal("0.00")
+    # Документ Диадока, из которого загружена импортная реализация.
+    source_diadoc_document_id: Optional[int] = None
     sync_status: SyncStatus
     created_at: datetime
     posted_at: Optional[datetime] = None
