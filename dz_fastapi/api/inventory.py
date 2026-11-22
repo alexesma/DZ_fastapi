@@ -538,6 +538,19 @@ async def delete_stock_by_location(
 # ─── Инвентаризация из файла старой 1С ──────────────────────────────────────
 
 
+def _parse_brand_decisions(raw: str) -> dict:
+    """JSON {ключ бренда: {action: create|map|skip, brand_id}} из формы."""
+    import json
+
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Некорректные решения по брендам")
+    return data if isinstance(data, dict) else {}
+
+
 @router.post(
     "/file-import/preview",
     summary="Предпросмотр загрузки инвентаризации из файла (без изменений)",
@@ -545,6 +558,7 @@ async def delete_stock_by_location(
 async def inventory_file_preview(
     file: UploadFile = File(...),
     zero_missing: bool = Form(False),
+    brand_decisions: str = Form(""),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
@@ -554,7 +568,12 @@ async def inventory_file_preview(
         rows = parse_inventory_file(await file.read())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {exc}")
-    plan = await build_plan(session, rows, zero_missing=zero_missing)
+    plan = await build_plan(
+        session,
+        rows,
+        zero_missing=zero_missing,
+        brand_decisions=_parse_brand_decisions(brand_decisions),
+    )
     return plan.report
 
 
@@ -567,6 +586,7 @@ async def inventory_file_apply(
     file: UploadFile = File(...),
     confirm: str = Form(""),
     zero_missing: bool = Form(False),
+    brand_decisions: str = Form(""),
     name: str = Form("Инвентаризация из файла старой 1С"),
     _: User = Depends(require_admin),
 ):
@@ -580,7 +600,11 @@ async def inventory_file_apply(
             raise ValueError("в файле нет строк с остатком")
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {exc}")
-    return {"job_id": start_import_job(content, name[:180], zero_missing)}
+    return {
+        "job_id": start_import_job(
+            content, name[:180], zero_missing, _parse_brand_decisions(brand_decisions)
+        )
+    }
 
 
 @router.get("/file-import/jobs/{job_id}", summary="Ход загрузки инвентаризации")

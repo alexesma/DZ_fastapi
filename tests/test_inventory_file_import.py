@@ -289,3 +289,49 @@ async def test_soft_mode_keeps_absent_positions_and_moves_them_to_receiving(test
     assert result["to_receiving"] == 1 and result["transfers"] == 1
     names = {loc.name for loc in (await test_session.execute(select(StorageLocation))).scalars()}
     assert names == {"WH1 RECEIVING", "Q-MD 5"}
+
+
+@pytest.mark.asyncio
+async def test_new_brands_are_suggested_and_decisions_are_applied(test_session):
+    warehouse = Warehouse(name="Основной")
+    brand = Brand(name="MAHLE")
+    test_session.add_all([warehouse, brand])
+    await test_session.flush()
+    content = make_xlsx(
+        [
+            line(1, "MAHLEE", "AAA111", "Фильтр", "A 1", 2, "10"),
+            line(2, "BRANDNEW", "BBB222", "Деталь", "A 2", 1, "10"),
+            line(3, "REFUSED", "CCC333", "Мусор", "A 3", 5, "10"),
+        ]
+    )
+    rows = parse_inventory_file(content)
+
+    preview = await build_plan(test_session, rows)
+    by_key = {item["key"]: item for item in preview.report["new_brands"]}
+    assert set(by_key) == {"MAHLEE", "BRANDNEW", "REFUSED"}
+    assert by_key["MAHLEE"]["suggestions"][0]["name"] == "MAHLE"
+    assert by_key["MAHLEE"]["quantity"] == 2 and by_key["BRANDNEW"]["positions"] == 1
+
+    plan = await build_plan(
+        test_session,
+        rows,
+        brand_decisions={
+            "MAHLEE": {"action": "map", "brand_id": brand.id},
+            "REFUSED": {"action": "skip"},
+            "BRANDNEW": {"action": "create"},
+        },
+    )
+    assert plan.report["new_brands_count"] == 1  # только BRANDNEW
+    assert plan.report["skipped_count"] == 1
+    assert plan.report["skipped_positions"][0]["brand"] == "REFUSED"
+
+    result = await apply_plan(test_session, plan, name="решения")
+    assert result["brands_created"] == 1
+    parts = {
+        (p.oem_number, p.brand_id)
+        for p in (await test_session.execute(select(AutoPart))).scalars().all()
+    }
+    new_brand = (
+        await test_session.execute(select(Brand).where(Brand.name == "BRANDNEW"))
+    ).scalar_one()
+    assert parts == {("AAA111", brand.id), ("BBB222", new_brand.id)}

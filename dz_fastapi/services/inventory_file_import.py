@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import difflib
 import logging
 import re
 import xml.etree.ElementTree as ET
@@ -305,8 +306,16 @@ def aggregate_rows(
     return targets
 
 
+def _compact(value: str) -> str:
+    return re.sub(r"[^0-9A-ZА-Я]", "", value.upper())
+
+
 async def build_plan(
-    session: AsyncSession, rows: list[FileRow], *, zero_missing: bool = False
+    session: AsyncSession,
+    rows: list[FileRow],
+    *,
+    zero_missing: bool = False,
+    brand_decisions: Optional[dict[str, dict]] = None,
 ) -> Plan:
     skipped: list[dict] = []
     targets = aggregate_rows(rows, skipped)
@@ -324,7 +333,62 @@ async def build_plan(
         for key in {t.brand_key for t in targets.values()}
         if key in brand_id_by_key
     }
-    missing_brands = sorted({t.brand_key for t in targets.values()} - set(plan.brand_ids))
+    # Решения по новым брендам: сопоставить с существующим / отказаться / создать.
+    decisions = brand_decisions or {}
+    brands_by_id = {b.id: b for b in brands}
+    skip_keys: set[str] = set()
+    for key, decision in decisions.items():
+        if key in plan.brand_ids:
+            continue
+        action = (decision or {}).get("action")
+        target_id = (decision or {}).get("brand_id")
+        if action == "map" and target_id in brands_by_id:
+            plan.brand_ids[key] = canonical.get(target_id, brands_by_id[target_id]).id
+        elif action == "skip":
+            skip_keys.add(key)
+    if skip_keys:
+        for position_key in [k for k, t in targets.items() if t.brand_key in skip_keys]:
+            target = targets.pop(position_key)
+            skipped.append(
+                {
+                    "brand": target.brand_name,
+                    "article": target.oem,
+                    "name": target.name[:80],
+                    "quantity": sum(target.qty_by_location.values()),
+                }
+            )
+    missing_keys = sorted({t.brand_key for t in targets.values()} - set(plan.brand_ids))
+    missing_brands = []
+    pool = {_compact(b.name): canonical.get(b.id, b) for b in brands if _compact(b.name)}
+    for key in missing_keys:
+        members = [t for t in targets.values() if t.brand_key == key]
+        compact_key = _compact(key)
+        scored = []
+        for compact_name, brand in pool.items():
+            ratio = difflib.SequenceMatcher(None, compact_key, compact_name).ratio()
+            contains = len(compact_key) >= 3 and (
+                compact_key in compact_name or compact_name in compact_key
+            )
+            if ratio >= 0.75 or (contains and ratio >= 0.5):
+                scored.append((ratio, brand))
+        scored.sort(key=lambda item: -item[0])
+        seen_ids: set[int] = set()
+        suggestions = []
+        for _ratio, brand in scored:
+            if brand.id not in seen_ids:
+                seen_ids.add(brand.id)
+                suggestions.append({"id": brand.id, "name": brand.name})
+            if len(suggestions) == 4:
+                break
+        missing_brands.append(
+            {
+                "key": key,
+                "name": members[0].brand_name,
+                "positions": len(members),
+                "quantity": sum(sum(t.qty_by_location.values()) for t in members),
+                "suggestions": suggestions,
+            }
+        )
 
     oems = sorted({t.oem for t in targets.values()})
     existing: dict[tuple[int, str], int] = {}
@@ -451,7 +515,7 @@ async def build_plan(
         "positions": len(targets),
         "matched_positions": len(plan.autopart_ids),
         "new_autoparts": len(targets) - len(plan.autopart_ids),
-        "new_brands": missing_brands[:50],
+        "new_brands": missing_brands,
         "new_brands_count": len(missing_brands),
         "skipped_positions": skipped[:50],
         "skipped_count": len(skipped),
@@ -675,14 +739,19 @@ async def apply_plan(
 JOBS: dict[str, dict[str, Any]] = {}
 
 
-async def _run_job(job_id: str, content: bytes, name: str, zero_missing: bool) -> None:
+async def _run_job(
+    job_id: str, content: bytes, name: str, zero_missing: bool, brand_decisions: Optional[dict]
+) -> None:
     from dz_fastapi.core.db import get_async_session
 
     job = JOBS[job_id]
     try:
         async with get_async_session()() as session:
             plan = await build_plan(
-                session, parse_inventory_file(content), zero_missing=zero_missing
+                session,
+                parse_inventory_file(content),
+                zero_missing=zero_missing,
+                brand_decisions=brand_decisions,
             )
             job["report"] = plan.report
             job["state"] = "running"
@@ -695,11 +764,18 @@ async def _run_job(job_id: str, content: bytes, name: str, zero_missing: bool) -
         job["error"] = str(exc)[:500]
 
 
-def start_import_job(content: bytes, name: str, zero_missing: bool = False) -> str:
+def start_import_job(
+    content: bytes,
+    name: str,
+    zero_missing: bool = False,
+    brand_decisions: Optional[dict] = None,
+) -> str:
     import asyncio
     import uuid
 
     job_id = uuid.uuid4().hex[:12]
     JOBS[job_id] = {"state": "starting", "done": 0, "total": 0}
-    asyncio.get_running_loop().create_task(_run_job(job_id, content, name, zero_missing))
+    asyncio.get_running_loop().create_task(
+        _run_job(job_id, content, name, zero_missing, brand_decisions)
+    )
     return job_id
