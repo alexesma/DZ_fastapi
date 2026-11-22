@@ -238,12 +238,47 @@ class Plan:
     stock: dict[int, dict[int, int]] = field(default_factory=dict)  # ap -> loc -> qty
 
 
-def aggregate_rows(rows: list[FileRow]) -> dict[tuple[str, str], Target]:
+# Написания брендов из старой базы -> бренд, который уже есть у нас
+# (ключи и значения в нормализованном виде, см. normalize_brand_name).
+BRAND_ALIASES = {
+    "RAF FILTER": "RAF",
+    "HYUNDAI KIA": "HYUNDAI-KIA",
+    "MAHLE ORIGINAL": "MAHLE",
+    "NOM PARTS": "NOMPARTS",
+    "OJD QUICK BRAKE": "QUICK BRAKE",
+}
+_NUMERIC_BRAND_RE = re.compile(r"^[\d \-]+$")
+
+
+def resolve_brand_key(brand: str) -> str:
+    key = normalize_brand_name(brand) or brand.strip().upper()
+    return BRAND_ALIASES.get(key, key)
+
+
+def is_junk_brand(brand_key: str) -> bool:
+    """Бренд из одних цифр («1 680») — ошибка старой базы, бренд не создаём."""
+    return not brand_key or bool(_NUMERIC_BRAND_RE.match(brand_key))
+
+
+def aggregate_rows(
+    rows: list[FileRow], skipped: Optional[list[dict]] = None
+) -> dict[tuple[str, str], Target]:
     targets: dict[tuple[str, str], Target] = {}
     for row in rows:
-        brand_key = normalize_brand_name(row.brand) or row.brand.strip().upper()
+        brand_key = resolve_brand_key(row.brand)
         oem = preprocess_oem_number(row.article)
         if not oem:
+            continue
+        if is_junk_brand(brand_key):
+            if skipped is not None:
+                skipped.append(
+                    {
+                        "brand": row.brand,
+                        "article": row.article,
+                        "name": row.name[:80],
+                        "quantity": row.quantity,
+                    }
+                )
             continue
         target = targets.setdefault(
             (brand_key, oem),
@@ -257,7 +292,8 @@ def aggregate_rows(rows: list[FileRow]) -> dict[tuple[str, str], Target]:
 
 
 async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
-    targets = aggregate_rows(rows)
+    skipped: list[dict] = []
+    targets = aggregate_rows(rows, skipped)
     plan = Plan(targets=targets, file_rows=len(rows))
 
     brands = await brand_crud.get_multi_with_synonyms(session)
@@ -328,6 +364,8 @@ async def build_plan(session: AsyncSession, rows: list[FileRow]) -> Plan:
         "new_autoparts": len(targets) - len(plan.autopart_ids),
         "new_brands": missing_brands[:50],
         "new_brands_count": len(missing_brands),
+        "skipped_positions": skipped[:50],
+        "skipped_count": len(skipped),
         "file_quantity": file_qty,
         "current_quantity": current_qty,
         "file_locations": len(file_locations),

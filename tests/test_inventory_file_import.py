@@ -179,3 +179,25 @@ async def test_apply_moves_stock_keeps_lots_creates_missing_and_deletes_old_plac
     plan2 = await build_plan(test_session, parse_inventory_file(content))
     again = await apply_plan(test_session, plan2, name="повтор")
     assert again.get("transfers", 0) == 0 and again.get("adjustments", 0) == 0
+
+
+def test_brand_aliases_and_junk_brands():
+    from dz_fastapi.services.inventory_file_import import aggregate_rows, resolve_brand_key
+
+    assert resolve_brand_key("HYUNDAI KIA") == "HYUNDAI-KIA"
+    assert resolve_brand_key("MAHLE ORIGINAL") == "MAHLE"
+    assert resolve_brand_key("OJD (QUICK BRAKE)") == "QUICK BRAKE"
+    assert resolve_brand_key("TOYOTA") == "TOYOTA"
+
+    rows = parse_inventory_file(
+        make_xlsx(
+            [
+                line(1, "1 680", "1AP1220003", "Патрон", "A 1", 1, "10"),
+                line(2, "RAF FILTER", "RST002", "Фильтр", "A 2", 1, "10"),
+            ]
+        )
+    )
+    skipped: list[dict] = []
+    targets = aggregate_rows(rows, skipped)
+    assert [item["brand"] for item in skipped] == ["1 680"]
+    assert list(targets) == [("RAF", "RST002")]
