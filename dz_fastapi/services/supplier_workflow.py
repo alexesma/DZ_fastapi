@@ -663,6 +663,7 @@ async def list_supplier_receipt_candidates(
                     ),
                     "customer_name": customer.name if customer else None,
                     "barcode": item.autopart.barcode if item.autopart else None,
+                    "autopart_id": item.autopart_id,
                     "oem_number": item.oem_number,
                     "brand_name": item.brand_name,
                     "autopart_name": item.autopart_name,

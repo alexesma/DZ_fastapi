@@ -769,6 +769,7 @@ class SupplierReceiptCandidateRow(BaseModel):
     customer_order_number: Optional[str] = None
     customer_name: Optional[str] = None
     barcode: Optional[str] = None
+    autopart_id: Optional[int] = None
     oem_number: Optional[str] = None
     brand_name: Optional[str] = None
     autopart_name: Optional[str] = None
