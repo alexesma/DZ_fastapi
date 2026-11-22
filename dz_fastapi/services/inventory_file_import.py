@@ -263,8 +263,14 @@ def resolve_brand_key(brand: str) -> str:
     return BRAND_ALIASES.get(key, key)
 
 
+# Настоящие бренды, названия которых состоят из цифр.
+NUMERIC_BRANDS = {"555"}
+
+
 def is_junk_brand(brand_key: str) -> bool:
     """Бренд из одних цифр («1 680») — ошибка старой базы, бренд не создаём."""
+    if brand_key in NUMERIC_BRANDS:
+        return False
     return not brand_key or bool(_NUMERIC_BRAND_RE.match(brand_key))
 
 

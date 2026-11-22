@@ -193,6 +193,7 @@ def test_brand_aliases_and_junk_brands():
         make_xlsx(
             [
                 line(1, "1 680", "1AP1220003", "Патрон", "A 1", 1, "10"),
+                line(3, "555", "SB6191", "Шаровая опора", "A 3", 1, "10"),
                 line(2, "RAF FILTER", "RST002", "Фильтр", "A 2", 1, "10"),
             ]
         )
@@ -200,7 +201,7 @@ def test_brand_aliases_and_junk_brands():
     skipped: list[dict] = []
     targets = aggregate_rows(rows, skipped)
     assert [item["brand"] for item in skipped] == ["1 680"]
-    assert list(targets) == [("RAF", "RST002")]
+    assert list(targets) == [("555", "SB6191"), ("RAF", "RST002")]
 
 
 @pytest.mark.asyncio
