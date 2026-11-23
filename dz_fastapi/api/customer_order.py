@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.api.autopart import _availability_by_autopart
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
@@ -448,6 +449,8 @@ async def _item_reference_info(session: AsyncSession, items) -> dict[int, dict]:
         ).all():
             supplier_qty[(row[0], row[1])] = int(row[2] or 0)
 
+    availability = await _availability_by_autopart(session, sorted(autopart_ids))
+
     result: dict[int, dict] = {}
     for item in items:
         if not item.autopart_id:
@@ -464,6 +467,12 @@ async def _item_reference_info(session: AsyncSession, items) -> dict[int, dict]:
                 supplier_qty.get(pricelist_for_item[item.id], 0)
                 if item.id in pricelist_for_item
                 else None
+            ),
+            "suppliers_stock_qty": int(
+                availability.get(item.autopart_id, {}).get("supplier_quantity", 0)
+            ),
+            "suppliers_count": int(
+                availability.get(item.autopart_id, {}).get("suppliers_count", 0)
             ),
             "honest_sign_category": ", ".join(sorted(set(names))) or None,
         }
