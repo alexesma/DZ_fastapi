@@ -259,8 +259,6 @@ class CustomerOrderItemResponse(BaseModel):
     stock_physical: Optional[int] = None
     stock_free: Optional[int] = None
     supplier_stock_qty: Optional[int] = None
-    suppliers_stock_qty: Optional[int] = None
-    suppliers_count: Optional[int] = None
     honest_sign_category: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
