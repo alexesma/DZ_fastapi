@@ -544,6 +544,7 @@ class SupplierOrderItemDetailResponse(BaseModel):
     customer_received_at: Optional[datetime] = None
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
+    multiplicity: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -563,6 +564,7 @@ class SupplierOrderDetailResponse(BaseModel):
     response_status_raw: Optional[str] = None
     response_status_normalized: Optional[str] = None
     response_status_synced_at: Optional[datetime] = None
+    provider_stats: Optional[dict] = None
     items: List[SupplierOrderItemDetailResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

@@ -2942,6 +2942,72 @@ async def delete_supplier_receipt_item_endpoint(
     return SupplierReceiptResponse.model_validate(serialize_supplier_receipt(receipt))
 
 
+async def _supplier_order_extras(session: AsyncSession, order) -> tuple[dict, dict]:
+    """Кратность позиций из свежего прайса и статистика поставщика за 90 дней.
+
+    Статистика считается по строкам, на которые поставщик уже ответил:
+    сколько штук он подтвердил от заказанного и сколько дней обещает.
+    """
+    multiplicity: dict[int, int] = {}
+    autopart_ids = {i.autopart_id for i in order.items or [] if i.autopart_id}
+    if autopart_ids:
+        latest = (
+            await session.execute(
+                select(func.max(PriceList.id)).where(
+                    (
+                        PriceList.provider_config_id == order.provider_config_id
+                        if order.provider_config_id
+                        else PriceList.provider_id == order.provider_id
+                    ),
+                    PriceList.is_active.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+        if latest:
+            multiplicity = dict(
+                (
+                    await session.execute(
+                        select(
+                            PriceListAutoPartAssociation.autopart_id,
+                            func.max(PriceListAutoPartAssociation.multiplicity),
+                        )
+                        .where(
+                            PriceListAutoPartAssociation.pricelist_id == latest,
+                            PriceListAutoPartAssociation.autopart_id.in_(autopart_ids),
+                        )
+                        .group_by(PriceListAutoPartAssociation.autopart_id)
+                    )
+                ).all()
+            )
+    cutoff = now_moscow() - timedelta(days=90)
+    row = (
+        await session.execute(
+            select(
+                func.count(SupplierOrderItem.id),
+                func.coalesce(func.sum(SupplierOrderItem.quantity), 0),
+                func.coalesce(func.sum(SupplierOrderItem.confirmed_quantity), 0),
+                func.avg(SupplierOrderItem.max_delivery_day),
+            )
+            .join(SupplierOrder, SupplierOrder.id == SupplierOrderItem.supplier_order_id)
+            .where(
+                SupplierOrder.provider_id == order.provider_id,
+                SupplierOrder.sent_at >= cutoff,
+                SupplierOrderItem.confirmed_quantity.is_not(None),
+            )
+        )
+    ).one()
+    ordered = int(row[1] or 0)
+    stats = {
+        "days": 90,
+        "answered_items": int(row[0] or 0),
+        "ordered_qty": ordered,
+        "confirmed_qty": int(row[2] or 0),
+        "confirm_pct": round(int(row[2] or 0) * 100 / ordered) if ordered else None,
+        "avg_delivery_day": round(float(row[3]), 1) if row[3] is not None else None,
+    }
+    return multiplicity, stats
+
+
 @router.get(
     "/supplier/{order_id}",
     response_model=SupplierOrderDetailResponse,
@@ -2969,6 +3035,7 @@ async def get_supplier_order_detail(
         if order.sent_at is not None and timing is not None
         else None
     )
+    multiplicity, provider_stats = await _supplier_order_extras(session, order)
     current_time = now_moscow()
     items = []
     for item in order.items or []:
@@ -3034,6 +3101,7 @@ async def get_supplier_order_detail(
                 ),
                 "customer_id": customer.id if customer else None,
                 "customer_name": customer.label_display_name if customer else None,
+                "multiplicity": multiplicity.get(item.autopart_id),
             }
         )
     return SupplierOrderDetailResponse(
@@ -3051,6 +3119,7 @@ async def get_supplier_order_detail(
         response_status_raw=order.response_status_raw,
         response_status_normalized=order.response_status_normalized,
         response_status_synced_at=order.response_status_synced_at,
+        provider_stats=provider_stats,
         items=items,
     )
 
