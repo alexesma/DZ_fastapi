@@ -20,8 +20,8 @@ from dz_fastapi.crud.customer_order import (
     crud_supplier_order,
 )
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
-from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
-from dz_fastapi.models.inventory import ReserveStatus, StockByLocation, StockReserve
+from dz_fastapi.models.autopart import AutoPart, StorageLocation, preprocess_oem_number
+from dz_fastapi.models.inventory import ReserveStatus, StockByLocation, StockReserve, Warehouse
 from dz_fastapi.models.nomenclature import HonestSignCategory, autopart_honest_sign_association
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
@@ -132,6 +132,7 @@ from dz_fastapi.services.marking_receipt_check import (
     check_receipts_marking_local,
 )
 from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.services.one_c_opening_balance import MAIN_WAREHOUSE_NAME
 from dz_fastapi.services.stock_order_packages import (
     create_stock_order_package,
     delete_stock_order_package,
@@ -330,11 +331,19 @@ async def _item_reference_info(session: AsyncSession, items) -> dict[int, dict]:
     autopart_ids = {i.autopart_id for i in items if i.autopart_id}
     if not autopart_ids:
         return {}
+    # Наличие — только основной склад. «Склад Заказа» — транзит под заказы
+    # (кросс-докинг), это не наш остаток, в расчёт не берём.
+    main_location_ids = select(StorageLocation.id).join(
+        Warehouse, Warehouse.id == StorageLocation.warehouse_id
+    ).where(Warehouse.name == MAIN_WAREHOUSE_NAME)
     physical = dict(
         (
             await session.execute(
                 select(StockByLocation.autopart_id, func.sum(StockByLocation.quantity))
-                .where(StockByLocation.autopart_id.in_(autopart_ids))
+                .where(
+                    StockByLocation.autopart_id.in_(autopart_ids),
+                    StockByLocation.storage_location_id.in_(main_location_ids),
+                )
                 .group_by(StockByLocation.autopart_id)
             )
         ).all()
@@ -346,6 +355,10 @@ async def _item_reference_info(session: AsyncSession, items) -> dict[int, dict]:
                 .where(
                     StockReserve.autopart_id.in_(autopart_ids),
                     StockReserve.status == ReserveStatus.ACTIVE,
+                    or_(
+                        StockReserve.storage_location_id.is_(None),
+                        StockReserve.storage_location_id.in_(main_location_ids),
+                    ),
                 )
                 .group_by(StockReserve.autopart_id)
             )
