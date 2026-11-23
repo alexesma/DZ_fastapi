@@ -7,7 +7,7 @@ from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user, require_admin
@@ -20,7 +20,9 @@ from dz_fastapi.crud.customer_order import (
     crud_supplier_order,
 )
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
-from dz_fastapi.models.autopart import preprocess_oem_number
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.inventory import ReserveStatus, StockByLocation, StockReserve
+from dz_fastapi.models.nomenclature import HonestSignCategory, autopart_honest_sign_association
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
@@ -29,6 +31,8 @@ from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
     CustomerPriceListConfig,
+    PriceList,
+    PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
     SupplierOrder,
@@ -313,6 +317,144 @@ async def _send_supplier_receipt_upd_if_enabled(
             level=AppNotificationLevel.SUCCESS,
             link="/documents/incoming",
         )
+
+
+async def _item_reference_info(session: AsyncSession, items) -> dict[int, dict]:
+    """Остатки и категория ЧЗ по строкам заказа, одним пакетом запросов.
+
+    Остаток склада берём из системы (StockByLocation минус активные резервы),
+    а не из прайса: учёт переходит в систему. Наличие у поставщика — из его
+    свежего прайса; если конфигурация прайса у строки не указана, берём
+    свежий прайс поставщика целиком.
+    """
+    autopart_ids = {i.autopart_id for i in items if i.autopart_id}
+    if not autopart_ids:
+        return {}
+    physical = dict(
+        (
+            await session.execute(
+                select(StockByLocation.autopart_id, func.sum(StockByLocation.quantity))
+                .where(StockByLocation.autopart_id.in_(autopart_ids))
+                .group_by(StockByLocation.autopart_id)
+            )
+        ).all()
+    )
+    reserved = dict(
+        (
+            await session.execute(
+                select(StockReserve.autopart_id, func.sum(StockReserve.quantity))
+                .where(
+                    StockReserve.autopart_id.in_(autopart_ids),
+                    StockReserve.status == ReserveStatus.ACTIVE,
+                )
+                .group_by(StockReserve.autopart_id)
+            )
+        ).all()
+    )
+    categories: dict[int, list[str]] = defaultdict(list)
+    for autopart_id, name in (
+        await session.execute(
+            select(autopart_honest_sign_association.c.autopart_id, HonestSignCategory.name)
+            .join(
+                HonestSignCategory,
+                HonestSignCategory.id
+                == autopart_honest_sign_association.c.honest_sign_category_id,
+            )
+            .where(autopart_honest_sign_association.c.autopart_id.in_(autopart_ids))
+        )
+    ).all():
+        categories[autopart_id].append(name)
+    legacy = dict(
+        (
+            await session.execute(
+                select(AutoPart.id, AutoPart.honest_sign_category).where(
+                    AutoPart.id.in_(autopart_ids),
+                    AutoPart.honest_sign_category.is_not(None),
+                )
+            )
+        ).all()
+    )
+
+    # свежий прайс по конфигурации (или по поставщику)
+    latest_by_config: dict[int, int] = {}
+    latest_by_provider: dict[int, int] = {}
+    config_ids = {i.provider_config_id for i in items if i.provider_config_id}
+    provider_ids = {i.supplier_id for i in items if i.supplier_id and not i.provider_config_id}
+    if config_ids:
+        latest_by_config = dict(
+            (
+                await session.execute(
+                    select(PriceList.provider_config_id, func.max(PriceList.id))
+                    .where(
+                        PriceList.provider_config_id.in_(config_ids),
+                        PriceList.is_active.is_(True),
+                    )
+                    .group_by(PriceList.provider_config_id)
+                )
+            ).all()
+        )
+    if provider_ids:
+        latest_by_provider = dict(
+            (
+                await session.execute(
+                    select(PriceList.provider_id, func.max(PriceList.id))
+                    .where(
+                        PriceList.provider_id.in_(provider_ids),
+                        PriceList.is_active.is_(True),
+                    )
+                    .group_by(PriceList.provider_id)
+                )
+            ).all()
+        )
+    pricelist_for_item = {}
+    for item in items:
+        pl = (
+            latest_by_config.get(item.provider_config_id)
+            if item.provider_config_id
+            else latest_by_provider.get(item.supplier_id)
+        )
+        if pl and item.autopart_id:
+            pricelist_for_item[item.id] = (pl, item.autopart_id)
+    supplier_qty: dict[tuple[int, int], int] = {}
+    if pricelist_for_item:
+        pairs = set(pricelist_for_item.values())
+        for row in (
+            await session.execute(
+                select(
+                    PriceListAutoPartAssociation.pricelist_id,
+                    PriceListAutoPartAssociation.autopart_id,
+                    func.sum(PriceListAutoPartAssociation.quantity),
+                ).where(
+                    PriceListAutoPartAssociation.pricelist_id.in_({p for p, _ in pairs}),
+                    PriceListAutoPartAssociation.autopart_id.in_({a for _, a in pairs}),
+                ).group_by(
+                    PriceListAutoPartAssociation.pricelist_id,
+                    PriceListAutoPartAssociation.autopart_id,
+                )
+            )
+        ).all():
+            supplier_qty[(row[0], row[1])] = int(row[2] or 0)
+
+    result: dict[int, dict] = {}
+    for item in items:
+        if not item.autopart_id:
+            continue
+        phys = int(physical.get(item.autopart_id) or 0)
+        free = max(0, phys - int(reserved.get(item.autopart_id) or 0))
+        names = categories.get(item.autopart_id) or (
+            [legacy[item.autopart_id]] if legacy.get(item.autopart_id) else []
+        )
+        result[item.id] = {
+            "stock_physical": phys,
+            "stock_free": free,
+            "supplier_stock_qty": (
+                supplier_qty.get(pricelist_for_item[item.id], 0)
+                if item.id in pricelist_for_item
+                else None
+            ),
+            "honest_sign_category": ", ".join(sorted(set(names))) or None,
+        }
+    return result
 
 
 def _serialize_customer_order_item_for_user(
@@ -1010,7 +1152,15 @@ async def get_customer_order(
     order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return _serialize_customer_order_for_user(order, current_user)
+    response = _serialize_customer_order_for_user(order, current_user)
+    info = await _item_reference_info(session, order.items or [])
+    return response.model_copy(
+        update={
+            "items": [
+                item.model_copy(update=info.get(item.id, {})) for item in response.items
+            ]
+        }
+    )
 
 
 @router.patch(

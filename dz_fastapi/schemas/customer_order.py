@@ -255,6 +255,11 @@ class CustomerOrderItemResponse(BaseModel):
     reject_reason_code: Optional[str] = None
     reject_reason_text: Optional[str] = None
     credit_warning: Optional[dict] = None
+    # Справочные поля для экрана заказа; считаются в API, в БД не хранятся.
+    stock_physical: Optional[int] = None
+    stock_free: Optional[int] = None
+    supplier_stock_qty: Optional[int] = None
+    honest_sign_category: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
