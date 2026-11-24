@@ -4142,3 +4142,31 @@ def test_config_sender_emails_has_no_duplicates():
     )
     assert _config_sender_emails(config) == ["meh_order@stparts.ru", "other@stparts.ru"]
     assert _config_sender_emails(SimpleNamespace(order_email=None, order_emails=None)) == []
+
+
+@pytest.mark.asyncio
+async def test_send_supplier_orders_never_sends_empty_order(
+    monkeypatch, test_session, created_providers
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SCHEDULED,
+    )
+    test_session.add(order)
+    await test_session.commit()
+    order_id = order.id
+
+    async def must_not_send(*args, **kwargs):
+        raise AssertionError("empty supplier order must not be emailed")
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        must_not_send,
+    )
+
+    result = await send_supplier_orders(test_session, [order_id])
+
+    assert result == {"sent": 0, "failed": 0, "skipped_empty": 1}
+    assert await test_session.get(SupplierOrder, order_id) is None

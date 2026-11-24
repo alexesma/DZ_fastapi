@@ -6487,6 +6487,7 @@ async def send_supplier_orders(
     orders = result.unique().scalars().all()
     sent = 0
     failed = 0
+    skipped_empty = 0
 
     account = await _get_out_account(session, "orders_out")
     smtp_kwargs = {}
@@ -6495,6 +6496,14 @@ async def send_supplier_orders(
     default_stub_email = await _supplier_order_stub_address_from_settings(session)
 
     for order in orders:
+        if not order.items:
+            # Все позиции убрали (удалили в заказе поставщику или клиент
+            # отказался): пустое письмо поставщику уходить не должно.
+            logger.info("Supplier order %s has no items: not sent, removed", order.id)
+            if order.status in (SUPPLIER_ORDER_STATUS.NEW, SUPPLIER_ORDER_STATUS.SCHEDULED):
+                await session.delete(order)
+            skipped_empty += 1
+            continue
         order.last_send_attempt_at = now_moscow()
         order.last_send_error = None
         provider = order.provider
@@ -6612,7 +6621,10 @@ async def send_supplier_orders(
             failed += 1
 
     await session.commit()
-    return {"sent": sent, "failed": failed}
+    result = {"sent": sent, "failed": failed}
+    if skipped_empty:
+        result["skipped_empty"] = skipped_empty
+    return result
 
 
 def _latest_supplier_order_cutoff(
