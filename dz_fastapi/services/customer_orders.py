@@ -4919,6 +4919,7 @@ async def retry_customer_order(
     order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
     if not order:
         raise LookupError("Order not found")
+    order_id = order.id
     if (
         (order.external_payload or {}).get("pricelist_routing", {}).get("basis")
         == "review_required"
@@ -4935,6 +4936,23 @@ async def retry_customer_order(
     )
     if not config:
         raise ValueError("Order config not found")
+    if not config.is_active:
+        # Конфигурацию отключили (например, дубль «на удаление»): заказ,
+        # застрявший на ней, переводим на единственную активную настройку
+        # клиента, иначе повтор всегда падает на отключённой.
+        active = [
+            candidate
+            for candidate in await crud_customer_order_config.list_by_customer_id(
+                session=session, customer_id=order.customer_id
+            )
+            if candidate.is_active
+            and (candidate.pricelist_config_id or candidate.reference_pricelist_config_id)
+        ]
+        if len(active) == 1:
+            config = active[0]
+            order.order_config_id = config.id
+            session.add(order)
+            await session.commit()
 
     if order.response_file_path and os.path.isfile(order.response_file_path):
         if _customer_order_auto_reply_enabled():
@@ -5052,7 +5070,7 @@ async def retry_customer_order(
         )
     except Exception as exc:
         await session.rollback()
-        order = await session.get(CustomerOrder, order.id)
+        order = await session.get(CustomerOrder, order_id)
         if not order:
             raise ValueError("Order not found after retry rollback") from exc
         reason = f"Ошибка повторной обработки: {exc}"

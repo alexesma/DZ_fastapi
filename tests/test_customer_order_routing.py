@@ -858,3 +858,31 @@ async def test_recheck_prefers_affordable_supplier_over_loss_making_primary(
     assert updated.reject_qty == 0
     assert float(supplier_item.price) == 2100
     assert supplier_item.quantity == 6
+
+
+@pytest.mark.asyncio
+async def test_retry_moves_order_from_disabled_config_to_the_only_active_one(
+    monkeypatch, test_session, created_customers,
+):
+    customer = created_customers[0]
+    configs, _ = await setup_routes(test_session, customer)
+    disabled, active = configs
+    disabled.is_active = False
+    order = CustomerOrder(
+        customer_id=customer.id,
+        order_config_id=disabled.id,
+        status=CUSTOMER_ORDER_STATUS.ERROR,
+        source_filename="order.xls",
+    )
+    test_session.add(order)
+    await test_session.commit()
+    order_id, active_id = order.id, active.id
+
+    monkeypatch.setattr(
+        service, "_load_order_source_file", AsyncMock(return_value=None)
+    )
+    with pytest.raises(ValueError):
+        await service.retry_customer_order(test_session, order_id)
+
+    refreshed = await test_session.get(CustomerOrder, order_id)
+    assert refreshed.order_config_id == active_id
