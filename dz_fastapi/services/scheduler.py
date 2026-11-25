@@ -848,7 +848,7 @@ def start_scheduler(app: FastAPI):
     #   5. Технические задачи очистки — 02–04 МСК (минимум активности).
 
     # ── 1. Заказы клиентов ────────────────────────────────────────────────
-    # Цикл 1: 08:XX–09:XX МСК — интенсивный (каждые N мин)
+    # Цикл 1: 08:XX–09:XX МСК — интенсивный (каждые N мин); хвост до 10:30 ниже
     scheduler.add_job(
         func=download_customer_orders_task,
         trigger="cron",
@@ -857,6 +857,23 @@ def start_scheduler(app: FastAPI):
         name="Download customer orders — цикл 1 (08–10 МСК)",
         hour="8-9",
         minute=_cron_minute_for_interval(CUSTOMER_ORDERS_CHECK_MINUTES),
+        second=15,
+        replace_existing=True,
+    )
+    # Продолжение цикла 1: 10:00–10:29 МСК. Ключевой клиент присылает заказ
+    # около 10:00, и фоновый режим (раз в 20 минут) успевал его пропустить.
+    scheduler.add_job(
+        func=download_customer_orders_task,
+        trigger="cron",
+        args=[app],
+        id="download_customer_orders_cycle1_tail",
+        name="Download customer orders — цикл 1, хвост (10:00–10:29 МСК)",
+        hour=10,
+        minute=(
+            f"0-29/{CUSTOMER_ORDERS_CHECK_MINUTES}"
+            if CUSTOMER_ORDERS_CHECK_MINUTES < 30
+            else "0"
+        ),
         second=15,
         replace_existing=True,
     )
@@ -880,11 +897,25 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id="download_customer_orders_bg",
         name="Download customer orders — фон (вне циклов)",
-        hour="1-7,10-12,16-18",
+        hour="1-7,11-12,16-18",
         minute=_cron_minute_for_interval(ORDERS_SLOW_POLL_MINUTES),
         second=15,
         replace_existing=True,
     )
+    # В 10 часов фон включается только со второй половины часа
+    # (до 10:30 работает хвост цикла 1).
+    if ORDERS_SLOW_POLL_MINUTES < 30:
+        scheduler.add_job(
+            func=download_customer_orders_task,
+            trigger="cron",
+            args=[app],
+            id="download_customer_orders_bg_10h",
+            name="Download customer orders — фон (10:30–10:59 МСК)",
+            hour=10,
+            minute=f"30-59/{ORDERS_SLOW_POLL_MINUTES}",
+            second=15,
+            replace_existing=True,
+        )
 
     # ── 2. Ответы поставщиков ─────────────────────────────────────────────
     # Проверяем почту перед каждым решением по правилу 30 + 15 минут.
@@ -1676,7 +1707,10 @@ async def download_customer_orders_task(app: FastAPI):
                     if last_run is not None:
                         elapsed = (now_moscow() - last_run).total_seconds()
                         trace.details["elapsed_since_last_run_sec"] = round(elapsed, 1)
-                        if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
+                        # Допуск: запуск по cron стартует на секунды раньше, чем
+                        # «ровно 20 минут» от прошлого, и без допуска каждый
+                        # второй запуск пропускался (реальный шаг — 40 минут).
+                        if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS - 120:
                             logger.debug(
                                 "Outside order windows, slow mode: elapsed=%.0fs",
                                 elapsed,
