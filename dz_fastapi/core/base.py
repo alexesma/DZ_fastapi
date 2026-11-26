@@ -32,6 +32,7 @@ from dz_fastapi.models.diadoc import (  # noqa
     DiadocOutgoingDocument,
 )
 from dz_fastapi.models.email_account import EmailAccount  # noqa
+from dz_fastapi.models.email_send_log import EmailSendLog  # noqa
 from dz_fastapi.models.etrn import (  # noqa
     EtrnWaybill,
     TransportAddress,

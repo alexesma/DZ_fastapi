@@ -85,6 +85,7 @@ from dz_fastapi.services.diadoc_status import (
     refresh_diadoc_outgoing_statuses,
 )
 from dz_fastapi.services.email import get_emails
+from dz_fastapi.services.email_retry import cleanup_email_log, retry_due_emails
 from dz_fastapi.services.inbox_email import cleanup_inbox_emails, fetch_and_store_emails
 from dz_fastapi.services.monitoring import (
     build_snapshot_payload,
@@ -1200,9 +1201,24 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id="send_supplier_orders",
         name="Send scheduled supplier orders",
-        minute="*/5",
+        minute="*",
         second=0,
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # Повторы неушедших писем: паузы 1, 2, 3 и 5 минут, поэтому раз в минуту.
+    scheduler.add_job(
+        func=retry_failed_emails_task,
+        trigger="cron",
+        args=[app],
+        id="retry_failed_emails",
+        name="Retry failed outgoing emails",
+        minute="*",
+        second=30,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
 
     # ── 15. Синхронизация статусов треккинга ──────────────────────────────
@@ -2375,6 +2391,19 @@ async def send_scheduled_supplier_orders_task(app: FastAPI):
                     "Ошибка при автоматической отправке заказов " f"поставщикам.\nТекст ошибки: {e}"
                 ),
             )
+
+
+async def retry_failed_emails_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            summary = await retry_due_emails(session)
+            if summary["retried"]:
+                logger.info("retry_failed_emails_task summary=%s", summary)
+            if now_moscow().minute == 30:
+                await cleanup_email_log(session)
+        except Exception as exc:
+            logger.error("Error retrying outgoing emails: %s", exc, exc_info=True)
 
 
 async def cleanup_order_reports_task(app: FastAPI):

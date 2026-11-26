@@ -1375,7 +1375,124 @@ async def download_price_provider(
         )
 
 
+class _SendErrorCapture(logging.Handler):
+    """Собирает сообщения об ошибках отправки из текущего потока для журнала."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self._thread_id = threading.get_ident()
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.thread == self._thread_id:
+            try:
+                self.messages.append(record.getMessage())
+            except Exception:  # noqa: BLE001
+                pass
+
+    @property
+    def text(self) -> str:
+        return " | ".join(self.messages)[:2000]
+
+
+def run_send_with_error_capture(send):
+    """Выполняет отправку и возвращает (успех, текст ошибки)."""
+    capture = _SendErrorCapture()
+    logger.addHandler(capture)
+    try:
+        ok = bool(send())
+        error = None if ok else (capture.text or "Почтовый транспорт вернул ошибку")
+        return ok, error
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{exc}"[:2000]
+    finally:
+        logger.removeHandler(capture)
+
+
 def send_email_with_attachment(
+    to_email,
+    subject,
+    body,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
+    is_html: bool = False,
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    from_email: str | None = None,
+    use_ssl: bool = True,
+    transport: str | None = None,
+    oauth_refresh_token: str | None = None,
+    resend_api_key: str | None = None,
+    resend_timeout: int | None = None,
+    resend_idempotency_key: str | None = None,
+    *,
+    log_source: str | None = None,
+    log_source_id: int | None = None,
+    auto_retry: bool = True,
+) -> bool:
+    """Отправляет письмо и записывает результат в журнал писем.
+
+    ``auto_retry``: при неудаче письмо попадёт в очередь повторов
+    (через 1, 2, 3 и 5 минут). Процессы со своими повторами (заказы
+    поставщикам) передают False.
+    """
+    from dz_fastapi.services import email_journal
+
+    started = time.monotonic()
+    raised: Exception | None = None
+    capture = _SendErrorCapture()
+    logger.addHandler(capture)
+    try:
+        ok = bool(
+            _send_email_with_attachment_impl(
+                to_email,
+                subject,
+                body,
+                attachment_bytes,
+                attachment_filename,
+                is_html,
+                smtp_host,
+                smtp_port,
+                smtp_user,
+                smtp_password,
+                from_email,
+                use_ssl,
+                transport,
+                oauth_refresh_token,
+                resend_api_key,
+                resend_timeout,
+                resend_idempotency_key,
+            )
+        )
+        error = None if ok else (capture.text or "Почтовый транспорт вернул ошибку")
+    except Exception as exc:  # noqa: BLE001
+        ok, error, raised = False, f"{exc}"[:2000], exc
+    finally:
+        logger.removeHandler(capture)
+    email_journal.record_send(
+        to_email=to_email,
+        from_email=from_email or EMAIL_NAME,
+        subject=subject,
+        transport=(transport or EMAIL_TRANSPORT or "smtp"),
+        source=log_source,
+        source_id=log_source_id,
+        attachment_bytes=attachment_bytes,
+        attachment_name=attachment_filename,
+        body=body,
+        is_html=is_html,
+        ok=ok,
+        error=error,
+        duration_ms=int((time.monotonic() - started) * 1000),
+        auto_retry=auto_retry,
+    )
+    if raised is not None:
+        raise raised
+    return ok
+
+
+def _send_email_with_attachment_impl(
     to_email,
     subject,
     body,

@@ -3550,6 +3550,15 @@ async def send_pricelist(
                     body=body,
                     attachment_bytes=attachment_bytes,
                     attachment_filename=attachment_filename,
+                    log_source="pricelist",
+                    log_source_id=(
+                        int(customer_pricelist_id)
+                        if customer_pricelist_id is not None
+                        else None
+                    ),
+                    # Несколько адресов: при неудаче ниже письмо уйдёт каждому
+                    # отдельно, общий повтор продублировал бы рассылку.
+                    auto_retry=len(relay_recipients) <= 1,
                     # Resend помнит ключ 24 часа и отвечает 409, если с тем же
                     # ключом пришло другое тело (другие получатели, тема или
                     # файл после перегенерации). Поэтому в ключ входит отпечаток
@@ -3602,6 +3611,12 @@ async def send_pricelist(
                             body=body,
                             attachment_bytes=attachment_bytes,
                             attachment_filename=attachment_filename,
+                            log_source="pricelist",
+                            log_source_id=(
+                                int(customer_pricelist_id)
+                                if customer_pricelist_id is not None
+                                else None
+                            ),
                             resend_idempotency_key=(
                                 f"customer-pricelist/{customer_pricelist_id}"
                                 f"/sender/{sender_key}/single"

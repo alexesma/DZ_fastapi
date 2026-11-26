@@ -145,6 +145,8 @@ async def send_invoice_email(
             subject=subject,
             body=html_body,
             is_html=True,
+            log_source="invoice",
+            log_source_id=invoice.id,
         )
         if result:
             logger.info(

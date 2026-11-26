@@ -23,6 +23,7 @@ from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.api.diadoc import router as diadoc_router
 from dz_fastapi.api.diadoc_etrn import router as diadoc_etrn_router
 from dz_fastapi.api.email_account import router as email_account_router
+from dz_fastapi.api.email_log import router as email_log_router
 from dz_fastapi.api.email_outbox import router as email_outbox_router
 from dz_fastapi.api.finance import router as finance_router
 from dz_fastapi.api.inbox_email import router as inbox_router
@@ -215,6 +216,7 @@ app.include_router(diadoc_etrn_router, dependencies=AUTH_REQUIRED)
 app.include_router(one_c_router)
 app.include_router(reclamation_router)
 app.include_router(email_outbox_router)
+app.include_router(email_log_router)
 app.include_router(telegram_outbox_router)
 app.include_router(email_account_router, dependencies=AUTH_REQUIRED)
 app.include_router(inbox_router, dependencies=AUTH_REQUIRED)

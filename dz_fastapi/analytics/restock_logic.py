@@ -418,6 +418,7 @@ async def export_and_send_restock_report(
         body="Прикреплен отчет с предложениями по заказу.",
         attachment_filename=filename,
         attachment_bytes=file_bytes,
+        log_source="restock_report",
     )
 
     await send_file_to_telegram(

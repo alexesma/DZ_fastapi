@@ -73,6 +73,10 @@ async def send_shipment_upd_email(
         attachment,
         file_name,
         True,
+        log_source="shipment_upd",
+        log_source_id=shipment_id,
+        # Ошибку видит и повторяет вызывающий процесс (кнопка / автоцикл).
+        auto_retry=False,
         **build_email_delivery_kwargs(account),
     )
     if not sent:

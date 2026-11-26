@@ -3239,6 +3239,8 @@ async def _send_forwarded_customer_order_email(
             attachment_bytes,
             filename,
             False,
+            log_source="customer_forward",
+            log_source_id=order_id,
             **kwargs,
         )
         logger.info(
@@ -3973,6 +3975,8 @@ async def _send_order_response_email(
             attachment_bytes,
             order.response_file_name,
             False,
+            log_source="customer_reply",
+            log_source_id=order.id,
             **kwargs,
         )
         order.status = (
@@ -6485,7 +6489,7 @@ async def _resolve_supplier_order_config(
 
 # Повторы отправки заказа поставщику: паузы между попытками растут, чтобы
 # переждать временный сбой почты, но не засыпать поставщика письмами.
-SUPPLIER_ORDER_RETRY_DELAYS_MIN = (5, 15, 30, 60, 120, 240)
+SUPPLIER_ORDER_RETRY_DELAYS_MIN = (1, 2, 3, 5)
 SUPPLIER_ORDER_MAX_SEND_ATTEMPTS = len(SUPPLIER_ORDER_RETRY_DELAYS_MIN) + 1
 SUPPLIER_ORDER_NO_RECIPIENT_ERROR = "Не указан адрес получателя заказа"
 # Старые заказы в ERROR сами не повторяем и не поднимаем тревогу: устаревший
@@ -6697,6 +6701,9 @@ async def send_supplier_orders(
                 attachment_bytes,
                 attachment_filename,
                 True,
+                log_source="supplier_order",
+                log_source_id=order.id,
+                auto_retry=False,
                 **smtp_kwargs,
             )
             # Транспорт почты не бросает исключение, а возвращает False

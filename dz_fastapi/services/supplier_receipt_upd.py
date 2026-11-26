@@ -465,6 +465,9 @@ async def send_supplier_receipt_upd_email(
         attachment,
         supplier_receipt_upd_filename(receipt),
         True,
+        log_source="supplier_receipt_upd",
+        log_source_id=receipt.id,
+        auto_retry=False,
         **smtp_kwargs,
     )
     if not sent:
