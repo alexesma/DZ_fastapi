@@ -3129,6 +3129,7 @@ async def get_supplier_order_detail(
         sent_at=order.sent_at,
         last_send_attempt_at=order.last_send_attempt_at,
         last_send_error=order.last_send_error,
+        send_attempts=int(order.send_attempts or 0),
         response_status_raw=order.response_status_raw,
         response_status_normalized=order.response_status_normalized,
         response_status_synced_at=order.response_status_synced_at,

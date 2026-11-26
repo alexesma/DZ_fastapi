@@ -561,6 +561,7 @@ class SupplierOrderDetailResponse(BaseModel):
     sent_at: Optional[datetime]
     last_send_attempt_at: Optional[datetime] = None
     last_send_error: Optional[str] = None
+    send_attempts: int = 0
     response_status_raw: Optional[str] = None
     response_status_normalized: Optional[str] = None
     response_status_synced_at: Optional[datetime] = None

@@ -6483,6 +6483,89 @@ async def _resolve_supplier_order_config(
     return await session.get(ProviderPriceListConfig, config_ids.pop())
 
 
+# Повторы отправки заказа поставщику: паузы между попытками растут, чтобы
+# переждать временный сбой почты, но не засыпать поставщика письмами.
+SUPPLIER_ORDER_RETRY_DELAYS_MIN = (5, 15, 30, 60, 120, 240)
+SUPPLIER_ORDER_MAX_SEND_ATTEMPTS = len(SUPPLIER_ORDER_RETRY_DELAYS_MIN) + 1
+SUPPLIER_ORDER_NO_RECIPIENT_ERROR = "Не указан адрес получателя заказа"
+# Старые заказы в ERROR сами не повторяем и не поднимаем тревогу: устаревший
+# заказ поставщику нельзя отправлять без решения человека.
+SUPPLIER_ORDER_RETRY_WINDOW = timedelta(hours=48)
+SUPPLIER_ORDER_ALERT_WINDOW = timedelta(days=7)
+
+
+def _as_moscow(value: datetime | None) -> datetime | None:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=ZoneInfo("Europe/Moscow"))
+    return value
+
+
+def _supplier_order_retry_delay(attempts: int) -> timedelta:
+    index = min(max(int(attempts or 1) - 1, 0), len(SUPPLIER_ORDER_RETRY_DELAYS_MIN) - 1)
+    return timedelta(minutes=SUPPLIER_ORDER_RETRY_DELAYS_MIN[index])
+
+
+def _supplier_order_error_is_permanent(order: SupplierOrder) -> bool:
+    """Ошибки, которые повтор не исправит: нужно вмешательство человека."""
+    return str(order.last_send_error or "").startswith(SUPPLIER_ORDER_NO_RECIPIENT_ERROR)
+
+
+def _supplier_order_retry_due(order: SupplierOrder, now: datetime) -> bool:
+    if order.status != SUPPLIER_ORDER_STATUS.ERROR or order.sent_at is not None:
+        return False
+    if _supplier_order_error_is_permanent(order):
+        return False
+    created = _as_moscow(order.created_at)
+    if created is not None and now - created > SUPPLIER_ORDER_RETRY_WINDOW:
+        return False
+    attempts = int(order.send_attempts or 0)
+    if attempts >= SUPPLIER_ORDER_MAX_SEND_ATTEMPTS:
+        return False
+    last = _as_moscow(order.last_send_attempt_at)
+    if last is None:
+        return True
+    return now - last >= _supplier_order_retry_delay(attempts)
+
+
+async def collect_supplier_order_send_alerts(session: AsyncSession) -> list[dict]:
+    """Заказы, которые не ушли и сами уже не уйдут; помечает, что сообщили."""
+    orders = (
+        await session.execute(
+            select(SupplierOrder)
+            .options(joinedload(SupplierOrder.provider))
+            .where(
+                SupplierOrder.status == SUPPLIER_ORDER_STATUS.ERROR,
+                SupplierOrder.send_alerted_at.is_(None),
+                SupplierOrder.created_at >= now_moscow() - SUPPLIER_ORDER_ALERT_WINDOW,
+            )
+            .with_for_update(of=SupplierOrder, skip_locked=True)
+        )
+    ).scalars().all()
+    alerts = []
+    now = now_moscow()
+    for order in orders:
+        permanent = _supplier_order_error_is_permanent(order)
+        exhausted = int(order.send_attempts or 0) >= SUPPLIER_ORDER_MAX_SEND_ATTEMPTS
+        too_old_to_retry = (
+            order.created_at is not None
+            and now - _as_moscow(order.created_at) > SUPPLIER_ORDER_RETRY_WINDOW
+        )
+        if not (permanent or exhausted or too_old_to_retry):
+            continue
+        order.send_alerted_at = now
+        alerts.append(
+            {
+                "id": order.id,
+                "provider": order.provider.name if order.provider else None,
+                "attempts": int(order.send_attempts or 0),
+                "error": str(order.last_send_error or "")[:300],
+                "permanent": permanent,
+            }
+        )
+    await session.commit()
+    return alerts
+
+
 async def send_supplier_orders(
     session: AsyncSession,
     supplier_order_ids: List[int],
@@ -6524,6 +6607,7 @@ async def send_supplier_orders(
             continue
         order.last_send_attempt_at = now_moscow()
         order.last_send_error = None
+        order.send_attempts = int(order.send_attempts or 0) + 1
         provider = order.provider
         is_manual_search_order = order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
         # Заглушка задаётся в карточке поставщика; ручные заказы из поиска
@@ -6552,7 +6636,7 @@ async def send_supplier_orders(
         to_email = override_email or original_recipient
         if not to_email:
             order.status = SUPPLIER_ORDER_STATUS.ERROR
-            order.last_send_error = "Не указан адрес получателя заказа"
+            order.last_send_error = SUPPLIER_ORDER_NO_RECIPIENT_ERROR
             failed += 1
             continue
 
@@ -6626,6 +6710,7 @@ async def send_supplier_orders(
             order.status = SUPPLIER_ORDER_STATUS.SENT
             order.sent_at = now_moscow()
             order.last_send_error = None
+            order.send_alerted_at = None
             sent += 1
         except Exception as exc:
             logger.error(
@@ -6698,6 +6783,18 @@ async def send_scheduled_supplier_orders(session: AsyncSession) -> Dict[str, int
         )
     ).scalars().all()
     order_ids = []
+    # Не ушедшие заказы повторяем сами: раньше после первой ошибки заказ
+    # оставался в ERROR навсегда, пока кто-то не нажмёт «Отправить».
+    retry_orders = (
+        await session.execute(
+            select(SupplierOrder)
+            .where(SupplierOrder.status == SUPPLIER_ORDER_STATUS.ERROR)
+            .with_for_update(of=SupplierOrder, skip_locked=True)
+        )
+    ).scalars().all()
+    order_ids.extend(
+        order.id for order in retry_orders if _supplier_order_retry_due(order, now)
+    )
     for order in orders:
         if order.status == SUPPLIER_ORDER_STATUS.SCHEDULED:
             order_ids.append(order.id)

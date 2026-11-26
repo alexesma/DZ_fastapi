@@ -1420,6 +1420,10 @@ class SupplierOrder(Base):
     sent_at = Column(DateTime(timezone=True), nullable=True)
     last_send_attempt_at = Column(DateTime(timezone=True), nullable=True)
     last_send_error = Column(Text, nullable=True)
+    # Сколько раз пытались отправить письмо поставщику и когда сообщили
+    # администраторам, что попытки закончились (одно уведомление на заказ).
+    send_attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    send_alerted_at = Column(DateTime(timezone=True), nullable=True)
     response_status_raw = Column(String(255), nullable=True)
     response_status_normalized = Column(String(255), nullable=True, index=True)
     response_status_synced_at = Column(DateTime(timezone=True), nullable=True)

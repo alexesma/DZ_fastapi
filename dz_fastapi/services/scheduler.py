@@ -67,6 +67,7 @@ from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files,
     cleanup_order_reports,
+    collect_supplier_order_send_alerts,
     process_customer_orders,
     send_scheduled_supplier_orders,
 )
@@ -2348,6 +2349,20 @@ async def send_scheduled_supplier_orders_task(app: FastAPI):
                 "Completed send_scheduled_supplier_orders_task summary=%s",
                 summary,
             )
+            for alert in await collect_supplier_order_send_alerts(session):
+                reason = (
+                    "нужно вмешательство: " if alert["permanent"]
+                    else f"{alert['attempts']} попыток не помогли: "
+                )
+                await create_admin_notifications(
+                    session=session,
+                    title=f"Заказ поставщику № {alert['id']} не отправлен",
+                    message=(
+                        f"{alert['provider'] or 'Поставщик'}: {reason}{alert['error']}"
+                    ),
+                    level="error",
+                    link=f"/customer-orders/suppliers/{alert['id']}",
+                )
         except Exception as e:
             logger.error(
                 f"Error sending scheduled supplier orders: {e}",
