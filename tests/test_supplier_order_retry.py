@@ -5,7 +5,12 @@ from datetime import timedelta
 import pytest
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.partner import SUPPLIER_ORDER_STATUS, SupplierOrder, SupplierOrderItem
+from dz_fastapi.models.partner import (
+    SUPPLIER_ORDER_STATUS,
+    ProviderPriceListConfig,
+    SupplierOrder,
+    SupplierOrderItem,
+)
 from dz_fastapi.services import customer_orders as service
 
 
@@ -106,3 +111,26 @@ async def test_old_error_order_is_not_resent_automatically(
     await service.send_scheduled_supplier_orders(test_session)
 
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_manual_order_uses_order_addresses_of_all_provider_configs(
+    monkeypatch, test_session, created_providers, created_autopart,
+):
+    provider = created_providers[0]
+    for index, emails in enumerate((
+        ["sales@example.com", "buyer@example.com"],
+        ["buyer@example.com", "copy@example.com"],
+    )):
+        test_session.add(ProviderPriceListConfig(
+            provider_id=provider.id, start_row=1, oem_col=1, qty_col=3,
+            price_col=4, name_price=f"price_{index}", order_emails=emails,
+        ))
+    await test_session.flush()
+    # Manual item, no price config known; provider contact must NOT win.
+    order = await _order(test_session, provider, created_autopart)
+    calls = _patch_transport(monkeypatch, [True])
+
+    await service.send_supplier_orders(test_session, [order.id])
+
+    assert calls == ["sales@example.com,buyer@example.com,copy@example.com"]

@@ -6451,18 +6451,28 @@ async def process_customer_orders(
             )
 
 
-async def _resolve_supplier_order_config(
+def _config_order_recipients(config: Optional[ProviderPriceListConfig]) -> list[str]:
+    recipients = _normalize_email_list(getattr(config, "order_emails", None))
+    if not recipients:
+        recipients = _normalize_email_list(getattr(config, "order_email_to", None))
+    return recipients
+
+
+async def _resolve_supplier_order_configs(
     session: AsyncSession,
     order: SupplierOrder,
-) -> Optional[ProviderPriceListConfig]:
-    """Настройка прайса для адресов, темы и пр. при отправке заказа.
+) -> list[ProviderPriceListConfig]:
+    """Настройки прайса, чьи адреса, тема и пр. относятся к заказу.
 
-    Если у поставщика не включено деление заказов по прайсам, заказ хранится
-    без ``provider_config_id``; тогда настройку берём из позиций клиентского
-    заказа, по которым он собран. Однозначной считаем единственную настройку.
+    1. Заказ привязан к одному прайсу — он.
+    2. Иначе прайсы из позиций клиентского заказа, по которым собран заказ
+       (их может быть несколько, если деление по прайсам выключено).
+    3. Иначе (позиции добавлены вручную) — активные прайсы поставщика
+       с заполненными адресами заказа. Раньше в этих случаях письмо
+       уходило на почту из «Контактов», минуя адреса заказов.
     """
     if order.provider_config is not None:
-        return order.provider_config
+        return [order.provider_config]
     config_ids = {
         int(config_id)
         for config_id in (
@@ -6482,9 +6492,26 @@ async def _resolve_supplier_order_config(
         ).all()
         if config_id is not None
     }
-    if len(config_ids) != 1:
-        return None
-    return await session.get(ProviderPriceListConfig, config_ids.pop())
+    if config_ids:
+        configs = (
+            await session.scalars(
+                select(ProviderPriceListConfig)
+                .where(ProviderPriceListConfig.id.in_(config_ids))
+                .order_by(ProviderPriceListConfig.id)
+            )
+        ).all()
+        return list(configs)
+    configs = (
+        await session.scalars(
+            select(ProviderPriceListConfig)
+            .where(
+                ProviderPriceListConfig.provider_id == order.provider_id,
+                ProviderPriceListConfig.is_active.is_(True),
+            )
+            .order_by(ProviderPriceListConfig.id)
+        )
+    ).all()
+    return [config for config in configs if _config_order_recipients(config)]
 
 
 # Повторы отправки заказа поставщику: паузы между попытками растут, чтобы
@@ -6625,14 +6652,15 @@ async def send_supplier_orders(
                 or default_stub_email
             )
         )
-        order_config = await _resolve_supplier_order_config(session, order)
-        configured_recipients = _normalize_email_list(
-            getattr(order_config, "order_emails", None)
-        )
-        if not configured_recipients:
-            configured_recipients = _normalize_email_list(
-                getattr(order_config, "order_email_to", None)
-            )
+        order_configs = await _resolve_supplier_order_configs(session, order)
+        # Тема и название прайса берутся только когда прайс один; при
+        # нескольких прайсах адреса объединяем, тема остаётся стандартной.
+        order_config = order_configs[0] if len(order_configs) == 1 else None
+        configured_recipients: list[str] = []
+        for candidate in order_configs:
+            for address in _config_order_recipients(candidate):
+                if address not in configured_recipients:
+                    configured_recipients.append(address)
         original_recipient = (
             ",".join(configured_recipients)
             or _build_supplier_order_recipient(provider, use_override=False)
