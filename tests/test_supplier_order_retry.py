@@ -118,6 +118,7 @@ async def test_manual_order_uses_order_addresses_of_all_provider_configs(
     monkeypatch, test_session, created_providers, created_autopart,
 ):
     provider = created_providers[0]
+    provider.order_stub_enabled = False  # real addresses, not the test stub
     for index, emails in enumerate((
         ["sales@example.com", "buyer@example.com"],
         ["buyer@example.com", "copy@example.com"],
