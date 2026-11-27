@@ -7,6 +7,7 @@
 
 import logging
 import os
+import re
 import threading
 from datetime import timedelta
 from pathlib import Path
@@ -23,17 +24,15 @@ logger = logging.getLogger("dz_fastapi")
 # Паузы между повторами, минуты: после 1-й, 2-й, 3-й, 4-й неудачи.
 EMAIL_RETRY_DELAYS_MIN = (1, 2, 3, 5)
 EMAIL_MAX_ATTEMPTS = len(EMAIL_RETRY_DELAYS_MIN) + 1
-
-
-def is_permanent_smtp_error(error: str | None) -> bool:
-    """SMTP 5xx (например 550 bounced check filter) — повтор не поможет."""
-    import re
-
-    return bool(re.search(r"\(5\d\d,", error or ""))
 RETRY_DIR = os.getenv("EMAIL_RETRY_DIR", "uploads/email_retry")
 
 _engine = None
 _engine_lock = threading.Lock()
+
+
+def is_permanent_smtp_error(error: str | None) -> bool:
+    """SMTP 5xx (например 550 bounced check filter) — повтор не поможет."""
+    return bool(re.search(r"\(5\d\d,", error or ""))
 
 
 def journal_enabled() -> bool:
