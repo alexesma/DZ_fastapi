@@ -2725,6 +2725,12 @@ def _format_numeric_for_excel(value: Optional[float]) -> object:
     return round(parsed, 2)
 
 
+def _supplier_order_clean_oem(oem: str) -> str:
+    """Артикул для заказа поставщику: без дефисов, пробелов и прочих
+    спецсимволов — только буквы и цифры."""
+    return re.sub(r"[\W_]+", "", oem or "")
+
+
 def _build_supplier_order_rows(
     order: SupplierOrder,
 ) -> tuple[list[dict[str, object]], int, float]:
@@ -2734,7 +2740,9 @@ def _build_supplier_order_rows(
     for index, item in enumerate(order.items or [], start=1):
         autopart = item.autopart
         brand_name = autopart.brand.name if autopart and autopart.brand else ""
-        oem_number = item.oem_number or (autopart.oem_number if autopart else "") or ""
+        oem_number = _supplier_order_clean_oem(
+            item.oem_number or (autopart.oem_number if autopart else "") or ""
+        )
         part_name = item.autopart_name or (autopart.name if autopart else "") or ""
         quantity = int(item.quantity or 0)
         price = float(item.price) if item.price is not None else 0.0

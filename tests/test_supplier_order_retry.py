@@ -165,3 +165,11 @@ async def test_manual_order_is_bound_to_price_config_of_items(
         [{"oem": "X2", "brand": "B", "quantity": 1, "price": 5}],
     )
     assert unbound.provider_config_id is None
+
+
+def test_supplier_order_oem_is_cleaned_of_special_characters():
+    clean = service._supplier_order_clean_oem
+    assert clean("90301-22013") == "9030122013"
+    assert clean(" 04465/0K-240.A ") == "044650K240A"
+    assert clean("ABC_12 3") == "ABC123"
+    assert clean(None) == ""
