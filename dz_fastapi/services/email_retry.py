@@ -16,7 +16,11 @@ from dz_fastapi.services.email import (
     build_email_delivery_kwargs,
     run_send_with_error_capture,
 )
-from dz_fastapi.services.email_journal import EMAIL_MAX_ATTEMPTS, EMAIL_RETRY_DELAYS_MIN
+from dz_fastapi.services.email_journal import (
+    EMAIL_MAX_ATTEMPTS,
+    EMAIL_RETRY_DELAYS_MIN,
+    is_permanent_smtp_error,
+)
 from dz_fastapi.services.notifications import create_admin_notifications
 
 logger = logging.getLogger("dz_fastapi")
@@ -105,7 +109,7 @@ async def retry_due_emails(session: AsyncSession) -> dict[str, int]:
             result["sent"] += 1
             continue
         row.last_error = (error or "")[:2000] or None
-        if row.attempts >= EMAIL_MAX_ATTEMPTS:
+        if row.attempts >= EMAIL_MAX_ATTEMPTS or is_permanent_smtp_error(error):
             row.status = "failed"
             row.next_retry_at = None
             result["failed"] += 1

@@ -23,6 +23,13 @@ logger = logging.getLogger("dz_fastapi")
 # Паузы между повторами, минуты: после 1-й, 2-й, 3-й, 4-й неудачи.
 EMAIL_RETRY_DELAYS_MIN = (1, 2, 3, 5)
 EMAIL_MAX_ATTEMPTS = len(EMAIL_RETRY_DELAYS_MIN) + 1
+
+
+def is_permanent_smtp_error(error: str | None) -> bool:
+    """SMTP 5xx (например 550 bounced check filter) — повтор не поможет."""
+    import re
+
+    return bool(re.search(r"\(5\d\d,", error or ""))
 RETRY_DIR = os.getenv("EMAIL_RETRY_DIR", "uploads/email_retry")
 
 _engine = None
@@ -111,10 +118,11 @@ def record_send(
         if ok:
             values.update(status="sent", sent_at=now, retry_allowed=False)
         else:
+            will_retry = auto_retry and not is_permanent_smtp_error(error)
             values.update(
-                status="retry" if auto_retry else "failed",
+                status="retry" if will_retry else "failed",
                 next_retry_at=(
-                    now + timedelta(minutes=EMAIL_RETRY_DELAYS_MIN[0]) if auto_retry else None
+                    now + timedelta(minutes=EMAIL_RETRY_DELAYS_MIN[0]) if will_retry else None
                 ),
                 last_error=(error or "")[:2000] or None,
                 body=body,
