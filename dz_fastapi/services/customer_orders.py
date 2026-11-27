@@ -95,7 +95,11 @@ from dz_fastapi.services.customer_order_identity import (
     match_customer_order,
 )
 from dz_fastapi.services.customer_order_routing import compare_order_pricelists
-from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
+from dz_fastapi.services.email import (
+    build_email_delivery_kwargs,
+    send_email_with_attachment,
+    send_via_resend_fallback,
+)
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.process import (
@@ -6773,6 +6777,30 @@ async def send_supplier_orders(
             # Транспорт почты не бросает исключение, а возвращает False
             # (например, SMTP-порт закрыт): без проверки заказ ложно
             # помечался бы отправленным.
+            if delivered is False and (
+                int(order.send_attempts or 0) >= SUPPLIER_ORDER_MAX_SEND_ATTEMPTS
+            ):
+                # Последняя попытка основного канала не удалась — запасной
+                # канал Resend, чтобы заказ не остался неотправленным.
+                delivered, fallback_error = await asyncio.to_thread(
+                    send_via_resend_fallback,
+                    to_email,
+                    subject,
+                    body,
+                    attachment_bytes,
+                    attachment_filename,
+                    True,
+                )
+                if delivered:
+                    logger.warning(
+                        "Supplier order %s sent via Resend fallback", order.id
+                    )
+                else:
+                    logger.error(
+                        "Supplier order %s Resend fallback failed: %s",
+                        order.id,
+                        fallback_error,
+                    )
             if delivered is False:
                 raise RuntimeError(
                     "Письмо не отправлено: ошибка почтового транспорта, "

@@ -118,12 +118,12 @@ def record_send(
         if ok:
             values.update(status="sent", sent_at=now, retry_allowed=False)
         else:
-            will_retry = auto_retry and not is_permanent_smtp_error(error)
+            # При окончательном отказе SMTP (5xx) очередь сразу переходит
+            # к запасному каналу (Resend), не тратя пять попыток.
+            delay_min = 0 if is_permanent_smtp_error(error) else EMAIL_RETRY_DELAYS_MIN[0]
             values.update(
-                status="retry" if will_retry else "failed",
-                next_retry_at=(
-                    now + timedelta(minutes=EMAIL_RETRY_DELAYS_MIN[0]) if will_retry else None
-                ),
+                status="retry" if auto_retry else "failed",
+                next_retry_at=(now + timedelta(minutes=delay_min) if auto_retry else None),
                 last_error=(error or "")[:2000] or None,
                 body=body,
                 attachment_path=_store_attachment(attachment_bytes, attachment_name),

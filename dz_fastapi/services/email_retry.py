@@ -15,6 +15,7 @@ from dz_fastapi.services.email import (
     _send_email_with_attachment_impl,
     build_email_delivery_kwargs,
     run_send_with_error_capture,
+    send_via_resend_fallback,
 )
 from dz_fastapi.services.email_journal import (
     EMAIL_MAX_ATTEMPTS,
@@ -78,6 +79,25 @@ async def _resend(session: AsyncSession, row: EmailSendLog) -> tuple[bool, str |
     return await asyncio.to_thread(run_send_with_error_capture, send)
 
 
+async def _resend_via_fallback(row: EmailSendLog) -> tuple[bool, str | None]:
+    attachment = None
+    if row.attachment_path:
+        try:
+            with open(row.attachment_path, "rb") as handle:
+                attachment = handle.read()
+        except OSError as exc:
+            return False, f"Resend: не найдено вложение: {exc}"
+    return await asyncio.to_thread(
+        send_via_resend_fallback,
+        row.to_email,
+        row.subject,
+        row.body or "",
+        attachment,
+        row.attachment_name,
+        bool(row.is_html),
+    )
+
+
 async def retry_due_emails(session: AsyncSession) -> dict[str, int]:
     """Повторяет письма, у которых подошло время; при исчерпании — тревога."""
     now = now_moscow()
@@ -95,7 +115,11 @@ async def retry_due_emails(session: AsyncSession) -> dict[str, int]:
     ).scalars().all()
     result = {"retried": 0, "sent": 0, "failed": 0}
     for row in rows:
-        ok, error = await _resend(session, row)
+        if is_permanent_smtp_error(row.last_error):
+            # SMTP отказал окончательно (5xx) — повтор тем же каналом бессмыслен.
+            ok, error = False, row.last_error
+        else:
+            ok, error = await _resend(session, row)
         result["retried"] += 1
         row.attempts = int(row.attempts or 0) + 1
         _append_event(row, ok, error)
@@ -110,6 +134,19 @@ async def retry_due_emails(session: AsyncSession) -> dict[str, int]:
             continue
         row.last_error = (error or "")[:2000] or None
         if row.attempts >= EMAIL_MAX_ATTEMPTS or is_permanent_smtp_error(error):
+            fb_ok, fb_error = await _resend_via_fallback(row)
+            _append_event(row, fb_ok, fb_error or "отправлено через Resend (запасной канал)")
+            if fb_ok:
+                row.status = "sent"
+                row.sent_at = now_moscow()
+                row.next_retry_at = None
+                row.last_error = None
+                row.body = None
+                _remove_attachment(row)
+                result["sent"] += 1
+                await session.commit()
+                continue
+            row.last_error = f"{row.last_error or ''} | {fb_error}"[:2000]
             row.status = "failed"
             row.next_retry_at = None
             result["failed"] += 1

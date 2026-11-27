@@ -139,3 +139,39 @@ async def test_retry_job_marks_sent_and_drops_body(
     assert result["sent"] == 1
     (row,) = await _rows(test_session)
     assert (row.status, row.attempts, row.body, row.attachment_path) == ("sent", 2, None, None)
+
+
+@pytest.mark.asyncio
+async def test_permanent_smtp_error_goes_straight_to_resend_fallback(
+    monkeypatch, test_session, journal_on, tmp_path,
+):
+    monkeypatch.setattr(email_journal, "RETRY_DIR", str(tmp_path))
+
+    def bounced(*args, **kwargs):
+        email_service.logger.error("Failed: (550, b'bounced check filter')")
+        return False
+
+    monkeypatch.setattr(email_service, "_send_email_with_attachment_impl", bounced)
+    email_service.send_email_with_attachment(
+        "price@example.com", "Прайс", "body", b"x", "p.xlsx", False,
+    )
+    (row,) = await _rows(test_session)
+    assert row.status == "retry" and row.next_retry_at <= now_moscow() + timedelta(seconds=5)
+
+    smtp_calls = []
+    monkeypatch.setattr(
+        email_retry, "_send_email_with_attachment_impl",
+        lambda *a, **k: smtp_calls.append(a) or False,
+    )
+    fallback = []
+    monkeypatch.setattr(
+        email_retry, "send_via_resend_fallback",
+        lambda *a: fallback.append(a[0]) or (True, None),
+    )
+    row.next_retry_at = now_moscow() - timedelta(seconds=1)
+    await test_session.commit()
+    await email_retry.retry_due_emails(test_session)
+
+    (row,) = await _rows(test_session)
+    assert row.status == "sent" and row.last_error is None
+    assert smtp_calls == [] and fallback == ["price@example.com"]

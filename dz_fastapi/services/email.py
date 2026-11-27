@@ -1409,6 +1409,66 @@ def run_send_with_error_capture(send):
         logger.removeHandler(capture)
 
 
+def _resend_fallback_credentials() -> tuple[str | None, str | None]:
+    """Ключ и адрес отправителя Resend: из окружения, иначе из почтовых
+    аккаунтов с транспортом resend_api."""
+    api_key = _clean_mail_setting(RESEND_API_KEY)
+    from_email = _clean_mail_setting(RESEND_FROM_EMAIL)
+    if api_key and from_email:
+        return api_key, from_email
+    try:
+        from sqlalchemy import text
+
+        from dz_fastapi.services.email_journal import _get_engine
+
+        with _get_engine().connect() as connection:
+            row = connection.execute(
+                text(
+                    "select email, resend_api_key from emailaccount "
+                    "where transport = 'resend_api' "
+                    "and resend_api_key is not null and resend_api_key <> '' "
+                    "order by id limit 1"
+                )
+            ).first()
+        if row:
+            return api_key or row.resend_api_key, from_email or row.email
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Resend fallback credentials lookup failed: %s", exc)
+    return api_key, from_email
+
+
+def send_via_resend_fallback(
+    to_email,
+    subject,
+    body,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
+    is_html: bool = False,
+) -> tuple[bool, str | None]:
+    """Запасная отправка через Resend после исчерпания основного канала.
+
+    Возвращает (успех, ошибка).
+    """
+    api_key, from_email = _resend_fallback_credentials()
+    if not api_key:
+        return False, "Resend не настроен (нет ключа), запасной канал недоступен"
+
+    def send():
+        return _send_email_via_resend(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            attachment_bytes=attachment_bytes,
+            attachment_filename=attachment_filename,
+            is_html=is_html,
+            from_email=from_email,
+            resend_api_key=api_key,
+        )
+
+    ok, error = run_send_with_error_capture(send)
+    return ok, (None if ok else f"Resend: {error}")
+
+
 def send_email_with_attachment(
     to_email,
     subject,
