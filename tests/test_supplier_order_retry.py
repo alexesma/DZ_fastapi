@@ -135,3 +135,33 @@ async def test_manual_order_uses_order_addresses_of_all_provider_configs(
     await service.send_supplier_orders(test_session, [order.id])
 
     assert calls == ["sales@example.com,buyer@example.com,copy@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_manual_order_is_bound_to_price_config_of_items(
+    test_session, created_providers, created_autopart,
+):
+    provider = created_providers[0]
+    config = ProviderPriceListConfig(
+        provider_id=provider.id, start_row=1, oem_col=1, qty_col=3,
+        price_col=4, name_price="main", order_emails="o@example.com",
+    )
+    test_session.add(config)
+    await test_session.flush()
+
+    bound = await service.create_manual_supplier_order(
+        test_session,
+        provider.id,
+        [{
+            "autopart_id": created_autopart.id, "oem": "X1", "brand": "B",
+            "quantity": 1, "price": 5, "provider_config_id": config.id,
+        }],
+    )
+    assert bound.provider_config_id == config.id
+
+    unbound = await service.create_manual_supplier_order(
+        test_session,
+        provider.id,
+        [{"oem": "X2", "brand": "B", "quantity": 1, "price": 5}],
+    )
+    assert unbound.provider_config_id is None

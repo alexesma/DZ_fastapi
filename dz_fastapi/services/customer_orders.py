@@ -5129,6 +5129,37 @@ async def retry_customer_order_errors_for_config(
     return stats
 
 
+async def _manual_order_provider_config_id(
+    session: AsyncSession,
+    provider_id: int,
+    items: list[dict],
+) -> int | None:
+    """Прайс, к которому относится заказ, собранный из поиска по артикулу.
+
+    Берём прайс из позиций (его передаёт страница), иначе определяем по
+    последнему прайсу, где есть позиция. Если позиции из разных прайсов
+    или прайс не определился — заказ остаётся без привязки.
+    """
+    config_ids: set[int | None] = set()
+    for item in items:
+        config_id = item.get("provider_config_id")
+        if config_id is None and item.get("autopart_id"):
+            _, _, config_id = await _latest_supplier_item_offer(
+                session,
+                provider_id=provider_id,
+                provider_config_id=None,
+                autopart_id=int(item["autopart_id"]),
+            )
+        config_ids.add(int(config_id) if config_id is not None else None)
+    if len(config_ids) != 1 or None in config_ids:
+        return None
+    config_id = next(iter(config_ids))
+    config = await session.get(ProviderPriceListConfig, config_id)
+    if config is None or config.provider_id != provider_id:
+        return None
+    return config_id
+
+
 async def create_manual_supplier_order(
     session: AsyncSession,
     provider_id: int,
@@ -5172,6 +5203,7 @@ async def create_manual_supplier_order(
                 "quantity": quantity,
                 "multiplicity": multiplicity,
                 "price": price_value,
+                "provider_config_id": item.get("provider_config_id"),
                 "min_delivery_day": item.get("min_delivery_day"),
                 "max_delivery_day": item.get("max_delivery_day"),
             }
@@ -5179,8 +5211,12 @@ async def create_manual_supplier_order(
     if not cleaned_items:
         raise ValueError("Items list is empty")
 
+    provider_config_id = await _manual_order_provider_config_id(
+        session, provider_id, cleaned_items
+    )
     supplier_order = SupplierOrder(
         provider_id=provider_id,
+        provider_config_id=provider_config_id,
         status=SUPPLIER_ORDER_STATUS.NEW,
         source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
         created_by_user_id=created_by_user_id,

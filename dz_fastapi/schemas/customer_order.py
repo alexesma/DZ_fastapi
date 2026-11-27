@@ -330,6 +330,7 @@ class SupplierOrderManualItemCreate(BaseModel):
     quantity: int = Field(gt=0)
     multiplicity: int = Field(default=1, ge=1)
     price: Optional[Decimal] = None
+    provider_config_id: Optional[int] = None
     min_delivery_day: Optional[int] = None
     max_delivery_day: Optional[int] = None
 
